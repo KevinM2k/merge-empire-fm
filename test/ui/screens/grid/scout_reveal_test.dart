@@ -376,6 +376,7 @@ void main() {
               atCap: false,
               trait: null,
               form: 0,
+              suspended: false,
             ),
             badge: null,
             isNewDiscovery: true,

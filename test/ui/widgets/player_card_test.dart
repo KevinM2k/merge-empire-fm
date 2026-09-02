@@ -23,10 +23,28 @@ const CardView _view = (
   atCap: false,
   trait: null,
   form: 0,
+  suspended: false,
 );
 
 /// The base view with one thing changed. Records have no `copyWith`, and the
 /// alternative is a second literal that drifts from the first.
+CardView withSuspension() => (
+  name: _view.name,
+  tier: _view.tier,
+  rating: _view.rating,
+  position: _view.position,
+  injured: _view.injured,
+  onLoan: _view.onLoan,
+  variant: _view.variant,
+  fitness: _view.fitness,
+  incomePerSec: _view.incomePerSec,
+  maxed: _view.maxed,
+  atCap: _view.atCap,
+  trait: _view.trait,
+  form: _view.form,
+  suspended: true,
+);
+
 CardView withForm(int form) => (
   name: _view.name,
   tier: _view.tier,
@@ -41,6 +59,7 @@ CardView withForm(int form) => (
   atCap: _view.atCap,
   trait: _view.trait,
   form: form,
+  suspended: false,
 );
 
 Future<void> pumpCard(
@@ -199,6 +218,7 @@ void main() {
           atCap: false,
           trait: null,
           form: 0,
+          suspended: false,
         ), light: true);
         expect(
           chipFillFor(tester, '50').computeLuminance(),
@@ -225,6 +245,7 @@ void main() {
         atCap: false,
         trait: null,
         form: 0,
+        suspended: false,
       ));
       final border = decorationOf(tester).border! as Border;
       expect(
@@ -254,6 +275,7 @@ void main() {
       atCap: false,
       trait: null,
       form: 0,
+      suspended: false,
     ));
     expect(find.text('X'), findsOneWidget);
   });
@@ -282,6 +304,7 @@ void main() {
       atCap: false,
       trait: null,
       form: 0,
+      suspended: false,
     ));
     expect(find.byIcon(Icons.healing), findsOneWidget);
     // **AND THE LOAN SAYS SO IN WORDS.** It was a pair of arrows and nothing
@@ -323,6 +346,7 @@ void main() {
       atCap: false,
       trait: null,
       form: 0,
+      suspended: false,
     ));
     expect(tester.takeException(), isNull);
     final text = tester.widget<Text>(find.textContaining('Wojciech'));
@@ -354,6 +378,7 @@ void main() {
         atCap: false,
         trait: null,
         form: 0,
+        suspended: false,
       ));
       final bar = tester.widget<LinearProgressIndicator>(
         find.byKey(const ValueKey('card-fitness')),
@@ -376,6 +401,7 @@ void main() {
         atCap: false,
         trait: null,
         form: 0,
+        suspended: false,
       ));
       final bar = tester.widget<LinearProgressIndicator>(
         find.byKey(const ValueKey('card-fitness')),
@@ -401,6 +427,7 @@ void main() {
           atCap: false,
           trait: null,
           form: 0,
+          suspended: false,
         ));
         expect(tester.takeException(), isNull, reason: '$value');
       }
@@ -470,6 +497,7 @@ void main() {
         atCap: false,
         trait: (icon: '⚽', level: 'III', title: '⚽ Finisher III'),
         form: 0,
+        suspended: false,
       ));
       expect(find.byKey(const ValueKey('card-trait')), findsOneWidget);
       expect(find.text('⚽ III'), findsOneWidget);
@@ -530,6 +558,27 @@ void main() {
       // says nothing about any of them.
       await pumpCard(tester, withForm(0));
       expect(find.byKey(const ValueKey('card-form')), findsNothing);
+    });
+  });
+
+  group('A SUSPENSION IS ON THE CARD', () {
+    // A sending-off bans the player from the next match, and a squad screen
+    // that does not say so is one a manager picks an illegal eleven from.
+    // Asked for from the couch: a red card over the card.
+    testWidgets('a banned player wears the red', (tester) async {
+      await pumpCard(tester, withSuspension());
+      final card = tester.widget<Container>(
+        find.byKey(const ValueKey('card-suspended')),
+      );
+      expect(
+        (card.decoration! as BoxDecoration).color,
+        const Color(0xFFE0342B),
+      );
+    });
+
+    testWidgets('and everybody else does not', (tester) async {
+      await pumpCard(tester, _view);
+      expect(find.byKey(const ValueKey('card-suspended')), findsNothing);
     });
   });
 }

@@ -44,6 +44,7 @@ void main() {
                 // An arrow on two thirds of them, both directions: it is a
                 // Text in the caption row and the budget has to hold it.
                 form: i % 3 == 0 ? 0 : (i % 2 == 0 ? 1 : -1),
+                suspended: false,
               ),
             ),
           ),

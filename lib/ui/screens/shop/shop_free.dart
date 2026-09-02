@@ -13,7 +13,9 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/engine/ad_gate_engine.dart';
+import 'package:merge_empire_fc/data/config.dart';
 import 'package:merge_empire_fc/engine/free_shelf_engine.dart';
+import 'package:merge_empire_fc/engine/gem_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/services/rewarded_ads.dart';
@@ -85,6 +87,25 @@ class FreeShelfSection extends ConsumerWidget {
     }
   }
 
+  /// The same grant, paid for.
+  ///
+  /// **The allowance is re-read INSIDE the update** rather than trusted from
+  /// the build that painted the button — `grantMatchCooldownAd` has its own
+  /// cap, and a tile rendered before the third video must not charge a gem for
+  /// a fourth grant that then does nothing.
+  void _buyCooldown(WidgetRef ref) {
+    var paid = false;
+    ref.read(gameProvider).update((state) {
+      if (!spendGems(state, Minigame.skipGemCost, 'match_cooldown')) return;
+      paid = true;
+      grantMatchCooldownAd(state);
+    });
+    emit(
+      paid ? 'toast:success' : 'toast:error',
+      paid ? t('shop.toast.no_match_cooldown') : t('shop.toast.not_enough_gems'),
+    );
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final gate = ref.watch(adGateProvider);
@@ -112,17 +133,42 @@ class FreeShelfSection extends ConsumerWidget {
     final cooldownBadge = shelf.cooldownActive
         ? t('shop.active_mins_left', {'mins': shelf.cooldownMinsLeft})
         : shelf.cooldownUsed >= matchCooldownAdCapPerDay
-        ? t('shop.daily_cap')
+        ? null
         : gateStatus;
     final cooldownBlocked = shelf.cooldownActive
         ? t('shop.active_mins_left', {'mins': shelf.cooldownMinsLeft})
         : shelf.cooldownUsed >= matchCooldownAdCapPerDay
-        ? t('shop.daily_cap')
+        ? null
         : gateBlocked;
+
+    // **THE BADGE AND THE REASON ARE TWO LINES, and they were saying the same
+    // thing.** A tile's badge sits beside the title and its disabled reason
+    // under the button; while a boost is running both resolved to "Active · 5m
+    // left" and the card printed it twice, one under the other. Reported from
+    // the couch on both free tiles.
+    //
+    // The BADGE is the one that survives: it is the brighter of the two and it
+    // is where a state belongs. What the reason is for is a precondition the
+    // player can act on — "watch one in 4m" — and that is still said.
+    String? notTwice(String? badge, String? reason) =>
+        badge != null && badge == reason ? null : reason;
+
+    // **AND PAST THE DAY'S THREE IT REPRICES RATHER THAN DYING.** The tile
+    // used to read "Daily cap" and go dead, which is a door with no handle on
+    // the one control that shortens the wait to the next match. Asked for from
+    // the couch in the shape the training sheet's skip-all already has: the
+    // yellow ad button becomes a blue gem button, one gem, same grant.
+    //
+    // `Minigame.skipGemCost` is that price, and it is the same number for the
+    // same reason — one gem is what clearing a wait costs everywhere else.
+    final cooldownCapped =
+        !shelf.cooldownActive && shelf.cooldownUsed >= matchCooldownAdCapPerDay;
 
     // A boot already waiting is HELD, not capped: there is one on the shelf and
     // a second would overwrite it.
     final bootBlocked = shelf.bootHeld ? t('shop.active') : gateBlocked;
+    final bootBadge = shelf.bootHeld ? t('shop.active') : null;
+
 
     return ShopSectionFrame(
       id: ShopSectionId.free,
@@ -139,15 +185,26 @@ class FreeShelfSection extends ConsumerWidget {
             // The clock for a cooldown that gets shortened and the clover for a
             // boot that changes your luck — both already in the game's own set,
             // in the yellow the ad tone is drawn in everywhere else.
-            glyph: const GameIcon('stopwatch', size: 32, color: adOfferInk),
+            glyph: GameIcon(
+              'stopwatch',
+              size: 32,
+              color: cooldownCapped ? null : adOfferInk,
+            ),
             title: t('shop.match_cooldown_ad_name'),
             subtitle: t('shop.match_cooldown_ad_desc'),
-            price: t('shop.claim_cta'),
-            tone: StoreTone.ad,
+            // Blue is a price and yellow is an ad, and a purchase must never
+            // wear an ad disclosure — the same rule the training sheet's
+            // skip-all follows on the line that toggles it.
+            price: cooldownCapped
+                ? '${Minigame.skipGemCost}'
+                : t('shop.claim_cta'),
+            tone: cooldownCapped ? StoreTone.gem : StoreTone.ad,
             badge: cooldownBadge,
-            disabledReason: cooldownBlocked,
+            disabledReason: notTwice(cooldownBadge, cooldownBlocked),
             onBuy: cooldownBlocked != null
                 ? null
+                : cooldownCapped
+                ? () => _buyCooldown(ref)
                 : () => _watch(
                     ref,
                     placement: cooldownPlacement,
@@ -162,8 +219,8 @@ class FreeShelfSection extends ConsumerWidget {
             subtitle: t('shop.lucky_boot_ad_desc'),
             price: t('shop.claim_cta'),
             tone: StoreTone.ad,
-            badge: shelf.bootHeld ? t('shop.active') : gateStatus,
-            disabledReason: bootBlocked,
+            badge: bootBadge ?? gateStatus,
+            disabledReason: notTwice(bootBadge ?? gateStatus, bootBlocked),
             onBuy: bootBlocked != null
                 ? null
                 : () => _watch(

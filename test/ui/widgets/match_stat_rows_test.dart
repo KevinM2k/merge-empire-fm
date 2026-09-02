@@ -28,8 +28,6 @@ Future<void> pumpRows(
             rightRating: 66,
             leftMods: leftMods,
             rightMods: rightMods,
-            leftBoot: false,
-            rightBoot: false,
           ),
         ),
       ),

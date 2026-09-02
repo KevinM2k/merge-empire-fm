@@ -16,12 +16,13 @@ void main() {
   Set<String> placeholders(String s) =>
       placeholder.allMatches(s).map((m) => m.group(0)!).toSet();
 
-  test('ten catalogues, 2675 keys each', () {
+  test('ten catalogues, 2682 keys each', () {
     expect(catalogs.length, 10);
-    // `settings.theme.*` is the newest: the theme setting became light/dark/system
-    // and one switch called "Light Mode" could not say that. Bump this WITH the
-    // generator run, never instead of it.
-    expect(en.length, 2675);
+    // `play.mod.boot` is the newest: the Lucky Boot went from a bare clover in
+    // the margin into the badge the other modifiers wear, and a badge needs a
+    // sentence to say on a tap. Bump this WITH the generator run, never
+    // instead of it.
+    expect(en.length, 2682);
   });
 
   test('the shipped catalogues match the list the detector narrows to', () {

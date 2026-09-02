@@ -193,3 +193,94 @@ Set<String> cautionedIn(Iterable<Booking> bookings) {
       if (b.card == cardYellow && !off.contains(b.instanceId)) b.instanceId,
   };
 }
+
+/// **WHAT A SENDING-OFF COSTS AFTER THE WHISTLE.**
+///
+/// The rest of the match is the side playing with ten, which the subs panel
+/// shows; this is the other half, asked for in the same breath — a red card
+/// bans the player from the NEXT match too.
+///
+/// Written as the match number he is free again for rather than a countdown:
+/// nothing then has to remember to tick it down, a save restored from the cloud
+/// mid-ban is still mid-ban, and two reds in consecutive matches extend the ban
+/// rather than resetting it. [playedSoFar] is `progression.matchesPlayed` at
+/// the moment of the whistle.
+void applySuspensions(
+  Map<String, dynamic>? state,
+  Iterable<String> sentOff, {
+  required int playedSoFar,
+}) {
+  if (state == null) return;
+  final ids = sentOff.toSet();
+  if (ids.isEmpty) return;
+  final free = playedSoFar + suspensionMatches;
+  final grid = state['grid'];
+  final cells = grid is Map<String, dynamic> ? grid['cells'] : null;
+  if (cells is! List) return;
+  for (final cell in cells) {
+    if (cell is! Map<String, dynamic>) continue;
+    if (!ids.contains(cell['instanceId'])) continue;
+    final already = cell['suspendedUntilMatch'];
+    // Never shortens one: a man sent off while already banned serves both.
+    cell['suspendedUntilMatch'] = already is num && already > free
+        ? already.toInt()
+        : free;
+  }
+}
+
+/// How many matches a red card costs. One, and it is a constant rather than a
+/// literal because it is the sort of number a balance pass moves.
+const int suspensionMatches = 1;
+
+/// Whether this card is banned from the fixture about to be played.
+///
+/// [playedSoFar] is `progression.matchesPlayed`, which is the count BEFORE the
+/// next match — so a ban written as `played + 1` bites for exactly one fixture.
+bool isSuspended(Map<String, dynamic>? cell, {required int playedSoFar}) {
+  final until = cell?['suspendedUntilMatch'];
+  return until is num && playedSoFar < until;
+}
+
+/// **THE CARDS GO ON THE PLAYER'S RECORD, next to his goals.**
+///
+/// Asked for as a standing count rather than as something that does anything
+/// yet — "store number of yellows and reds like you do for goals, not doing
+/// anything with it for now" — so it is deliberately a pair of counters and no
+/// rule reads them.
+///
+/// They are written HERE rather than in `_statsOf`'s default shape because that
+/// shape is the JS's and `match_orchestration_parity_test` compares it field
+/// for field. A key that only appears once a card has actually been shown is
+/// invisible to the harness and to every save that has never seen a booking.
+///
+/// A second yellow counts as BOTH: it is a caution he collected and a sending
+/// off he served, and a record that showed only the red would lose the reason.
+void recordBookings(Map<String, dynamic>? state, Iterable<Booking> bookings) {
+  if (state == null) return;
+  final list = bookings.toList();
+  if (list.isEmpty) return;
+  final grid = state['grid'];
+  final cells = grid is Map<String, dynamic> ? grid['cells'] : null;
+  if (cells is! List) return;
+  final byId = <String, Map<String, dynamic>>{
+    for (final cell in cells)
+      if (cell is Map<String, dynamic>)
+        if (cell['instanceId'] case final String id) id: cell,
+  };
+  for (final b in list) {
+    final cell = byId[b.instanceId];
+    if (cell == null) continue;
+    var stats = cell['stats'];
+    if (stats is! Map<String, dynamic>) {
+      stats = <String, dynamic>{};
+      cell['stats'] = stats;
+    }
+    void bump(String key) {
+      final was = stats[key];
+      stats[key] = (was is num ? was.toInt() : 0) + 1;
+    }
+
+    if (b.card == cardYellow || b.card == cardSecondYellow) bump('yellows');
+    if (cardSendsOff(b.card)) bump('reds');
+  }
+}

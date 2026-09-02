@@ -205,6 +205,14 @@ typedef CardView = ({
   /// Which portrait to draw. Null draws none.
   int? variant,
 
+  /// **SUSPENDED — a red card sitting on his own card.**
+  ///
+  /// A sending-off bans the player from the next match, and a squad screen that
+  /// does not say so is one a manager picks an illegal eleven from. Asked for
+  /// from the couch: a red card over the card. It reads exactly like the
+  /// injured cross beside it — a status the card wears until it is served.
+  bool suspended,
+
   /// 0..1, or null in casual mode.
   ///
   /// Per-player fitness is a PRO-MODE idea — casual play has team energy pips
@@ -700,6 +708,38 @@ class PlayerCard extends StatelessWidget {
                       icon: trait.icon,
                       level: trait.level,
                       title: trait.title,
+                    ),
+                  ),
+                // **THE RED, over the art.** Big enough to be the first thing
+                // read on the card, because it is the one fact that stops him
+                // being picked. Angled, the way a card is held.
+                if (view.suspended)
+                  Positioned.fill(
+                    child: IgnorePointer(
+                      child: Center(
+                        child: Transform.rotate(
+                          angle: -0.22,
+                          child: Container(
+                            key: const ValueKey('card-suspended'),
+                            width: 26,
+                            height: 36,
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFE0342B),
+                              borderRadius: BorderRadius.circular(4),
+                              border: Border.all(
+                                color: const Color(0x66000000),
+                              ),
+                              boxShadow: const [
+                                BoxShadow(
+                                  color: Color(0x73000000),
+                                  blurRadius: 8,
+                                  offset: Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 // Across the corner, because at bench size a pip cannot carry a

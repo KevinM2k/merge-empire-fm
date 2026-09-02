@@ -28,6 +28,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/data/config.dart';
+import 'package:merge_empire_fc/engine/booking_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/state/card_instance.dart';
@@ -39,6 +40,7 @@ import 'package:merge_empire_fc/ui/screens/squad/pitch_token.dart';
 import 'package:merge_empire_fc/ui/screens/squad/squad_pitch.dart';
 import 'package:merge_empire_fc/ui/screens/squad/squad_providers.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
+import 'package:merge_empire_fc/ui/widgets/card_glyph.dart';
 import 'package:merge_empire_fc/ui/widgets/player_card.dart';
 import 'package:merge_empire_fc/ui/widgets/match_stat_rows.dart'
     show vsGreenOn, vsRedOn;
@@ -58,6 +60,8 @@ Future<void> showSubsPanel(
   required Set<String> withdrawn,
   required void Function(SubMade) onSub,
   String? openOn,
+  Set<String> sentOff = const {},
+  Set<String> cautioned = const {},
 }) => showBottomSheetPopup<void>(
   context,
   heightFraction: 0.92,
@@ -66,6 +70,8 @@ Future<void> showSubsPanel(
     withdrawn: withdrawn,
     onSub: onSub,
     openOn: openOn,
+    sentOff: sentOff,
+    cautioned: cautioned,
   ),
 );
 
@@ -76,6 +82,8 @@ class SubsPanel extends ConsumerStatefulWidget {
     required this.withdrawn,
     required this.onSub,
     this.openOn,
+    this.sentOff = const {},
+    this.cautioned = const {},
   });
 
   /// How many changes have already been made this match.
@@ -91,6 +99,20 @@ class SubsPanel extends ConsumerStatefulWidget {
   final Set<String> withdrawn;
 
   final void Function(SubMade) onSub;
+
+  /// **WHO HAS BEEN SENT OFF, and is therefore not coming off.** A red card
+  /// leaves a hole nobody fills, so his slot is drawn with the card over it and
+  /// refuses a tap — the panel is open precisely so the other ten can be moved
+  /// around him. Asked for from the couch in those words.
+  final Set<String> sentOff;
+
+  /// Who is on a caution, and playing within themselves for it.
+  ///
+  /// The ninety minutes are already decided by the time this screen exists —
+  /// the sim ran before the whistle — so the ten per cent is not a change to the
+  /// result. It is what the MANAGER is looking at when they decide whether a
+  /// booked defender sees out the half, which is the decision this panel is for.
+  final Set<String> cautioned;
 
   /// A slot to arrive with the bench already open on.
   ///
@@ -137,6 +159,8 @@ class SubsPanelState extends ConsumerState<SubsPanel> {
     // Somebody already withdrawn cannot be withdrawn again. An empty slot is
     // always a candidate — that is the injury case.
     if (on != null && widget.withdrawn.contains(on)) return;
+    // And a man who is off the pitch cannot be taken off it.
+    if (on != null && widget.sentOff.contains(on)) return;
     setState(() => _openFor = slot.slotId);
     _openBench(slot.slotId, on);
   }
@@ -262,7 +286,10 @@ class SubsPanelState extends ConsumerState<SubsPanel> {
               enabled:
                   !none &&
                   (slot.cardInstanceId == null ||
-                      !widget.withdrawn.contains(slot.cardInstanceId)),
+                      (!widget.withdrawn.contains(slot.cardInstanceId) &&
+                          !widget.sentOff.contains(slot.cardInstanceId))),
+              sentOff: widget.sentOff.contains(slot.cardInstanceId),
+              cautioned: widget.cautioned.contains(slot.cardInstanceId),
               onTap: () => _pick(slot),
             ),
           ),
@@ -304,11 +331,33 @@ class _SubSlot extends ConsumerWidget {
     required this.slot,
     required this.enabled,
     required this.onTap,
+    this.sentOff = false,
+    this.cautioned = false,
   });
 
   final PitchSlot slot;
   final bool enabled;
+  final bool sentOff;
+  final bool cautioned;
   final VoidCallback onTap;
+
+  /// The slot as the rest of this match sees it: a booked player is carrying
+  /// ten per cent less. Nothing else about him changes.
+  PitchSlot get _shown => cautioned
+      ? (
+          slotId: slot.slotId,
+          slotPosition: slot.slotPosition,
+          x: slot.x,
+          y: slot.y,
+          cardInstanceId: slot.cardInstanceId,
+          card: slot.card,
+          vacatedBy: slot.vacatedBy,
+          outOfPosition: slot.outOfPosition,
+          effRating: (slot.effRating * yellowCardRatingMult).round(),
+          penalty: slot.penalty,
+          seasons: slot.seasons,
+        )
+      : slot;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -350,7 +399,28 @@ class _SubSlot extends ConsumerWidget {
                       ),
                       proMode: ref.watch(proModeProvider),
                     ))
-            : PitchToken(slot: slot, proMode: ref.watch(proModeProvider)),
+            // **HE IS DRAWN, AND THE CARD IS ON HIM.** A sent-off man leaves
+            // his square empty in the save's eyes, and an empty square says the
+            // side is a man light without saying WHICH man — on the one panel
+            // whose job is rearranging the other ten around him. So he stays,
+            // greyed by [enabled] and refusing a tap, wearing the card that
+            // explains both.
+            : Stack(
+                alignment: Alignment.center,
+                clipBehavior: Clip.none,
+                children: [
+                  PitchToken(slot: _shown, proMode: ref.watch(proModeProvider)),
+                  if (sentOff || cautioned)
+                    Positioned(
+                      top: -2,
+                      right: -2,
+                      child: CardGlyph(
+                        card: sentOff ? cardRed : cardYellow,
+                        height: 18,
+                      ),
+                    ),
+                ],
+              ),
       ),
     );
   }

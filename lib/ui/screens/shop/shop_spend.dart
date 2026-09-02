@@ -243,8 +243,20 @@ class VouchersSection extends ConsumerWidget {
               // The TIER is the name. The section heading already said "Scout
               // Vouchers".
               final name = tierLabel[tile.floor] ?? 'T${tile.floor}';
+              // **"ALREADY ACTIVE" IS ONLY TRUE OF THE ONE THAT IS.** The
+              // family blocks as a family — one voucher at a time, and a
+              // RANDOM buy arms `freeScoutReady` rather than a floor, so no
+              // tile is `holding` and every rung on the ladder claimed to be
+              // the live one. Reported from the couch: bought random, and
+              // bronze-and-up said "already active", which was not true.
+              //
+              // `shop.voucher.one_at_a_time` is the sentence that IS true and
+              // it is already shipped in ten languages — it is the rule, said
+              // as the rule.
               final reason = tile.holding
                   ? t('shop.already_active')
+                  : tile.blocked == VoucherBlock.alreadyHeld
+                  ? t('shop.voucher.one_at_a_time')
                   : blockedCopy(tile.blocked?.name);
               return ShopTile(
                 tileKey: 'voucher-${tile.floor}',

@@ -33,6 +33,7 @@ import 'package:merge_empire_fc/ui/theme/glass.dart';
 import 'package:merge_empire_fc/ui/widgets/match_stat_rows.dart' show MatchRow;
 import 'package:merge_empire_fc/ui/screens/match/subs_panel.dart';
 import 'package:merge_empire_fc/ui/widgets/player_card.dart';
+import 'package:merge_empire_fc/ui/screens/squad/pitch_token.dart';
 import 'package:merge_empire_fc/ui/screens/squad/squad_providers.dart';
 import 'package:merge_empire_fc/ui/theme/app_theme.dart';
 import 'package:merge_empire_fc/ui/theme/sky.dart';
@@ -45,8 +46,19 @@ Map<String, dynamic> matchResult({
   int addedTime = 2,
   bool isHome = true,
   List<Map<String, dynamic>> events = const [],
+  // **A FIXTURE THE REFEREE HAS NOTHING TO DO IN.** The screen rolls its own
+  // bookings off this key, and an absent one hashes to seed 0 — which books
+  // three players and sends one off, so every test that played a match was
+  // suddenly answering a red-card coach card it had never asked for. Nine
+  // failed on it, none of them about cards.
+  //
+  // `s1_m44` is a quiet afternoon for BOTH sides — the referee books the
+  // opposition too, on its own stream. A test that WANTS a card passes a key
+  // that produces one.
+  String? fixtureKey = 's1_m44',
 }) => {
   'clubName': 'Testville',
+  'fixtureKey': fixtureKey,
   'opponentName': 'Ayton',
   'isHome': isHome,
   'won': won,
@@ -750,9 +762,11 @@ void main() {
     // One is a caution too many; the other is violent conduct or denying a
     // goalscoring opportunity. Asked for from the couch in those words.
     testWidgets('books players, and the feed shows the card', (tester) async {
+      // A fixture the referee is busy in, chosen the way a player would meet
+      // one: `s1_m13` books two.
       final container = await pumpMatch(
         tester,
-        matchResult(),
+        matchResult(fixtureKey: 's1_m13'),
         save: squadSave(),
       );
       expect(container, isNotNull);
@@ -770,6 +784,25 @@ void main() {
       // things — and the card itself is drawn beside it.
       expect(find.text(t('match.card.$card').toUpperCase()), findsWidgets);
       expect(find.byType(CardGlyph), findsWidgets);
+
+      // And the whistle put them on the players' records, beside their goals.
+      final cells =
+          (container.read(gameProvider).state!['grid']
+              as Map<String, dynamic>)['cells']
+          as List;
+      final booked = {
+        for (final b in state.bookings) '${b['playerInstanceId']}',
+      };
+      expect(
+        [
+          for (final cell in cells)
+            if (cell is Map<String, dynamic> &&
+                booked.contains(cell['instanceId']))
+              (cell['stats'] as Map?)?['yellows'],
+        ],
+        everyElement(isNotNull),
+      );
+      await settleSave(tester);
     });
 
     testWidgets('and the same fixture books the same players', (tester) async {
@@ -777,10 +810,121 @@ void main() {
       // promise the cutaway makes about its passages.
       List<Object?> cardsOf(MatchScreenState s) =>
           [for (final b in s.bookings) '${b['minute']}:${b['card']}'];
-      await pumpMatch(tester, matchResult(), save: squadSave());
+      await pumpMatch(tester, matchResult(fixtureKey: 's1_m13'), save: squadSave());
       final first = cardsOf(stateOf(tester));
-      await pumpMatch(tester, matchResult(), save: squadSave());
+      await pumpMatch(tester, matchResult(fixtureKey: 's1_m13'), save: squadSave());
       expect(cardsOf(stateOf(tester)), first);
+    });
+
+    testWidgets('and it books THEM too, in the club\'s name', (tester) async {
+      // The port never names an opposition player — not at a goal, not
+      // anywhere — so their card is written about the club. Asked for from the
+      // couch: "they can get yellow cards as well, its not just us."
+      final container = await pumpMatch(
+        tester,
+        matchResult(fixtureKey: 's1_m13'),
+        save: squadSave(),
+      );
+      expect(container, isNotNull);
+      final state = stateOf(tester);
+      final theirs = [
+        for (final b in state.bookings)
+          if (b['team'] == 'away') b,
+      ];
+      expect(theirs, isNotEmpty, reason: 'only one side was ever bookable');
+      // Nothing of theirs reaches the save: no name, no ban, no record.
+      expect(theirs.every((b) => b['playerInstanceId'] == null), isTrue);
+      expect(
+        state.bookings.where((b) => b['team'] == 'home').length,
+        lessThan(state.bookings.length),
+      );
+      state.skipToEnd();
+      await tester.pumpAndSettle();
+      await settleSave(tester);
+    });
+
+    testWidgets('a booked man is worth ten per cent less, and shows it', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(420 * 3, 2000 * 3);
+      tester.view.devicePixelRatio = 3;
+      addTearDown(tester.view.reset);
+      final container = await pumpMatch(
+        tester,
+        matchResult(),
+        save: squadSave(),
+      );
+      final slot = container.read(pitchSlotsProvider).firstWhere(
+        (s) => s.cardInstanceId != null,
+      );
+      final booked = slot.cardInstanceId!;
+      await tester.pump(minuteDurationFor(5));
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: buildAppTheme(kitId: 'classic', light: false),
+          home: UncontrolledProviderScope(
+            container: container,
+            child: Scaffold(
+              body: SubsPanel(
+                used: 0,
+                withdrawn: const {},
+                onSub: (_) {},
+                cautioned: {booked},
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      // The caution is drawn on him, and the number is the reduced one — which
+      // is the number the manager is deciding against.
+      expect(find.byType(CardGlyph), findsOneWidget);
+      final shown = tester
+          .widgetList<PitchToken>(find.byType(PitchToken))
+          .firstWhere((t) => t.slot.cardInstanceId == booked);
+      expect(shown.slot.effRating, (slot.effRating * yellowCardRatingMult).round());
+      expect(shown.slot.effRating, lessThan(slot.effRating));
+    });
+
+    testWidgets('and a man who is OFF cannot be taken off', (tester) async {
+      tester.view.physicalSize = const Size(420 * 3, 2000 * 3);
+      tester.view.devicePixelRatio = 3;
+      addTearDown(tester.view.reset);
+      final container = await pumpMatch(
+        tester,
+        matchResult(),
+        save: squadSave(),
+      );
+      final off = container
+          .read(pitchSlotsProvider)
+          .firstWhere((s) => s.cardInstanceId != null);
+      await tester.pump(minuteDurationFor(5));
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: buildAppTheme(kitId: 'classic', light: false),
+          home: UncontrolledProviderScope(
+            container: container,
+            child: Scaffold(
+              body: SubsPanel(
+                used: 0,
+                withdrawn: const {},
+                onSub: (_) {},
+                sentOff: {off.cardInstanceId!},
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(ValueKey('sub-slot-${off.slotId}')));
+      await tester.pumpAndSettle();
+      expect(
+        tester.state<SubsPanelState>(find.byType(SubsPanel)).selectedSlot,
+        isNull,
+        reason: 'a sending-off is not a substitution going spare',
+      );
+      // He is still drawn, with the card over him — a hole would not say WHO.
+      expect(find.byType(CardGlyph), findsOneWidget);
     });
 
     testWidgets('a SECOND yellow is drawn as two cards, not one', (

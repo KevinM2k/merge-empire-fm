@@ -63,6 +63,16 @@ class CardInstance {
 
   num get form => _get<num>('form') ?? 0;
 
+  /// **THE MATCH NUMBER HE IS FREE AGAIN FOR**, or null for a player who is
+  /// not suspended.
+  ///
+  /// A sending-off costs the next match as well as the rest of this one —
+  /// asked for from the couch — and a ban is a fact about a FIXTURE rather than
+  /// a duration: `matchesPlayed` at the moment of the red, plus one. Storing
+  /// the target rather than a countdown means nothing has to remember to tick
+  /// it down, and a save restored from the cloud mid-ban is still mid-ban.
+  int? get suspendedUntilMatch => _get<num>('suspendedUntilMatch')?.toInt();
+
   /// Per-instance override of the definition's attack ratio.
   double? get attackRatio => _get<num>('attackRatio')?.toDouble();
 

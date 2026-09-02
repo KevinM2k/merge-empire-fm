@@ -586,6 +586,21 @@ class MergeGridState extends ConsumerState<MergeGrid>
         children: [
           Column(
             children: [
+              // **THE BAR IS PINNED, AND THE GRID BENEATH IT BOUNCES.** Those
+              // read as one setting and are two. It went inside the scroller
+              // once, on the theory that the missing bounce was the bar being
+              // nailed down; the bounce was actually the physics below, and
+              // moving the bar only cost the two controls their fixed place.
+              // Both were reported from the couch, one after the other.
+              Padding(
+                padding: EdgeInsets.fromLTRB(
+                  _pad,
+                  hudClearanceOf(context, underBar: false),
+                  _pad,
+                  _pad,
+                ),
+                child: const ScoutActionBar(),
+              ),
               Expanded(
                 child: SingleChildScrollView(
                   key: const ValueKey('merge-grid'),
@@ -626,36 +641,6 @@ class MergeGridState extends ConsumerState<MergeGrid>
 
                       return Column(
                         children: [
-                          // **THE BAR IS INSIDE THE SCROLLER, and that is what
-                          // the bounce was missing.** It sat above it, pinned,
-                          // so a drag gave under the grid while the bar stayed
-                          // nailed to the top — which is not what Settings, the
-                          // shop or the club assets do, and is exactly why this
-                          // tab was reported as not having the native bounce.
-                          // The whole page gives now, the way the whole page
-                          // gives everywhere else.
-                          //
-                          // It is still the FIRST thing on the tab, which was
-                          // the point of moving it above the cards: the pills
-                          // are a readout and belong beside the last row they
-                          // describe, and the two controls a player came here
-                          // to press belong where the thumb lands first.
-                          Padding(
-                            // **`underBar: false`, and that is the doubling.**
-                            // The full clearance is written for content that
-                            // starts UNDER the bar with its own margin; this
-                            // bar is the first thing in the list and carries
-                            // `_pad` of its own below, so the two margins
-                            // stacked and the air above Add Player came out
-                            // twice what it should be. Reported from the couch.
-                            padding: EdgeInsets.fromLTRB(
-                              0,
-                              hudClearanceOf(context, underBar: false),
-                              0,
-                              _pad,
-                            ),
-                            child: const ScoutActionBar(),
-                          ),
                           SizedBox(
                             height: rows * cellH + (rows - 1) * _gap,
                             child: Stack(

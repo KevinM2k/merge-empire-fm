@@ -56,7 +56,6 @@ typedef MatchSide = ({
   int? rating,
   StatSide split,
   List<StatMod> mods,
-  bool boot,
 
   /// Where they sit, and where they came from on the round just played. 3rd
   /// having climbed and 3rd having fallen are opposite stories.
@@ -158,6 +157,18 @@ final nextMatchProvider = savePick<NextMatch?>((s) {
         tone: StatTone.delta,
         tip: t('play.mod.home_theirs'),
       ),
+    // **THE LUCKY BOOT IS A MODIFIER LIKE THE REST OF THEM.** It used to be a
+    // bare 🍀 hanging in the margin, which said something had happened to their
+    // rating without saying what or how much — so it wears the same badge, the
+    // shop's own clover, and the figure it actually took off them. A minus, so
+    // `StatTone.delta` paints it red. Asked for from the couch.
+    if (preview.bootApplied && preview.bootCut > 0)
+      (
+        icon: 'clover',
+        amount: -preview.bootCut,
+        tone: StatTone.delta,
+        tip: t('play.mod.boot'),
+      ),
     if (preview.grudgeBoost > 0)
       (
         icon: 'flame',
@@ -182,7 +193,6 @@ final nextMatchProvider = savePick<NextMatch?>((s) {
     rating: preview.effectiveSquadRating.round(),
     split: ours,
     mods: ourMods,
-    boot: false,
     position: posOf(clubName, ours: true),
     posDelta: deltaOf(clubName, ours: true),
   );
@@ -192,7 +202,6 @@ final nextMatchProvider = savePick<NextMatch?>((s) {
     rating: preview.effectiveOppRating?.round(),
     split: theirs,
     mods: theirMods,
-    boot: preview.bootApplied,
     position: posOf(preview.opponentName, ours: false),
     posDelta: deltaOf(preview.opponentName, ours: false),
   );
@@ -307,8 +316,6 @@ class NextMatchCard extends ConsumerWidget {
           rightRating: match.right.rating,
           leftMods: match.left.mods,
           rightMods: match.right.mods,
-          leftBoot: match.left.boot,
-          rightBoot: match.right.boot,
         ),
         // A rule across the card, then the tactic. It is a different KIND of
         // thing from the numbers above it — a decision rather than a readout —

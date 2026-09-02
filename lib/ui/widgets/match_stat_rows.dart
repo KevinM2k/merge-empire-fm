@@ -331,8 +331,6 @@ class MatchStatRows extends StatelessWidget {
     required this.rightRating,
     this.leftMods = const [],
     this.rightMods = const [],
-    this.leftBoot = false,
-    this.rightBoot = false,
   });
 
   final StatSide left;
@@ -343,8 +341,6 @@ class MatchStatRows extends StatelessWidget {
   final List<StatMod> rightMods;
 
   /// The Lucky Boot weakened this side. Marked rather than silently quoted.
-  final bool leftBoot;
-  final bool rightBoot;
 
   @override
   Widget build(BuildContext context) {
@@ -435,13 +431,12 @@ class MatchStatRows extends StatelessWidget {
                     figureKey: const ValueKey('nm-figure-left'),
                     value: leftRating,
                     mods: leftMods,
-                    boot: leftBoot,
+                    modsOnLeft: true,
                     modRoom: modRoom,
                     columnWidth: ratingBox,
                     figureSize: figureSize,
                     slots: modSlots,
                     // Always OUTWARD, away from the stat bars.
-                    bootOnLeft: true,
                   ),
                 ),
                 Positioned(
@@ -452,12 +447,11 @@ class MatchStatRows extends StatelessWidget {
                     figureKey: const ValueKey('nm-figure-right'),
                     value: rightRating,
                     mods: rightMods,
-                    boot: rightBoot,
+                    modsOnLeft: false,
                     modRoom: modRoom,
                     columnWidth: ratingBox,
                     figureSize: figureSize,
                     slots: modSlots,
-                    bootOnLeft: false,
                   ),
                 ),
               ],
@@ -829,8 +823,7 @@ class _Rating extends StatelessWidget {
     super.key,
     required this.value,
     required this.mods,
-    required this.boot,
-    required this.bootOnLeft,
+    required this.modsOnLeft,
     required this.modRoom,
     required this.columnWidth,
     required this.figureSize,
@@ -846,8 +839,10 @@ class _Rating extends StatelessWidget {
   final int? value;
   final List<StatMod> mods;
 
-  final bool boot;
-  final bool bootOnLeft;
+  /// Which side of the figure the badges hang on — the OUTER margin, so they
+  /// lean in towards the middle of the card rather than off its edge.
+  final bool modsOnLeft;
+
 
   /// How wide the modifier column may be before it reaches the ATK/DEF well.
   final double modRoom;
@@ -934,8 +929,8 @@ class _Rating extends StatelessWidget {
                 Positioned(
                   top: 0,
                   bottom: 0,
-                  left: bootOnLeft ? null : columnWidth / 2 + modInsetFor(figureSize),
-                  right: bootOnLeft ? columnWidth / 2 + modInsetFor(figureSize) : null,
+                  left: modsOnLeft ? null : columnWidth / 2 + modInsetFor(figureSize),
+                  right: modsOnLeft ? columnWidth / 2 + modInsetFor(figureSize) : null,
                   // From the figure's edge out to the card's, which is as much
                   // room as there is — and it is comfortably inside the margin
                   // the well leaves, because the figure is centred in a column
@@ -945,12 +940,12 @@ class _Rating extends StatelessWidget {
                     fit: BoxFit.scaleDown,
                     // Anchored at the end nearest the figure, so a second and a
                     // third stack away from it rather than pushing it.
-                    alignment: bootOnLeft
+                    alignment: modsOnLeft
                         ? Alignment.centerRight
                         : Alignment.centerLeft,
                     child: Column(
                         mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: bootOnLeft
+                        crossAxisAlignment: modsOnLeft
                             ? CrossAxisAlignment.start
                             : CrossAxisAlignment.end,
                         children: [
@@ -961,20 +956,6 @@ class _Rating extends StatelessWidget {
                           ],
                         ],
                     ),
-                  ),
-                ),
-              // Hangs into the empty margin rather than widening the figure —
-              // in flow it pushed the number off the line it shares with the
-              // club name above, so the one fixture in ten with a weakened
-              // opponent looked misaligned.
-              if (boot)
-                Align(
-                  alignment: bootOnLeft
-                      ? Alignment.centerLeft
-                      : Alignment.centerRight,
-                  child: const Text(
-                    '🍀',
-                    style: TextStyle(fontSize: 15, height: 1),
                   ),
                 ),
             ],

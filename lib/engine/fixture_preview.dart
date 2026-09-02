@@ -89,6 +89,7 @@ class FixturePreview {
     this.playerInRelegationZone = false,
     this.oppInRelegationZone = false,
     this.bootApplied = false,
+    this.bootCut = 0,
     required this.oppIdx,
     required this.opponentName,
     required this.isHome,
@@ -143,9 +144,16 @@ class FixturePreview {
   final bool playerInRelegationZone;
   final bool oppInRelegationZone;
 
-  /// The Lucky Boot actually weakened this opponent — the card marks it with a
-  /// 🍀 rather than silently quoting a lower number.
+  /// The Lucky Boot actually weakened this opponent.
   final bool bootApplied;
+
+  /// **HOW MUCH IT TOOK OFF THEM**, as a positive number of rating points.
+  ///
+  /// The card used to draw the boot as a bare clover in the margin, which said
+  /// something had happened without saying what — so it went into the badge the
+  /// other modifiers wear, as a red minus, and this is the figure. Asked for
+  /// from the couch.
+  final int bootCut;
 }
 
 /// The next league fixture, or null when the save has no progression at all.
@@ -252,9 +260,11 @@ FixturePreview? previewFixture(
   var opponentRating = math.min(100, stored);
   // Read-only: the boot is applied without clearing the flag, unlike the sim.
   var bootApplied = false;
+  var bootCut = 0;
   if (_map(state['shop'])?['luckyBootReady'] == true) {
     final weakened = applyLuckyBoot(opponentRating);
     bootApplied = weakened < opponentRating;
+    bootCut = (opponentRating - weakened).round();
     opponentRating = weakened;
   }
 
@@ -305,6 +315,7 @@ FixturePreview? previewFixture(
     playerInRelegationZone: playerInRelegationZone,
     oppInRelegationZone: oppInRelegationZone,
     bootApplied: bootApplied,
+    bootCut: bootCut,
   );
 }
 

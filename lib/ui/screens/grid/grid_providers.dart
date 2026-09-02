@@ -21,6 +21,7 @@ import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/state/card_instance.dart';
 import 'package:merge_empire_fc/ui/widgets/player_card.dart';
 import 'package:merge_empire_fc/ui/widgets/trait_copy.dart';
+import 'package:merge_empire_fc/engine/booking_engine.dart' show isSuspended;
 
 /// One slot: a card, an empty slot the player has room for, or a slot beyond
 /// the roster they have not grown into yet.
@@ -93,6 +94,15 @@ CardView? cardViewFor(
     // **A RATING POINT, and the card never said so.** `getEffectiveRating` adds
     // this straight onto the composed figure — see [CardView.form].
     form: card.form.toInt(),
+    // **A BAN IS A FACT ABOUT THE NEXT FIXTURE**, so it is measured against the
+    // match count rather than stored as a countdown — see `isSuspended`.
+    suspended: isSuspended(
+      card.raw,
+      playedSoFar:
+          (_map(_map(state)?['progression'])?['matchesPlayed'] as num?)
+              ?.toInt() ??
+          0,
+    ),
   );
 }
 

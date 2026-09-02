@@ -52,9 +52,12 @@ import 'package:merge_empire_fc/engine/lineup_engine.dart'
     show restoreKickoffLineup;
 import 'package:merge_empire_fc/ui/screens/match/match_clock.dart';
 import 'package:merge_empire_fc/ui/screens/match/momentum_arrow.dart';
+import 'package:merge_empire_fc/ui/widgets/card_glyph.dart';
 import 'package:merge_empire_fc/ui/screens/match/subs_panel.dart';
+export 'package:merge_empire_fc/ui/widgets/card_glyph.dart'
+    show CardGlyph, cardYellowInk, cardRedInk, cardInk;
 import 'package:merge_empire_fc/ui/screens/squad/squad_providers.dart'
-    show pitchSlotsProvider;
+    show pitchSlotsProvider, slotCandidatesProvider, SlotCandidate;
 import 'package:merge_empire_fc/ui/screens/squad/player_detail_sheet.dart'
     show cardById;
 import 'package:merge_empire_fc/ui/screens/settings_controls.dart'
@@ -75,6 +78,8 @@ import 'package:merge_empire_fc/ui/widgets/store_button.dart'
 import 'package:merge_empire_fc/ui/theme/sky.dart';
 import 'package:merge_empire_fc/ui/widgets/match_stat_rows.dart';
 import 'package:merge_empire_fc/util/stat_display.dart';
+import 'package:merge_empire_fc/ui/popups/coach_card.dart'
+    show CoachAction, CoachTone, showCoachCard;
 
 /// One dugout-cam shot, as the screen has decided it. Everything the widget
 /// needs and nothing it can work out for itself.
@@ -332,6 +337,10 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
   /// One match's cards, decided once. Seeded off the FIXTURE KEY — `s3_m7` —
   /// so a match books the same players every time it is watched, which is the
   /// promise the cutaway already makes about its passages.
+  /// The same cards as [_bookings], in the shape the engine speaks — kept so
+  /// the whistle can write the record without re-parsing its own feed rows.
+  List<Booking> _bookingRecords = const [];
+
   List<Map<String, dynamic>> _rollBookings() {
     final state = ref.read(gameProvider).state;
     final squadMap = state?['squad'];
@@ -356,14 +365,45 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
     for (final unit in key.codeUnits) {
       seed = (seed * 31 + unit).toSigned(32);
     }
+    _bookingRecords = rollBookings(squad: squad, seed: seed);
+    // **AND THE REFEREE HAS A POCKET FOR BOTH SIDES.** Asked for from the
+    // couch: "they can get yellow cards as well, its not just us." Their eleven
+    // is synthetic — the port never names an opposition player, at a goal or
+    // anywhere else — so this is a shape to weight the draw by lines, and the
+    // copy is about the CLUB. Its own seed, so their afternoon is not a mirror
+    // of ours.
+    final theirs = rollBookings(
+      squad: [
+        for (var i = 0; i < 11; i++)
+          (
+            instanceId: 'opp-$i',
+            name: '',
+            position: i == 0
+                ? 'GK'
+                : i < 5
+                ? 'DEF'
+                : i < 9
+                ? 'MID'
+                : 'FWD',
+          ),
+      ],
+      seed: (seed ^ 0x00A1_1A7).toSigned(32),
+    );
     return [
-      for (final b in rollBookings(squad: squad, seed: seed))
+      for (final b in _bookingRecords)
         {
           'minute': b.minute,
           'type': 'booking',
           'team': 'home',
           'player': b.name,
           'playerInstanceId': b.instanceId,
+          'card': b.card,
+        },
+      for (final b in theirs)
+        {
+          'minute': b.minute,
+          'type': 'booking',
+          'team': 'away',
           'card': b.card,
         },
     ];
@@ -749,6 +789,32 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
           if (ours) {
             WidgetsBinding.instance.addPostFrameCallback(
               (_) => _onInjuryShown(),
+            );
+          }
+        // **A SENDING-OFF PUTS YOU IN FRONT OF THE BENCH, and you cannot fix
+        // it.** The same reasoning as an injury: nobody is moved automatically,
+        // so a manager reading the feed would otherwise finish the half with a
+        // hole where a defender was. The difference is the whole point of it —
+        // there is no replacement, only the ten who are left and where they
+        // stand. Asked for from the couch, along with Colin explaining why.
+        case 'booking':
+          unawaited(sound.play('error'));
+          final who = event.playerId;
+          // Their card is a line in the feed and nothing else — there is no
+          // bench of theirs to open and no ban of theirs to write.
+          if (event.team == 'away') break;
+          if (cardSendsOff(event.card ?? cardYellow)) {
+            if (who != null) {
+              _cautioned.remove(who);
+              _sentOff.add(who);
+            }
+            WidgetsBinding.instance.addPostFrameCallback(
+              (_) => unawaited(_onSendingOff(event.player ?? '')),
+            );
+          } else if (who != null) {
+            _cautioned.add(who);
+            WidgetsBinding.instance.addPostFrameCallback(
+              (_) => unawaited(_onBooked(who, event.player ?? '')),
             );
           }
         case 'halftime':
@@ -1196,6 +1262,32 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
         ),
       ),
     );
+    // **AND THE BANS ARE WRITTEN AT THE WHISTLE.** A sending-off costs the next
+    // match as well as the rest of this one — see `applySuspensions`. It goes
+    // here rather than in `settleMatch` because the bookings are the port's own
+    // and live on this screen; the engine's result has never heard of them.
+    //
+    // Before `onFinished`, which is what commits the match count: the ban is
+    // written against the count as it stood when the red was shown.
+    final off = [
+      for (final b in _bookings)
+        if (cardSendsOff('${b['card']}')) '${b['playerInstanceId']}',
+    ];
+    if (_bookingRecords.isNotEmpty) {
+      final game = ref.read(gameProvider);
+      game.update((state) {
+        final prog = state['progression'];
+        applySuspensions(
+          state,
+          off,
+          playedSoFar: prog is Map<String, dynamic>
+              ? (prog['matchesPlayed'] as num?)?.toInt() ?? 0
+              : 0,
+        );
+        // And the cards themselves go on the record, beside his goals.
+        recordBookings(state, _bookingRecords);
+      });
+    }
     widget.onFinished?.call(widget.result);
     // **AND THEN IT WAITS.** It used to leave on a 1,400ms timer, on the
     // reasoning that full time here is a screen with nothing left to say: the
@@ -1294,6 +1386,8 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
       withdrawn: _withdrawn,
       onSub: _onSub,
       openOn: openOn,
+      sentOff: _sentOff,
+      cautioned: _cautioned,
     );
     if (mounted) setState(() => _paused = false);
   }
@@ -1341,6 +1435,103 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
     ];
     if (holes.isEmpty) return;
     unawaited(openSubs(openOn: holes.length == 1 ? holes.first : null));
+  }
+
+  /// **THE CARD IS EXPLAINED, then the bench is opened.**
+  ///
+  /// A red is the one thing that happens in a match with rules a player may not
+  /// know: the man is gone, he cannot be replaced, the substitution is NOT
+  /// spent, and he misses the next one as well. That is four facts, which is a
+  /// coach card rather than a toast — asked for from the couch in those words.
+  ///
+  /// The panel opens behind it because the ten who are left are now in the
+  /// wrong shape, and moving them is the only thing the manager can still do
+  /// about it.
+  /// Who is carrying a caution, and who has gone.
+  ///
+  /// Live sets rather than a re-read of `_bookings`, because what the panel
+  /// needs is the state at THIS minute — a card shown in the eightieth is not
+  /// something the manager was living with at half time.
+  final Set<String> _cautioned = <String>{};
+  final Set<String> _sentOff = <String>{};
+
+  /// Colin has already spoken about a booking this match.
+  ///
+  /// **Once, and only once.** The nudge is worth having; a card that reappears
+  /// every time the referee reaches for a pocket is the game interrupting a
+  /// match to say something the manager has already heard.
+  bool _bookingAdvised = false;
+
+  /// **A CAUTION MAKES HIM WORSE, and the bench might already be better.**
+  ///
+  /// Asked for in exactly that shape: the ten per cent comes off, and if that
+  /// puts somebody on the bench above him, Colin says so. It is a nudge and not
+  /// a change — the swap is the manager's, through the panel they were already
+  /// going to use.
+  ///
+  /// Silent when there is nobody better, nobody left to bring on, or the man
+  /// has already been withdrawn. A prompt to make a substitution you cannot
+  /// make is worse than no prompt.
+  Future<void> _onBooked(String id, String player) async {
+    if (!mounted || frame.finished || _bookingAdvised) return;
+    if (_withdrawn.contains(id)) return;
+    if (_subsUsed >= PlayerEnergy.maxSubs) return;
+    final slot = ref
+        .read(pitchSlotsProvider)
+        .where((s) => s.cardInstanceId == id)
+        .firstOrNull;
+    if (slot == null) return;
+    final booked = (slot.effRating * yellowCardRatingMult).round();
+    final best = ref
+        .read(slotCandidatesProvider(slot.slotPosition))
+        .where((SlotCandidate c) => !_withdrawn.contains(c.instanceId))
+        .firstOrNull;
+    if (best == null || best.effRating <= booked) return;
+    _bookingAdvised = true;
+    if (!mounted) return;
+    setState(() => _paused = true);
+    final swap = await showCoachCard<bool>(
+      context,
+      titleKey: 'coach.booked.title',
+      bodyKey: 'coach.booked.body',
+      bodyParams: {
+        'player': player,
+        'rating': booked,
+        'sub': best.card.name,
+        'subRating': best.effRating,
+      },
+      actions: [
+        CoachAction(
+          labelKey: 'coach.booked.swap',
+          tone: CoachTone.confirm,
+          onTap: () {},
+          result: true,
+        ),
+        CoachAction(labelKey: 'coachtip.tap_dismiss', onTap: () {}),
+      ],
+    );
+    if (!mounted) return;
+    setState(() => _paused = false);
+    if (swap != true || frame.finished) return;
+    await openSubs(openOn: slot.slotId);
+  }
+
+  Future<void> _onSendingOff(String player) async {
+    if (!mounted || frame.finished) return;
+    setState(() => _paused = true);
+    await showCoachCard<void>(
+      context,
+      titleKey: 'coach.red_card.title',
+      bodyKey: 'coach.red_card.body',
+      bodyParams: {'player': player},
+      actions: [
+        CoachAction(labelKey: 'coachtip.tap_dismiss', onTap: () {}),
+      ],
+    );
+    if (!mounted) return;
+    setState(() => _paused = false);
+    if (frame.finished) return;
+    await openSubs();
   }
 
   /// Everyone taken off this match.
@@ -1744,37 +1935,45 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
                                 // sibling in screen space lay flat across the
                                 // tilt and spilled over the surround. The stage
                                 // drops it while a clip runs.
-                                onGrass: MomentumArrow(
-                                  bias: momentumBias(
-                                    dangerHome: stats.dangerHome,
-                                    isHome: home,
-                                  ),
-                                  attackingRight: home,
-                                  // Shades of the TURF, not of the kit: a solid
-                                  // mark on the grass rather than a tint over it.
-                                  ours: momentumOurs,
-                                  theirs: momentumTheirs,
-                                  // **WHOSE END IS WHICH, painted on the
-                                  // grass.** The markings are symmetric, so
-                                  // "pointing right" carries no information
-                                  // unless you already know which end you are
-                                  // attacking — which is why the arrow was
-                                  // reported as pointing the wrong way when it
-                                  // was pointing the right way.
-                                  //
-                                  // **HOME and AWAY rather than the club
-                                  // names.** Two words that fit the goalmouth
-                                  // at any club, against a name that has to be
-                                  // shrunk or clipped — asked for from the
-                                  // couch. They are also the LOUDER answer:
-                                  // the board above reads home-side-left, so
-                                  // the two words say the same thing the board
-                                  // does in the same order, and `play.home` /
-                                  // `play.away` are already the words it uses
-                                  // for the venue.
-                                  leftEnd: t('play.home'),
-                                  rightEnd: t('play.away'),
-                                ),
+                                // **AND IT GOES AT THE WHISTLE.** Once the
+                                // numbers are on the grass, which way the run
+                                // of play was heading is a question nobody is
+                                // asking any more — two marks over one pitch,
+                                // one of them about a match that has finished.
+                                // Asked for from the couch.
+                                onGrass: f.finished
+                                    ? null
+                                    : MomentumArrow(
+                                        bias: momentumBias(
+                                          dangerHome: stats.dangerHome,
+                                          isHome: home,
+                                        ),
+                                        attackingRight: home,
+                                        // Shades of the TURF, not of the kit: a solid
+                                        // mark on the grass rather than a tint over it.
+                                        ours: momentumOurs,
+                                        theirs: momentumTheirs,
+                                        // **WHOSE END IS WHICH, painted on the
+                                        // grass.** The markings are symmetric, so
+                                        // "pointing right" carries no information
+                                        // unless you already know which end you are
+                                        // attacking — which is why the arrow was
+                                        // reported as pointing the wrong way when it
+                                        // was pointing the right way.
+                                        //
+                                        // **HOME and AWAY rather than the club
+                                        // names.** Two words that fit the goalmouth
+                                        // at any club, against a name that has to be
+                                        // shrunk or clipped — asked for from the
+                                        // couch. They are also the LOUDER answer:
+                                        // the board above reads home-side-left, so
+                                        // the two words say the same thing the board
+                                        // does in the same order, and `play.home` /
+                                        // `play.away` are already the words it uses
+                                        // for the venue.
+                                        leftEnd: t('play.home'),
+                                        rightEnd: t('play.away'),
+                                      ),
                                 onDone: (_) {
                                   if (!mounted) return;
                                   final told = _clippedMinute;
@@ -3130,63 +3329,4 @@ class _ReplayChip extends StatelessWidget {
   }
 }
 
-/// The referee's card, drawn rather than fetched.
-///
-/// **A rounded rectangle is the whole picture**, which is why there is no asset
-/// for it: the shape and the colour ARE the thing, at any size, in any theme,
-/// and a bundled PNG would be a file to ship and a manifest row to keep for
-/// eleven by fifteen points of solid colour.
-///
-/// **A second yellow draws BOTH**, overlapped the way a referee holds them. It
-/// is not a red — it is a caution too many — and the row above it says so in
-/// words; this says it in the picture, which is the half a player actually
-/// looks at. Asked for from the couch.
-class CardGlyph extends StatelessWidget {
-  const CardGlyph({super.key, required this.card, this.height = 15});
 
-  /// `yellow`, `second_yellow` or `red` — see `booking_engine.dart`.
-  final String card;
-  final double height;
-
-  @override
-  Widget build(BuildContext context) {
-    final w = height * 0.72;
-    Widget one(Color fill) => Container(
-      width: w,
-      height: height,
-      decoration: BoxDecoration(
-        color: fill,
-        borderRadius: BorderRadius.circular(height * 0.14),
-        border: Border.all(color: const Color(0x33000000), width: 0.5),
-      ),
-    );
-    if (card != cardSecondYellow) {
-      return one(card == cardRed ? cardRedInk : cardYellowInk);
-    }
-    // Fanned, so the two read as two rather than as a thick one.
-    return SizedBox(
-      key: const ValueKey('card-glyph-second-yellow'),
-      width: w * 1.5,
-      height: height,
-      child: Stack(
-        children: [
-          Transform.rotate(angle: -0.18, child: one(cardYellowInk)),
-          Positioned(
-            left: w * 0.5,
-            child: Transform.rotate(angle: 0.18, child: one(cardRedInk)),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// The two colours a card is, fixed in both themes: a referee's card is the
-/// same object whatever the app is wearing, and these are the only two shades
-/// anybody would accept for one.
-const Color cardYellowInk = Color(0xFFF6C915);
-const Color cardRedInk = Color(0xFFE0342B);
-
-/// What a booking's HEAD is printed in. A second yellow takes the red, because
-/// what it means is a sending-off — the word beside it is what says which kind.
-Color cardInk(String card) => card == cardYellow ? cardYellowInk : cardRedInk;

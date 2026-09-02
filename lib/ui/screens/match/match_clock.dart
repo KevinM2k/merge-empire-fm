@@ -610,11 +610,20 @@ List<FeedLine> feedOf(
       // same. `booking_engine` carries the distinction and this is where it
       // reaches the page.
       case 'booking':
+        // **THEIRS READS DIFFERENTLY BECAUSE IT HAS TO.** The port never names
+        // an opposition player — not at a goal, not anywhere — so their card is
+        // written about the club. Same three offences, three more lines.
+        final oppCard = e.team == 'away';
         out.add((
           minute: e.minute,
           type: e.type,
-          key: 'commentary.booking.${e.card ?? cardYellow}',
-          params: {'player': e.player ?? '', 'us': ourName},
+          key:
+              'commentary.booking.${oppCard ? 'opp_' : ''}${e.card ?? cardYellow}',
+          params: {
+            'player': e.player ?? '',
+            'us': ourName,
+            'opp': theirName,
+          },
           seed: '${e.minute}-card',
           goal: null,
           // **NO FACE ON THIS ROW.** A goal draws its scorer because the goal

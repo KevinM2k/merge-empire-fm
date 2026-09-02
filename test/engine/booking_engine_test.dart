@@ -168,4 +168,62 @@ void main() {
       expect(cautionedIn([first, second]), isEmpty);
     });
   });
+
+  group('THE RECORD', () {
+    Map<String, dynamic> save(List<String> ids) => {
+      'grid': {
+        'cells': [
+          for (final id in ids) <String, dynamic>{'instanceId': id},
+        ],
+      },
+    };
+
+    test('a caution and a sending-off both go on the card', () {
+      final state = save(['a', 'b', 'c']);
+      recordBookings(state, const [
+        (minute: 20, instanceId: 'a', name: 'A', card: cardYellow),
+        (minute: 40, instanceId: 'b', name: 'B', card: cardRed),
+      ]);
+      final cells = (state['grid'] as Map)['cells'] as List;
+      expect((cells[0] as Map)['stats'], {'yellows': 1});
+      expect((cells[1] as Map)['stats'], {'reds': 1});
+      // And a card nothing happened to is left exactly as it was, which is what
+      // keeps the parity harness's shape out of this.
+      expect((cells[2] as Map).containsKey('stats'), isFalse);
+    });
+
+    test('a SECOND yellow counts as both, because it was both', () {
+      final state = save(['a']);
+      recordBookings(state, const [
+        (minute: 20, instanceId: 'a', name: 'A', card: cardYellow),
+        (minute: 70, instanceId: 'a', name: 'A', card: cardSecondYellow),
+      ]);
+      final cell = ((state['grid'] as Map)['cells'] as List).first as Map;
+      expect(cell['stats'], {'yellows': 2, 'reds': 1});
+    });
+
+    test('it adds to what is already there rather than replacing it', () {
+      final state = save(['a']);
+      ((state['grid'] as Map)['cells'] as List).first['stats'] = {
+        'goals': 3,
+        'yellows': 1,
+      };
+      recordBookings(state, const [
+        (minute: 20, instanceId: 'a', name: 'A', card: cardYellow),
+      ]);
+      final cell = ((state['grid'] as Map)['cells'] as List).first as Map;
+      expect(cell['stats'], {'goals': 3, 'yellows': 2});
+    });
+
+    test('nothing to record, nothing written', () {
+      final state = save(['a']);
+      recordBookings(state, const []);
+      recordBookings(null, const [
+        (minute: 20, instanceId: 'a', name: 'A', card: cardYellow),
+      ]);
+      expect(((state['grid'] as Map)['cells'] as List).first, {
+        'instanceId': 'a',
+      });
+    });
+  });
 }
