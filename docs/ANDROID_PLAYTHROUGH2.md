@@ -6,18 +6,24 @@ actually wrong, because that is the part worth keeping.
 
 ## Where this queue stands
 
-**37 done, 15 open.** The nine that are done were each a real defect with a
-mechanism behind it, and three of them were shipped code doing nothing: a
-`strategyId` nothing ever wrote, a `skyPaneTint` with no caller, and a turf band
-whose whole job was hiding a seam it was itself making.
+**51 done, 5 open.** Nearly every one that is done had a mechanism behind it,
+and a striking number were shipped code doing nothing: a `strategyId` nothing
+ever wrote, a `skyPaneTint` with no caller, a turf band whose whole job was
+hiding a seam it was itself making, `startMatchCooldown` called by one of the two
+flows that need it, and `card.form` altering every rating in the game with no
+mark on any card. The three loudest tells this repo records — shipped copy with
+no caller, shipped constants with no caller, shipped art carrying an animation
+class — between them found the half-time verdict, the opponent's substitutions,
+the form arrows, the tactics heading and `commentary.snub` printing a literal
+`{opp}` to players.
 
-The seven still open split into two piles and the split is worth keeping. Three
-are **one job**: the scene is painted by a handful of very large `paint()`
-methods, and animating hair, stopping the customiser stuttering and fixing the
-dugout's hanging arms are all downstream of taking that apart into layers — with
-the Spine question sitting on top of the same work. The other three are
-ordinary and independent, and two of those four need a device or a recording
-rather than a change.
+**The five still open all need something this session cannot produce.** Two want
+a device: the customiser's stutter is on the raster thread and its build side has
+been measured clean, and the Players tab's bounce is a question about a real
+scroll. One wants a recording — the shatter sound. One is a decision rather than
+a change (Spine, and what it costs). The last is the remainder of the layering
+job, which is where the manager rig would be taken apart if the Spine answer is
+no.
 
 ---
 
@@ -329,6 +335,94 @@ rather than a change.
       go dark-on-dark or light-on-light depending on the kit. It lerps to
       `kit.accentInk`, which the theme already measured for exactly this.)
 
+
+### Session two — the second wave
+
+- [x] **Full time waits for a CONTINUE button.** (It left on a 1,400ms timer,
+      on the reasoning that the page has nothing left to say — which missed the
+      FEED. Ninety minutes scroll past at one minute per 350ms and the timer
+      took them away before they could be read back. The row of speed/subs/skip
+      becomes the one control there is anything left to do with; all three are
+      dead by then anyway.)
+
+- [x] **The 30s cooldown starts when you are back.** (`startMatchCooldown`
+      exists, says in its own doc that it runs "when the player is actually back
+      on the Play screen", and only the CUP flow called it. A league match stamps
+      `lastMatchAt` at kick-off, so anyone who watched the ninety minutes waited
+      zero seconds and only skippers ever felt it.)
+
+- [x] **Gems and energy fly to their own chips.** (`coin_flight.dart` was
+      written for one wallet. It is three tracks now — a chip key, an event, and
+      a sprite colour each — and `game_runner` emits `energy:idle` before the
+      regen tick, the same way `coins:idle` marks the trickle.)
+
+- [x] **A lone match modifier sits beside its rating.** (Anchored outward, one
+      badge sat hard against the card's edge with an inch of nothing between it
+      and the figure it belongs to. It grows out from the figure now, and it
+      keeps `modWellGap` clear of the ATK/DEF well.)
+
+- [x] **And it is not a block of colour.** (Three rounds: hue-on-hue at 13% was
+      unreadable; white on a solid plate fixed that and put three saturated
+      slabs on a card whose loudest thing should be the ratings; a neutral 5%
+      recess is WHITE on a light pane, so they vanished; a 16% wash of the hue
+      failed the contrast sweep at 2.70:1, because this card sits on glass over
+      a pitch and a green kit makes that pane green. It is `surface2` under a 7%
+      wash of the hue, with the hue on the rim and the figure.)
+
+- [x] **The daily reward's badges hug their figures.** (Stretched to the tile,
+      seven days paying two and three rewards each is a dozen full-width slabs.
+      Printing the figure in the sheet's ink with only the glyph coloured was
+      tried in between and went straight back — that is the 1.2:1 fault the badge
+      exists to fix. Each says which wallet it is, at day seven's size on every
+      day.)
+
+- [x] **A floor under the type.** (246 declared sizes had drifted under 12 —
+      7.5 through 11.5 — because every tight slot was solved by taking a point
+      off the type. `minFontSize` and an `architecture_test` sweep that catches
+      ternaries too: the Invest button was one, and the first pass missed it. The
+      escape hatch is `FittedBox`, which shrinks at draw time only where it is
+      needed.)
+
+- [x] **Form is on the card.** (`getEffectiveRating` adds `card.form` straight
+      onto the composed figure, so a player in bad form is genuinely a point
+      worse than his card said — and the card never said it. The arrow is
+      `Card.js`'s own, and `squad.form.good` / `squad.form.bad` had shipped in
+      ten catalogues with no caller.)
+
+- [x] **The subs bench opens on the hole's own line.** (`PositionFilterBar` was
+      on every other bench in the game. Each card carries its ATK and DEF read
+      against the man coming off — green better, red worse, muted for level —
+      and the form legend sits where `SquadScreen.js` puts it.)
+
+- [x] **The feed cannot run ahead of the clock.** (Every line comes from an
+      event the frame has released except the kick-off pool's spares, which the
+      feed mints itself — so a match in its third minute already showed an
+      11th-minute line and a goal went in underneath it. And `open.0` is
+      "Kick-off!", which is about the first whistle rather than the opening
+      period: it was being offered as filler at minute six.)
+
+- [x] **The match's numbers are on the grass.** (One translucent card over the
+      pitch at full time: home count, bar, stat, bar, away count, each bar filled
+      to its share of the pair inside a track the size it could have been, green
+      for whoever won that contest. One scale for the whole block, so no figure
+      is ever a different size from the one beside it.)
+
+- [x] **Every passage the pitch told is offered back.** (Goals and chances
+      alike, rebuilt from the minute and the match's own seed. On the LINE that
+      describes the moment rather than as minute chips on the panel — and full
+      time only, which is the rule the spec's own `feed-replay-icon` came off
+      for. No 2D pitch, no replays, on the report as well.)
+
+- [x] **The commentary tells a story.** (Twelve lines across the four scoring
+      pools and the opponent's, two or three clauses each. The pools are
+      pipe-separated and picked at DRAW time by `tPoolStable`, so this cannot
+      move an event and `match_orchestration_reference.json` still matches.
+      `call_sites_test` caught eight gendered pronouns in the first draft.)
+
+- [x] **The club cards fit two lines again.** (`assetLineBox` is derived from
+      `minFontSize` and the leading, not nudged — the type floor clipped the
+      second line of both the perk and the next-tier line through the middle.)
+
 ---
 
 ## Open
@@ -385,86 +479,12 @@ separately would mean doing the hard part three times.
       difference left is that the `ScoutActionBar` sits OUTSIDE the scroller, so
       the top of the tab does not respond to a drag at all. Wants a device to
       confirm before moving the bar.
-- [ ] **FORM IS INVISIBLE, and it should not be.** Raised from the couch — *"we
-      say form is down, and I think it does affect ratings? but we need to check
-      that, and we also need to show that on the squad/player pages/popups."*
-      **Checked, and yes: `getEffectiveRating` adds `card.form` straight into
-      the composed rating**, clamped to −1…+1, so a player in form is worth a
-      point more and one out of it a point less. That is also exactly what the
-      JS's own legend claims — `SquadScreen.js` prints "▲ good form +1 ▼ bad
-      form −1" — so the arithmetic here is right and matches the spec.
-      **What is missing is every trace of it on screen**, and the usual tell is
-      all over it: `squad.form.good` and `squad.form.bad` are translated in ten
-      catalogues with no caller in `lib/`, and `squad.subtext` says in as many
-      words "▲▲ good form · ▼▼ poor form — affects squad rating" while nothing
-      draws an arrow. The JS puts it in two places and both are ported shapes:
-      `Card.js` hangs a ▲/▼ on any card with non-zero form, and the bench sheet
-      carries the legend. So: a form glyph on `CardView`/`PlayerCard` — which
-      the squad, the bench, the pickers and the detail sheet all already read —
-      plus the legend.
-      One thing NOT to port: `Form.ratingPctPerLevel` (±5% per level) has no
-      caller here and **none in the JS either**. It is a stale constant in both
-      repos, not a missing feature; the ±1 is the rule.
-
-- [ ] **THE SUBS BENCH NEEDS A POSITION FILTER AND A COMPARISON.** Asked for
-      from the couch: a quick GK/DEF/MID/ATK filter, **pre-set to the position
-      of the player coming off** so the right candidates are the ones on screen;
-      and the ATK/DEF figures coloured against the man being replaced — green
-      where the sub is better, red where he is worse.
-      **Both halves already exist in this repo and neither is wired here**,
-      which is the reuse rule this project keeps: `PositionFilterBar`
-      (`squad_screen.dart`) is the JS's own `_benchFilterDefs()` ported, and it
-      is already on the squad bench and the pickers — the subs panel is the one
-      bench without it. And `benchForSlotProvider(slotPosition)` already ORDERS
-      by the slot's position, so the panel knows which position is being
-      replaced; it just never says so. For the colours, `vsGreenOn` / `vsRedOn`
-      in `match_stat_rows.dart` are the app's own better/worse pair.
-
 - [ ] **A poof/tap sound worth having.** Carried over from `REMAINING.md` — `pop`
       is a 0.1s blip doing the job of a shatter cue. Needs audio, not code.
 
 
 ### Session two — still open
 
-- [ ] **Commentary should tell a little story.** Two or three lines, with a lot
-      more variation, so a passage reads like a passage rather than a label:
-      "*<player> has looked lively down the left and drives towards goal, knocks
-      it beyond the defender who nudges him in the back…*". Asked for with the
-      caveat that it must stay READABLE — not every line, a good few of them.
-      **The pools are the JS's**, and `match_orchestration_reference.json` pins
-      363 commentary lines field for field, so the engine emits what it always
-      emitted and any new writing has to arrive as copy in `en.js` plus a
-      screen-side pick. `openingFillMinutes` is the precedent for that shape.
-
-- [ ] **Full time waits for a CONTINUE button.** The three buttons at the foot
-      of the match popup become one, and the end-game screen comes up when it is
-      pressed — so a player can read back the ninety minutes first. Their own
-      answer to their own question, and it is the right one: it also fixes the
-      1,400ms `_cue` that currently decides for them.
-
-- [ ] **The coach's 30s cooldown should start when the player is back from the
-      end-game screen**, not when the match ends behind it.
-
-- [ ] **Energy and gems fly to the HUD like coins do.** `coin_flight.dart`
-      exists and is wired for one currency; the bolt and the gem land nowhere.
-
-- [ ] **The next-match card's modifiers align INWARD.** The left team's sit
-      right-aligned and the right team's left-aligned, so one modifier reads as
-      belonging to a side rather than floating at the page edge.
-
-- [ ] **The daily reward's price boxes are too heavy.** They make it hard to see
-      which day gives what.
-
-- [ ] **FORM IS INVISIBLE.** It does affect ratings — `getEffectiveRating` adds
-      `card.form`, ±1 — and `squad.form.good` / `squad.form.bad` are shipped in
-      ten catalogues with no caller. Port `Card.js`'s glyph onto `CardView` /
-      `PlayerCard` and the bench legend. Do NOT port `Form.ratingPctPerLevel`:
-      it is dead in both repos.
-
-- [ ] **The subs bench needs a position filter and a comparison.** GK/DEF/MID/ATK,
-      pre-set from the outgoing player's slot, with ATK/DEF coloured red or green
-      against the man coming off. `PositionFilterBar` already exists and is on
-      every other bench; `vsGreenOn`/`vsRedOn` are the colours.
 
 ---
 
