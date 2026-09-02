@@ -17,7 +17,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/engine/cup_engine.dart'
-    show prepareCupRound;
+    show previewCupTie;
 import 'package:merge_empire_fc/ui/screens/match/cup_launcher.dart'
     show cupDue;
 import 'package:merge_empire_fc/engine/booking_engine.dart'
@@ -64,7 +64,9 @@ final coachTipsProvider = savePick<List<CoachTip>>((s) {
     // A cup tie has no league history, no grudge and no table position, so the
     // only read that survives is the rating gap — and that is the one that
     // matters before a knockout.
-    final cupTie = cupDue(s) ? prepareCupRound(s) : null;
+    // Read-only — `prepareCupRound` would play the tie from inside a provider.
+    // See `previewCupTie` for what that cost.
+    final cupTie = cupDue(s) ? previewCupTie(s) : null;
     if (cupTie != null) {
       final gap = preview.effectiveSquadRating - cupTie.opponentRating;
       if (gap <= -5) {
