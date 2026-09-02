@@ -13,6 +13,7 @@
 /// because "Colin talking over Colin is the worst version of this bug".
 library;
 
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/engine/coach_tip_engine.dart';
@@ -24,6 +25,7 @@ import 'package:merge_empire_fc/ui/shell/shell_controller.dart';
 import 'package:merge_empire_fc/ui/shell/tabs.dart';
 import 'package:merge_empire_fc/util/event_bus.dart';
 import 'package:merge_empire_fc/util/popup_queue.dart';
+import 'package:merge_empire_fc/ui/popups/connect_account_sheet.dart';
 
 /// The JS's tab ids, which are not quite this app's.
 ///
@@ -134,7 +136,18 @@ class _CoachTipHostState extends ConsumerState<CoachTipHost> {
       case CoachTipCta.settings:
         emit('nav:settings');
       case CoachTipCta.connect:
-        emit('nav:settings', {'tab': 'account'});
+        // **THE SHEET, not a trip to Settings.** It emitted `nav:settings` with
+        // the account tab, and from a coach card that reached nobody — reported
+        // from the couch as the button doing nothing. It is also the wrong
+        // shape even when it works: the card asks one question, so the answer
+        // should be the thing that answers it rather than the screen the thing
+        // lives on. `showConnectAccountSheet` is what the Settings row opens
+        // too, so there is one flow rather than two.
+        //
+        // The card has already popped by now — `_CoachButton` dismisses before
+        // it calls — so this raises the sheet over the page, and tapping
+        // outside it is the way out. Asked for in those terms as well.
+        unawaited(showConnectAccountSheet(context));
     }
   }
 

@@ -36,6 +36,8 @@ TimelineEvent _event(
   xg: xg,
   player: null,
   params: const {},
+  card: null,
+  playerId: null,
 );
 
 void main() {

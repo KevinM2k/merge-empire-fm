@@ -14,6 +14,7 @@ library;
 // The engine's own pool table, so the opening filler and the events it is
 // filling around cannot disagree about how many lines the bucket holds. Pure
 // Dart, like this file: nothing here reaches for Flutter.
+import 'package:merge_empire_fc/engine/booking_engine.dart' show cardYellow;
 import 'package:merge_empire_fc/engine/match_events.dart' show commentaryPools;
 
 /// One thing that happened, ready to show.
@@ -51,6 +52,17 @@ typedef TimelineEvent = ({
   /// literal text `{opp} are furious at the snub` in every language that has
   /// one.
   Map<String, Object?> params,
+
+  /// `yellow`, `second_yellow` or `red` on a BOOKING, and null on everything
+  /// else — see `booking_engine.dart`. Carried rather than derived because a
+  /// second caution and a straight red are different offences and the feed has
+  /// to say which.
+  String? card,
+
+  /// Which card instance the event is about, when the engine knows. A booking
+  /// names one; so does the man who was sent off, which is what the suspension
+  /// is written against.
+  String? playerId,
 });
 
 /// The name to force onto the shooter's dot for a clip, or null for no name.
@@ -99,11 +111,25 @@ typedef MatchFrame = ({
 /// Ninety plus whatever the referee found.
 int fullTime(int addedTime) => 90 + (addedTime < 0 ? 0 : addedTime);
 
-List<TimelineEvent> timelineOf(Map<String, dynamic> result) {
+List<TimelineEvent> timelineOf(
+  Map<String, dynamic> result, {
+  /// **THE PORT'S OWN EVENTS, merged on the way to the screen.**
+  ///
+  /// Bookings are not in the spec — nothing there books anybody — and they
+  /// cannot travel in the RESULT either: `match_orchestration_parity_test` and
+  /// the season difftest compare the result map field for field and the event
+  /// array array for array, and forty-six of them failed on the first two
+  /// attempts at putting them there. That is the harness being right twice.
+  ///
+  /// So the engine stays byte-identical to the JS and the referee lives where
+  /// every other divergence in this port lives: on the screen. See
+  /// `booking_engine.dart` and `MatchScreenState._bookings`.
+  List<Map<String, dynamic>> bookings = const [],
+}) {
   final raw = result['events'];
   if (raw is! List) return const [];
   return [
-    for (final e in raw)
+    for (final e in [...raw, ...bookings])
       if (e is Map<String, dynamic>)
         (
           minute: (e['minute'] as num?)?.toInt() ?? 0,
@@ -116,6 +142,8 @@ List<TimelineEvent> timelineOf(Map<String, dynamic> result) {
           big: e['big'] == true,
           xg: (e['xg'] as num?)?.toDouble() ?? 0,
           player: e['player'] as String?,
+          card: e['card'] as String?,
+          playerId: e['playerInstanceId'] as String?,
           params: e['textParams'] is Map
               ? {
                   for (final entry in (e['textParams'] as Map).entries)
@@ -222,6 +250,14 @@ typedef FeedLine = ({
   /// goal: the engine picks scorers from OUR squad, and a face for a man the
   /// save has never heard of cannot be drawn.
   String? aboutId,
+
+  /// `yellow`, `second_yellow` or `red` on a BOOKING row, null on every other.
+  /// The row draws the card itself from this, and a second caution must not
+  /// look like a straight red — see `booking_engine.dart`.
+  String? card,
+
+  /// Which card instance the row is about, when the engine names one.
+  String? playerId,
 });
 
 /// How long the feed waits before mentioning another chance, in minutes.
@@ -421,6 +457,8 @@ List<FeedLine> feedOf(
               ours: true,
             ),
             aboutId: e.scorerId,
+            card: null,
+            playerId: null,
           ));
         } else {
           out.add((
@@ -436,6 +474,8 @@ List<FeedLine> feedOf(
               ours: false,
             ),
             aboutId: null,
+            card: null,
+            playerId: null,
           ));
         }
       case 'halftime':
@@ -460,6 +500,8 @@ List<FeedLine> feedOf(
           seed: 'ht',
           goal: null,
           aboutId: null,
+          card: null,
+          playerId: null,
         ));
       case 'injury':
         out.add((
@@ -470,6 +512,8 @@ List<FeedLine> feedOf(
           seed: '${e.minute}-inj',
           goal: null,
           aboutId: null,
+          card: null,
+          playerId: null,
         ));
       case 'commentary':
         if (e.textKey != null) {
@@ -484,6 +528,8 @@ List<FeedLine> feedOf(
             seed: '${e.minute}-c',
             goal: null,
             aboutId: null,
+            card: null,
+            playerId: null,
           ));
           // And the rest of the kick-off pool, into the quiet after it. See
           // [openingFillMinutes].
@@ -515,6 +561,8 @@ List<FeedLine> feedOf(
                 seed: '${openingFillMinutes[i]}-c',
                 goal: null,
                 aboutId: null,
+                card: null,
+                playerId: null,
               ));
             }
           }
@@ -538,6 +586,8 @@ List<FeedLine> feedOf(
           seed: '${e.minute}-ch',
           goal: null,
           aboutId: null,
+          card: null,
+          playerId: null,
         ));
       // **THEIR CHANGES, which the port dropped on the floor.**
       //
@@ -549,6 +599,34 @@ List<FeedLine> feedOf(
       // and unreachable, and the only substitutions a player ever saw in ninety
       // minutes were their own. Asked for from the couch, in exactly those
       // terms: a feed with substitutions in it.
+      // **THE REFEREE'S POCKET.** A booking is a real moment in a match and the
+      // feed carries it like one — the minute, the word, and a line naming the
+      // player. `commentary.booking.*` is the port's own copy, because nothing
+      // in the spec books anybody.
+      //
+      // **A SECOND YELLOW IS ITS OWN LINE.** It is a caution too many, where a
+      // straight red is violent conduct or denying a goalscoring opportunity —
+      // asked for from the couch in those words, and the two must not read the
+      // same. `booking_engine` carries the distinction and this is where it
+      // reaches the page.
+      case 'booking':
+        out.add((
+          minute: e.minute,
+          type: e.type,
+          key: 'commentary.booking.${e.card ?? cardYellow}',
+          params: {'player': e.player ?? '', 'us': ourName},
+          seed: '${e.minute}-card',
+          goal: null,
+          // **NO FACE ON THIS ROW.** A goal draws its scorer because the goal
+          // is about him; a booking is about the CARD, and the card is already
+          // in the head beside the minute. A portrait as well would be two
+          // marks in front of one sentence, which is the rule the injury row
+          // already follows. `playerId` still travels — the suspension is
+          // written against it.
+          aboutId: null,
+          card: e.card,
+          playerId: e.playerId,
+        ));
       case 'opp_sub':
         out.add((
           minute: e.minute,
@@ -558,6 +636,8 @@ List<FeedLine> feedOf(
           seed: '${e.minute}-oppsub',
           goal: null,
           aboutId: null,
+          card: null,
+          playerId: null,
         ));
       // A corner is a momentum nudge and full time is the screen's own.
       default:

@@ -37,6 +37,7 @@ import 'package:merge_empire_fc/ui/screens/squad/squad_providers.dart';
 import 'package:merge_empire_fc/ui/theme/app_theme.dart';
 import 'package:merge_empire_fc/ui/theme/sky.dart';
 import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
+import 'package:merge_empire_fc/engine/booking_engine.dart';
 
 Map<String, dynamic> matchResult({
   bool won = true,
@@ -743,6 +744,79 @@ void main() {
     );
   });
 
+  group('THE REFEREE', () {
+    // Nothing in the spec books anybody, so all of this is the port's own — and
+    // the rule that shapes it is that a SECOND YELLOW is not a straight red.
+    // One is a caution too many; the other is violent conduct or denying a
+    // goalscoring opportunity. Asked for from the couch in those words.
+    testWidgets('books players, and the feed shows the card', (tester) async {
+      final container = await pumpMatch(
+        tester,
+        matchResult(),
+        save: squadSave(),
+      );
+      expect(container, isNotNull);
+      final state = stateOf(tester);
+      expect(
+        state.bookings,
+        isNotEmpty,
+        reason: 'a full squad and the referee never reached for a pocket',
+      );
+      state.skipToEnd();
+      await tester.pumpAndSettle();
+
+      final card = state.bookings.first['card'] as String;
+      // The head names the offence — three different words for three different
+      // things — and the card itself is drawn beside it.
+      expect(find.text(t('match.card.$card').toUpperCase()), findsWidgets);
+      expect(find.byType(CardGlyph), findsWidgets);
+    });
+
+    testWidgets('and the same fixture books the same players', (tester) async {
+      // Seeded off the fixture key, so a match replays what it did — the same
+      // promise the cutaway makes about its passages.
+      List<Object?> cardsOf(MatchScreenState s) =>
+          [for (final b in s.bookings) '${b['minute']}:${b['card']}'];
+      await pumpMatch(tester, matchResult(), save: squadSave());
+      final first = cardsOf(stateOf(tester));
+      await pumpMatch(tester, matchResult(), save: squadSave());
+      expect(cardsOf(stateOf(tester)), first);
+    });
+
+    testWidgets('a SECOND yellow is drawn as two cards, not one', (
+      tester,
+    ) async {
+      // The word says which offence it was; the picture is the half a player
+      // actually looks at, so it has to agree.
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: buildAppTheme(kitId: 'classic', light: false),
+          home: const Scaffold(
+            body: Row(
+              children: [
+                CardGlyph(card: cardYellow),
+                CardGlyph(card: cardSecondYellow),
+                CardGlyph(card: cardRed),
+              ],
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey('card-glyph-second-yellow')),
+        findsOneWidget,
+      );
+      // And the two straight ones are one rectangle each, in their own colour.
+      final plain = tester
+          .widgetList<Container>(find.byType(Container))
+          .map((c) => (c.decoration as BoxDecoration?)?.color)
+          .toSet();
+      expect(plain, contains(cardYellowInk));
+      expect(plain, contains(cardRedInk));
+    });
+  });
+
   testWidgets('THE FEED SAYS WHAT KIND OF THING HAPPENED', (tester) async {
     // Asked for from the couch: a goal gets a card and a heading, and
     // everything else went past as a bare sentence. Every word here is shipped
@@ -1050,6 +1124,26 @@ void main() {
   });
 
   group('THE COMMENTARY KNOWS WHO IT IS ABOUT', () {
+    /// Bring a feed row into view.
+    ///
+    /// **THE FEED IS LONGER THAN IT WAS, and the goal is at the bottom of it.**
+    /// It reads newest-first, and a match with a real squad now also carries
+    /// the referee's cards — so a goal in the tenth minute sits under three
+    /// bookings and a lazy `ListView` never builds it. Nothing is wrong with
+    /// the row; the test was reading a viewport rather than a list.
+    Future<void> reachFeed(WidgetTester tester, Finder target) async {
+      if (target.evaluate().isNotEmpty) return;
+      await tester.scrollUntilVisible(
+        target,
+        120,
+        scrollable: find.descendant(
+          of: find.byKey(const ValueKey('match-feed')),
+          matching: find.byType(Scrollable),
+        ),
+      );
+      await tester.pumpAndSettle();
+    }
+
     testWidgets('A GOAL CARRIES THE SCORER\'S FACE', (tester) async {
       // A goal line naming a player, next to the art of the player it names.
       // The portraits are bundled and `playerImagePath` already resolves them,
@@ -1072,6 +1166,7 @@ void main() {
       );
       stateOf(tester).skipToEnd();
       await tester.pumpAndSettle();
+      await reachFeed(tester, find.byType(PlayerFace));
       expect(
         find.descendant(
           of: find.byKey(const ValueKey('match-feed')),
@@ -1110,6 +1205,7 @@ void main() {
       );
       stateOf(tester).skipToEnd();
       await tester.pumpAndSettle();
+      await reachFeed(tester, find.text(t('match.goal_card.title')));
 
       final feed = find.byKey(const ValueKey('match-feed'));
       expect(
@@ -1160,6 +1256,7 @@ void main() {
       );
       stateOf(tester).skipToEnd();
       await tester.pumpAndSettle();
+      await reachFeed(tester, find.text(t('match.career_goal', {'n': 1})));
       final feed = find.byKey(const ValueKey('match-feed'));
       expect(
         find.descendant(
@@ -1200,6 +1297,9 @@ void main() {
       );
       stateOf(tester).skipToEnd();
       await tester.pumpAndSettle();
+      // The ball is the goal card's own mark, and it is the only one on that
+      // row for a scorer the save no longer holds.
+      await reachFeed(tester, find.byIcon(Icons.sports_soccer));
       final feed = find.byKey(const ValueKey('match-feed'));
       expect(
         find.descendant(of: feed, matching: find.byType(PlayerFace)),

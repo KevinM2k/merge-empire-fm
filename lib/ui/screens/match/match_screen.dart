@@ -36,6 +36,7 @@ import 'package:merge_empire_fc/ui/screens/match/cutaway/cutaway_pitch.dart';
 import 'package:merge_empire_fc/ui/screens/match/cutaway/cutaway_game.dart'
     show CutawayOutcome;
 import 'package:merge_empire_fc/ui/screens/match/cutaway/cutaway_stage.dart';
+import 'package:merge_empire_fc/engine/booking_engine.dart';
 import 'package:merge_empire_fc/ui/screens/match/goal_replay.dart'
     show conceded;
 import 'package:merge_empire_fc/engine/match_orchestration.dart'
@@ -310,7 +311,63 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
   /// Rebuilt whenever the tactic changes — see [applyStrategy]. Not `final`:
   /// the remainder of the match is genuinely re-decided, so the list of what is
   /// left to show is replaced.
-  late List<TimelineEvent> _timeline = timelineOf(widget.result);
+  /// **THE REFEREE, and he is the PORT'S referee.**
+  ///
+  /// Nothing in the spec books anybody, and bookings cannot ride in the result
+  /// or its event array — both are compared field for field against the JS, and
+  /// forty-six tests said so, twice. So they are minted here, from the fixture's
+  /// own key and the eleven who started, and merged into the timeline. See
+  /// `booking_engine.dart`.
+  late final List<Map<String, dynamic>> _bookings = _rollBookings();
+
+  /// The cards this match produced. **A test seam**, and the same list the
+  /// suspension will be written from.
+  List<Map<String, dynamic>> get bookings => _bookings;
+
+  late List<TimelineEvent> _timeline = timelineOf(
+    widget.result,
+    bookings: _bookings,
+  );
+
+  /// One match's cards, decided once. Seeded off the FIXTURE KEY — `s3_m7` —
+  /// so a match books the same players every time it is watched, which is the
+  /// promise the cutaway already makes about its passages.
+  List<Map<String, dynamic>> _rollBookings() {
+    final state = ref.read(gameProvider).state;
+    final squadMap = state?['squad'];
+    final lineup = squadMap is Map<String, dynamic>
+        ? squadMap['lineup']
+        : null;
+    final ids = <String>{
+      if (lineup is List)
+        for (final slot in lineup)
+          if (slot is Map<String, dynamic>)
+            if (slot['cardInstanceId'] case final String id) id,
+    };
+    final squad = <BookingCandidate>[
+      for (final id in ids)
+        if (cardById(state, id) case final card?)
+          if (getPlayerDef(card.definitionId) case final def?)
+            (instanceId: id, name: card.name(def.name), position: def.position),
+    ];
+    if (squad.isEmpty) return const [];
+    final key = '${widget.result['fixtureKey'] ?? ''}';
+    var seed = 0;
+    for (final unit in key.codeUnits) {
+      seed = (seed * 31 + unit).toSigned(32);
+    }
+    return [
+      for (final b in rollBookings(squad: squad, seed: seed))
+        {
+          'minute': b.minute,
+          'type': 'booking',
+          'team': 'home',
+          'player': b.name,
+          'playerInstanceId': b.instanceId,
+          'card': b.card,
+        },
+    ];
+  }
   late final int _end = fullTime(
     (widget.result['addedTime'] as num?)?.toInt() ?? 0,
   );
@@ -1331,6 +1388,8 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
         goal: null,
         // The man coming ON is who the line is about, and the row can draw him.
         aboutId: sub.onId,
+        card: null,
+        playerId: null,
       ));
     });
   }
@@ -1433,7 +1492,7 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
 
     setState(() {
       _strategy = id;
-      _timeline = timelineOf(widget.result);
+      _timeline = timelineOf(widget.result, bookings: _bookings);
       _notes.add((
         minute: at,
         type: 'tactics',
@@ -1445,6 +1504,8 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
         seed: 'tactic-$at-$id',
         goal: null,
         aboutId: null,
+        card: null,
+        playerId: null,
       ));
       _tacticCooldown = true;
     });
@@ -2774,6 +2835,12 @@ class _FeedLine extends StatelessWidget {
       'subs' || 'opp_sub' => t('match.subs'),
       'tactics' => t('match.tab.tactics'),
       'chance' => t('match.chance'),
+      // **THREE WORDS, not one.** A second caution and a straight red are
+      // different offences — one is a booking too many, the other is violent
+      // conduct or denying a goalscoring opportunity — and a feed that headed
+      // both RED CARD would be telling the player the wrong story about the
+      // afternoon. Asked for from the couch in exactly those terms.
+      'booking' => t('match.card.${line.card ?? cardYellow}'),
       _ => null,
     };
 
@@ -2798,6 +2865,10 @@ class _FeedLine extends StatelessWidget {
                 fontFeatures: const [FontFeature.tabularFigures()],
               ),
             ),
+            if (line.card case final card?) ...[
+              const SizedBox(width: 8),
+              CardGlyph(card: card),
+            ],
             if (action case final label?) ...[
               const SizedBox(width: 8),
               Expanded(
@@ -2808,7 +2879,11 @@ class _FeedLine extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 12,
                     letterSpacing: 0.8,
-                    color: glassAccent(context, kit.accentBright),
+                    // A booking's head wears the card's own colour, so the row
+                    // is read before it is read.
+                    color: line.card == null
+                        ? glassAccent(context, kit.accentBright)
+                        : cardInk(line.card!),
                   ),
                 ),
               ),
@@ -3054,3 +3129,64 @@ class _ReplayChip extends StatelessWidget {
     );
   }
 }
+
+/// The referee's card, drawn rather than fetched.
+///
+/// **A rounded rectangle is the whole picture**, which is why there is no asset
+/// for it: the shape and the colour ARE the thing, at any size, in any theme,
+/// and a bundled PNG would be a file to ship and a manifest row to keep for
+/// eleven by fifteen points of solid colour.
+///
+/// **A second yellow draws BOTH**, overlapped the way a referee holds them. It
+/// is not a red — it is a caution too many — and the row above it says so in
+/// words; this says it in the picture, which is the half a player actually
+/// looks at. Asked for from the couch.
+class CardGlyph extends StatelessWidget {
+  const CardGlyph({super.key, required this.card, this.height = 15});
+
+  /// `yellow`, `second_yellow` or `red` — see `booking_engine.dart`.
+  final String card;
+  final double height;
+
+  @override
+  Widget build(BuildContext context) {
+    final w = height * 0.72;
+    Widget one(Color fill) => Container(
+      width: w,
+      height: height,
+      decoration: BoxDecoration(
+        color: fill,
+        borderRadius: BorderRadius.circular(height * 0.14),
+        border: Border.all(color: const Color(0x33000000), width: 0.5),
+      ),
+    );
+    if (card != cardSecondYellow) {
+      return one(card == cardRed ? cardRedInk : cardYellowInk);
+    }
+    // Fanned, so the two read as two rather than as a thick one.
+    return SizedBox(
+      key: const ValueKey('card-glyph-second-yellow'),
+      width: w * 1.5,
+      height: height,
+      child: Stack(
+        children: [
+          Transform.rotate(angle: -0.18, child: one(cardYellowInk)),
+          Positioned(
+            left: w * 0.5,
+            child: Transform.rotate(angle: 0.18, child: one(cardRedInk)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// The two colours a card is, fixed in both themes: a referee's card is the
+/// same object whatever the app is wearing, and these are the only two shades
+/// anybody would accept for one.
+const Color cardYellowInk = Color(0xFFF6C915);
+const Color cardRedInk = Color(0xFFE0342B);
+
+/// What a booking's HEAD is printed in. A second yellow takes the red, because
+/// what it means is a sending-off — the word beside it is what says which kind.
+Color cardInk(String card) => card == cardYellow ? cardYellowInk : cardRedInk;

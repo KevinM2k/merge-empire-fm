@@ -465,7 +465,14 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
           // toggle their own key each.
           SettingsRow(
             icon: 'video',
-            label: t('settings.pitchView'),
+            // **NOT "2D PITCH VIEW" ANY MORE.** The pitch is always there —
+            // `CutawayStage` draws the markings and twenty-two bodies for the
+            // whole ninety minutes, and has since the band stopped flickering
+            // in and out. What these two switch is whether a CHANCE cuts away
+            // and is retold on it, which is also what decides whether that
+            // moment can be replayed afterwards. Reported from the couch: the
+            // name describes something that is no longer a choice.
+            label: t('settings.cutaways'),
             trailing: SettingsSegment(
               key: const ValueKey('setting-pitchView'),
               choices: [

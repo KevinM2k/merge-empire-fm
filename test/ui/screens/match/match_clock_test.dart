@@ -170,6 +170,8 @@ void main() {
       big: false,
       xg: 0,
       params: const {},
+      card: null,
+      playerId: null,
       player: null,
     );
 
@@ -256,6 +258,8 @@ void main() {
             xg: 0.4,
             player: null,
             params: {},
+            card: null,
+            playerId: null,
           ),
           ours: true,
           nameOf: onTheGrid,
@@ -290,6 +294,8 @@ void main() {
       xg: xg,
       player: player,
       params: params,
+      card: null,
+      playerId: null,
     );
 
     List<FeedLine> feed(List<TimelineEvent> events, {bool isHome = true}) =>
