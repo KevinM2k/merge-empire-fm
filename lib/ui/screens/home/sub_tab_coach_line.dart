@@ -26,7 +26,11 @@ import 'package:merge_empire_fc/engine/sub_tab_coach.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/ui/screens/match/cup_launcher.dart' show cupDue;
-import 'package:merge_empire_fc/ui/shell/coach_floating.dart' show CoachCorner;
+import 'package:merge_empire_fc/ui/shell/coach_floating.dart'
+    show CoachCorner, coachTipMuted, dismissCoachTip;
+import 'package:merge_empire_fc/ui/shell/coach_tips.dart'
+    show FloatingTip, coachDismissCooldown;
+import 'package:merge_empire_fc/util/time.dart' show now;
 
 /// Which of the three reads to draw.
 enum CoachLineFor { table, fixtures, minigames }
@@ -70,10 +74,38 @@ class SubTabCoachLine extends ConsumerWidget {
   /// sentence about somebody else's season.
   final bool enabled;
 
+  /// What a dismissal here mutes, and for how long.
+  ///
+  /// **Keyed on the SUB-TAB rather than on the sentence.** The line is picked
+  /// from a pool and re-picked as the season moves, so muting the words would
+  /// let the same advice come straight back in its other phrasing — which is
+  /// what a player would call the same tip.
+  FloatingTip _asDismissable(String text) => (
+    text: text,
+    category: 'subtab',
+    priority: false,
+    dismissKey: 'subtab-${which.name}',
+    cooldown: coachDismissCooldown,
+  );
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final tip = enabled ? ref.watch(subTabTipProvider)[which] : null;
     if (tip == null) return const SizedBox.shrink();
+    // **AND A DISMISSAL HAS TO MEAN SOMETHING.** This had no `onDismissed` at
+    // all, so tapping him closed the bubble and left the head sitting there
+    // with the same line behind it, every time the sheet was opened. Reported
+    // from the couch on the league popup, in exactly those words. The shell's
+    // floating coach has had the ledger all along; this is the same one.
+    ref.watch(saveRevisionProvider);
+    final resolved = tPoolStable(tip.key, tip.seed, tip.params);
+    if (coachTipMuted(
+      ref.watch(gameProvider).state,
+      _asDismissable(resolved),
+      now(),
+    )) {
+      return const SizedBox.shrink();
+    }
     // **`tPoolStable`, seeded on the season and the state it is about.** Every
     // one of these keys is two or three sentences separated by pipes, so a
     // straight `t()` reads the whole pool at the player — and the sheet is
@@ -85,7 +117,10 @@ class SubTabCoachLine extends ConsumerWidget {
       // He is not interrupting here — the player opened the list he is
       // annotating — so he holds still. See [CoachCorner.pulse].
       pulse: false,
-      text: tPoolStable(tip.key, tip.seed, tip.params),
+      text: resolved,
+      onDismissed: () => ref
+          .read(gameProvider)
+          .update((s) => dismissCoachTip(s, _asDismissable(resolved), now())),
     );
   }
 }

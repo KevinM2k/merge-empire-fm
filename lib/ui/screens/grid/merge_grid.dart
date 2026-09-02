@@ -1572,6 +1572,14 @@ class _ActionBarHeader extends SliverPersistentHeaderDelegate {
       old.height != height || old.top != top || old.background != background;
 }
 
-/// `ScoutActionBar` at its natural height, with room for a language that wraps.
-const double _barHeight = 54;
+/// `ScoutActionBar` at its natural height, measured.
+///
+/// **Exactly 47, and the slack is the bug.** A persistent header has to declare
+/// its extent before its child is laid out, so this is a number rather than a
+/// measurement — and the first version rounded it up to 54 "for a language that
+/// wraps", which put seven points of nothing between the bar and the first row
+/// of cards. Reported from the couch the moment the bar became a sliver: a new
+/// margin at the top of the player cards. The buttons ellipsise rather than
+/// wrap, so the height does not move with the copy.
+const double _barHeight = 47;
 

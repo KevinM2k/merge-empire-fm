@@ -53,6 +53,7 @@ import 'package:merge_empire_fc/engine/lineup_engine.dart'
 import 'package:merge_empire_fc/ui/screens/match/match_clock.dart';
 import 'package:merge_empire_fc/ui/screens/match/momentum_arrow.dart';
 import 'package:merge_empire_fc/ui/widgets/card_glyph.dart';
+import 'package:merge_empire_fc/ui/screens/match/match_report_card.dart';
 import 'package:merge_empire_fc/ui/screens/match/subs_panel.dart';
 export 'package:merge_empire_fc/ui/widgets/card_glyph.dart'
     show CardGlyph, cardYellowInk, cardRedInk, cardInk;
@@ -2070,10 +2071,33 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
                                       // the better shot anyway — a reaction still printed beside
                                       // the result. It also SCROLLS, so it costs the feed no
                                       // permanent height on a short screen.
+                                      // **AND THE WRITE-UP IS THE LAST WORD.**
+                                      // The feed is newest-first, so the head
+                                      // of the list is the end of the match —
+                                      // which is where a paragraph about the
+                                      // whole of it belongs. It went on the
+                                      // summary screen first and was moved on
+                                      // sight: the commentary is where a match
+                                      // is told.
                                       itemCount:
                                           lines.length +
-                                          (_inlineCam == null ? 0 : 1),
+                                          (_inlineCam == null ? 0 : 1) +
+                                          (f.finished ? 1 : 0),
                                       itemBuilder: (context, i) {
+                                        if (f.finished) {
+                                          if (i == 0) {
+                                            return Padding(
+                                              padding: const EdgeInsets.only(
+                                                top: 12,
+                                                bottom: 4,
+                                              ),
+                                              child: MatchReportCard(
+                                                result: widget.result,
+                                              ),
+                                            );
+                                          }
+                                          i -= 1;
+                                        }
                                         final shot = _inlineCam;
                                         if (shot != null) {
                                           if (i == 0) {

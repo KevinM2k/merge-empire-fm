@@ -666,6 +666,33 @@ class _PlayButtonFaceState extends ConsumerState<_PlayButtonFace>
       vsync: this,
       duration: const Duration(milliseconds: 2800),
     );
+    _startClock();
+  }
+
+  /// **THE LABEL IS A CLOCK AND NOTHING WAS WINDING IT.**
+  ///
+  /// The class comment says the label counts down; only the MASK did.
+  /// `_CooldownMask` has a 100ms ticker of its own and rebuilds itself, so the
+  /// sweep moved while the figure beside it sat at whatever it read when the
+  /// save last changed — reported from the couch as the countdown not working.
+  ///
+  /// A second is the right period for a `m:ss` readout: the mask needs 100ms to
+  /// look continuous and this would only be redrawing the same string ten times.
+  void _startClock() {
+    _clock?.cancel();
+    if (!widget.inCooldown) return;
+    _clock = Timer.periodic(
+      const Duration(seconds: 1),
+      (_) => mounted ? setState(() {}) : null,
+    );
+  }
+
+  Timer? _clock;
+
+  @override
+  void didUpdateWidget(_PlayButtonFace old) {
+    super.didUpdateWidget(old);
+    if (old.inCooldown != widget.inCooldown) _startClock();
   }
 
   @override
@@ -682,6 +709,7 @@ class _PlayButtonFaceState extends ConsumerState<_PlayButtonFace>
 
   @override
   void dispose() {
+    _clock?.cancel();
     _shimmer.dispose();
     super.dispose();
   }

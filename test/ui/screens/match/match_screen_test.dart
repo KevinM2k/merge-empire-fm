@@ -216,6 +216,26 @@ String scoreOn(WidgetTester tester) {
   return '${at('match-score-left')} – ${at('match-score-right')}';
 }
 
+/// Bring a feed row into view.
+///
+/// **THE FEED IS LONGER THAN IT WAS, and the goal is at the bottom of it.**
+/// It reads newest-first, and a match with a real squad now also carries
+/// the referee's cards — so a goal in the tenth minute sits under three
+/// bookings and a lazy `ListView` never builds it. Nothing is wrong with
+/// the row; the test was reading a viewport rather than a list.
+Future<void> reachFeed(WidgetTester tester, Finder target) async {
+  if (target.evaluate().isNotEmpty) return;
+  await tester.scrollUntilVisible(
+    target,
+    120,
+    scrollable: find.descendant(
+      of: find.byKey(const ValueKey('match-feed')),
+      matching: find.byType(Scrollable),
+    ),
+  );
+  await tester.pumpAndSettle();
+}
+
 void main() {
   tearDown(resetLocale);
 
@@ -750,10 +770,36 @@ void main() {
     );
     await tester.tap(find.byKey(const ValueKey('match-skip')));
     await tester.pumpAndSettle();
+    await reachFeed(
+      tester,
+      find.text(t('commentary.halftime_ahead', {'us': 'Testville'})),
+    );
     expect(
       find.text(t('commentary.halftime_ahead', {'us': 'Testville'})),
       findsOneWidget,
     );
+  });
+
+  testWidgets('AND SOMEBODY WRITES IT UP, at the head of the commentary', (
+    tester,
+  ) async {
+    // The feed is newest-first, so the head of the list is the end of the
+    // match. Asked for from the couch: the write-up is the last word ON THE
+    // COMMENTARY PAGE, not a panel on the report screen after it.
+    await pumpMatch(tester, matchResult(), save: squadSave());
+    expect(find.byKey(const ValueKey('summary-report')), findsNothing);
+    stateOf(tester).skipToEnd();
+    await tester.pumpAndSettle();
+    final report = find.byKey(const ValueKey('summary-report'));
+    expect(report, findsOneWidget);
+    final prose = tester
+        .widgetList<Text>(
+          find.descendant(of: report, matching: find.byType(Text)),
+        )
+        .map((w) => w.data ?? '')
+        .join(' ');
+    expect(prose, contains('Ayton'));
+    await settleSave(tester);
   });
 
   group('THE REFEREE', () {
@@ -782,6 +828,14 @@ void main() {
       final card = state.bookings.first['card'] as String;
       // The head names the offence — three different words for three different
       // things — and the card itself is drawn beside it.
+      // The write-up heads the feed at full time, so the card rows start one
+      // screen down. A plain drag rather than `reachFeed`: two players were
+      // booked and `scrollUntilVisible` insists on exactly one target.
+      await tester.drag(
+        find.byKey(const ValueKey('match-feed')),
+        const Offset(0, -400),
+      );
+      await tester.pumpAndSettle();
       expect(find.text(t('match.card.$card').toUpperCase()), findsWidgets);
       expect(find.byType(CardGlyph), findsWidgets);
 
@@ -1263,30 +1317,13 @@ void main() {
 
       expect(find.byIcon(Icons.replay), findsNothing);
       expect(find.text(t('match.replay')), findsNothing);
+      // The write-up now heads the feed, so the goal card is one scroll down.
+      await reachFeed(tester, find.text(t('match.goal_card.title')));
       expect(find.text(t('match.goal_card.title')), findsOneWidget);
     });
   });
 
   group('THE COMMENTARY KNOWS WHO IT IS ABOUT', () {
-    /// Bring a feed row into view.
-    ///
-    /// **THE FEED IS LONGER THAN IT WAS, and the goal is at the bottom of it.**
-    /// It reads newest-first, and a match with a real squad now also carries
-    /// the referee's cards — so a goal in the tenth minute sits under three
-    /// bookings and a lazy `ListView` never builds it. Nothing is wrong with
-    /// the row; the test was reading a viewport rather than a list.
-    Future<void> reachFeed(WidgetTester tester, Finder target) async {
-      if (target.evaluate().isNotEmpty) return;
-      await tester.scrollUntilVisible(
-        target,
-        120,
-        scrollable: find.descendant(
-          of: find.byKey(const ValueKey('match-feed')),
-          matching: find.byType(Scrollable),
-        ),
-      );
-      await tester.pumpAndSettle();
-    }
 
     testWidgets('A GOAL CARRIES THE SCORER\'S FACE', (tester) async {
       // A goal line naming a player, next to the art of the player it names.
@@ -2574,7 +2611,10 @@ void main() {
     // **ON THE LINE, not on the stats panel.** It spent one round as a strip of
     // minute chips over the pitch and was asked for here instead: the sentence
     // that describes the moment is where a player is already reading about it.
+    // The write-up heads the feed at full time, so the lines it describes
+    // start one scroll down.
     final chip = find.byKey(const ValueKey('feed-replay'));
+    await reachFeed(tester, chip);
     expect(chip, findsOneWidget);
 
     await tester.tap(chip);

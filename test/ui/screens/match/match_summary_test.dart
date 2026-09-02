@@ -240,32 +240,6 @@ void main() {
     expect(find.textContaining("22'"), findsOneWidget);
   });
 
-  testWidgets('AND SOMEBODY WRITES IT UP', (tester) async {
-    // The panels above are the match in figures; this is the match in words.
-    // Asked for from the couch three times, and the last time as "remember
-    // its a summary tho" — so it is one paragraph, not a list of lines.
-    await pumpSummary(tester, result());
-    final report = find.byKey(const ValueKey('summary-report'));
-    expect(report, findsOneWidget);
-    final prose = tester
-        .widgetList<Text>(find.descendant(of: report, matching: find.byType(Text)))
-        .map((w) => w.data ?? '')
-        .join(' ');
-    // The result, the table and who is next — the three beats every league
-    // match earns. Not the exact words: those are a pool of three per beat.
-    expect(prose, contains('Ayton'));
-    expect(prose, contains('Opponent'));
-    expect(prose.split('. ').length, greaterThan(2));
-    // And it is ONE paragraph: the beats are joined, not stacked.
-    expect(
-      tester.widgetList<Text>(
-        find.descendant(of: report, matching: find.byType(Text)),
-      ),
-      hasLength(2),
-      reason: 'a heading and the write-up, and nothing else',
-    );
-  });
-
   testWidgets('and a defeat says so rather than dressing it up', (
     tester,
   ) async {
