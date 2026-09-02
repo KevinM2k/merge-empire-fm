@@ -517,7 +517,7 @@ double ratingBlockHeightFor(double figure, int slots) => math.max(
 /// that has to scale to fit renders its figure below the floor, which is the one
 /// thing this app does not do — so the block grows to hold the badges at full
 /// size instead, and this is what it grows by.
-const double modBadgeHeight = 27;
+const double modBadgeHeight = 26;
 
 /// How far the modifier column's inner edge sits from the rating column's own
 /// edge — which is to say, how close to the figure it stands.
@@ -1107,17 +1107,20 @@ class _Mod extends StatelessWidget {
                   // The GLYPH carries the tone and the FIGURE is read: a shape
                   // identifies at any luminance and a number has to be legible,
                   // which is the split the coin figure's own helpers state.
-                  GameIcon(mod.icon, size: 11, color: hue),
+                  GameIcon(mod.icon, size: 10.5, color: hue),
                   const SizedBox(width: 1),
                   Text(
                     '${mod.amount < 0 ? '-' : '+'}${mod.amount.abs()}',
                     style: const TextStyle(
-                      // **THE DAILY REWARD'S OWN SIZE.** At the bare floor the
-                      // badge read as small print beside a 34pt rating —
-                      // reported from the couch, with that comparison. A point
-                      // over the floor and a glyph to match is what the other
-                      // badge in this app is drawn at.
-                      fontSize: 13,
+                      // **THE FLOOR, and it went to 13 and back.** At 12 the
+                      // badge was reported as small beside a 34pt rating; at 13
+                      // it was reported as bigger than the match quests, and
+                      // then as the one of the two that was too big. It is a
+                      // three-character annotation on a number — the floor is
+                      // the right size for it, and the reason it looked small
+                      // is that the number beside it is the largest thing on
+                      // the card.
+                      fontSize: minFontSize,
                       height: 1,
                       fontWeight: FontWeight.w900,
                       color: vividWellInk,

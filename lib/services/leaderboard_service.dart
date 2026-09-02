@@ -31,6 +31,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:merge_empire_fc/data/divisions.dart' show Division, divisions;
 import 'package:merge_empire_fc/data/firebase_config.dart';
 import 'package:merge_empire_fc/engine/auth_policy.dart';
 import 'package:merge_empire_fc/engine/leaderboard_policy.dart';
@@ -323,6 +324,32 @@ Map<String, Object?> leaderboardRowMeta(
   };
 }
 
+/// **WHICH MATCHES COUNT: league fixtures, and nothing else.**
+///
+/// `isLeaderboardEligibleMatch` in `leaderboardService.js` — a result may carry
+/// no `divisionId` at all, or one that names a real DIVISION. Anything else is
+/// refused.
+///
+/// **That is the answer to the cup question, and it was open for a while.** A
+/// cup tie's result map carries the CUP's id in `divisionId` — `cup_launcher`
+/// sets it from `prepared.cupId` — and that field is what `leaderboardRowMeta`
+/// writes to the row's `division`, the very field the division-scoped boards
+/// filter on. So a tie submitted as-is would move the player onto a board named
+/// after a cup until their next league match moved them back. The port shipped
+/// the narrower behaviour with the question written down because the spec could
+/// not be read from a cloud container; read now, the spec does exactly the same
+/// thing and by exactly that mechanism.
+///
+/// **It is checked HERE rather than left to the caller not to emit.** The cup
+/// path deliberately does not fire `match:complete`, which is a rule living in
+/// one comment in `play_button.dart`; this is the rule living where the write
+/// is.
+bool leaderboardEligibleMatch(Map<String, dynamic> result) {
+  final id = result['divisionId'];
+  if (id == null) return true;
+  return divisions.any((Division d) => d.id == id);
+}
+
 /// Put a finished match on all four boards.
 ///
 /// **Increment-by-zero is deliberate.** It creates the field at 0 without
@@ -336,6 +363,7 @@ Future<bool> submitMatchStats(
   Map<String, dynamic> state,
   Map<String, dynamic> result,
 ) async {
+  if (!leaderboardEligibleMatch(result)) return false;
   final uid = sessionUid(state);
   if (uid == null) return false;
   final submission = submissionFor(state, result);

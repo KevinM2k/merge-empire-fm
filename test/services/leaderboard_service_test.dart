@@ -201,7 +201,9 @@ void main() {
       'won': won,
       'drawn': false,
       'homeGoals': goals,
-      'divisionId': 'regional',
+      // A REAL division id: `leaderboardEligibleMatch` refuses anything that
+      // is not one, which is how cup ties stay off the boards.
+      'divisionId': 'regional_league',
       'playedAt': DateTime.utc(2026, 3, 1, 12).millisecondsSinceEpoch,
     };
 
@@ -361,6 +363,34 @@ void main() {
       final out = save()..['leaderboard'] = <String, dynamic>{};
       await ensureLeaderboardOptOutApplied(out);
       expect(sent, isEmpty);
+    });
+  });
+
+  group('WHICH MATCHES COUNT', () {
+    // `isLeaderboardEligibleMatch` in `leaderboardService.js`: a result may
+    // carry no `divisionId`, or one that names a real DIVISION. Anything else
+    // is refused — which is the answer to the cup question the port carried
+    // open for a while, because a cup tie's result map carries the CUP's id in
+    // that field and `leaderboardRowMeta` writes it to the row's `division`,
+    // the very field the division-scoped boards filter on.
+    test('a league fixture does', () {
+      expect(
+        leaderboardEligibleMatch({'divisionId': 'regional_league'}),
+        isTrue,
+      );
+    });
+
+    test('and so does one that names no division at all', () {
+      expect(leaderboardEligibleMatch(const {}), isTrue);
+    });
+
+    test('A CUP TIE DOES NOT', () {
+      // The cup path deliberately does not emit `match:complete`, which is a
+      // rule living in one comment. This is the rule living where the write is.
+      expect(
+        leaderboardEligibleMatch({'divisionId': 'the_cup'}),
+        isFalse,
+      );
     });
   });
 }

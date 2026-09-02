@@ -73,24 +73,41 @@ route:
       loan departure; it is a 0.1s blip from `sound_defs.dart` and a proper
       shatter cue would be better. Cosmetic, and nothing is blocked on it —
       it needs audio, not code.
-- [ ] **BLOCKED ON `en.js`: a goal-difference column head.** The full-time
-      table now carries played, goal difference and points, headed
-      `table.col_played`, `±` and `table.col_pts`. There is no `table.col_gd`
-      in the catalogues and one cannot be added from this repo, so the middle
-      column is headed with the symbol. `±` over a signed column needs no
-      translation, which is why it is the stand-in rather than a compromise —
-      but the word belongs there, and it is one line of `en.js` away.
-      `LeagueRow.gd` was shipped data with no reader anywhere in `lib/` until
-      this screen printed it, which is the usual tell.
+- [x] **A goal-difference column head.** (It shipped as `±` because
+      `table.col_gd` was thought to be missing from the catalogues and the spec
+      unreachable. It is there — `'GD'`, in `en.js` and all ten generated
+      catalogues — and the head has been printing it since. The row was stale,
+      not blocked.)
+
+- [x] **Does a cup tie score on the leaderboard? NO, and the spec says so.**
+      (`isLeaderboardEligibleMatch` in `leaderboardService.js` passes a result
+      with no `divisionId` or one naming a real DIVISION, and refuses everything
+      else — a cup tie carries the CUP's id in that field, so the JS excludes it
+      by exactly the mechanism the port's note worried about. The port shipped
+      the same behaviour and left the question open because the spec could not
+      be read from a cloud container. It is answered, and it is now CHECKED
+      rather than implied: `leaderboardEligibleMatch` guards the write, so the
+      rule lives where the write is instead of in a comment on the one caller
+      that must not emit. The existing fixture used a `divisionId` of
+      `'regional'`, which is not a division — the guard caught it.)
 
 ---
 
 ## Where this queue stands
 
 **The port is done, and the playtest list above is down to one cosmetic row**
-that needs a recording rather than a change. The three that were blocked on
-whether the JS spec could be changed were unblocked by the owner and done in
-both repos, with the fixtures re-dumped in the same commits.
+that needs a recording rather than a change — a shatter cue for the loan
+departure, where `pop` is standing in.
+
+**The two rows that were blocked on the spec repo are closed.** Both were
+blocked on not being able to READ `../merge-empire-fc` from a cloud container;
+with it on disk, one turned out to be stale (the goal-difference head has been
+printing `GD` all along) and the other answered against the JS and then pinned
+by a test. Neither needed a decision from the owner in the end.
+
+The three that were blocked on whether the JS spec could be CHANGED were
+unblocked by the owner and done in both repos, with the fixtures re-dumped in
+the same commits.
 
 **Branch state:** on `main`, and the playtest session after this one is there
 too — the coach card's room, the tap cue, the 2D pitch's facing and touchline,
@@ -1805,19 +1822,19 @@ play games". It was not the board, the schema, the transport or the sign-in.
       card — so it is carried in the test's `knownDeadLetters` with that reason
       written on it rather than guessed at. Answering it is a small job for
       whoever owns that flow.
-- [ ] **Does a CUP TIE score on the leaderboard? Blocked on the spec repo.**
-      The cup path deliberately does not emit `match:complete`, and this is the
-      one judgement call in the change. A cup tie's result map carries the
-      CUP's id in `divisionId` (`cup_launcher.dart` sets it from
-      `prepared.cupId`), and that field is what `leaderboardRowMeta` writes to
-      the row's `division` — the very field the division-scoped boards filter
-      on. A tie emitted as-is would move the player onto a board named after a
-      cup until their next league match moved them back. Whether the JS counts
-      cup ties at all could not be checked from a cloud container, so the
-      narrower behaviour ships: **league fixtures score, cup ties do not**, and
-      the note is on the `onFinished` in `play_button.dart` so the next reader
-      does not "fix" it by adding an emit. If the JS does count them, the change
-      is an emit plus a league division on the submission, not a schema change.
+- [x] **Does a CUP TIE score on the leaderboard? No — ANSWERED against the
+      spec.** A cup tie's result map carries the CUP's id in `divisionId`
+      (`cup_launcher.dart` sets it from `prepared.cupId`), and that field is
+      what `leaderboardRowMeta` writes to the row's `division` — the very field
+      the division-scoped boards filter on. A tie submitted as-is would move the
+      player onto a board named after a cup until their next league match moved
+      them back, so the narrower behaviour shipped with the question written
+      down, because the JS could not be read from a cloud container.
+      `isLeaderboardEligibleMatch` in `leaderboardService.js` does exactly the
+      same thing by exactly that mechanism: no `divisionId`, or one naming a
+      real DIVISION, and everything else refused. It is a CHECK now rather than
+      an implication — see `leaderboardEligibleMatch` — so the rule lives at the
+      write instead of in a comment on the one caller that must not emit.
 
 ---
 

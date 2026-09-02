@@ -555,7 +555,10 @@ void main() {
       // And the figure inside every one of them is at full size — no badge is
       // ever scaled to fit, which is the whole reason the block grows.
       for (final label in ['+3', '+2']) {
-        expect(tester.widget<Text>(find.text(label)).style!.fontSize, 13);
+        expect(
+          tester.widget<Text>(find.text(label)).style!.fontSize,
+          minFontSize,
+        );
       }
     });
 

@@ -1559,10 +1559,17 @@ class _QuestTile extends StatelessWidget {
           // pass — two different KINDS of answer to one question, so the column
           // could not be scanned for pass-or-fail without reading the figures.
           // Asked for from the couch: a tick or a cross on every row.
-          // **AND THE CELL SHRINKS RATHER THAN OVERFLOWING.** A tick, a coin and
-          // a seven-figure payout do not fit a tile that shares its row with
-          // the dugout cam — on a narrow phone that is barely a hundred points
-          // across. The type floor's own escape hatch.
+          // **AND THE CELL SHRINKS RATHER THAN OVERFLOWING** — but it should
+          // almost never have to, and that is why the coin glyph came out of it
+          // below. A tick, a coin and a seven-figure payout do not fit a tile
+          // that shares its row with the dugout cam, so the fit was scaling the
+          // figure down and this block came out visibly smaller than the
+          // modifier badge on the next-match card. Reported from the couch as
+          // exactly that question: which of the two is the minimum?
+          //
+          // Neither was wrong — both are declared at 13 — but one was being
+          // SCALED and the other was not. The floor is about what a player
+          // reads, so the answer is to make it fit rather than to shrink it.
           // **`Flexible` BOUNDS THE FIT, and the FIT is what right-aligns.**
           //
           // A `FittedBox` sizes to its child unless something bounds it, which
@@ -1591,10 +1598,21 @@ class _QuestTile extends StatelessWidget {
                     // figure says what it paid, and a currency does not change
                     // colour with the news. The same badge every other figure
                     // on this screen wears — see [_CoinBadge].
+                    //
+                    // **DECLARED AT 13, like the next-match card's badge.** It
+                    // was 12 — the floor — and the two were compared from the
+                    // couch: the `+2` on a modifier is bigger than the `2`
+                    // here, so which one is the minimum? Neither was under it;
+                    // the difference is that this cell is inside a `FittedBox`
+                    // and gets SCALED, because a tile sharing its row with the
+                    // dugout cam cannot hold a two-line ask and a full-size
+                    // verdict at once. Matching the declared size is what
+                    // closes most of the gap; the rest is the tile's width and
+                    // the fit is the app's own answer to that.
                     CoinBadge(
                       amount: ((row['coins'] as num?) ?? 0).toInt(),
-                      fontSize: 12,
-                      iconSize: 10,
+                      fontSize: 13,
+                      iconSize: 11,
                       sign: '',
                     ),
                   ]

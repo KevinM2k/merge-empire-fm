@@ -6,7 +6,7 @@ actually wrong, because that is the part worth keeping.
 
 ## Where this queue stands
 
-**51 done, 5 open.** Nearly every one that is done had a mechanism behind it,
+**52 done, 4 open.** Nearly every one that is done had a mechanism behind it,
 and a striking number were shipped code doing nothing: a `strategyId` nothing
 ever wrote, a `skyPaneTint` with no caller, a turf band whose whole job was
 hiding a seam it was itself making, `startMatchCooldown` called by one of the two
@@ -17,13 +17,12 @@ class — between them found the half-time verdict, the opponent's substitutions
 the form arrows, the tactics heading and `commentary.snub` printing a literal
 `{opp}` to players.
 
-**The five still open all need something this session cannot produce.** Two want
-a device: the customiser's stutter is on the raster thread and its build side has
-been measured clean, and the Players tab's bounce is a question about a real
-scroll. One wants a recording — the shatter sound. One is a decision rather than
-a change (Spine, and what it costs). The last is the remainder of the layering
-job, which is where the manager rig would be taken apart if the Spine answer is
-no.
+**The four still open all need something this session cannot produce.** One
+wants a device: the customiser's stutter is on the raster thread and its build
+side has been measured clean. One wants a recording — the shatter sound. One is
+a decision rather than a change (Spine, and what it costs). The last is the
+remainder of the layering job, which is where the manager rig would be taken
+apart if the Spine answer is no.
 
 ---
 
@@ -473,12 +472,17 @@ separately would mean doing the hard part three times.
 
 ### Independent
 
-- [ ] **Native bounce missing on the Players tab.** The scroll view already
-      forces `AlwaysScrollable(Bouncing(RangeMaintaining))` and the app sets
-      `BouncingScrollPhysics` app-wide, so the physics are not it. The structural
-      difference left is that the `ScoutActionBar` sits OUTSIDE the scroller, so
-      the top of the tab does not respond to a drag at all. Wants a device to
-      confirm before moving the bar.
+- [x] **The Players tab bounces as a whole page.** (The physics were already
+      forced — `AlwaysScrollable(Bouncing(RangeMaintaining))` — so they were
+      never it. The structural difference was that `ScoutActionBar` sat OUTSIDE
+      the scroller: a drag gave under the grid while the bar stayed nailed to
+      the top, which is not what Settings, the shop or the club assets do.
+      Reported again in exactly those terms — on club assets a drag at the top
+      moves and bounces, on players it does not move at all. The bar is the
+      first thing INSIDE the list now, and `_autoScroll`'s drag band moved with
+      it: the scroller's own top is back behind the HUD glass, so the band is
+      measured from `hudClearanceOf` rather than from the viewport. The clearance
+      is `underBar: false` there, or the bar's own margin doubles it.)
 - [ ] **A poof/tap sound worth having.** Carried over from `REMAINING.md` — `pop`
       is a 0.1s blip doing the job of a shatter cue. Needs audio, not code.
 
