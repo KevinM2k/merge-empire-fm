@@ -45,6 +45,9 @@ import 'package:merge_empire_fc/data/divisions.dart' show divisions;
 import 'package:merge_empire_fc/engine/goal_model.dart' show getInjuryChance;
 import 'package:merge_empire_fc/engine/trait_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
+import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
+import 'package:merge_empire_fc/ui/widgets/player_card.dart'
+    show formGlyph, formInk;
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/state/card_instance.dart';
 import 'package:merge_empire_fc/ui/popups/bottom_sheet_popup.dart';
@@ -481,8 +484,8 @@ class _Header extends StatelessWidget {
               // everywhere it shows them (`SquadScreen.js:372`, `Card.js:34`)
               // and has no key for either.
               rows: [
-                (label: 'ATK', value: '${stats.attack}'),
-                (label: 'DEF', value: '${stats.defence}'),
+                (label: 'ATK', value: '${stats.attack}', tint: null),
+                (label: 'DEF', value: '${stats.defence}', tint: null),
                 // **INJURY RISK, which had gone missing entirely.**
                 // `squad.detail.injury_risk` is translated in ten catalogues
                 // and nothing printed it — the plate's own doc-comment still
@@ -497,7 +500,7 @@ class _Header extends StatelessWidget {
                 // the trait look like it did nothing — the one number it moves
                 // being the one number that did not move is the same defect
                 // `getCardStats` exists to prevent.
-                (label: 'INJ', value: '$injuryPct%'),
+                (label: 'INJ', value: '$injuryPct%', tint: null),
               ],
             ),
           ),
@@ -519,7 +522,30 @@ class _Header extends StatelessWidget {
                 (
                   label: t('squad.detail.income'),
                   value: '+${income.toStringAsFixed(2)}/s',
+                  tint: null,
                 ),
+                // **AND HIS FORM, spelt out.** The cards carry it as a bare ▲
+                // or ▼ and nothing anywhere said what the arrow meant — asked
+                // for from the couch, and this is the right place: the sheet is
+                // where a player comes to find out what a mark on a card is.
+                // `squad.form.good` / `squad.form.bad` are the words the bench
+                // legend uses, so the two agree.
+                //
+                // Absent for a player in neither, which is most of them: a row
+                // reading "Form 0" is a slot spent saying nothing.
+                if (card.form != 0)
+                  (
+                    label: t(
+                      card.form > 0 ? 'squad.form.good' : 'squad.form.bad',
+                    ),
+                    value:
+                        '${formGlyph(card.form.toInt())} '
+                        '${card.form > 0 ? '+' : ''}${card.form}',
+                    // The arrow's own two colours — `formInk` is what the cards
+                    // and the bench legend paint it in, so the sheet that
+                    // EXPLAINS the mark uses the same green and the same red.
+                    tint: formInk(card.form.toInt()),
+                  ),
               ],
             ),
           ),
@@ -627,7 +653,9 @@ class _HeaderPlate extends StatelessWidget {
 
   final String value;
   final String label;
-  final List<({String label, String value})> rows;
+  /// A [tint] paints the VALUE, for a row whose figure carries a verdict —
+  /// form is the one, and asked for from the couch: green up, red down.
+  final List<({String label, String value, Color? tint})> rows;
   final Key? valueKey;
   final Color? valueColour;
 
@@ -702,10 +730,10 @@ class _HeaderPlate extends StatelessWidget {
                     const SizedBox(width: 12),
                     Text(
                       row.value,
-                      style: const TextStyle(
+                      style: TextStyle(
                         fontSize: 12.5,
                         fontWeight: FontWeight.w900,
-                        color: Colors.white,
+                        color: row.tint ?? Colors.white,
                       ),
                     ),
                   ],
@@ -773,7 +801,7 @@ class _SlotActions extends StatelessWidget {
           Expanded(
             child: _HeroPill(
               buttonKey: const ValueKey('detail-swap'),
-              glyph: '⇄',
+              glyph: 'refresh',
               label: t('squad.detail.replace'),
               gold: false,
               onTap: () => Navigator.of(context).pop(PlayerDetailAction.swap),
@@ -783,7 +811,7 @@ class _SlotActions extends StatelessWidget {
           Expanded(
             child: _HeroPill(
               buttonKey: const ValueKey('detail-bench'),
-              glyph: '↩',
+              glyph: 'arrowDown',
               label: t('squad.detail.to_bench'),
               gold: true,
               onTap: () => Navigator.of(context).pop(PlayerDetailAction.bench),
@@ -796,7 +824,7 @@ class _SlotActions extends StatelessWidget {
       // listed player zero, so putting one in the side fields a hole.
       row = _HeroPill(
         buttonKey: const ValueKey('detail-send-on'),
-        glyph: '⇡',
+        glyph: 'arrowUp',
         label: t('squad.detail.send_on'),
         gold: true,
         onTap: () => Navigator.of(context).pop(PlayerDetailAction.sendOn),
@@ -840,6 +868,11 @@ class _HeroPill extends StatelessWidget {
   });
 
   final Key buttonKey;
+
+  /// A name from the app's own icon set — see `game_icon.dart`. It was a
+  /// literal `⇄`, `↩`, `⇡`: three glyphs the font renders differently on every
+  /// platform, on a sheet where every other mark in the game is drawn. Reported
+  /// from the couch along with the buttons themselves.
   final String glyph;
   final String label;
 
@@ -902,7 +935,7 @@ class _HeroPill extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(glyph, style: TextStyle(fontSize: 15, color: ink)),
+              GameIcon(glyph, size: 15, color: ink),
               const SizedBox(width: 8),
               Flexible(
                 child: Text(
@@ -1788,7 +1821,11 @@ class TraitBlockState extends ConsumerState<TraitBlock>
           // different colours.
           _HeroPill(
             buttonKey: const ValueKey('detail-trait-roll'),
-            glyph: '🎲',
+            // `star`, not 🎲: the emoji is a platform's own drawing on a sheet
+            // where every other mark is the game's, and it rendered flat grey
+            // in the Material fallback font. What a trait roll buys is a star
+            // on the card.
+            glyph: 'star',
             label: t('game.trait.cost', {'cost': formatCoins(cost)}),
             gold: true,
             onTap: _spinning || coins < cost ? null : () => _roll(pool),

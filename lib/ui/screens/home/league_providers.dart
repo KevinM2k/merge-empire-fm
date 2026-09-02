@@ -13,8 +13,9 @@ import 'package:merge_empire_fc/engine/match_tactics.dart';
 
 import 'package:merge_empire_fc/data/divisions.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:merge_empire_fc/engine/fixture_preview.dart' show fixtureIsHome;
+import 'package:merge_empire_fc/engine/fixture_preview.dart';
 import 'package:merge_empire_fc/engine/league_table.dart';
+import 'package:merge_empire_fc/engine/season_fixtures.dart' show getSeasonOpponents;
 import 'package:merge_empire_fc/engine/weather_engine.dart';
 import 'package:merge_empire_fc/providers/weather_providers.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
@@ -402,4 +403,45 @@ final leagueFormProvider = savePick<Map<String, List<String>>>((s) {
           ? e.value
           : e.value.sublist(e.value.length - 5),
   };
+});
+
+/// **WHAT EACH CLUB IN THE TABLE IS WORTH**, by club name.
+///
+/// Asked for from the couch, and the second time in the words that pinned it
+/// down: "i dont mean a position i mean team rank i.e the fifa score." A table
+/// of points says who is winning; the rating says who is DANGEROUS, and it is
+/// the number every other screen in the game argues about.
+///
+/// **Read out of the save rather than added to `LeagueRow`.** That record is
+/// built by `buildLeagueTable`, which is pinned field for field by the season
+/// differential harness and writes back into the progression branch as it goes;
+/// this is a read, and a read belongs beside the screen that wants it.
+///
+/// The opponents' figures are the ones the sim itself uses —
+/// `seasonOpponentRatings`, keyed `s<season>_o<index>` against the season's own
+/// opponent list, which is exactly how `previewFixture` finds the one it is
+/// about to play. The player's own club is its effective squad rating, so the
+/// row a manager cares about is measured the same way the fixture card measures
+/// it.
+final leagueRatingsProvider = savePick<Map<String, int>>((s) {
+  final prog = s['progression'];
+  if (prog is! Map<String, dynamic>) return const {};
+  final divId = '${prog['currentDivision']}';
+  final season = (prog['seasonCount'] as num?)?.toInt() ?? 1;
+  final stored = prog['seasonOpponentRatings'];
+  final ratings = stored is Map<String, dynamic>
+      ? stored
+      : const <String, dynamic>{};
+  final names = getSeasonOpponents(divId, season, s);
+
+  final out = <String, int>{};
+  for (var i = 0; i < names.length; i++) {
+    final value = ratings['s${season}_o$i'];
+    if (value is num) out[names[i]] = value.round();
+  }
+  final clubName = s['clubName'];
+  if (clubName is String && clubName.isNotEmpty) {
+    out[clubName] = previewFixture(s)?.effectiveSquadRating.round() ?? 0;
+  }
+  return out;
 });

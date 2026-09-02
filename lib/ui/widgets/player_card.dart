@@ -679,6 +679,36 @@ class PlayerCard extends StatelessWidget {
                         ),
                       ),
                       const SizedBox(width: 2),
+                      // **THE RIBBON GOES IN THE GAP, not across the face.** It
+                      // sat at `top: 24` on the right — clear of the chips, and
+                      // straight over the portrait's head on a maxed card.
+                      // Reported from the couch, naming the space between the
+                      // rating and the position as where it would fit, which is
+                      // exactly right: that gap is empty on every card and this
+                      // is the one thing that wants it.
+                      //
+                      // `Flexible` with a `FittedBox` inside the ribbon's own
+                      // build, so a long localised label gives way to the two
+                      // chips rather than pushing either off the card.
+                      if (view.maxed || view.atCap)
+                        Flexible(
+                          child: _Ribbon(
+                            label: view.maxed
+                                ? t('card.max_ribbon')
+                                : t('card.tier_locked', {'tier': view.tier}),
+                            // Gold for the top of the game, and a flat warning
+                            // colour for the top of this division — one is an
+                            // achievement and the other is a reason to get
+                            // promoted.
+                            background: view.maxed
+                                ? const Color(0xFFF9A825)
+                                : const Color(0xFF37474F),
+                            foreground: view.maxed
+                                ? const Color(0xFF241C00)
+                                : Colors.white,
+                          ),
+                        ),
+                      const SizedBox(width: 2),
                       Flexible(
                         child: _Chip(
                           label: positionLabel[view.position] ?? view.position,
@@ -734,30 +764,6 @@ class PlayerCard extends StatelessWidget {
                           ),
                         ),
                       ),
-                    ),
-                  ),
-                // Across the corner, because at bench size a pip cannot carry a
-                // word and every corner is already spoken for.
-                if (view.maxed || view.atCap)
-                  Positioned(
-                    // UNDER the rating chips, not over them. At the very top it
-                    // landed on the position chip, which is the one thing on the
-                    // card a player is comparing across a grid.
-                    top: 24,
-                    right: 0,
-                    child: _Ribbon(
-                      label: view.maxed
-                          ? t('card.max_ribbon')
-                          : t('card.tier_locked', {'tier': view.tier}),
-                      // Gold for the top of the game, and a flat warning colour
-                      // for the top of this division — one is an achievement and
-                      // the other is a reason to get promoted.
-                      background: view.maxed
-                          ? const Color(0xFFF9A825)
-                          : const Color(0xFF37474F),
-                      foreground: view.maxed
-                          ? const Color(0xFF241C00)
-                          : Colors.white,
                     ),
                   ),
               ],
@@ -877,18 +883,26 @@ class _Ribbon extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
       decoration: BoxDecoration(
         color: background,
-        borderRadius: const BorderRadius.only(bottomLeft: Radius.circular(6)),
+        // **Rounded on all four, because it is no longer in a corner.** It used
+        // to hang off the card's right edge and took the edge's own radius on
+        // one side only; between the two chips it is a pill like they are.
+        borderRadius: BorderRadius.circular(6),
         boxShadow: const [BoxShadow(color: Color(0x55000000), blurRadius: 4)],
       ),
-      child: Text(
-        label,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w900,
-          letterSpacing: 0.4,
-          color: foreground,
+      // It shares a row with the two chips and they win: a long localised
+      // label shrinks rather than pushing either of them off the card.
+      child: FittedBox(
+        fit: BoxFit.scaleDown,
+        child: Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w900,
+            letterSpacing: 0.4,
+            color: foreground,
+          ),
         ),
       ),
     ),

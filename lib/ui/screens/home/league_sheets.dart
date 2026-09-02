@@ -304,6 +304,12 @@ class _DivisionTable extends ConsumerWidget {
             // by club name out of the real fixture results.
             form: own ? (form[rows[i].name] ?? const []) : rows[i].form,
             lastSeason: lastSeason[divisionId]?[rows[i].name],
+            // **WHAT THEY ARE WORTH, beside what they have won.** A pyramid
+            // row carries its own; the player's own division reads them out of
+            // the save — see `leagueRatingsProvider`.
+            rating: own
+                ? ref.watch(leagueRatingsProvider)[rows[i].name]
+                : rows[i].rating,
           ),
         ],
         // **Only when a marker is actually on the table.** Season one has no
@@ -445,10 +451,16 @@ class _TableRow extends StatelessWidget {
     required this.divisionColour,
     required this.form,
     this.lastSeason,
+    this.rating,
   });
 
   final int position;
   final LeagueRow row;
+
+  /// What the club is worth — the number the fixture card argues about — or
+  /// null for a table that has none to show. Asked for from the couch: "i dont
+  /// mean a position i mean team rank i.e the fifa score."
+  final int? rating;
   final LeagueZone zone;
   final Color divisionColour;
   final List<String> form;
@@ -510,6 +522,33 @@ class _TableRow extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 10),
+          // **THE RATING SITS BETWEEN THE POSITION AND THE NAME**, which is
+          // where a manager reads it: the two numbers a table is about, in the
+          // order they are asked. Its own plate, so it does not read as part of
+          // the position beside it.
+          if (rating != null) ...[
+            Container(
+              key: ValueKey('league-rating-$position'),
+              constraints: const BoxConstraints(minWidth: 30),
+              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+              margin: const EdgeInsets.only(right: 8),
+              decoration: BoxDecoration(
+                color: kit.surface2,
+                borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: kit.border),
+              ),
+              child: Text(
+                '$rating',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w900,
+                  color: row.isPlayer ? kit.accentBright : kit.textMuted,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
+              ),
+            ),
+          ],
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

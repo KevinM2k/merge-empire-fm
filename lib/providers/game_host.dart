@@ -16,6 +16,7 @@ import 'dart:async';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/i18n/detect.dart';
+import 'package:merge_empire_fc/ui/widgets/art_precache.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/providers/weather_providers.dart';
 import 'package:merge_empire_fc/state/game_runner.dart';
@@ -76,6 +77,8 @@ class _GameHostState extends ConsumerState<GameHost>
     // has one. Installed before `_runner.start()`, so nothing the first tick
     // emits reports `unknown` for a fact the save already knows.
     setAnalyticsStateReader(() => _runner.game.state);
+    // The cold-boot half of the same thing — see [_warmArt].
+    _warmArt();
     logAppBoot();
     _weather = ref.read(weatherProvider.notifier);
     _ensureRegion(_runner.game, dispatcher.locale.toLanguageTag());
@@ -297,6 +300,16 @@ class _GameHostState extends ConsumerState<GameHost>
     );
   }
 
+  /// Warm the portrait decoder, off the frame.
+  ///
+  /// Never awaited: it is an optimisation, and a screen must not wait on one.
+  void _warmArt() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      unawaited(precacheArt(context, gridArtPaths(_runner.game.state)));
+    });
+  }
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     switch (state) {
@@ -335,6 +348,13 @@ class _GameHostState extends ConsumerState<GameHost>
         // that is still fresh is left alone, so this is free when it is not
         // needed — which is why there is no timer.
         ref.read(rewardedAdsProvider).refresh();
+        // **AND THE SQUAD'S FACES ARE DECODED AGAIN.** Android trims the image
+        // cache when an app goes to the background, so the first scroll back is
+        // thirty-eight decodes on the raster thread with a thumb already
+        // moving. Reported from a handset in exactly that shape — smooth after
+        // a few passes, rough again after leaving and returning. See
+        // `art_precache.dart`; a resume that lost nothing costs nothing.
+        _warmArt();
       case AppLifecycleState.hidden:
       case AppLifecycleState.paused:
       case AppLifecycleState.detached:
