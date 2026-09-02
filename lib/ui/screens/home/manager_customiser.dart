@@ -1157,17 +1157,31 @@ class _RevealState extends State<_Reveal> {
 /// manager is sixty pixels tall, and a moustache is four of them. The answer is
 /// not a word, it is a CROP — frame the head for the head axes and the body for
 /// the body ones, and the thing being chosen fills the box.
-Rect _regionFor(String kind) => switch (kind) {
-  // The skull is a circle at (62, 48.5) r12.5, and hair, hats and beards all
-  // hang off it — with room above for a tall hat and below for a full beard.
-  'hair' ||
-  'color' ||
-  'beard' ||
-  'hat' ||
-  'face' => const Rect.fromLTWH(42, 26, 40, 40),
-  // Shoulders to the hem, which is where a build and an outfit live.
-  _ => const Rect.fromLTWH(38, 54, 44, 44),
-};
+/// **THE CHIPS FRAME WHAT THE STAGE IS FRAMING**, so the two are one decision:
+/// [_zoomFor] is what says whether this axis is about the head, and a chip that
+/// disagreed with the camera beside it showed a different man from the one
+/// being changed.
+///
+/// Reported from the couch after the camera went in: "the body previews should
+/// be zoomed out, as should anything where the manager is zoomed out — only
+/// zoom in when we zoom in on the manager part as well." The body axes used to
+/// crop shoulders-to-hem, which is a close-up of the torso sitting next to a
+/// wide shot of the whole figure; and a build or an outfit is a SILHOUETTE, so
+/// the crop was hiding the thing being picked in the same way the camera would
+/// have.
+Rect _regionFor(String kind) =>
+    _zoomFor(kind) == 0 ? _wholeManager : _managerHead;
+
+/// The skull is a circle at (62, 48.5) r12.5, and hair, hats and beards all
+/// hang off it — with room above for a tall hat and below for a full beard.
+const Rect _managerHead = Rect.fromLTWH(42, 26, 40, 40);
+
+/// Hat brim to boot sole, squared off around the rig's midline.
+///
+/// `walkerFootline` is ~152 and the tallest hat clears the skull by about six,
+/// so 20 to 152 is the whole of him; square, because the grid's cells are and
+/// the crop is fitted on its WIDTH.
+const Rect _wholeManager = Rect.fromLTWH(-6, 20, 132, 132);
 
 /// The same regions, as what the PREVIEW should be looking at.
 ///

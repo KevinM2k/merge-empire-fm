@@ -6,7 +6,7 @@ because that is the part worth keeping.
 
 ## Where this queue stands
 
-**43 done, 2 open.** Both open rows are features rather than faults, and one of
+**44 done, 2 open.** Both open rows are features rather than faults, and one of
 them is a feature that was built, tried and turned down — which is written up
 where it happened rather than quietly dropped.
 
@@ -278,6 +278,14 @@ them were something being said that was not true.
       one read as a confirmation. The colour is left to the speed toggle, which
       is the one control it is genuinely information for, and all three carry a
       glyph instead.)
+
+- [x] **A customiser chip frames what the camera is framing.** (The stage
+      learned to push in on the head and stay wide for a build or an outfit;
+      the chips beside it did not follow, so a close-up of the torso sat next
+      to a wide shot of the whole figure. `_regionFor` asks `_zoomFor` now, so
+      the two are one decision — and a build is a SILHOUETTE, which the
+      shoulders-to-hem crop was hiding in exactly the way the camera would
+      have.)
 
 ---
 

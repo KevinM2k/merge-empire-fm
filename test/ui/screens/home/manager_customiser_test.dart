@@ -5,6 +5,8 @@
 /// writing to a value the player could not edit.
 library;
 
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:merge_empire_fc/data/manager_looks.dart';
@@ -555,6 +557,46 @@ void main() {
         hasLength(poses.length),
         reason: 'two celebrations drew the same figure',
       );
+    });
+
+    testWidgets('A CHIP FRAMES WHAT THE CAMERA IS FRAMING', (tester) async {
+      // Reported from the couch once the preview learned to push in: "the body
+      // previews should be zoomed out, as should anything where the manager is
+      // zoomed out — only zoom in when we zoom in on the manager part as
+      // well." The body axes cropped shoulders-to-hem, so a close-up of the
+      // torso sat beside a wide shot of the whole figure — and a build is a
+      // SILHOUETTE, which that crop was hiding.
+      //
+      // Measured off the rig's own box rather than the private region: the
+      // crop is fitted on its width, so a tighter region draws a BIGGER rig
+      // inside the same chip.
+      Future<double> rigWidth(String kind) async {
+        await openAxis(tester, kind);
+        return tester
+            .widgetList<SizedBox>(
+              find.descendant(
+                of: find.byType(LookPreview).first,
+                matching: find.byType(SizedBox),
+              ),
+            )
+            .map((b) => b.width ?? 0)
+            .reduce(math.max);
+      }
+
+      phone(tester);
+      await pumpHome(tester);
+      await openCustomiser(tester);
+
+      final head = await rigWidth('hat');
+      final body = await rigWidth('build');
+      expect(
+        body,
+        lessThan(head),
+        reason: 'the build chips are cropped tighter than the hat chips',
+      );
+      // And the whole man is in it: the wide crop is 132 units of a 170-unit
+      // rig, so he is drawn at well under one chip-width per 120 units.
+      expect(body / head, closeTo(40 / 132, 0.02));
     });
 
     testWidgets('and a WORN axis holds no pose', (tester) async {
