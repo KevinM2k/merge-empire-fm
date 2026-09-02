@@ -58,10 +58,11 @@ int scoutCost(Map<String, dynamic>? state, {bool ignoreVoucher = false}) {
   final divId = _map(state?['progression'])?['currentDivision'] as String?;
   final div = getDivision(divId ?? divisions.first.id);
   final base = Scout.baseCostByDiv[div.id] ?? Scout.baseCost;
-  final academy = _map(_map(state?['clubAssets'])?[AssetCategory.academy]);
-  final discount = academy?['owned'] == true
-      ? academyScoutDiscount((_num(academy?['tier']) ?? 0).toInt())
-      : 0.0;
+  // The FRACTIONAL tier: every tap buys its share of the discount rather than
+  // the last one buying all of it. See [fractionalAssetTier].
+  final discount = academyScoutDiscount(
+    fractionalAssetTier(_map(state?['clubAssets']), AssetCategory.academy),
+  );
   return math.max(1, (base * (1 - discount)).round());
 }
 

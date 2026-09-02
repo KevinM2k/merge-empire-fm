@@ -42,16 +42,13 @@ int _assetTier(Map<String, dynamic>? clubAssets, String key) {
 /// unlock is not a thing — so those keep the integer tier and still arrive on
 /// the tier-up. That split is the whole design: this is not a fractional tier,
 /// it is a fractional PAYMENT against one.
-double assetTierProgress(Map<String, dynamic>? clubAssets, String key) {
-  final a = _map(clubAssets?[key]);
-  if (a == null || a['owned'] != true) return 0;
-  final tier = _num(a['tier'])?.toInt() ?? 0;
-  if (tier >= maxAssetTier) return tier.toDouble();
-  final threshold = tierThreshold(tier);
-  if (threshold <= 0) return tier.toDouble();
-  final invested = (_num(a['invested']) ?? 0).toDouble();
-  return tier + (invested / threshold).clamp(0.0, 1.0);
-}
+///
+/// **The body moved to `data/club_assets.dart`** so the effect helpers there can
+/// read it: the Kit Sponsor's fatigue half and the Academy's scout discount were
+/// still stepping while everything around them paid per tap. This is the name
+/// the rest of the app calls it by, and it stays.
+double assetTierProgress(Map<String, dynamic>? clubAssets, String key) =>
+    fractionalAssetTier(clubAssets, key);
 
 List<CardInstance?> _cells(Map<String, dynamic>? state) {
   final cells = _map(state?['grid'])?['cells'];

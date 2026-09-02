@@ -287,6 +287,12 @@ Map<String, dynamic> createDefaultState() {
       'regionCode': null, // ISO country code for the regional leaderboard
       'matchSpeedFast': false,
       'shownStrategyTip': false,
+      // **`themeMode` is deliberately NOT here beside it.** The tri-state the
+      // Settings screen writes — light, dark, or follow the phone — falls back
+      // to this key whenever it is absent, so a fresh save needs nothing extra
+      // and `game_state_test`'s reset parity still matches the JS's own default
+      // state field for field. The key appears the first time a player picks.
+      // See `themeChoiceProvider`.
       'lightMode': true, // reads better across the redesigned UI
       'cutawayOurTeam': true,
       'cutawayOpponent': true,

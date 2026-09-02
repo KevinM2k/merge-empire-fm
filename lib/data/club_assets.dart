@@ -159,6 +159,41 @@ const int maxAssetTier = 8;
 
 // ── Effect helpers (pure, no state) ─────────────────────────────────────────
 
+/// The tier PLUS how far into the next one the investment has got.
+///
+/// **EVERY TAP HAS TO BE WORTH SOMETHING.** The whole reward used to land at the
+/// tier-up, so nineteen of twenty presses bought nothing a player could see and
+/// the twentieth bought all of it. Asked for directly: twenty clicks for ten per
+/// cent should be half a per cent a click.
+///
+/// **Only the CONTINUOUS benefits read this.** A percentage can be paid out in
+/// twentieths; a squad slot, a mini-game, a kit colour and a home-advantage
+/// rating point cannot — half an unlock is not a thing — so those keep the
+/// integer tier and still arrive on the tier-up. That split is the whole design:
+/// this is not a fractional tier, it is a fractional PAYMENT against one.
+///
+/// **It lives here rather than in `idle_engine.dart` because the effect helpers
+/// under it need it.** Two of them were still stepping — the Kit Sponsor's
+/// fatigue half and the Academy's scout discount — while the Sponsor's OTHER
+/// half paid continuously, so one facility's two lines disagreed about whether a
+/// tap was worth anything. `assetTierProgress` is the same function under the
+/// name the rest of the app already calls it by.
+double fractionalAssetTier(Map<String, dynamic>? clubAssets, String key) {
+  final a = clubAssets?[key];
+  if (a is! Map || a['owned'] != true) return 0;
+  final raw = a['tier'];
+  final tier = raw is num ? raw.toInt() : 0;
+  if (tier >= maxAssetTier) return tier.toDouble();
+  final threshold = tierThreshold(tier);
+  if (threshold <= 0) return tier.toDouble();
+  final invested = a['invested'];
+  return tier +
+      ((invested is num ? invested.toDouble() : 0.0) / threshold).clamp(
+        0.0,
+        1.0,
+      );
+}
+
 /// Training Ground's one stat: how often mini-games come off cooldown.
 ///
 /// It used to ALSO multiply mini-game payouts, double-dipping with Media Centre
@@ -179,14 +214,21 @@ double mediaPayoutMult(num tier) => 1 + 0.19 * tier;
 /// cannot trivialise rotation. Recovery scales by the same factor, so a higher
 /// Kit Sponsor means stronger players late in games, not more games.
 double sponsorStaminaMult(Map<String, dynamic>? clubAssets) {
-  final tier = _tierOf(clubAssets, AssetCategory.sponsor);
+  // **The FRACTIONAL tier, like the recovery half beside it.** This read the
+  // integer, so one facility paid one of its two stats per tap and the other
+  // only on the tier-up — and the card printed both as though they moved
+  // together. See [fractionalAssetTier].
+  final tier = fractionalAssetTier(clubAssets, AssetCategory.sponsor);
   return 1 - math.min(0.30, 0.04 * tier); // up to -30% drain at tier 8
 }
 
 /// Youth Academy's one stat: what a scout costs. The +1 squad slot per tier is
 /// not a second stat — it is this asset's milestone-unlock track, the same shape
 /// as Stadium's kit colours and Training's mini-games.
-double academyScoutDiscount(int tier) => math.min(0.20, 0.025 * tier);
+/// **`num`, because the tier it is handed is FRACTIONAL** — a discount is a
+/// percentage and a percentage can be paid in twentieths. See
+/// [fractionalAssetTier].
+double academyScoutDiscount(num tier) => math.min(0.20, 0.025 * tier);
 
 int _tierOf(Map<String, dynamic>? clubAssets, String category) {
   final a = clubAssets?[category];

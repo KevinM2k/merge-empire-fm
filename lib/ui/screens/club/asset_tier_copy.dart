@@ -128,7 +128,17 @@ String cosmeticName(String key) {
 /// Milestones are deliberately absent: "2 new manager looks unlocked" describes
 /// the moment a tier landed, not a standing perk, so it belongs on the tier-up
 /// card and in the ladder rather than on this one for ever.
-String assetPerkLine(String key, int tier) =>
+///
+/// **[tier] IS FRACTIONAL on the card, and that is the point.** The engine has
+/// paid the continuous effects per tap since `fractionalAssetTier` went in —
+/// twenty clicks for ten per cent is half a per cent a click — but this line
+/// was still reading the whole rung, so a facility said "-5% cooldown" for the
+/// entire climb to -10% and only jumped at the top. Every tap bought something
+/// the card refused to admit to. Reported from the couch in exactly those
+/// terms: it should move, even if it moves to -5.01%.
+///
+/// The LADDER hands whole tiers, because a rung is what a ladder is about.
+String assetPerkLine(String key, num tier) =>
     tier <= 0 ? '-' : assetStatsAt(key, tier).map(statText).join(' · ');
 
 /// What the NEXT tier changes, or null at the top of the ladder.

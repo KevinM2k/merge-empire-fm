@@ -35,21 +35,39 @@ typedef TierLine = ({String id, Map<String, dynamic> params});
 
 /// A throwaway save with exactly one asset at one tier, so the real gate
 /// functions can be asked what a tier WOULD give without a live state.
-Map<String, dynamic> _at(String key, int tier) => {
-  'clubAssets': <String, dynamic>{
-    key: <String, dynamic>{'owned': tier > 0, 'tier': tier < 0 ? 0 : tier},
-  },
-};
+///
+/// **[tier] may be FRACTIONAL**, because half a tier is a real state of the
+/// game: the continuous effects are paid per tap and read `fractionalAssetTier`
+/// rather than the integer. A gate takes a SAVE, not a number, so the only way
+/// to hand one half a tier is to write the funding that would put it there —
+/// which is what `invested` is doing here.
+Map<String, dynamic> _at(String key, num tier) {
+  final whole = tier <= 0 ? 0 : tier.floor();
+  final part = tier <= 0 ? 0.0 : (tier - whole).clamp(0.0, 1.0).toDouble();
+  return {
+    'clubAssets': <String, dynamic>{
+      key: <String, dynamic>{
+        'owned': tier > 0,
+        'tier': whole,
+        'invested': (part * tierThreshold(whole)).round(),
+      },
+    },
+  };
+}
 
-Map<String, dynamic> _assets(String key, int tier) =>
+Map<String, dynamic> _assets(String key, num tier) =>
     _at(key, tier)['clubAssets'] as Map<String, dynamic>;
 
-/// A percentage to one decimal place, with a trailing `.0` dropped so the card
-/// reads "-15%" rather than "-15.0%".
+/// A percentage, with trailing zeros dropped so a whole tier reads "-15%"
+/// rather than "-15.00%".
 ///
-/// Training's -7.5% cooldown is why the decimal is kept at all.
+/// Training's -7.5% cooldown is why a decimal is kept at all. **TWO of them, not
+/// one**, because the card now prints where the investment has actually got to
+/// and the last tier is forty taps for five per cent — an eighth of a point a
+/// press. At one decimal, seven of every eight taps moved a number that did not
+/// change, which is worse than not moving it: it says the tap did nothing.
 num _pct(double fraction) {
-  final rounded = double.parse((fraction * 100).toStringAsFixed(1));
+  final rounded = double.parse((fraction * 100).toStringAsFixed(2));
   return rounded == rounded.roundToDouble() ? rounded.toInt() : rounded;
 }
 
@@ -59,7 +77,7 @@ num _pct(double fraction) {
 // being the documented exception. Cumulative: this is what you HAVE at that
 // tier, not what that tier added.
 
-final Map<String, List<TierLine> Function(int)> _statBuilders = {
+final Map<String, List<TierLine> Function(num)> _statBuilders = {
   AssetCategory.training: (tier) => [
     (id: 'cooldown', params: {'pct': _pct(1 - trainingCooldownMult(tier))}),
   ],
@@ -103,12 +121,21 @@ final Map<String, List<TierLine> Function(int)> _statBuilders = {
     (id: 'scout_cost', params: {'pct': _pct(academyScoutDiscount(tier))}),
   ],
   AssetCategory.fanzone: (tier) => [
-    (id: 'home_adv', params: {'n': homeAdvantageDisplayFor(tier)}),
+    // **The WHOLE tier, and it is not an oversight.** Home advantage is a
+    // rating-point bonus, so there is no such thing as three-fifths of one —
+    // this is the milestone half of the split `fractionalAssetTier` documents,
+    // and it lands on the tier-up like a squad slot or a kit colour.
+    (id: 'home_adv', params: {'n': homeAdvantageDisplayFor(tier.floor())}),
   ],
 };
 
 /// The cumulative stats an asset carries at [tier]. Tier 0 — unbuilt — has none.
-List<TierLine> assetStatsAt(String key, int tier) =>
+///
+/// **[tier] may be fractional**, and the card's own line hands it one: what the
+/// club HAS is where the investment has got to, not the last whole rung it
+/// passed. The ladder sheet and [assetTierDelta] pass integers, because a rung
+/// is what those are about.
+List<TierLine> assetStatsAt(String key, num tier) =>
     tier > 0 ? (_statBuilders[key]?.call(tier) ?? const []) : const [];
 
 // ── Milestone unlocks ───────────────────────────────────────────────────────

@@ -479,6 +479,65 @@ void main() {
       );
     });
 
+    testWidgets('AND IT MOVES ON EVERY TAP, not only on the tier-up', (
+      tester,
+    ) async {
+      // The engine has paid the continuous effects per tap since
+      // `fractionalAssetTier` went in — twenty clicks for ten per cent is half a
+      // per cent a click — but the card read the whole rung, so it said "-5%
+      // cooldown" for the entire climb to -10% and only jumped at the top.
+      // Reported from the couch: it should move, even if it moves to -5.01%.
+      final container = await pumpOwned(tester, tier: 1);
+      final before = assetPerkLine(_key, 1);
+      expect(find.text(before), findsOneWidget);
+
+      await tester.tap(find.byKey(const ValueKey('club-action-$_key')));
+      await tester.pumpAndSettle();
+      await settleSave(tester);
+
+      final live = fractionalAssetTier(
+        container.read(gameProvider).state?['clubAssets']
+            as Map<String, dynamic>?,
+        _key,
+      );
+      expect(live, greaterThan(1));
+      expect(live, lessThan(2), reason: 'one tap is not a whole tier');
+      expect(
+        find.text(before),
+        findsNothing,
+        reason: 'the card still claims the rung it started on',
+      );
+      expect(find.text(assetPerkLine(_key, live)), findsOneWidget);
+    });
+
+    testWidgets('and the bar FILLS to its new mark', (tester) async {
+      // It moved a whole step between frames, so the one control whose job is
+      // to show progress showed only the result of it.
+      await pumpOwned(tester, tier: 1);
+      double bar() => tester
+          .widget<LinearProgressIndicator>(
+            find.byKey(const ValueKey('club-progress-$_key')),
+          )
+          .value!;
+      expect(bar(), 0);
+
+      await tester.tap(find.byKey(const ValueKey('club-action-$_key')));
+      // One frame past the tap: the value is on its way, not there.
+      await tester.pump();
+      await tester.pump(assetBarFill ~/ 3);
+      final midway = bar();
+      await tester.pumpAndSettle();
+      final settled = bar();
+      await settleSave(tester);
+
+      expect(settled, greaterThan(0));
+      expect(
+        midway,
+        lessThan(settled),
+        reason: 'the bar jumped straight to its new value',
+      );
+    });
+
     testWidgets('the tier it is at, on the art', (tester) async {
       await pumpOwned(tester, tier: 4);
       expect(

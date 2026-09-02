@@ -16,12 +16,12 @@ void main() {
   Set<String> placeholders(String s) =>
       placeholder.allMatches(s).map((m) => m.group(0)!).toSet();
 
-  test('ten catalogues, 2660 keys each', () {
+  test('ten catalogues, 2664 keys each', () {
     expect(catalogs.length, 10);
-    // `match.chance` is the newest: the match feed heads each row with the KIND
-    // of thing that happened and had no word for a chance. Bump this WITH the
+    // `settings.theme.*` is the newest: the theme setting became light/dark/system
+    // and one switch called "Light Mode" could not say that. Bump this WITH the
     // generator run, never instead of it.
-    expect(en.length, 2660);
+    expect(en.length, 2664);
   });
 
   test('the shipped catalogues match the list the detector narrows to', () {

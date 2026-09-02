@@ -114,6 +114,23 @@ class MergeEmpireApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // **THE PHONE'S OWN SETTING, kept where the providers can see it.**
+    // `ThemeChoice.system` follows the device, and following means REACTING —
+    // a phone that goes dark at sunset has to take the app with it. This is the
+    // one place above the app that hears about it. `maybe`, because a test can
+    // pump this widget with no `MediaQuery` over it.
+    final system =
+        MediaQuery.maybePlatformBrightnessOf(context) ??
+        PlatformDispatcher.instance.platformBrightness;
+    if (ref.read(systemBrightnessProvider) != system) {
+      // After the frame: a provider written during a build is an error, and
+      // this is a read of the environment rather than of anything we own.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (context.mounted) {
+          ref.read(systemBrightnessProvider.notifier).state = system;
+        }
+      });
+    }
     return MaterialApp(
       title: 'Merge Empire Football Manager',
       // **ABOVE THE NAVIGATOR, which is what `builder` is for.** The ad wait

@@ -42,6 +42,12 @@ typedef AssetTile = ({
   String key,
   bool owned,
   int tier,
+
+  /// The tier PLUS how far the funding has got into the next one, which is what
+  /// the CONTINUOUS effects are actually paid on — see `fractionalAssetTier`.
+  /// [tier] is still the rung, and the unlocks, the ladder and the next line all
+  /// belong to that.
+  double liveTier,
   bool maxed,
   double progress,
   int nextCost,
@@ -61,16 +67,23 @@ final assetTilesProvider = savePick<List<AssetTile>>((s) {
       () {
         final owned = isAssetOwned(s, key);
         final tier = assetTier(s, key);
+        final live = fractionalAssetTier(
+          s['clubAssets'] as Map<String, dynamic>?,
+          key,
+        );
         final cost = owned ? nextInvestCost(s, key) : buildCost;
         return (
           key: key,
           owned: owned,
           tier: tier,
+          liveTier: live,
           maxed: isAssetMaxed(s, key),
           progress: investProgress(s, key),
           nextCost: cost,
           blocked: owned ? investBlocked(s, key) : buildBlocked(s, key),
-          perk: assetPerkLine(key, tier),
+          // What the club HAS is where the money has got to, not the last rung
+          // it passed. See [assetPerkLine].
+          perk: assetPerkLine(key, live),
           next: owned
               ? assetNextLine(key, tier)
               : assetNextLine(key, 0) ?? assetPerkLine(key, 1),
@@ -489,30 +502,30 @@ class _AssetPanel extends ConsumerWidget {
             // there is no perk yet to state.
             SizedBox(
               height: 29,
-              child: Text(
-                tile.owned ? tile.perk : t('asset.${tile.key}.hint'),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 11,
-                  height: 1.3,
-                  color: tile.owned ? null : kit.textMuted,
+              child: _FlashOnChange(
+                // Only the live numbers flash. A hint is not a figure and does
+                // not change under the player.
+                watch: tile.owned ? tile.perk : null,
+                ink: ink,
+                child: Text(
+                  tile.owned ? tile.perk : t('asset.${tile.key}.hint'),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 11,
+                    height: 1.3,
+                    color: tile.owned ? null : kit.textMuted,
+                  ),
                 ),
               ),
             ),
             const SizedBox(height: 5),
             if (tile.owned) ...[
-              ClipRRect(
-                borderRadius: BorderRadius.circular(4),
-                child: LinearProgressIndicator(
-                  key: ValueKey('club-progress-${tile.key}'),
-                  value: tile.progress,
-                  minHeight: 7,
-                  backgroundColor: Colors.black.withValues(alpha: 0.25),
-                  valueColor: AlwaysStoppedAnimation(
-                    tile.maxed ? const Color(0xFF00C8FF) : kit.accent,
-                  ),
-                ),
+              _AssetBar(
+                progressKey: ValueKey('club-progress-${tile.key}'),
+                progress: tile.progress,
+                tier: tile.tier,
+                ink: tile.maxed ? const Color(0xFF00C8FF) : kit.accent,
               ),
               const SizedBox(height: 5),
               // Only what the NEXT tier changes — and at the top of the ladder,
@@ -789,4 +802,138 @@ class _Art extends StatelessWidget {
 /// The facility grid's column steps, for a test.
 abstract final class AssetGridColumns {
   static int at(double width) => _AssetGrid.columnsAt(width);
+}
+
+/// The funding bar, FILLING rather than jumping.
+///
+/// Every invest moved it a whole step between frames, so the one control that
+/// exists to show progress showed only its result. Asked for from the couch:
+/// animate from where it was to where it is.
+///
+/// **A TIER-UP SNAPS, and that is the case a plain [TweenAnimationBuilder] gets
+/// wrong.** Filling the last tap takes the bar to 1.0 and the tier-up then
+/// resets it to 0 in the same rebuild, which tweens as a bar draining backwards
+/// for half a second — the opposite of what just happened. So the tier is
+/// watched too: when the rung changes, the new value is taken instantly and the
+/// climb starts again from empty.
+class _AssetBar extends StatefulWidget {
+  const _AssetBar({
+    required this.progressKey,
+    required this.progress,
+    required this.tier,
+    required this.ink,
+  });
+
+  final Key progressKey;
+  final double progress;
+  final int tier;
+  final Color ink;
+
+  @override
+  State<_AssetBar> createState() => _AssetBarState();
+}
+
+class _AssetBarState extends State<_AssetBar> {
+  late double _from = widget.progress;
+  late int _tier = widget.tier;
+
+  @override
+  void didUpdateWidget(_AssetBar old) {
+    super.didUpdateWidget(old);
+    if (widget.tier != _tier) {
+      _tier = widget.tier;
+      _from = widget.progress;
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => ClipRRect(
+    borderRadius: BorderRadius.circular(4),
+    child: TweenAnimationBuilder<double>(
+      // Keyed on the rung, so a tier-up rebuilds the tween from the new floor
+      // rather than running the old one down to it.
+      key: ValueKey('bar-$_tier'),
+      tween: Tween(begin: _from, end: widget.progress),
+      duration: assetBarFill,
+      curve: Curves.easeOutCubic,
+      builder: (context, value, _) => LinearProgressIndicator(
+        key: widget.progressKey,
+        value: value,
+        minHeight: 7,
+        backgroundColor: Colors.black.withValues(alpha: 0.25),
+        valueColor: AlwaysStoppedAnimation(widget.ink),
+      ),
+    ),
+  );
+}
+
+/// How long the bar takes to reach its new mark. Long enough to be a movement,
+/// short enough that a held button — which repeats — does not fall behind it.
+const Duration assetBarFill = Duration(milliseconds: 260);
+
+/// How long a figure stays lit after it changes.
+const Duration assetFlash = Duration(milliseconds: 620);
+
+/// **A CHANGED NUMBER SAYS SO.** The effect line moves by a fraction of a per
+/// cent per tap now, which is honest and is far too small to notice — a player
+/// pressing invest sees a bar move and has to hunt for what else did. Asked for
+/// from the couch: flash the number that changed.
+///
+/// [watch] is the value being watched, not the widget: it is a string because
+/// that is what the line IS, and comparing the rendered text is what makes this
+/// correct for a facility whose figure did not move — a tap into the Fan Zone
+/// buys home advantage in whole rating points, so most of its taps change
+/// nothing on this line and must not pretend to.
+class _FlashOnChange extends StatefulWidget {
+  const _FlashOnChange({
+    required this.watch,
+    required this.ink,
+    required this.child,
+  });
+
+  final String? watch;
+  final Color ink;
+  final Widget child;
+
+  @override
+  State<_FlashOnChange> createState() => _FlashOnChangeState();
+}
+
+class _FlashOnChangeState extends State<_FlashOnChange> {
+  /// Bumped on every real change, and it is what restarts the tween: an
+  /// implicit animation already at its end does not run again on its own.
+  int _beat = 0;
+
+  @override
+  void didUpdateWidget(_FlashOnChange old) {
+    super.didUpdateWidget(old);
+    // Null on the way in or out is a facility being built, not a figure moving.
+    if (widget.watch != old.watch && widget.watch != null && old.watch != null) {
+      setState(() => _beat++);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => TweenAnimationBuilder<double>(
+    key: ValueKey(_beat),
+    tween: Tween(begin: _beat == 0 ? 0.0 : 1.0, end: 0.0),
+    duration: assetFlash,
+    curve: Curves.easeOut,
+    builder: (context, lit, child) {
+      if (lit <= 0.01) return child!;
+      // Lerped from the ink the line ALREADY prints in, not from transparent:
+      // fading the text out and back is a flicker, and what was asked for is a
+      // colour change. The facility's OWN tier colour is the one it goes to, so
+      // the flash says which card moved rather than introducing a colour the
+      // page does not otherwise use.
+      final base =
+          DefaultTextStyle.of(context).style.color ??
+          Theme.of(context).colorScheme.onSurface;
+      return DefaultTextStyle.merge(
+        style: TextStyle(color: Color.lerp(base, widget.ink, lit)),
+        child: child!,
+      );
+    },
+    child: widget.child,
+  );
 }

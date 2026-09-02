@@ -190,6 +190,59 @@ void main() {
       expect(container.read(appThemeProvider).brightness, Brightness.dark);
     });
 
+    group('LIGHT, DARK OR THE PHONE', () {
+      // One switch called "Light Mode" can only ever disagree with the device:
+      // a phone that goes dark at sunset left the app bright until the player
+      // came in and flipped it, twice a day. Asked for from the couch.
+
+      ProviderContainer withMode(String mode) => containerWith((s) {
+        (s['settings'] as Map<String, dynamic>)['themeMode'] = mode;
+      });
+
+      test('the saved choice wins over the legacy flag', () {
+        final container = containerWith((s) {
+          final settings = s['settings'] as Map<String, dynamic>;
+          settings['lightMode'] = true;
+          settings['themeMode'] = 'dark';
+        });
+        expect(container.read(themeChoiceProvider), ThemeChoice.dark);
+        expect(container.read(appThemeProvider).brightness, Brightness.dark);
+      });
+
+      test('and a save with no choice still reads the legacy flag', () {
+        // Every save written before this has `lightMode` and nothing else, and
+        // so does every save the web build touches.
+        final container = containerWith((s) {
+          (s['settings'] as Map<String, dynamic>)['lightMode'] = false;
+        });
+        expect(container.read(themeChoiceProvider), ThemeChoice.dark);
+      });
+
+      test('SYSTEM follows the phone, both ways', () {
+        final container = withMode('system');
+        container.read(systemBrightnessProvider.notifier).state =
+            Brightness.dark;
+        expect(container.read(lightModeProvider), isFalse);
+        expect(container.read(appThemeProvider).brightness, Brightness.dark);
+
+        // And it REACTS: the phone changing under a running app is the whole
+        // reason this is a provider rather than a read of the dispatcher.
+        container.read(systemBrightnessProvider.notifier).state =
+            Brightness.light;
+        expect(container.read(lightModeProvider), isTrue);
+        expect(container.read(appThemeProvider).brightness, Brightness.light);
+      });
+
+      test('but a fixed choice ignores it', () {
+        for (final (mode, light) in [('light', true), ('dark', false)]) {
+          final container = withMode(mode);
+          container.read(systemBrightnessProvider.notifier).state =
+              light ? Brightness.dark : Brightness.light;
+          expect(container.read(lightModeProvider), light);
+        }
+      });
+    });
+
     test('a themed event forces dark over the player s light mode', () {
       final container = containerWith((_) {});
       expect(container.read(appThemeProvider).brightness, Brightness.light);

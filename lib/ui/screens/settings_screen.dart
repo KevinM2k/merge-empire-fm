@@ -26,6 +26,7 @@ import 'package:merge_empire_fc/engine/rating_prompt.dart';
 import 'package:merge_empire_fc/engine/auth_policy.dart';
 import 'package:merge_empire_fc/util/event_bus.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
+import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/providers/i18n_providers.dart';
 import 'package:merge_empire_fc/services/ad_consent.dart';
@@ -161,10 +162,36 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
           label: t('pyramid.title'),
           onTap: () => showPyramidEditor(context),
         ),
-        SettingSwitch(
-          settingKey: 'lightMode',
+        // **THREE STATES, because a switch called "Light Mode" can only ever
+        // disagree with the phone.** A player whose device goes dark at sunset
+        // had to come in here and flip it back, twice a day. Asked for from the
+        // couch: light, dark, or follow the device.
+        //
+        // `themeMode` is the key; `lightMode` is written alongside it and kept
+        // truthful, because it is the one every existing save carries and the
+        // only one the JS build knows about. See [themeChoiceProvider].
+        SettingsRow(
           icon: 'sun',
-          label: t('settings.lightMode'),
+          label: t('settings.theme'),
+          trailing: Builder(
+            builder: (context) {
+              final choice = ref.watch(themeChoiceProvider);
+              SettingsChoice pick(ThemeChoice v, String key) => (
+                label: t('settings.theme.$key'),
+                on: choice == v,
+                onTap: () => _setTheme(ref, v),
+                locked: false,
+              );
+              return SettingsSegment(
+                key: const ValueKey('setting-themeMode'),
+                choices: [
+                  pick(ThemeChoice.light, 'light'),
+                  pick(ThemeChoice.dark, 'dark'),
+                  pick(ThemeChoice.system, 'system'),
+                ],
+              );
+            },
+          ),
         ),
         // **A TOGGLE THAT IS ON WHILE THE PHONE REFUSES IS A BROKEN FEATURE**,
         // and indistinguishable from one. `settings.notifications_blocked`
@@ -684,6 +711,26 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
     // put in it.
     ];
   }
+}
+
+/// Write the theme choice, and keep the legacy flag honest beside it.
+///
+/// `lightMode` is the key every save already carries and the only one the web
+/// build reads, so it is written with the RESOLVED answer — `system` has no
+/// boolean of its own, and leaving the old key stale would give a save moved
+/// between the two builds a theme its owner never picked.
+void _setTheme(WidgetRef ref, ThemeChoice choice) {
+  writeSetting(ref, 'themeMode', choice.name);
+  writeSetting(
+    ref,
+    'lightMode',
+    switch (choice) {
+      ThemeChoice.light => true,
+      ThemeChoice.dark => false,
+      ThemeChoice.system =>
+        ref.read(systemBrightnessProvider) == Brightness.light,
+    },
+  );
 }
 
 class _TabStrip extends StatelessWidget {

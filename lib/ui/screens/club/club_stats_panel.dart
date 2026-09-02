@@ -43,17 +43,33 @@ typedef ClubStat = ({
 /// A record per row rather than a widget, so the whole panel is testable without
 /// a pump and the numbers can be checked against the engines directly.
 final clubStatsProvider = savePick<List<ClubStat>>((s) {
-  int tier(String key) => isAssetOwned(s, key) ? assetTier(s, key) : 0;
+  final assets = s['clubAssets'] as Map<String, dynamic>?;
 
-  final cooldownCut = 1 - trainingCooldownMult(tier(AssetCategory.training));
-  final income = 1 + _atMost(0.40, 0.05 * tier(AssetCategory.merch));
-  final matchRev = _pow(1.10, tier(AssetCategory.stadium));
-  final minigameCoins = mediaPayoutMult(tier(AssetCategory.media));
-  final injury = _atMost(0.40, 0.05 * tier(AssetCategory.sponsor));
-  final fatigue = _atMost(0.30, 0.04 * tier(AssetCategory.sponsor));
-  final scoutCut = academyScoutDiscount(tier(AssetCategory.academy));
+  // **THE FRACTIONAL TIER, and the ENGINE'S OWN FUNCTIONS.** Two faults, one
+  // cause: this panel read the whole rung and then re-derived the arithmetic
+  // locally — `_atMost(0.40, 0.05 * tier)` beside a `merchIncomeMultiplier`
+  // that says exactly that. The engine has paid these per tap since
+  // `fractionalAssetTier` went in, so both copies understated what the club
+  // actually has, and the panel whose whole job is "what is all this worth?"
+  // was the one answering low.
+  double live(String key) => fractionalAssetTier(assets, key);
+
+  final cooldownCut = 1 - trainingCooldownMult(live(AssetCategory.training));
+  final income = merchIncomeMultiplier(live(AssetCategory.merch));
+  // Boosts and season left null: this row is what the FACILITIES are worth, not
+  // what a TV deal is adding on top of them this month.
+  final matchRev = computeMatchRevenueMultiplier(assets, null, null);
+  final minigameCoins = mediaPayoutMult(live(AssetCategory.media));
+  final injury = 1 - getInjuryRecoveryMult(s);
+  final fatigue = 1 - sponsorStaminaMult(assets);
+  final scoutCut = academyScoutDiscount(live(AssetCategory.academy));
   final squad = getMaxPlayers(s);
-  final homeAdv = homeAdvantageDisplayFor(tier(AssetCategory.fanzone));
+  final homeAdv = homeAdvantageDisplayFor(
+    // Rating POINTS, so the rung and not the funding — see `assetStatsAt`.
+    isAssetOwned(s, AssetCategory.fanzone)
+        ? assetTier(s, AssetCategory.fanzone)
+        : 0,
+  );
 
   return [
     (
@@ -126,15 +142,6 @@ final anyAssetOwnedProvider = savePick<bool>(
   (s) => AssetCategory.all.any((k) => isAssetOwned(s, k)),
 );
 
-double _atMost(double cap, double v) => v < cap ? v : cap;
-
-double _pow(double base, int n) {
-  var out = 1.0;
-  for (var i = 0; i < n; i++) {
-    out *= base;
-  }
-  return out;
-}
 
 /// One decimal place, with a trailing `.0` dropped — Training's -7.5% is why the
 /// decimal is kept at all.
