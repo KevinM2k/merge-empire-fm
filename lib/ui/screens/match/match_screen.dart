@@ -1109,12 +1109,19 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
       ),
     );
     widget.onFinished?.call(widget.result);
-    // **AND THEN IT LEAVES.** Full time on the commentary page is a screen with
-    // nothing left to say: the tactic strip has gone, the clock has stopped and
-    // the payoff is on the summary. Long enough for the whistle and the sting to
-    // land first. `maybePop` rather than `pop`, because in a test this screen is
-    // the root route and there is nothing under it to go back to.
-    _cue(const Duration(milliseconds: 1400), _leaveFullTime);
+    // **AND THEN IT WAITS.** It used to leave on a 1,400ms timer, on the
+    // reasoning that full time here is a screen with nothing left to say: the
+    // tactic strip has gone, the clock has stopped and the payoff is on the
+    // summary.
+    //
+    // What that missed is the FEED. Ninety minutes of commentary scroll past at
+    // one minute per 350ms and the last thing a player wants at the whistle is
+    // often the thing they half-read at 71 — and the timer took the page away
+    // before they could. Asked for from the couch, and the answer was theirs:
+    // the row of controls becomes one CONTINUE button, and the report comes up
+    // when it is pressed. See the footer's `f.finished` branch.
+    //
+    // The sting still plays; nothing else happens on its own.
   }
 
   /// Leave the commentary page — but only if it is still the page on top.
@@ -1840,14 +1847,32 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
                     // straight off the screen as too much space between the
                     // feed and the buttons.
                     padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-                    // **NO BUTTON AT FULL TIME.** The whistle already leaves
-                    // this page on its own — see `_leaveFullTime`, 1.4s after
-                    // the sting — so a full-width "VICTORY" button was a
-                    // control for something that was going to happen anyway,
-                    // holding a row of height on the one screen with none, and
-                    // inviting a tap that raced the timer.
+                    // **ONE BUTTON AT FULL TIME, and it is the way out.**
+                    //
+                    // This was empty, because the whistle used to leave the page
+                    // on a timer and a button for something that was going to
+                    // happen anyway is a tap that races it. The timer has gone —
+                    // it was taking the commentary away from a player who wanted
+                    // to read it back — so the row that held speed, subs and
+                    // skip becomes the one control there is anything left to do
+                    // with. The three it replaces are all dead by now anyway:
+                    // there is no clock to speed up, no substitution to make and
+                    // nothing left to skip.
                     child: f.finished
-                        ? const SizedBox.shrink()
+                        ? SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton(
+                              key: const ValueKey('match-continue'),
+                              style: matchControlStyle(
+                                context,
+                                face: Theme.of(
+                                  context,
+                                ).extension<KitTheme>()!.accent,
+                              ),
+                              onPressed: _leaveFullTime,
+                              child: Text(t('common.continue')),
+                            ),
+                          )
                         : Row(
                             children: [
                               // **A FACE, not a hole.** The outline form's face

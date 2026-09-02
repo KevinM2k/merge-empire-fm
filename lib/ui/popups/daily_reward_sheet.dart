@@ -41,7 +41,13 @@ import 'package:merge_empire_fc/util/time.dart';
 ///
 /// [icon] is a name from `game_icon.dart` — the app's own line art — or null for
 /// the two rewards that are not a currency and have no glyph in the set.
-typedef DayReward = ({String text, String? icon, Color? ink});
+///
+/// [label] is the wallet's NAME, printed under the badge in caps. A glyph and a
+/// figure say how much and which colour, and a player who has not yet learned
+/// the colours is being asked to guess — asked for from the couch. Null for the
+/// two that are not a wallet: `daily.reward_scout_short` already IS a name, and
+/// a caption under it would say it twice.
+typedef DayReward = ({String text, String? icon, Color? ink, String? label});
 
 /// What one day of the cycle offers, one entry per reward.
 ///
@@ -56,15 +62,39 @@ typedef DayReward = ({String text, String? icon, Color? ink});
 /// the coin: money is the app's own coin in the coin gold everywhere else, and
 /// here it was an emoji money-bag.
 List<DayReward> dayRewardParts(DailyRewardPreview reward) => [
-  (text: formatCoins(reward.coins), icon: 'coin', ink: hudCoinInk),
+  // The three names are shipped copy, and none of them was invented here:
+  // `daily.item_coins` is what the claim receipt on this same sheet calls
+  // money, and the two shop sections are what the store calls the other two.
+  (
+    text: formatCoins(reward.coins),
+    icon: 'coin',
+    ink: hudCoinInk,
+    label: t('daily.item_coins'),
+  ),
   if (reward.energy > 0)
-    (text: '${reward.energy}', icon: 'bolt', ink: hudEnergyInk),
-  if (reward.gems > 0) (text: '${reward.gems}', icon: 'gem', ink: hudGemInk),
+    (
+      text: '${reward.energy}',
+      icon: 'bolt',
+      ink: hudEnergyInk,
+      label: t('shop.section.energy'),
+    ),
+  if (reward.gems > 0)
+    (
+      text: '${reward.gems}',
+      icon: 'gem',
+      ink: hudGemInk,
+      label: t('shop.section.gems'),
+    ),
   // Neither of these is a currency, so neither has a glyph in the icon set —
   // the scout day carries its own shipped word and the heal day a plus.
   if (reward.freeScout)
-    (text: t('daily.reward_scout_short'), icon: null, ink: null),
-  if (reward.healOne) (text: '➕', icon: null, ink: null),
+    (
+      text: t('daily.reward_scout_short'),
+      icon: null,
+      ink: null,
+      label: null,
+    ),
+  if (reward.healOne) (text: '➕', icon: null, ink: null, label: null),
 ];
 
 /// The same day as ONE LINE, for a screen reader.
@@ -480,7 +510,6 @@ class _CycleStrip extends StatelessWidget {
                           // The grand prize has a tile half again as tall and
                           // wider than the rest; chips at the strip's size in
                           // it would be a big empty box with small print.
-                          scale: grand ? 1.25 : 1,
                           // Two halves on a normal day, thirds on the one that
                           // pays three wallets.
                           slots: grand ? 3 : 2,
@@ -579,20 +608,37 @@ class _DayBand extends StatelessWidget {
 /// small pills. Each one is its wallet's own colour, which is the same coding
 /// the HUD uses: gold is money, green is energy, cyan is gems.
 ///
-/// **AND THE BADGE CARRIES ITS OWN GROUND, which is the HUD's answer and not a
-/// second one.** These were a 14% wash of the hue with the FIGURE printed in
-/// the hue itself, and gold at 10.5px on the daylight sheet is 1.2:1 — the
-/// coin figure was invisible in light mode, reported from the couch. The bar
-/// spent four rounds on exactly this and landed on a filled badge: `hudBadgeColour`
-/// gives the wallet's shop face and `hudBadgeInk` the lightened print that
-/// carries on it, so a chip says the same thing on a white page as on a black
-/// one. See `hud_chip.dart`.
+/// **THE BADGE IS THE HUD'S, AND IT HUGS ITS CONTENTS.** This took three rounds
+/// and the last two are both in the record for a reason.
 ///
-/// **And every chip is the same box.** They were sized to their own contents,
-/// so a day paying 2 gems and 500 coins drew a small pill above a wide one and
-/// the strip read as ragged; a stretched box of a fixed height makes the three
-/// wallets a column of equal rows, and the figure shrinks inside it rather
-/// than widening it.
+/// It began as a 14% wash of the hue with the figure printed in the hue itself,
+/// and gold at 10.5px on a daylight sheet is 1.2:1 — the coin figure was
+/// invisible in light mode. So it became `hudBadgeColour`/`hudBadgeInk`, the
+/// filled badge the bar spent four rounds arriving at, STRETCHED to the tile so
+/// the rows would line up. That is what was reported next: seven days paying two
+/// and three rewards each is a dozen full-width slabs, and at a dozen a fill
+/// stops identifying anything and becomes the texture of the panel — too much,
+/// and hard to see which day gives what.
+///
+/// Printing the figure in the sheet's own ink with only the glyph coloured was
+/// tried in between, and it went straight back: it is quiet, and it is the
+/// 1.2:1 problem again by another route. Reported in one line — those colours
+/// are invisible in light mode, use the badges.
+///
+/// So the badge stays and the STRETCH goes. Each reward is a pill the width of
+/// what it says, centred in its slot. The slot is still a fixed share of the
+/// tile — which is what keeps a day paying 2 gems and 500 coins from reading as
+/// ragged against the day beside it — but the colour now covers a figure rather
+/// than a row.
+///
+/// **AND ONE SIZE ON EVERY DAY.** Day seven's tile is taller and wider, so its
+/// badges were drawn up 25% to match it. That is right for a tile and wrong for
+/// a FIGURE: the strip is read across, and a bigger number on the last rung
+/// makes the six beside it look like small print rather than making the seventh
+/// look like the prize. Asked for from the couch. What says day seven is
+/// special is its size, its gold and its glow — it does not also need a
+/// different typeface.
+
 /// The air over the first chip, between each pair, and under the last — one
 /// number, because a strip whose outer gap is not its inner gap reads as the
 /// chips having been pushed up. Half is paid by the slot and half by the
@@ -604,18 +650,12 @@ class _RewardChips extends StatelessWidget {
     required this.reward,
     required this.today,
     required this.slots,
-    this.scale = 1,
   });
 
   final DailyRewardPreview reward;
 
   /// Today's tile draws its figures heavier — it is the one being claimed.
   final bool today;
-
-  /// The grand prize's tile is taller and wider than the six beside it, so its
-  /// chips are drawn up to match. A multiplier rather than a second size table:
-  /// there is one chip in this sheet and it is drawn at two sizes.
-  final double scale;
 
   /// How many rows the tile is divided into, whatever it actually pays.
   ///
@@ -656,7 +696,7 @@ class _RewardChips extends StatelessWidget {
               // An empty slot is empty rather than absent: it is what holds
               // the row above it level with the tile beside it.
               child: i < parts.length
-                  ? _chip(kit, parts[i])
+                  ? _chip(context, kit, parts[i])
                   : const SizedBox.shrink(),
             ),
           ),
@@ -664,46 +704,92 @@ class _RewardChips extends StatelessWidget {
     );
   }
 
-  Widget _chip(KitTheme kit, DayReward part) {
+  Widget _chip(BuildContext context, KitTheme kit, DayReward part) {
+    // **THE GLYPH CARRIES THE WALLET; THE FIGURE CARRIES THE READING.**
+    //
+    // Every reward used to be a FILLED pill in its wallet's colour, so a strip
+    // of seven days was up to a dozen saturated slabs stacked two and three
+    // deep — reported from the couch as too much, and as making it hard to see
+    // which day gives what. It is the right answer for ONE badge in a bar and
+    // the wrong one for a grid of them: at a dozen, the fills stop identifying
+    // anything and become the texture of the panel.
+    //
+    // The split is the one `coinFigureShadows` already states — a coin is a
+    // coin at any luminance because what identifies it is its SHAPE, and the
+    // number beside it is the part that has to be read. So the glyph keeps the
+    // wallet's own hue and the figure takes the sheet's ink, which is legible
+    // on either theme without a ground under it.
+    //
     // The two rewards that are not a currency have no wallet and no hue, so
     // they take the club's accent — the same fallback `HudChip` makes for the
     // one badge in the bar that is not a wallet either.
     final fill = part.ink == null ? kit.accent : hudBadgeColour(part.ink!);
     final ink = part.ink == null ? kit.accentInk : hudBadgeInk(fill);
-    return Container(
-      // No height of its own any more — the slot is the height, which is what
-      // makes the boxes on two neighbouring tiles line up.
+    return Align(
+      // **CENTRED AND SIZED TO ITS OWN CONTENTS**, which is the whole of the
+      // difference from the version that was reported. The slot is still the
+      // height, so the rewards on two neighbouring tiles still line up; what
+      // has gone is the badge being STRETCHED to the tile, which turned a strip
+      // of seven days into a wall of a dozen full-width slabs.
       alignment: Alignment.center,
-      padding: EdgeInsets.symmetric(horizontal: 4 * scale),
-      decoration: BoxDecoration(
-        color: fill,
-        borderRadius: BorderRadius.circular(6),
-      ),
-      // **THE FIGURE SHRINKS, THE BOX DOES NOT.** A sixth of the strip is about
-      // 44pt across and a seven-figure coin day does not fit in it at 10.5px;
-      // scaling it down keeps the row of boxes even, which is the whole reason
-      // they are a fixed size.
+      // **THE FIGURE SHRINKS, THE SLOT DOES NOT.** A sixth of the strip is
+      // about 44pt across and a seven-figure coin day does not fit in it at
+      // 10.5px; scaling it down keeps the rows even, which is the whole reason
+      // they are a fixed height.
       child: FittedBox(
         fit: BoxFit.scaleDown,
-        child: Row(
+        child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (part.icon case final name?) ...[
-              // The app's own coin, bolt and gem — the money was an emoji
-              // money-bag, which is the one glyph in the game that was not
-              // drawn in the set everything else is drawn in.
-              GameIcon(name, size: 10 * scale, color: ink),
-              SizedBox(width: 3 * scale),
-            ],
-            Text(
-              part.text,
-              style: TextStyle(
-                fontSize: 10.5 * scale,
-                height: 1.1,
-                color: ink,
-                fontWeight: today ? FontWeight.w900 : FontWeight.w700,
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 5,
+                vertical: 1.5,
+              ),
+              decoration: BoxDecoration(
+                color: fill,
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (part.icon case final name?) ...[
+                    // The app's own coin, bolt and gem — the money was an emoji
+                    // money-bag, which is the one glyph in the game that was
+                    // not drawn in the set everything else is drawn in.
+                    GameIcon(name, size: 10, color: ink),
+                    const SizedBox(width: 3),
+                  ],
+                  Text(
+                    part.text,
+                    style: TextStyle(
+                      fontSize: 10.5,
+                      height: 1.1,
+                      color: ink,
+                      fontWeight: today ? FontWeight.w900 : FontWeight.w700,
+                    ),
+                  ),
+                ],
               ),
             ),
+            // **AND THE WALLET SAYS ITS OWN NAME.** The badge is a colour, a
+            // glyph and a figure; which of the three wallets it is was left to
+            // the player to know, and a first-week player does not. Asked for
+            // from the couch, in caps, under the badge. Quiet and small — it is
+            // a legend, not a second figure. See [DayReward.label].
+            if (part.label case final name?) ...[
+              const SizedBox(height: 1.5),
+              Text(
+                name.toUpperCase(),
+                style: TextStyle(
+                  fontSize: 6.5,
+                  height: 1,
+                  letterSpacing: 0.5,
+                  fontWeight: FontWeight.w900,
+                  color: kit.textMuted,
+                ),
+              ),
+            ],
           ],
         ),
       ),

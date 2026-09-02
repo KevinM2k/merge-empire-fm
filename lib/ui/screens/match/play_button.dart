@@ -356,6 +356,14 @@ class PlayMatchButton extends ConsumerWidget {
       await showMatchSummary(navigator.context, result);
     }
     game.update((s) => payMatch(s, result));
+    // **AND THE COOLDOWN STARTS HERE**, which is what `startMatchCooldown` was
+    // written for and what only the CUP flow was doing. A league match stamps
+    // `lastMatchAt` in `buildMatchResult` — at kick-off — so the thirty seconds
+    // ran down while the player watched the ninety minutes and read the report,
+    // and anyone who did not skip waited zero. Reported from the couch: it
+    // should start when you are back. The stamp made during the match stays as
+    // a floor; this only ever pushes the clock later.
+    game.update(startMatchCooldown);
 
     if (!navigator.mounted) {
       unblockPopups(matchPopupBlocker);

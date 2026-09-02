@@ -752,12 +752,23 @@ void main() {
     /// **The 1.4s leave is a plain `Timer`**, so `pumpAndSettle` alone does not
     /// reach it — it advances the clock only while frames are pending, and a
     /// finished match schedules none. The pump is what fires it.
+    /// Skip to the whistle, then press the way out.
+    ///
+    /// **FULL TIME WAITS NOW.** The page used to leave on its own 1.4s after
+    /// the sting; it holds, so a player can read the commentary back, and the
+    /// row of controls becomes a single CONTINUE. So a test that plays a match
+    /// has to press it — the same way it has to answer a post-match card.
     Future<void> skipMatch(WidgetTester tester) async {
       final skip = find.byKey(const ValueKey('match-skip'));
       if (skip.evaluate().isNotEmpty) await tester.tap(skip);
       await tester.pumpAndSettle();
       await tester.pump(const Duration(milliseconds: 1500));
       await tester.pumpAndSettle();
+      final go = find.byKey(const ValueKey('match-continue'));
+      if (go.evaluate().isNotEmpty) {
+        await tester.tap(go);
+        await tester.pumpAndSettle();
+      }
     }
 
     testWidgets('a ready save can start one, and it takes over', (
@@ -781,8 +792,6 @@ void main() {
       // Close it: the clock is a periodic timer, and a test that walks away
       // mid-match leaves it pending.
       await skipMatch(tester);
-      // **No close button any more**: the whistle leaves the commentary page
-      // on its own 1.4s after the sting, so settling is what dismisses it.
       await tester.pumpAndSettle();
       await settleSave(tester);
     });
@@ -857,8 +866,6 @@ void main() {
       );
 
       final coinsAtFullTime = container.read(coinsProvider);
-      // **No close button any more**: the whistle leaves the commentary page
-      // on its own 1.4s after the sting, so settling is what dismisses it.
       await tester.pumpAndSettle();
 
       expect(find.byKey(const ValueKey('match-screen')), findsNothing);
@@ -1129,6 +1136,14 @@ void main() {
       await tester.tap(skip);
       await tester.pumpAndSettle();
       await tester.pump(const Duration(milliseconds: 1500));
+      await tester.pumpAndSettle();
+      // **AND FULL TIME WAITS TO BE DISMISSED.** The page used to leave on its
+      // own 1.4s after the sting; it holds now so the commentary can be read
+      // back, and the row of controls becomes one CONTINUE. Asserted rather
+      // than guarded, for the reason the note above gives.
+      final go = find.byKey(const ValueKey('match-continue'));
+      expect(go, findsOneWidget, reason: 'full time offered no way out');
+      await tester.tap(go);
       await tester.pumpAndSettle();
       // **AND THE SUMMARY HAS TWO WAYS OUT, not one.** The decline link exists
       // only when there is a reward to double — `canDouble` is `_base > 0` —

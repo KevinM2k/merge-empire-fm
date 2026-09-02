@@ -1,15 +1,22 @@
-/// Coins flying to the counter.
+/// Currency flying to its counter.
 ///
 /// **Money that arrives out of nowhere is money nobody notices.** A sale, a
 /// match fee, a quest, an achievement — every one of them moved the figure in
 /// the HUD and nothing joined the two, so the reward for a thing you just did
 /// happened in a corner of the screen you were not looking at.
 ///
-/// **The one exception is the players' own idle income**, and it is the reason
-/// this cannot simply watch the balance: the trickle lands every second, and a
-/// counter that swells every second is furniture rather than a reward. The loop
-/// says so itself — see `coins:idle` in `game_runner.dart` — and the bus is
-/// synchronous, so the pair is exact rather than a guess about timing.
+/// **ALL THREE WALLETS, not just the gold one.** It was written for coins and
+/// the other two chips sat there while gems and energy landed silently —
+/// reported from the couch, and the fix is one track per wallet rather than a
+/// second layer: they differ only in where they are going and what the sprite
+/// looks like. See [FlightWallet].
+///
+/// **The exception is anything that TRICKLES**, and it is the reason this
+/// cannot simply watch a balance: idle income lands every second and energy
+/// regenerates on its own, and a counter that swells every second is furniture
+/// rather than a reward. The loop says so itself — `coins:idle` and
+/// `energy:idle` in `game_runner.dart` — and the bus is synchronous, so the
+/// pair is exact rather than a guess about timing.
 library;
 
 import 'dart:math' as math;
@@ -22,6 +29,55 @@ import 'package:merge_empire_fc/util/event_bus.dart';
 
 /// A handle on the HUD's coin chip, so the flight knows where it is going.
 final GlobalKey coinChipKey = GlobalKey();
+
+/// The same, for the other two wallets.
+final GlobalKey gemChipKey = GlobalKey();
+final GlobalKey energyChipKey = GlobalKey();
+
+/// One wallet's track: where it lands, what tells it money moved, and what a
+/// sprite of it looks like in the air.
+///
+/// [idle] is the event the loop fires immediately before a PASSIVE update — the
+/// idle trickle, the energy regen — and null for a wallet that has no such
+/// thing. Gems are only ever earned or spent deliberately.
+typedef FlightWallet = ({
+  GlobalKey chip,
+  String updated,
+  String? idle,
+  List<Color> sprite,
+  int sprites,
+});
+
+const List<Color> _goldSprite = [Color(0xFFFFE682), Color(0xFFE0A600)];
+const List<Color> _gemSprite = [Color(0xFF9BF0FF), Color(0xFF16A8C4)];
+const List<Color> _boltSprite = [Color(0xFFBBF7C6), Color(0xFF2FA84F)];
+
+/// **Fewer of the other two, deliberately.** Seven coins reads as a handful of
+/// change; seven GEMS reads as a jackpot, and a gem reward is usually one or
+/// two. The count is about what the wallet is worth, not about the animation.
+List<FlightWallet> flightWallets() => [
+  (
+    chip: coinChipKey,
+    updated: 'coins:updated',
+    idle: 'coins:idle',
+    sprite: _goldSprite,
+    sprites: coinFlightSprites,
+  ),
+  (
+    chip: gemChipKey,
+    updated: 'gems:updated',
+    idle: null,
+    sprite: _gemSprite,
+    sprites: 4,
+  ),
+  (
+    chip: energyChipKey,
+    updated: 'energy:updated',
+    idle: 'energy:idle',
+    sprite: _boltSprite,
+    sprites: 4,
+  ),
+];
 
 /// Bumped once per REWARD — never by the idle trickle.
 ///
@@ -56,46 +112,58 @@ class CoinFlightState extends ConsumerState<CoinFlight>
     with TickerProviderStateMixin {
   final List<_Flight> _flights = [];
 
-  /// The next `coins:updated` is the loop's trickle, not a reward.
-  bool _passive = false;
+  /// The next `<wallet>:updated` is the loop's trickle, not a reward. Per
+  /// wallet, because one loop tick can announce both coins and energy.
+  final Set<String> _passive = {};
 
-  /// What the balance was last time it was announced.
+  /// What each balance was last time it was announced.
   ///
-  /// `coins:updated` fires on a SPEND as well as on a reward — a signing, a
-  /// trait roll, an upgrade — and coins flying INTO the counter as it goes down
-  /// is the animation telling the opposite of the truth.
-  num _last = 0;
+  /// An `:updated` fires on a SPEND as well as on a reward — a signing, a trait
+  /// roll, an upgrade — and money flying INTO the counter as it goes down is
+  /// the animation telling the opposite of the truth.
+  final Map<String, num> _last = {};
 
-  late final BusHandler _onIdle;
-  late final BusHandler _onUpdated;
+  final List<(String, BusHandler)> _subs = [];
 
-  /// Test seam: how many coins are in the air.
+  /// Test seam: how many sprites are in the air.
   int get flying => _flights.length;
 
   @override
   void initState() {
     super.initState();
-    _last = ref.read(coinsProvider);
-    _onIdle = (_) => _passive = true;
-    _onUpdated = (args) {
-      final now = args is num ? args : _last;
-      final gained = now > _last;
-      _last = now;
-      if (_passive) {
-        _passive = false;
-        return;
+    // Only coins have a provider to read a starting balance from; the other two
+    // start unknown, and an unknown balance cannot have GONE UP — so the first
+    // announcement of each seeds rather than launches. That is right: it is the
+    // one that happens as the shell mounts.
+    _last['coins:updated'] = ref.read(coinsProvider);
+    for (final wallet in flightWallets()) {
+      final idle = wallet.idle;
+      if (idle != null) {
+        listen(idle, (_) => _passive.add(wallet.updated));
       }
-      if (!gained) return;
-      _launch();
-    };
-    on('coins:idle', _onIdle);
-    on('coins:updated', _onUpdated);
+      listen(wallet.updated, (args) {
+        final seen = _last[wallet.updated];
+        final now = args is num ? args : seen;
+        _last[wallet.updated] = now ?? 0;
+        final wasPassive = _passive.remove(wallet.updated);
+        if (wasPassive || seen == null || now == null) return;
+        if (now <= seen) return;
+        _launch(wallet);
+      });
+    }
+  }
+
+  /// Subscribe, and remember it so `dispose` can undo it.
+  void listen(String event, BusHandler handler) {
+    _subs.add((event, handler));
+    on(event, handler);
   }
 
   @override
   void dispose() {
-    off('coins:idle', _onIdle);
-    off('coins:updated', _onUpdated);
+    for (final (event, handler) in _subs) {
+      off(event, handler);
+    }
     for (final flight in _flights) {
       flight.controller.dispose();
     }
@@ -110,24 +178,29 @@ class CoinFlightState extends ConsumerState<CoinFlight>
   /// money WENT, and that end is exact.
   Offset _source(Size screen) => Offset(screen.width / 2, screen.height * 0.52);
 
-  Offset? _target() {
-    final box = coinChipKey.currentContext?.findRenderObject() as RenderBox?;
+  Offset? _target(GlobalKey chip) {
+    final box = chip.currentContext?.findRenderObject() as RenderBox?;
     if (box == null || !box.hasSize) return null;
     return box.localToGlobal(box.size.center(Offset.zero));
   }
 
-  void _launch() {
+  /// Only the coin counter swells; the other two chips are plain figures.
+  bool _swells(FlightWallet wallet) => wallet.chip == coinChipKey;
+
+  void _launch(FlightWallet wallet) {
     if (!mounted) return;
     if (MediaQuery.of(context).disableAnimations) {
-      ref.read(coinRewardProvider.notifier).land();
+      if (_swells(wallet)) ref.read(coinRewardProvider.notifier).land();
       return;
     }
-    final to = _target();
+    // A chip that is not on screen — the HUD is hidden on some routes — has no
+    // target, and a flight to nowhere is worse than none.
+    final to = _target(wallet.chip);
     if (to == null) return;
     final from = _source(MediaQuery.sizeOf(context));
     final rng = math.Random();
 
-    for (var i = 0; i < coinFlightSprites; i++) {
+    for (var i = 0; i < wallet.sprites; i++) {
       final controller = AnimationController(
         vsync: this,
         duration: coinFlightDuration,
@@ -136,6 +209,7 @@ class CoinFlightState extends ConsumerState<CoinFlight>
       );
       final flight = _Flight(
         controller: controller,
+        colours: wallet.sprite,
         // Thrown out and up before they home in — a straight line from the
         // middle of the screen to the corner reads as a slide rather than as
         // something being collected.
@@ -160,7 +234,9 @@ class CoinFlightState extends ConsumerState<CoinFlight>
         setState(() => _flights.remove(flight));
         controller.dispose();
         // The last one to land is what swells the figure.
-        if (_flights.isEmpty) ref.read(coinRewardProvider.notifier).land();
+        if (_flights.isEmpty && _swells(wallet)) {
+          ref.read(coinRewardProvider.notifier).land();
+        }
       });
     }
     setState(() {});
@@ -186,7 +262,7 @@ class CoinFlightState extends ConsumerState<CoinFlight>
                     // Fades only at the very end, so it is a coin landing
                     // rather than one dissolving on the way.
                     opacity: t < 0.85 ? 1 : (1 - t) / 0.15,
-                    child: const _Coin(),
+                    child: _Coin(colours: flight.colours),
                   ),
                 );
               },
@@ -209,6 +285,7 @@ Offset _bezier(Offset a, Offset b, Offset c, double t) {
 class _Flight {
   _Flight({
     required this.controller,
+    required this.colours,
     required this.from,
     required this.via,
     required this.to,
@@ -216,16 +293,22 @@ class _Flight {
   });
 
   final AnimationController controller;
+
+  /// The wallet's own two-stop gradient — see [FlightWallet].
+  final List<Color> colours;
   final Offset from;
   final Offset via;
   final Offset to;
   final int delay;
 }
 
-/// The sprite. A disc rather than the glyph: at 18px the stroked coin is a
-/// smudge, and this one is in flight.
+/// The sprite. A disc rather than the glyph: at 18px a stroked coin is a
+/// smudge, and this one is in flight — what has to read is the COLOUR, which is
+/// the same thing that identifies the chip it is heading for.
 class _Coin extends StatelessWidget {
-  const _Coin();
+  const _Coin({required this.colours});
+
+  final List<Color> colours;
 
   @override
   Widget build(BuildContext context) => Container(
@@ -233,10 +316,10 @@ class _Coin extends StatelessWidget {
     height: 18,
     decoration: BoxDecoration(
       shape: BoxShape.circle,
-      gradient: const LinearGradient(
+      gradient: LinearGradient(
         begin: Alignment.topLeft,
         end: Alignment.bottomRight,
-        colors: [Color(0xFFFFE682), Color(0xFFE0A600)],
+        colors: colours,
       ),
       border: Border.all(color: const Color(0xFF8A6400), width: 1.2),
       boxShadow: [

@@ -234,6 +234,12 @@ class GameRunner {
     }
 
     if (report.energyChanged) {
+      // **PASSIVE, exactly like the coin trickle above.** Energy regenerates on
+      // its own, and the flight layer would throw a handful of pips at the HUD
+      // every time a pip came back — the same fault `coins:idle` exists to
+      // prevent. Immediately before the update, because the bus is synchronous
+      // and ordered and the flag is read as "the very next one".
+      emit('energy:idle', report.energyChanged);
       emit('energy:updated', _map(state['energy'])?['current']);
       game.notifyChanged();
     }

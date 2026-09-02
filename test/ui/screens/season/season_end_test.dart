@@ -164,6 +164,13 @@ void main() {
     await tester.pumpAndSettle();
     await tester.pump(const Duration(milliseconds: 1500));
     await tester.pumpAndSettle();
+    // **FULL TIME WAITS TO BE DISMISSED.** The commentary page used to leave on
+    // its own 1.4s after the sting; it holds now so the ninety minutes can be
+    // read back, and the row of controls becomes one CONTINUE.
+    final go = find.byKey(const ValueKey('match-continue'));
+    expect(go, findsOneWidget, reason: 'full time offered no way out');
+    await tester.tap(go);
+    await tester.pumpAndSettle();
 
     // The report, then out of it — and NOTHING else is pressed after this.
     //

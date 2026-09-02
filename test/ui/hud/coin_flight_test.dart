@@ -45,6 +45,16 @@ Future<CoinFlightState> pumpFlight(WidgetTester tester) async {
               right: 10,
               child: CoinCounter(key: coinChipKey, value: 100),
             ),
+            // The other two wallets have chips of their own now — see
+            // `flightWallets`. A chip that is not on screen has no target and
+            // the launch is a no-op, so a test that wants gems to fly has to
+            // give them somewhere to land, the same as coins.
+            Positioned(top: 10, right: 90, child: Text('0', key: gemChipKey)),
+            Positioned(
+              top: 10,
+              right: 160,
+              child: Text('0', key: energyChipKey),
+            ),
             const Positioned.fill(child: CoinFlight()),
           ],
         ),
@@ -75,6 +85,70 @@ void main() {
     await tester.pump(const Duration(seconds: 2));
     await tester.pumpAndSettle();
     expect(state.flying, 0);
+  });
+
+  testWidgets('AND SO DO GEMS AND ENERGY, at their own chips', (tester) async {
+    // It was written for coins and the other two chips sat there while gems and
+    // energy landed silently. Reported from the couch.
+    final state = await pumpFlight(tester);
+
+    // The FIRST announcement of a wallet with no starting balance seeds rather
+    // than launches: an unknown balance cannot have gone up.
+    emit('gems:updated', 5);
+    await tester.pump();
+    expect(state.flying, 0);
+
+    emit('gems:updated', 9);
+    await tester.pump();
+    expect(state.flying, greaterThan(0));
+    final gemSprites = state.flying;
+    await tester.pumpAndSettle();
+    expect(state.flying, 0);
+
+    emit('energy:updated', 3);
+    await tester.pump();
+    emit('energy:updated', 6);
+    await tester.pump();
+    expect(state.flying, greaterThan(0));
+    await tester.pumpAndSettle();
+    expect(state.flying, 0);
+
+    // Fewer than a handful of change: seven gems reads as a jackpot and a gem
+    // reward is usually one or two.
+    expect(gemSprites, lessThan(coinFlightSprites));
+  });
+
+  testWidgets('and SPENDING throws nothing, in any wallet', (tester) async {
+    // Money flying INTO the counter as it goes down is the animation telling
+    // the opposite of the truth.
+    final state = await pumpFlight(tester);
+    for (final event in ['gems:updated', 'energy:updated']) {
+      emit(event, 10);
+      await tester.pump();
+      emit(event, 4);
+      await tester.pump();
+      expect(state.flying, 0, reason: event);
+    }
+  });
+
+  testWidgets('AND ENERGY REGEN THROWS NOTHING EITHER', (tester) async {
+    // The loop hands a pip back on its own, and a flight for every one of them
+    // is the fault `coins:idle` exists to prevent. `game_runner` emits
+    // `energy:idle` immediately before the update, the same way.
+    final state = await pumpFlight(tester);
+    emit('energy:updated', 3);
+    await tester.pump();
+
+    emit('energy:idle', 1);
+    emit('energy:updated', 4);
+    await tester.pump();
+    expect(state.flying, 0);
+
+    // And the flag is spent: the next real one still flies.
+    emit('energy:updated', 5);
+    await tester.pump();
+    expect(state.flying, greaterThan(0));
+    await tester.pumpAndSettle();
   });
 
   testWidgets('THE IDLE TRICKLE THROWS NOTHING', (tester) async {

@@ -23,7 +23,7 @@ import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/ui/hud/hud_boosts.dart';
 import 'package:merge_empire_fc/ui/hud/coin_counter.dart';
 import 'package:merge_empire_fc/ui/hud/coin_flight.dart'
-    show coinChipKey, coinRewardProvider;
+    show coinChipKey, coinRewardProvider, energyChipKey, gemChipKey;
 import 'package:merge_empire_fc/ui/hud/hud_chip.dart';
 import 'package:merge_empire_fc/ui/popups/income_breakdown_card.dart';
 import 'package:merge_empire_fc/ui/screens/shop/currency_sheet.dart';
@@ -378,6 +378,9 @@ class Hud extends ConsumerWidget {
                     // the colour reads as "how much is left" rather than as a warning
                     // about the chip.
                     child: Text.rich(
+                      // Keyed, so a flight of pips knows where to land — see
+                      // `coin_flight.dart`.
+                      key: energyChipKey,
                       TextSpan(
                         children: [
                           TextSpan(
@@ -410,6 +413,7 @@ class Hud extends ConsumerWidget {
                     onTap: () => showCurrencySheet(context, ShopSection.gems),
                     child: Text(
                       '${ref.watch(gemsProvider)}',
+                      key: gemChipKey,
                       style: valueStyle,
                     ),
                   ),

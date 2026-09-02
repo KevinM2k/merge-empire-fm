@@ -228,6 +228,46 @@ void main() {
       }
     });
 
+    testWidgets('AND ONE OF THEM SITS BESIDE ITS OWN FIGURE', (tester) async {
+      // Anchored outward, a fixture with a single modifier put a lone badge
+      // hard against the edge of the card with an inch of nothing between it
+      // and the rating it belongs to. Reported from the couch as looking odd
+      // with only one. It grows out from the figure now, not in from the edge.
+      await pumpRows(tester, leftMods: [mod(4)], rightMods: [mod(1)]);
+      await tester.pumpAndSettle();
+
+      final well = tester.getRect(find.byKey(const ValueKey('nm-stat-well')));
+      Rect badge(String label) => tester.getRect(
+        find.ancestor(of: find.text(label), matching: find.byType(Container)).first,
+      );
+
+      final left = badge('+4');
+      final right = badge('+1');
+      // Still outside the ratings, which is the constraint the band exists for.
+      expect(left.right, lessThanOrEqualTo(well.left + 0.5));
+      expect(right.left, greaterThanOrEqualTo(well.right - 0.5));
+
+      // And each is at the INNER end of its own margin: nearer the well than
+      // the card edge it used to be pinned to. The rating columns start at the
+      // card's own edges, so they are what the margin is measured from.
+      final leftCol = tester.getRect(
+        find.byKey(const ValueKey('nm-rating-left')),
+      );
+      final rightCol = tester.getRect(
+        find.byKey(const ValueKey('nm-rating-right')),
+      );
+      expect(
+        well.left - left.right,
+        lessThan(left.left - leftCol.left),
+        reason: 'the badge is still hugging the edge of the card',
+      );
+      expect(
+        right.left - well.right,
+        lessThan(rightCol.right - right.right),
+        reason: 'the badge is still hugging the edge of the card',
+      );
+    });
+
     testWidgets('and the tap tip is reachable without a long press', (
       tester,
     ) async {

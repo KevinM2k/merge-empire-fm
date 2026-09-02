@@ -474,9 +474,12 @@ void main() {
     /// in — so it is the app's own coin now, in the coin gold, and each reward
     /// sits in a box of its own.
     ///
-    /// **AND THE BOX IS FILLED WITH THAT GOLD rather than printed in it.** Gold
-    /// on the daylight sheet is 1.2:1 — the figure was invisible in light mode.
-    /// The badge is the HUD's own, so the assertion is the HUD's own pair.
+    /// **AND THE BADGE IS THE HUD'S, hugging its contents.** Printing the
+    /// figure in the sheet's own ink with only the glyph coloured was tried
+    /// when the stretched badges were reported as too much, and it went
+    /// straight back: gold at 10.5px on a daylight sheet is 1.2:1, which is the
+    /// fault the badge exists to fix. What changed instead is that the pill is
+    /// the width of what it says rather than the width of the tile.
     testWidgets('and the coins wear the app\'s own coin, in the coin gold', (
       tester,
     ) async {
@@ -491,52 +494,106 @@ void main() {
       );
       expect(coin.name, 'coin');
       expect(coin.color, hudBadgeInk(hudBadgeColour(hudCoinInk)));
-      // The chip behind it is the coin's shop face, which is what makes the
+      // The pill behind it is the coin's shop face, which is what makes the
       // pair legible on either theme.
       final chip = tester.widget<Container>(
         find
             .ancestor(
               of: find.byType(GameIcon).first,
-              matching: find.descendant(of: day, matching: find.byType(Container)),
+              matching: find.descendant(
+                of: day,
+                matching: find.byType(Container),
+              ),
             )
             .first,
       );
       expect(
-        (chip.decoration as BoxDecoration).color,
+        (chip.decoration! as BoxDecoration).color,
         hudBadgeColour(hudCoinInk),
+      );
+      // **AND IT IS NOT THE WIDTH OF THE TILE.** That is what was reported: a
+      // stretched fill on every reward turns seven days into a wall of slabs.
+      final tile = tester.getRect(day);
+      expect(
+        tester.getRect(find.byWidget(chip)).width,
+        lessThan(tile.width * 0.8),
+        reason: 'the badge is still stretched to its slot',
       );
     });
 
-    /// **EVERY CHIP THE SAME BOX.** They were sized to their own contents, so
-    /// the gem day drew a narrow pill above a wide one.
-    testWidgets('and every reward on a day is the same box', (tester) async {
+    /// **EVERY REWARD THE SAME SLOT — which is not the same as the same BOX.**
+    ///
+    /// The pills were stretched to the tile so that a day paying 2 gems and 500
+    /// coins would not draw a narrow one above a wide one. That fixed the
+    /// raggedness and is what got reported as a wall of slabs, so the pills hug
+    /// their contents again. What holds the strip together is the SLOT: each
+    /// reward owns an equal share of the tile's height and centres in it, so
+    /// the rows still line up across seven days whatever the pills are worth.
+    testWidgets('and every reward on a day gets the same slot', (tester) async {
       await pumpSheet(tester, save());
-      final chips = tester
-          .widgetList<GameIcon>(
-            find.descendant(
-              of: find.byKey(const ValueKey('daily-day-7')),
-              matching: find.byType(GameIcon),
-            ),
-          )
-          .length;
-      expect(chips, greaterThan(1));
-      final sizes = [
-        for (var i = 0; i < chips; i++)
-          tester.getSize(
-            find
-                .ancestor(
-                  of: find
-                      .descendant(
-                        of: find.byKey(const ValueKey('daily-day-7')),
-                        matching: find.byType(GameIcon),
-                      )
-                      .at(i),
-                  matching: find.byType(Container),
-                )
-                .first,
-          ),
+      final day = find.byKey(const ValueKey('daily-day-7'));
+      final glyphs = find.descendant(of: day, matching: find.byType(GameIcon));
+      final n = tester.widgetList<GameIcon>(glyphs).length;
+      expect(n, greaterThan(1));
+
+      final centres = [
+        for (var i = 0; i < n; i++)
+          tester
+              .getRect(
+                find
+                    .ancestor(of: glyphs.at(i), matching: find.byType(Container))
+                    .first,
+              )
+              .center,
       ];
-      expect(sizes.toSet(), hasLength(1), reason: 'chips differ in size');
+      // Evenly spaced down the tile: equal slots, whatever is in them.
+      final gaps = [
+        for (var i = 1; i < centres.length; i++)
+          centres[i].dy - centres[i - 1].dy,
+      ];
+      for (final gap in gaps) {
+        expect(gap, closeTo(gaps.first, 0.5), reason: 'the slots are not equal');
+      }
+
+      // And no pill is the width of the tile.
+      final width = tester.getRect(day).width;
+      for (var i = 0; i < n; i++) {
+        final pill = tester.getRect(
+          find.ancestor(of: glyphs.at(i), matching: find.byType(Container)).first,
+        );
+        expect(pill.width, lessThan(width * 0.8));
+      }
+    });
+
+    testWidgets('AND EACH BADGE SAYS WHICH WALLET IT IS', (tester) async {
+      // A badge is a colour, a glyph and a figure; which of the three wallets
+      // it is was left to the player to know, and a first-week player does not.
+      // Asked for from the couch, in caps, under the badge. Every word is
+      // shipped copy — the receipt on this same sheet and the two shop
+      // sections.
+      await pumpSheet(tester, save());
+      final seventh = find.byKey(const ValueKey('daily-day-7'));
+      for (final key in [
+        'daily.item_coins',
+        'shop.section.energy',
+        'shop.section.gems',
+      ]) {
+        expect(
+          find.descendant(of: seventh, matching: find.text(t(key).toUpperCase())),
+          findsOneWidget,
+          reason: key,
+        );
+      }
+      // And the two rewards that are not a wallet get no caption: the scout
+      // day's own word already is one.
+      expect(dayRewardParts(getDailyRewardPreview(save(), 7)!).last.label, isNotNull);
+      final scout = [
+        for (final p in dayRewardParts(getDailyRewardPreview(save(), 5)!))
+          if (p.icon == null) p,
+      ];
+      for (final part in scout) {
+        expect(part.label, isNull);
+      }
     });
 
     /// **ONE BOX PER REWARD.** The three figures were a single run of text

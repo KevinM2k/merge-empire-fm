@@ -387,8 +387,10 @@ class MatchStatRows extends StatelessWidget {
         // can centre under the club name, and it overlaps the well by a good
         // forty points doing it. That is fine for one centred number and is
         // exactly what let a row of modifiers grow over the ratings. See
-        // [_Rating._modBand].
-        final modRoom = (w - rowsWidth) / 2;
+        // [_Rating._modBand]. Less [modWellGap], because the band is anchored
+        // at the inner end of this and a badge flush against the well is not
+        // the same thing as a badge that clears it.
+        final modRoom = (w - rowsWidth) / 2 - modWellGap;
 
         return Padding(
           padding: const EdgeInsets.only(top: 10, bottom: 9),
@@ -446,6 +448,15 @@ class MatchStatRows extends StatelessWidget {
     );
   }
 }
+
+/// The air between a modifier and the ATK/DEF well beside it.
+///
+/// The band is anchored at the INNER end of the card's margin so a lone badge
+/// sits beside the figure it belongs to rather than out at the page edge — and
+/// anchored there with nothing between them, it lands flush against the well.
+/// Reported from the couch: it wants a few points more. This is that, taken off
+/// the band's own width so the outer end does not move.
+const double modWellGap = 5;
 
 /// The darker well around the ATK/DEF pair ONLY. It says these four figures are
 /// one comparison; wrapped round the ratings too it just looked like a second
@@ -819,12 +830,21 @@ class _Rating extends StatelessWidget {
                 // Reported from the couch, with the count: an away grudge
                 // against a side in the drop zone is three.
                 //
-                // Two things stop it. It grows OUTWARD, into the card's own
-                // margin, which is where the Lucky Boot already hangs — so the
-                // first badge is nearest the figure it belongs to and nothing
-                // heads for the middle. And it scales down rather than
+                // Two things stop it. The band is `modRoom` wide and pinned
+                // to the card's own margin — the clear air outside the well,
+                // where the Lucky Boot already hangs — so it cannot reach the
+                // ratings whatever is in it. And it scales down rather than
                 // overflowing, so three badges on a narrow phone are three
                 // smaller badges instead of three badges over the ratings.
+                //
+                // **INSIDE that band it is anchored INWARD, and the first cut
+                // had it the other way.** Anchored outward, a fixture with one
+                // modifier put a lone badge hard against the edge of the card
+                // with an inch of nothing between it and the figure it belongs
+                // to — reported from the couch as looking odd with only one.
+                // Anchored inward, one badge sits beside its own rating and a
+                // second and third grow out from it towards the margin, which
+                // is the direction the room is in.
                 : Align(
                     alignment: bootOnLeft
                         ? Alignment.centerLeft
@@ -834,8 +854,8 @@ class _Rating extends StatelessWidget {
                       child: FittedBox(
                         fit: BoxFit.scaleDown,
                         alignment: bootOnLeft
-                            ? Alignment.centerLeft
-                            : Alignment.centerRight,
+                            ? Alignment.centerRight
+                            : Alignment.centerLeft,
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
