@@ -174,7 +174,9 @@ final gridCellsProvider = Provider<List<GridCell>>((ref) {
   final owned = getMaxPlayers(s);
   final pro = isProMode(s);
   return [
-    for (var i = 0; i < Grid.totalCells; i++)
+    // `shownCells`, not `totalCells`: the save's array is 39 long and the
+    // thirty-ninth can never unlock — see the constant's own note.
+    for (var i = 0; i < Grid.shownCells; i++)
       if (_pendingAt(cells, i, pending))
         // Empty for now: the card is in the save but still in the air.
         (index: i, instanceId: null, card: null, locked: i >= owned)

@@ -299,6 +299,16 @@ const double chanceFeedBigXg = 0.30;
 /// what follows it is two lines of atmosphere instead of silence.
 const List<int> openingFillMinutes = [6, 11];
 
+/// The flow lines that describe a card the referee did not show.
+///
+/// See the `commentary` case in [feedOf]. Two entries, both the spec's, and the
+/// port cannot edit them out of the pool without moving every later seeded pick
+/// in the match.
+const Set<String> _claimsABooking = {
+  'commentary.flow.firstB.2',
+  'commentary.flow.secondB.3',
+};
+
 /// The bucket those lines come from. Named so the filler and the engine cannot
 /// disagree about which pool is being emptied.
 const String openFlowPrefix = 'commentary.flow.open.';
@@ -516,7 +526,21 @@ List<FeedLine> feedOf(
           playerId: null,
         ));
       case 'commentary':
-        if (e.textKey != null) {
+        // **AN ATMOSPHERE LINE MAY NOT CLAIM A BOOKING.** Two of the JS's flow
+        // pools do — `firstB.2` is "The ref books a midfielder for a late
+        // challenge" and `secondB.3` is "Yellow card for time-wasting" — and
+        // they were harmless colour for as long as nobody was ever actually
+        // booked. The port has a referee now, with real cards drawn beside real
+        // names, so those two lines are the feed contradicting itself: a
+        // booking with no card, no player and no consequence. Reported from the
+        // couch — "it has to be a real yellow card, or just drop that."
+        //
+        // Dropped at the BOUNDARY rather than in the catalogue. The pools are
+        // generated from the spec and the engine picks a line by INDEX, so
+        // removing an entry would shift every later pick in the match. The
+        // minute simply carries no line, which is what a filtered chance
+        // already does.
+        if (e.textKey != null && !_claimsABooking.contains(e.textKey)) {
           out.add((
             minute: e.minute,
             type: e.type,

@@ -21,6 +21,7 @@ import 'package:merge_empire_fc/data/card_theme.dart';
 import 'package:merge_empire_fc/engine/idle_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
+import 'package:merge_empire_fc/ui/widgets/injury_cross.dart';
 import 'package:merge_empire_fc/util/format.dart';
 import 'package:merge_empire_fc/ui/theme/app_theme.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
@@ -501,13 +502,19 @@ class PlayerCard extends StatelessWidget {
                                 // happen to carry, so without the tier on the face
                                 // there is no way to tell by looking — the grid's
                                 // whole mechanic had no visual cue.
+                                // **THE TIER STAYS ON AN INJURED CARD.** It
+                                // used to be replaced by `INJ`, which spends
+                                // the one label that says what the card IS on a
+                                // status that is temporary — and on a bench of
+                                // twenty there is no way to tell a hurt Legend
+                                // from a hurt Bronze. Reported from the couch:
+                                // leave the tier on, and make the injury clear
+                                // another way. See the cross over the art.
                                 Flexible(
                                   child: _Chip(
                                     key: ValueKey('card-tier-${view.tier}'),
-                                    label: view.injured
-                                        ? t('card.inj_short')
-                                        : (tierLabel[view.tier] ??
-                                              'T${view.tier}'),
+                                    label: tierLabel[view.tier] ??
+                                        'T${view.tier}',
                                     background: chipBg,
                                     foreground: view.injured
                                         ? chipRed
@@ -733,6 +740,29 @@ class PlayerCard extends StatelessWidget {
                       icon: trait.icon,
                       level: trait.level,
                       title: trait.title,
+                    ),
+                  ),
+                // **AND THE INJURY IS A CROSS OVER THE ART.** Asked for from
+                // the couch in exactly that shape: keep the tier, and put a
+                // medical mark in the middle of the card so a hurt player reads
+                // as hurt from across a full bench. The 12pt icon beside the
+                // tier is a footnote at that size; this is the card saying it.
+                //
+                // `InjuryCross` is the token's own, so the eleven and the bench
+                // draw the same mark — the rule this file's own header records
+                // about there being one of each thing.
+                if (view.injured)
+                  const Positioned.fill(
+                    child: IgnorePointer(
+                      child: ColoredBox(
+                        color: Color(0x66640000),
+                        child: Center(
+                          child: InjuryCross(
+                            key: ValueKey('card-injury-cross'),
+                            size: 34,
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 // **THE RED, over the art.** Big enough to be the first thing

@@ -6,7 +6,7 @@ because that is the part worth keeping.
 
 ## Where this queue stands
 
-**22 done, 5 open.** Two of the open five are features rather than faults — a
+**27 done, 3 open.** Two of the open five are features rather than faults — a
 gesture contract for every popup, and a commentary pass — and the other three are
 small.
 
@@ -142,6 +142,36 @@ them were something being said that was not true.
       cache when an app leaves the foreground, so the first scroll back was
       thirty-eight decodes with a thumb already moving.)
 
+- [x] **An atmosphere line may not claim a booking.** (Reported as a yellow card
+      for time-wasting that nobody received. Two of the JS's flow pools describe
+      a card — `firstB.2` and `secondB.3` — and they were harmless colour until
+      the port grew a referee; now they are the feed contradicting itself. They
+      are dropped at the boundary rather than in the catalogue: the pools are
+      generated from the spec and the engine picks by INDEX, so removing an
+      entry would move every later seeded pick in the match.)
+
+- [x] **An injured card keeps its tier and wears a cross.** (`INJ` replaced the
+      one label that says what a card IS, so on a bench of twenty there was no
+      telling a hurt Legend from a hurt Bronze. `InjuryCross` moved to the
+      widgets layer — the token had it and the card needed it, and the token
+      imports the card.)
+
+- [x] **The Players grid draws 38 squares, not 39.** (The save's array is 39
+      long and its length is pinned against the JS's default state, so it does
+      not move — but the roster tops out at thirty plus the Academy's eight
+      tiers, and the thirty-ninth was a padlock nothing could ever open.
+      `Grid.shownCells` is what is drawn; the cell is still there.)
+
+- [x] **A claimable quest draws the game's own gift.** (It was a 🎁 in the
+      middle of a ring the app painted.)
+
+- [x] **The sponsor offer stops saying the company's name twice**, and its terms
+      sit two to a row. (`sponsor.title` is "{company} Offer" at the top and the
+      row under the portrait said it again. The terms were full-width strips, so
+      three drawbacks pushed the buttons off a short phone. A `Wrap` rather than
+      a fixed pair, so a long localised term takes its own line instead of being
+      squeezed.)
+
 ---
 
 ## Open
@@ -160,23 +190,12 @@ them were something being said that was not true.
       free-kick cutaway. The pools are picked by BUCKET and minute and know
       nothing about what has actually happened, so a line can assert a drought
       that did not happen or a manner of goal the cutaway then contradicts.
-      Related and already reported once: **`commentary.booking.yellow` printed
-      "booked for time-wasting" when nobody was booked** — that pool is being
-      reached from a path that is not a booking, and it should either be a real
-      card or the line should go.
+      The half of it that WAS a lookup is done — see "an atmosphere line may not
+      claim a booking" under Done.
 
 - [ ] **A gesture contract for every popup.** Swipe up → full screen; swipe up
       again → scroll. Swipe down → scroll to the top; again → back to the small
       size; again → close. Asked for as "the same on ALL popups", which is the
       hard half: it belongs in `showBottomSheetPopup` rather than in each sheet.
 
-- [ ] **The sponsor offer popup.** The sponsor's name is at the top, then the
-      player's picture, then the sponsor's name AGAIN; and the positive and
-      negative sit one under the other where two per row would fit.
 
-- [ ] **Small ones.**
-      - An injured bench card puts `INJ` over the tier. Keep the tier and put a
-        medical cross in the middle of the card instead.
-      - The Players screen has 39 slots and only 38 are ever unlockable, so the
-        last one is locked forever. Drop it.
-      - A won season quest draws an emoji where the icon constant belongs.

@@ -150,44 +150,48 @@ class _SponsorOfferCard extends StatelessWidget {
                 ),
               ),
             ),
-          const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(company.icon, style: const TextStyle(fontSize: 18)),
-              const SizedBox(width: 6),
-              Text(
-                company.name,
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w900,
-                ),
-              ),
+          // **THE COMPANY'S NAME IS ALREADY THE HEADING.** `sponsor.title` is
+          // "{company} Offer" at the top of the card, and this row said it
+          // again under the portrait — the same word twice on a card three
+          // sentences long. Reported from the couch. The LOGO stays: it is the
+          // thing the name row was really carrying, and it is not a repeat of
+          // anything.
+          const SizedBox(height: 4),
+          Text(company.icon, style: const TextStyle(fontSize: 22)),
+          const SizedBox(height: 10),
+          // **TWO PER ROW.** The terms were a column of full-width strips, so a
+          // sponsor with three drawbacks pushed the buttons off a short phone
+          // for the sake of four short phrases. Asked for from the couch: two
+          // per row saves the space. `Wrap` rather than a `Row`, so a long
+          // localised term takes a line of its own instead of being squeezed.
+          _Terms(
+            terms: [
+              (label: t('sponsor.income_boost', {'n': boostPct}), good: true),
+              if (drawback.isClean)
+                (label: t('sponsor.no_catch'), good: true)
+              else ...[
+                if (drawback.ratingPenalty > 0)
+                  (
+                    label: t('sponsor.cost_rating', {
+                      'n': drawback.ratingPenalty,
+                    }),
+                    good: false,
+                  ),
+                if (drawback.injuryPenalty > 0)
+                  (
+                    label: t('sponsor.cost_injury', {
+                      'n': (drawback.injuryPenalty * 100).round(),
+                    }),
+                    good: false,
+                  ),
+                if (drawback.formPenalty > 0)
+                  (
+                    label: t('sponsor.cost_form', {'n': drawback.formPenalty}),
+                    good: false,
+                  ),
+              ],
             ],
           ),
-          const SizedBox(height: 10),
-          _Term(label: t('sponsor.income_boost', {'n': boostPct}), good: true),
-          if (drawback.isClean)
-            _Term(label: t('sponsor.no_catch'), good: true)
-          else ...[
-            if (drawback.ratingPenalty > 0)
-              _Term(
-                label: t('sponsor.cost_rating', {'n': drawback.ratingPenalty}),
-                good: false,
-              ),
-            if (drawback.injuryPenalty > 0)
-              _Term(
-                label: t('sponsor.cost_injury', {
-                  'n': (drawback.injuryPenalty * 100).round(),
-                }),
-                good: false,
-              ),
-            if (drawback.formPenalty > 0)
-              _Term(
-                label: t('sponsor.cost_form', {'n': drawback.formPenalty}),
-                good: false,
-              ),
-          ],
           const SizedBox(height: 8),
           Text(
             // The one piece of copy on this card that is a Dart constant rather
@@ -202,6 +206,26 @@ class _SponsorOfferCard extends StatelessWidget {
       ),
     );
   }
+}
+
+/// What a sponsorship pays and what it costs, two to a row.
+///
+/// **A `Wrap` rather than a `Row` of two.** Two per row is what the space
+/// wants; a fixed pair is what breaks in German. A term that will not fit
+/// beside its neighbour takes the next line on its own, which is the same
+/// answer at any width and in any language.
+class _Terms extends StatelessWidget {
+  const _Terms({required this.terms});
+
+  final List<({String label, bool good})> terms;
+
+  @override
+  Widget build(BuildContext context) => Wrap(
+    alignment: WrapAlignment.center,
+    spacing: 14,
+    runSpacing: 2,
+    children: [for (final term in terms) _Term(label: term.label, good: term.good)],
+  );
 }
 
 class _Term extends StatelessWidget {

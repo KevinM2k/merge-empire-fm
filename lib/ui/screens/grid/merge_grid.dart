@@ -638,7 +638,7 @@ class MergeGridState extends ConsumerState<MergeGrid>
                       final cellW =
                           (constraints.maxWidth - _gap * (cols - 1)) / cols;
                       final cellH = cellW * _cellAspect;
-                      final rows = (Grid.totalCells / cols).ceil();
+                      final rows = (Grid.shownCells / cols).ceil();
 
                       Offset at(int i) => Offset(
                         (i % cols) * (cellW + _gap),

@@ -234,11 +234,24 @@ void main() {
       expect(gridColumnsFor(1600), greaterThan(gridColumnsFor(1100)));
     });
 
-    testWidgets('offers a slot for every cell the schema holds', (
+    testWidgets('offers a slot for every cell that can ever UNLOCK', (
       tester,
     ) async {
+      // **`shownCells`, not `totalCells`.** The save's array is 39 long and its
+      // length is compared field for field against the JS's default state, so
+      // it does not move — but the roster tops out at thirty base plus the
+      // Academy's eight tiers, and the thirty-ninth square was a padlock
+      // nothing in the game could ever open. Reported from the couch.
       final container = await pumpGrid(tester);
-      expect(container.read(gridCellsProvider).length, Grid.totalCells);
+      expect(container.read(gridCellsProvider).length, Grid.shownCells);
+      expect(Grid.shownCells, lessThan(Grid.totalCells));
+      // And the save is untouched: the cell is still there, just not drawn.
+      expect(
+        ((container.read(gameProvider).state!['grid']
+                as Map<String, dynamic>)['cells'] as List)
+            .length,
+        Grid.totalCells,
+      );
     });
 
     testWidgets('draws a card where the save has one', (tester) async {
@@ -1618,7 +1631,7 @@ void main() {
       final container = await pumpGrid(tester);
       await tester.pump();
       final viewport = tester.getRect(find.byKey(const ValueKey('merge-grid')));
-      final far = Grid.totalCells - 1;
+      final far = Grid.shownCells - 1;
       final before = tester.getRect(
         find.byKey(ValueKey('grid-locked-$far'), skipOffstage: false),
       );
@@ -1959,7 +1972,9 @@ void main() {
       // Subtle is not absent: the square has to read as a square that is
       // locked, which is the half of the report the alphas could have lost.
       await pumpGrid(tester);
-      const last = Grid.totalCells - 1;
+      // The last square DRAWN, which is not the last cell the save holds —
+      // see `Grid.shownCells`.
+      const last = Grid.shownCells - 1;
       expect(
         find.byKey(const ValueKey('grid-locked-$last'), skipOffstage: false),
         findsOneWidget,

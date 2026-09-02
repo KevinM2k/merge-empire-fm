@@ -35,6 +35,24 @@ class Grid {
   /// check this number first: a slot the grid cannot hold is a slot the player
   /// cannot use.
   static const int maxPlayers = 30;
+
+  /// **HOW MANY SQUARES ARE WORTH DRAWING**, which is not [totalCells].
+  ///
+  /// The save carries 39 cells and always has — that array's length is compared
+  /// field for field against the JS's default state, so it does not move. But
+  /// the roster tops out at [maxPlayers] plus the Academy's eight tiers, so the
+  /// thirty-ninth is a padlock nothing in the game can ever open. Reported from
+  /// the couch: it just stays locked forever, so get rid of it.
+  ///
+  /// The cell is still THERE — nothing about the save changes, and a hypothetical
+  /// future ladder that raised the cap would only have to raise this — it is
+  /// simply not drawn.
+  static const int shownCells = maxPlayers + maxAcademyTiers;
+
+  /// The Academy's ceiling, which is `maxAssetTier` in `club_assets.dart`. Named
+  /// here as well because [shownCells] is a `const` and cannot reach across to
+  /// a file that imports this one.
+  static const int maxAcademyTiers = 8;
 }
 
 class ClubGrid {

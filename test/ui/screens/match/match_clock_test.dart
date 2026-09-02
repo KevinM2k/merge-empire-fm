@@ -701,4 +701,41 @@ void main() {
   });
 
 
+
+  group('AN ATMOSPHERE LINE MAY NOT CLAIM A BOOKING', () {
+    // Two of the JS's flow pools describe a card — "The ref books a midfielder
+    // for a late challenge" and "Yellow card for time-wasting" — and they were
+    // harmless colour until the port grew a referee. Now they are the feed
+    // contradicting itself: a booking with no card, no player and no
+    // consequence. Reported from the couch.
+    List<String> keysFor(String textKey) => [
+      for (final line in feedOf(
+        timelineOf({
+          'clubName': 'Testville',
+          'opponentName': 'Ayton',
+          'isHome': true,
+          'addedTime': 0,
+          'events': [
+            {'minute': 30, 'type': 'commentary', 'textKey': textKey},
+          ],
+        }),
+        ourName: 'Testville',
+        theirName: 'Ayton',
+        isHome: true,
+      ))
+        line.key,
+    ];
+
+    test('the two that do are dropped', () {
+      expect(keysFor('commentary.flow.firstB.2'), isEmpty);
+      expect(keysFor('commentary.flow.secondB.3'), isEmpty);
+    });
+
+    test('and every other flow line still reaches the feed', () {
+      expect(
+        keysFor('commentary.flow.secondB.2'),
+        contains('commentary.flow.secondB.2'),
+      );
+    });
+  });
 }

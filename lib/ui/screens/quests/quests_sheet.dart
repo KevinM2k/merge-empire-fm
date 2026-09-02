@@ -560,7 +560,12 @@ class _QuestDial extends StatelessWidget {
         if (claimed)
           Icon(Icons.check, size: 20, color: ink)
         else if (ready)
-          const Text('🎁', style: TextStyle(fontSize: 18))
+          // **THE GAME'S OWN GIFT, not the platform's.** A 🎁 is Noto Color
+          // Emoji — somebody else's drawing, in somebody else's palette, in the
+          // middle of a ring the app painted. Reported from the couch about a
+          // won season quest. `gift` is the same mark the daily reward and the
+          // shop already use for the same idea.
+          GameIcon('gift', size: 18, color: ink)
         else
           Text(
             '${(pct * 100).round()}%',
