@@ -30,20 +30,36 @@ const _dark = <String, Color>{
   'parkTheBus': Color(0xFF4FA8FF),
   'counterAttack': Color(0xFFB98BFF),
   'highPress': Color(0xFFFFC247),
+  // **BALANCED IS GREY, not the club's accent.** It used to fall through to
+  // `accentBright` on the reasoning that the neutral choice should wear the
+  // club's own colour rather than a fifth hue — and what that produced is the
+  // one tactic that means "no particular plan" being drawn in the loudest
+  // colour on the screen, and a different colour per club. Asked for from the
+  // couch: grey. Attack is red, defence blue, counter purple, press yellow, and
+  // the one that is none of those looks like none of those.
+  'balanced': Color(0xFFB8C0C8),
 };
 
 const _light = <String, Color>{
   'allOutAttack': Color(0xFFCC3D1C),
   'parkTheBus': Color(0xFF1565C0),
   'counterAttack': Color(0xFF6B32C9),
-  'highPress': Color(0xFF97600A),
+  // **STILL A YELLOW in daylight.** It was `#97600A`, which is a brown: the
+  // light table exists because the dark hues are unreadable on white, and this
+  // one had been taken so far down that it stopped being the colour it names.
+  // Reported from the couch — it is yellow in dark mode, make it yellow here.
+  // This is the app's own daylight amber, the one `semanticInk` already hands
+  // out for exactly this problem.
+  'highPress': Color(0xFFC2650B),
+  'balanced': Color(0xFF5A646E),
 };
 
 /// The tactic's hue.
 ///
-/// Balanced maps to the KIT accent on purpose: it is the neutral choice, so it
-/// wears the club's own colour rather than a fifth hue competing with the four
-/// that mean something.
+/// Five now: red for attack, blue for defence, purple for a counter, yellow for
+/// a press, and a NEUTRAL GREY for balanced — see the tables. The fallback
+/// remains the kit accent for an id no table knows, which is a shape a data file
+/// could still produce.
 Color tacticColor(BuildContext context, String id) {
   final light = Theme.of(context).brightness == Brightness.light;
   final table = light ? _light : _dark;
@@ -55,10 +71,12 @@ Color tacticColor(BuildContext context, String id) {
 Color tacticTint(BuildContext context, String id, [int pct = 14]) =>
     tacticColor(context, id).withValues(alpha: pct / 100);
 
-/// Text colour to use ON a solid [tacticColor]. Balanced follows the kit's own
-/// accent ink, since its face is the kit accent.
-Color tacticInk(BuildContext context, String id) => id == 'balanced'
-    ? Theme.of(context).extension<KitTheme>()!.accentBrightInk
-    : (Theme.of(context).brightness == Brightness.light
-          ? Colors.white
-          : const Color(0xFF16120F));
+/// Text colour to use ON a solid [tacticColor].
+///
+/// **No longer a special case for balanced.** It was the kit's `accentBrightInk`
+/// because balanced's face WAS the kit accent; it is a grey of its own now, and
+/// the same rule that serves the other four serves it.
+Color tacticInk(BuildContext context, String id) =>
+    Theme.of(context).brightness == Brightness.light
+    ? Colors.white
+    : const Color(0xFF16120F);

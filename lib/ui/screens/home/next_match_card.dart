@@ -67,16 +67,20 @@ typedef MatchSide = ({
 /// Everything the card draws, already in COLUMN order — home on the left.
 typedef NextMatch = ({MatchSide left, MatchSide right, String? bonusNote});
 
-/// The relegation lift, as the engine applies it.
+/// The relegation lift the chip prints, read from the engine every time.
 ///
 /// **IT WAS A LOCAL `4` AND THE ENGINE'S IS ONE.** `relegationBoost` in
-/// `match_tactics.dart` is 1.0 and is added to attack AND defence — "deliberately
-/// modest — they are bad teams" — so the chip was claiming four times the lift a
-/// relegation scrap actually gives, on both sides of every such fixture.
-/// Reported from the couch, in the form of doubting the number: does it really
-/// add +4, I thought it was +2. It is +1, and the fix is to stop keeping a
-/// second copy of an engine constant on a screen.
-final int _relegationBoost = relegationBoost.round();
+/// `match_tactics.dart` is 1.0 and is added to attack AND defence —
+/// "deliberately modest — they are bad teams" — so the chip was claiming four
+/// times the lift a relegation scrap actually gives, on both sides of every
+/// such fixture. Reported from the couch in the form of doubting the number:
+/// does it really add +4, I thought it was +2.
+///
+/// **A FUNCTION, not a `final`.** The first fix was a lazily-initialised
+/// top-level, and a hot reload does not re-run one that has already been read —
+/// so the old figure survived the change on a running app and was reported
+/// again. Nothing here is worth caching: it is a rounded constant.
+int _relegationLift() => relegationBoost.round();
 
 Map<String, dynamic>? _map(Object? v) => v is Map<String, dynamic> ? v : null;
 
@@ -141,7 +145,7 @@ final nextMatchProvider = savePick<NextMatch?>((s) {
     if (preview.playerInRelegationZone)
       (
         icon: 'bolt',
-        amount: _relegationBoost,
+        amount: _relegationLift(),
         tone: StatTone.warn,
         tip: t('play.mod.battle_ours'),
       ),
@@ -166,7 +170,7 @@ final nextMatchProvider = savePick<NextMatch?>((s) {
     if (preview.oppInRelegationZone)
       (
         icon: 'bolt',
-        amount: _relegationBoost,
+        amount: _relegationLift(),
         tone: StatTone.warn,
         tip: t('play.mod.battle_theirs'),
       ),

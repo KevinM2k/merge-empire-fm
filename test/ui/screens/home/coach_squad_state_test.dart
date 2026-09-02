@@ -19,6 +19,7 @@ import 'package:merge_empire_fc/state/save_store.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
 import 'package:merge_empire_fc/ui/screens/home/coach_bubble.dart';
 import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
+import 'package:merge_empire_fc/ui/theme/tactic_style.dart' show tacticColor;
 
 ProviderContainer boot() {
   final container = ProviderContainer(
@@ -89,16 +90,21 @@ void main() {
     expect(text, isNot(contains('squadstate.')));
     expect(text, isNot(contains('on the books')));
   });
-  testWidgets('HIS NAME IS NOT IN HIS OWN SENTENCE', (tester) async {
-    // The header read `COACH COLIN SUGGESTS COUNTER ATTACK` — him talking
-    // about himself in the third person, on a bubble with his face on it,
-    // coming out of his own orb, on a card the player opened by tapping him.
+  testWidgets('HIS HEADER READS THE SAME EVERY TIME', (tester) async {
+    // **This reverses a decision, and both halves are worth keeping.**
     //
-    // **No new copy was needed, which is the point**: making him say "I
-    // suggest" means a new `t()` key in ten catalogues generated from a repo
-    // this one does not own; taking the name out needs nothing. When there is
-    // no suggestion to make, the label stays — the line has to say who is
-    // speaking somehow.
+    // The name came OFF whenever there was a tactic to suggest, because `COACH
+    // COLIN SUGGESTS COUNTER ATTACK` is him talking about himself in the third
+    // person — on a bubble with his face on it, coming out of his own orb, on a
+    // card the player opened by tapping him.
+    //
+    // What that produced is a header that changes shape depending on whether he
+    // has advice: COACH COLIN every other time, SUGGESTS on the one that
+    // matters. Reported from the couch — it should always read the same. A
+    // redundant name is a smaller cost than an unpredictable title.
+    //
+    // **No new copy either way**, which was the point of the earlier note too:
+    // both keys are shipped, and this is the two of them in a row.
     final c = boot();
     await tester.pumpWidget(
       UncontrolledProviderScope(
@@ -113,15 +119,67 @@ void main() {
     );
     await tester.pumpAndSettle();
     final suggested = c.read(coachSuggestedTacticProvider);
+    // His name, always — with or without something to suggest.
+    expect(find.text(t('coach.label').toUpperCase()), findsOneWidget);
+    expect(
+      find.text(t('coach.suggestion_label').toUpperCase()),
+      suggested == null ? findsNothing : findsOneWidget,
+    );
+
+    // **AND THE TACTIC IS PRINTED IN ITS OWN COLOUR** — purple for a counter,
+    // blue for a defensive block, and so on. It always was; this pins it,
+    // because it was queried from the couch and a fallback to the kit accent is
+    // exactly what a missing table row would look like.
     if (suggested != null) {
-      expect(find.text(t('coach.label').toUpperCase()), findsNothing);
+      final label = find.text(t('strategy.$suggested.name').toUpperCase());
+      expect(label, findsOneWidget);
       expect(
-        find.text(t('coach.suggestion_label').toUpperCase()),
-        findsOneWidget,
+        tester.widget<Text>(label).style!.color,
+        tacticColor(tester.element(label), suggested),
       );
-    } else {
-      expect(find.text(t('coach.label').toUpperCase()), findsOneWidget);
     }
+  });
+
+  testWidgets('AND HE SAYS SO EVEN WHEN THE TACTIC IS ALREADY SET', (
+    tester,
+  ) async {
+    // `coachSuggestedTacticProvider` is "his pick, and it is not what you have"
+    // — the right question for the match screen, where a suggestion is an offer
+    // to CHANGE something, and the wrong one for his header. A manager already
+    // playing the right way should see him agree rather than fall silent.
+    // Reported from the couch.
+    final c = boot();
+    final pick = c.read(coachTacticPickProvider);
+    expect(pick, isNotNull, reason: 'he has no read at all on a fresh save');
+    c.read(gameProvider).update(
+      (s) => (s['squad'] as Map<String, dynamic>)['strategyId'] = pick,
+    );
+    expect(
+      c.read(coachSuggestedTacticProvider),
+      isNull,
+      reason: 'there is nothing left to offer a switch to',
+    );
+    expect(c.read(coachTacticPickProvider), pick);
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: c,
+        child: Consumer(
+          builder: (context, ref, _) => MaterialApp(
+            theme: ref.watch(appThemeProvider),
+            home: const Scaffold(body: CoachLabelProbe()),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text(t('coach.label').toUpperCase()), findsOneWidget);
+    expect(
+      find.text(t('coach.suggestion_label').toUpperCase()),
+      findsOneWidget,
+    );
+    expect(find.text(t('strategy.$pick.name').toUpperCase()), findsOneWidget);
+    await tester.pump(const Duration(seconds: 3));
   });
 
 }

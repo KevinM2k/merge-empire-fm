@@ -69,10 +69,15 @@ route:
 
 **Still open:**
 
-- [ ] **A poof/tap sound set worth having.** `pop` is doing the job for the
-      loan departure; it is a 0.1s blip from `sound_defs.dart` and a proper
-      shatter cue would be better. Cosmetic, and nothing is blocked on it —
-      it needs audio, not code.
+- [x] **A shatter cue for the loan departure.** (The row said it "needs audio,
+      not code", and that was the wrong read: every cue in `sound_defs.dart` is
+      SYNTHESISED, so it is a build function like the other twenty-odd. `pop` —
+      a 0.09s sine sweep, the sound of a bubble — was standing in for eleven
+      borrowed players being recalled. `shatter` is a noise transient, five
+      deliberately INHARMONIC partials at ratios near 1.9/2.7/3.6/5.1 with
+      staggered starts and their own decays, a low knock underneath so it is not
+      all treble, and a filtered tail for the pieces settling. Whole-number
+      ratios ring as a note; glass does not.)
 - [x] **A goal-difference column head.** (It shipped as `±` because
       `table.col_gd` was thought to be missing from the catalogues and the spec
       unreachable. It is there — `'GD'`, in `en.js` and all ten generated
@@ -95,9 +100,10 @@ route:
 
 ## Where this queue stands
 
-**The port is done, and the playtest list above is down to one cosmetic row**
-that needs a recording rather than a change — a shatter cue for the loan
-departure, where `pop` is standing in.
+**The port is done and the playtest list above is CLEAR.** The last row on it
+was carried for weeks as needing a recording; it needed a build function, because
+every sound in this game is synthesised. That is worth remembering the next time
+something is filed as blocked on an asset.
 
 **The two rows that were blocked on the spec repo are closed.** Both were
 blocked on not being able to READ `../merge-empire-fc` from a cloud container;

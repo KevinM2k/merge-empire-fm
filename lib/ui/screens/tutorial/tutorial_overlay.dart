@@ -591,10 +591,16 @@ Future<void> departLoan(WidgetRef ref, {bool pay = true}) async {
   ref.read(loanDepartingProvider.notifier).state = true;
   // **And it makes a noise.** Eleven cards coming apart in silence is the one
   // moment in the script with a real effect on it and nothing to hear. One
-  // pop for the lot rather than one each: the stagger is 40ms and the sound
+  // cue for the lot rather than one each: the stagger is 40ms and the sound
   // service collapses anything inside its 70ms retrigger floor anyway, so
   // eleven would have been two and a rattle. Asked for with the animation.
-  playSoundFrom(ref, 'pop');
+  //
+  // **`shatter` rather than `pop`.** `pop` is a 0.09s sine sweep — the sound of
+  // a bubble, right for a tutorial tap and wrong for eleven borrowed players
+  // being recalled. It stood in because the queue read this as needing audio
+  // rather than code; every cue in `sound_defs.dart` is synthesised, so the
+  // proper one was a build function away.
+  playSoundFrom(ref, 'shatter');
   try {
     await Future<void>.delayed(loanDepartureWindow(leaving));
   } finally {

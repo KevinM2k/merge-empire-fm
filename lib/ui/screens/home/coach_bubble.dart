@@ -170,18 +170,36 @@ final coachTipKeyProvider = savePick<String>((s) {
 
 /// What he would play, when it is not what is already set. Null when the
 /// manager has already picked the tactic he would have picked.
-final coachSuggestedTacticProvider = savePick<String?>((s) {
+/// **THE TACTIC HE WOULD PICK, whether or not it is the one already set.**
+///
+/// [coachSuggestedTacticProvider] is the same question narrowed to "and it is
+/// not what you have" — which is the right question for the match screen, where
+/// a suggestion is an offer to CHANGE something. It is the wrong one for his
+/// header, which is a statement of his read: a manager already playing the
+/// right way should see him agree, not see him fall silent. Reported from the
+/// couch, twice — first that the header dropped his name when he had advice,
+/// then that it dropped the advice when the advice was already taken.
+final coachTacticPickProvider = savePick<String?>(coachTacticPick);
+
+/// The pick itself, as a function — so the narrowed provider below can ask the
+/// same question of the same save without a second copy of the arithmetic.
+String? coachTacticPick(Map<String, dynamic> s) {
   final preview = previewFixture(s);
   if (preview == null) return null;
-  final suggestion = suggestTactic(
+  return suggestTactic(
     preview.effAttack,
     preview.effDefence,
     preview.effOppAttackRating ?? preview.effAttack,
     preview.effOppDefenceRating ?? preview.effDefence,
     oppAttackRatio: preview.oppAttackRatio,
-  );
-  final current = _map(s['squad'])?['strategyId'];
-  return suggestion.id == current ? null : suggestion.id;
+  ).id;
+}
+
+/// The pick, but only when it is a CHANGE — null when the squad is already set
+/// up that way. What the match screen offers a switch for.
+final coachSuggestedTacticProvider = savePick<String?>((s) {
+  final pick = coachTacticPick(s);
+  return pick == null || pick == _map(s['squad'])?['strategyId'] ? null : pick;
 });
 
 /// The last pool the player actually opened. Not on the save: an unread badge
@@ -432,34 +450,41 @@ class _CoachLabel extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final kit = Theme.of(context).extension<KitTheme>()!;
-    final suggested = ref.watch(coachSuggestedTacticProvider);
+    // **HIS READ, not only his disagreements** — see
+    // [coachTacticPickProvider].
+    final suggested = ref.watch(coachTacticPickProvider);
 
-    // **HIS NAME IS NOT IN HIS OWN SENTENCE.** The header read `COACH COLIN
-    // SUGGESTS COUNTER ATTACK`, which is him talking about himself in the third
-    // person — on a bubble with his face on it, coming out of his own orb, on a
-    // card the player opened by tapping him. Nobody introduces themselves at
-    // the start of every sentence.
+    // **HIS NAME IS ALWAYS THERE, and that reverses a decision.**
     //
-    // **And no new copy was needed, which is the point.** Making him say "I
-    // suggest" means a new `t()` key in ten catalogues, generated from a repo
-    // this one does not own; taking the name OUT needs nothing. `coach.label`
-    // is still what the SHEET-level lines are titled with, where there is no
-    // face beside them to say who is speaking.
+    // It used to come OFF whenever there was a tactic to suggest, on the
+    // reasoning that `COACH COLIN SUGGESTS COUNTER ATTACK` is him talking about
+    // himself in the third person — on a bubble with his face on it, coming out
+    // of his own orb, on a card the player opened by tapping him.
+    //
+    // What that produced is a header that changes its own shape depending on
+    // whether he has advice: every other time he appears it says COACH COLIN,
+    // and on the one that matters it says SUGGESTS. Reported from the couch —
+    // it should always read the same. A name that is redundant is a smaller
+    // cost than a title nobody can predict, and the two states were never
+    // distinguishable as "the same header with more in it".
+    //
+    // **Still no new copy**, which was the point of the earlier note too:
+    // `coach.label` and `coach.suggestion_label` are both shipped, and this is
+    // the two of them in a row.
     return Wrap(
       spacing: 4,
       runSpacing: 2,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
-        if (suggested == null)
-          Text(
-            t('coach.label').toUpperCase(),
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.5,
-              color: kit.accentBright,
-            ),
+        Text(
+          t('coach.label').toUpperCase(),
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 0.5,
+            color: kit.accentBright,
           ),
+        ),
         if (suggested != null) ...[
           Text(
             // CAPS, like the two words either side of it. One line reading

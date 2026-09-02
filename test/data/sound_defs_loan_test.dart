@@ -85,4 +85,32 @@ void main() {
       expect(ratio, greaterThan(1.12), reason: 'step $i is a semitone');
     }
   });
+
+  group('AND THE DEPARTURE IS A SHATTER, not a pop', () {
+    // `pop` is a 0.09s sine sweep — the sound of a bubble, right for a tutorial
+    // tap and wrong for eleven borrowed players being recalled. The queue read
+    // this as needing audio rather than code, and that was the wrong read:
+    // every cue in `sound_defs.dart` is SYNTHESISED, so the proper one is a
+    // build function like the rest of them.
+    test('there is a recipe for it', () {
+      final def = soundDefs['shatter'];
+      expect(def, isNotNull);
+      expect(def!.seconds, greaterThan(0));
+    });
+
+    test('and it is a longer, bigger thing than the pop it replaces', () {
+      // A break has a tail. A bubble does not — that is the whole difference.
+      final shatter = soundDefs['shatter']!;
+      final pop = soundDefs['pop']!;
+      expect(shatter.seconds, greaterThan(pop.seconds * 3));
+    });
+
+    test('and it RENDERS, which is the only proof that matters', () {
+      // A recipe that throws or produces nothing is silence, and `play`
+      // swallows a missing name rather than saying so.
+      final wav = renderAllSounds()['shatter'];
+      expect(wav, isNotNull);
+      expect(wav!.length, greaterThan(1000));
+    });
+  });
 }

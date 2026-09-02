@@ -373,6 +373,48 @@ final Map<String, SoundDef> soundDefs = {
       gain: Env(0.08)..expTo(0.001, 0.08),
     ),
   ),
+  // **A LOAN DEPARTURE IS A CARD LEAVING, and `pop` was standing in for it.**
+  //
+  // `pop` is a 0.09s sine sweep — the sound of a bubble, which is right for a
+  // tutorial step and wrong for a player being sent to another club. The queue
+  // carried it as "needs audio, not code", and that was the wrong read: every
+  // cue in this file is SYNTHESISED, so a shatter is a build function like the
+  // rest of them.
+  //
+  // The shape of one is a hard transient and then a scatter. The noise burst is
+  // the break; the five partials are the fragments, deliberately inharmonic —
+  // ratios near 1.9, 2.7, 3.6 and 5.1 rather than whole multiples, because
+  // whole ones ring as a NOTE and glass does not — and each is given its own
+  // start and its own decay so they come apart rather than fading together. The
+  // filtered tail is the pieces settling.
+  'shatter': (
+    seconds: 0.6,
+    build: (r) {
+      // The break itself: bright, and over almost before it starts.
+      _noise(r, 0, 0.03, 0.24);
+      // The fragments. Staggered by a few milliseconds each, which is what
+      // makes one break rather than one chord.
+      _osc(r, Wave.triangle, 2400, 0.005, 0.16, 0.085);
+      _osc(r, Wave.triangle, 3420, 0.012, 0.24, 0.065);
+      _osc(r, Wave.triangle, 4550, 0.02, 0.19, 0.05);
+      _osc(r, Wave.triangle, 6100, 0.035, 0.30, 0.038);
+      _osc(r, Wave.triangle, 8700, 0.05, 0.22, 0.022);
+      // A low knock under it, or the whole thing is all treble and reads as a
+      // cymbal rather than as something hitting the floor.
+      _sweep(
+        r,
+        wave: Wave.sine,
+        from: 240,
+        to: 90,
+        start: 0,
+        dur: 0.12,
+        gain: Env(0.10)..expTo(0.001, 0.11),
+      );
+      // The pieces settling — quiet, and long enough to be a room rather than
+      // a click.
+      _noise(r, 0.06, 0.42, 0.028);
+    },
+  ),
   'error': (
     seconds: 0.25,
     build: (r) {

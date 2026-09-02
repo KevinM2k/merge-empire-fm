@@ -6,7 +6,7 @@ actually wrong, because that is the part worth keeping.
 
 ## Where this queue stands
 
-**52 done, 4 open.** Nearly every one that is done had a mechanism behind it,
+**53 done, 3 open.** Nearly every one that is done had a mechanism behind it,
 and a striking number were shipped code doing nothing: a `strategyId` nothing
 ever wrote, a `skyPaneTint` with no caller, a turf band whose whole job was
 hiding a seam it was itself making, `startMatchCooldown` called by one of the two
@@ -17,12 +17,18 @@ class — between them found the half-time verdict, the opponent's substitutions
 the form arrows, the tactics heading and `commentary.snub` printing a literal
 `{opp}` to players.
 
-**The four still open all need something this session cannot produce.** One
-wants a device: the customiser's stutter is on the raster thread and its build
-side has been measured clean. One wants a recording — the shatter sound. One is
-a decision rather than a change (Spine, and what it costs). The last is the
-remainder of the layering job, which is where the manager rig would be taken
-apart if the Spine answer is no.
+**The three still open are a device, a decision, and the work that decision
+gates.** The customiser's stutter is on the raster thread and its build side has
+been measured clean, so it wants a profile-mode run rather than another blind
+pass. Spine is a question about money and licensing. The layering remainder is
+where the manager rig gets taken apart — and doing that before the Spine answer
+risks doing it twice.
+
+**Two rows came off this list by being re-read rather than by being worked.**
+The Players tab's bounce was filed as wanting a device and was a widget sitting
+outside a scroller; the shatter cue was filed as needing a recording and every
+sound in this game is synthesised. Both had been sitting behind a sentence
+nobody had checked.
 
 ---
 
@@ -483,8 +489,12 @@ separately would mean doing the hard part three times.
       it: the scroller's own top is back behind the HUD glass, so the band is
       measured from `hudClearanceOf` rather than from the viewport. The clearance
       is `underBar: false` there, or the bar's own margin doubles it.)
-- [ ] **A poof/tap sound worth having.** Carried over from `REMAINING.md` — `pop`
-      is a 0.1s blip doing the job of a shatter cue. Needs audio, not code.
+- [x] **A shatter cue for the loan departure.** (Carried over from
+      `REMAINING.md` as needing audio rather than code — and every cue in
+      `sound_defs.dart` is SYNTHESISED, so it was a build function all along.
+      `pop` is a 0.09s sine sweep standing in for eleven borrowed players being
+      recalled; `shatter` is a transient, five inharmonic partials with their
+      own decays, a knock underneath and a tail.)
 
 
 ### Session two — still open
