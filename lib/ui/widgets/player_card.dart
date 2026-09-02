@@ -20,6 +20,7 @@ import 'package:merge_empire_fc/data/art_paths.dart';
 import 'package:merge_empire_fc/data/card_theme.dart';
 import 'package:merge_empire_fc/engine/idle_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
+import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 import 'package:merge_empire_fc/util/format.dart';
 import 'package:merge_empire_fc/ui/theme/app_theme.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
@@ -790,8 +791,8 @@ class TraitBadge extends StatelessWidget {
     super.key,
   });
 
-  /// The trait's own emoji — no language in it, which is why it can go on a
-  /// badge this small.
+  /// The trait's own emoji, as `traits.dart` carries it — and what actually
+  /// gets DRAWN is the app's own mark for it. See [traitIcons].
   final String icon;
 
   /// `I`, `II` or `III`.
@@ -813,15 +814,31 @@ class TraitBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(size * 0.7),
         border: Border.all(color: const Color(0x38FFFFFF)),
       ),
-      child: Text(
-        level.isEmpty ? icon : '$icon $level',
-        // Emoji come off the platform's own font; the level is the app's.
-        style: TextStyle(
-          fontSize: size,
-          height: 1.2,
-          fontWeight: FontWeight.w900,
-          color: Colors.white,
-        ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (traitIcons[icon] case final name?)
+            GameIcon(name, size: size * 1.15, color: Colors.white)
+          else
+            // A trait the set has no mark for keeps its emoji rather than being
+            // forced into a wrong one.
+            Text(
+              icon,
+              style: TextStyle(fontSize: size, height: 1.2),
+            ),
+          if (level.isNotEmpty) ...[
+            SizedBox(width: size * 0.28),
+            Text(
+              level,
+              style: TextStyle(
+                fontSize: size,
+                height: 1.2,
+                fontWeight: FontWeight.w900,
+                color: Colors.white,
+              ),
+            ),
+          ],
+        ],
       ),
     ),
   );
@@ -1086,3 +1103,39 @@ class _FillPainter extends CustomPainter {
       old.track != track ||
       old.drains != drains;
 }
+
+/// **THE GAME'S OWN MARK FOR A TRAIT, not the platform's emoji.**
+///
+/// `traits.dart` carries an emoji per trait because the JS does and that file is
+/// the spec's — a `⚽`, a `🧤`, a `🪨`. On a phone those are Noto Color Emoji:
+/// somebody else's drawings, in somebody else's palette, on a card where every
+/// other mark is the app's own line art. Reported from the couch along with the
+/// detail sheet's buttons.
+///
+/// So the SPEC keeps its emoji and the DRAW SITE translates — **keyed on the
+/// emoji itself**, because that is what a `CardView.trait` carries and every
+/// one of them is unique. A trait with no counterpart in the set keeps its
+/// emoji rather than being forced into a wrong one.
+const Map<String, String> traitIcons = {
+  '⚽': 'goal', // finisher
+  '🏃': 'flame', // pressing
+  '🎯': 'target', // poacher
+  '⚡': 'bolt', // speedster
+  '⚙️': 'cog', // engine
+  '⚓': 'bars', // anchor
+  '🎪': 'ball', // playmaker
+  '💪': 'dumbbell', // enforcer
+  '🛡️': 'shield', // ironwall
+  '🎶': 'merge', // ball_playing
+  '🪨': 'lock', // rock
+  '🧹': 'sort', // sweeper
+  '🧤': 'cross', // stopper
+  '📢': 'crown', // commanding
+  '🐱': 'refresh', // reflexes
+  '⭐': 'star', // allrounder
+  '📣': 'megaphone', // crowdpleaser
+  '🦾': 'bandage', // tough
+  '🦅': 'trophy', // veteran
+  '🫁': 'stopwatch', // iron_lungs
+};
+

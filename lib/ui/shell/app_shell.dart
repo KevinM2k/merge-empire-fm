@@ -122,17 +122,6 @@ class AppShellState extends ConsumerState<AppShell>
     }
   }
 
-  void _onDragEnd(DragEndDetails details) {
-    final velocity = details.primaryVelocity ?? 0;
-    if (velocity == 0) return;
-    final idx = tabOrder.indexOf(_active);
-    // No wrap at the ends: the bar has a first and a last tab, and a swipe past
-    // either should do nothing rather than teleport across the app.
-    final next = velocity < 0 ? idx + 1 : idx - 1;
-    if (next < 0 || next >= tabOrder.length) return;
-    goTab(tabOrder[next]);
-  }
-
   Offset get _beginOffset => switch (_enter) {
     EnterMode.fromRight => const Offset(1, 0),
     EnterMode.fromLeft => const Offset(-1, 0),
@@ -195,10 +184,18 @@ class AppShellState extends ConsumerState<AppShell>
               decoration: _active == ShellTab.home
                   ? BoxDecoration(color: kit.bg)
                   : kit.background,
+              // **NO SWIPE BETWEEN TABS.** A horizontal drag anywhere on the
+              // page changed tab, and every tab in this game is something you
+              // drag on — a card across the grid, a player onto the pitch, a
+              // filter strip sideways. So an intercepted or slightly diagonal
+              // drag threw the player onto a different screen. Reported from
+              // the couch: it happens by accident, and the five buttons in the
+              // bar are what people use anyway.
+              //
+              // The SLIDE stays. It is what says a tab arrived from the left or
+              // the right, and it is driven by `goTab` rather than by a finger.
               child: SizedBox.expand(
-                child: GestureDetector(
-                  onHorizontalDragEnd: _onDragEnd,
-                  child: SlideTransition(
+                child: SlideTransition(
                     key: const ValueKey('tab-slide'),
                     position:
                         Tween<Offset>(
@@ -256,7 +253,6 @@ class AppShellState extends ConsumerState<AppShell>
                       ),
                     ),
                   ),
-                ),
               ),
             ),
             // **Colin, on every tab.** Above the screens and below the HUD, inside

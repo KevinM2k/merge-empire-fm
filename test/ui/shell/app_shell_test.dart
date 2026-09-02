@@ -189,34 +189,28 @@ void main() {
     expect(screenState(tester, ShellTab.grid).ticks, greaterThan(gridTicks));
   });
 
-  testWidgets('swiping left moves to the next tab', (tester) async {
+  testWidgets('A SIDEWAYS FLING CHANGES NOTHING', (tester) async {
+    // **The swipe is gone, and this is the assertion that used to be its
+    // opposite.** Every tab in this game is something you drag on — a card
+    // across the grid, a player onto the pitch, a filter strip sideways — so an
+    // intercepted or slightly diagonal drag threw the player onto a different
+    // screen. Reported from the couch as happening by accident, with the note
+    // that the five buttons in the bar are what people use anyway.
     await pumpShell(tester);
-    await tester.fling(find.byType(IndexedStack), const Offset(-200, 0), 1000);
-    await settle(tester);
-    expect(activeTabOf(tester), ShellTab.club);
+    final was = activeTabOf(tester);
+    for (final dx in [-200.0, 200.0]) {
+      await tester.fling(find.byType(IndexedStack), Offset(dx, 0), 1000);
+      await settle(tester);
+      expect(activeTabOf(tester), was, reason: 'a fling of $dx moved the tab');
+    }
   });
 
-  testWidgets('swiping right moves back', (tester) async {
-    await pumpShell(tester);
-    await tester.fling(find.byType(IndexedStack), const Offset(200, 0), 1000);
-    await settle(tester);
-    expect(activeTabOf(tester), ShellTab.squad);
-  });
-
-  testWidgets('a swipe past the last tab does nothing', (tester) async {
+  testWidgets('and the BUTTONS still do', (tester) async {
     await pumpShell(tester);
     await tester.tap(find.byKey(const ValueKey('tab-shop')));
     await settle(tester);
-    await tester.fling(find.byType(IndexedStack), const Offset(-200, 0), 1000);
-    await settle(tester);
     expect(activeTabOf(tester), ShellTab.shop);
-  });
-
-  testWidgets('a swipe past the first tab does nothing', (tester) async {
-    await pumpShell(tester);
     await tester.tap(find.byKey(const ValueKey('tab-grid')));
-    await settle(tester);
-    await tester.fling(find.byType(IndexedStack), const Offset(200, 0), 1000);
     await settle(tester);
     expect(activeTabOf(tester), ShellTab.grid);
   });

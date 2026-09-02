@@ -207,13 +207,21 @@ class AdMobRewardedAds implements RewardedAds {
 
   @override
   void refresh() {
-    // A fresh slot is left exactly as it is, so a resume costs nothing when
-    // nothing has expired.
-    if (!_dropIfStale()) return;
+    // **AND AN EMPTY SLOT IS FILLED, not just a stale one.** This returned
+    // early whenever nothing had expired — including the case where nothing had
+    // ever been loaded — so the app's first ad tap always paid a cold load, and
+    // only two screens in the game primed one ahead of time. Asked directly:
+    // with one unit serving every placement, is there always one ready?
+    //
+    // There is now. `prepare` is the same question and already de-duplicates
+    // against a warm ad and an in-flight load, so a resume that lost nothing
+    // still costs nothing.
+    _dropIfStale();
+    if (_warm != null || _loading != null) return;
     // `'resume'` is not a placement and is not pretending to be one: it is what
     // `warmed_for` will say about the ad this loads, which is the truth — no
     // screen asked for it, a resume did.
-    if (_loading == null) unawaited(_load('resume'));
+    unawaited(_load('resume'));
   }
 
   /// Throw away a warm ad past [adFreshness]. True when one was thrown away.

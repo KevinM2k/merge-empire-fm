@@ -294,13 +294,30 @@ void main() {
       expect(loader.handed.first.disposed, isFalse);
     });
 
-    test('refreshing an empty slot warms nothing either', () async {
-      // Nothing has expired because nothing was ever there; a resume on a
-      // screen with no offer on it should not be loading videos.
+    test('and refreshing an EMPTY slot fills it', () async {
+      // **This asserted the opposite, and the opposite was the bug.** The
+      // reasoning was "nothing has expired because nothing was ever there" —
+      // true, and it left the app's first ad tap paying a cold load however
+      // long the player had been in the game. It made sense when eleven
+      // placements each had their own slot and warming one evicted another;
+      // every placement serves from ONE unit now, so there is exactly one ad to
+      // keep ready and no wrong one to warm. Asked directly from the couch.
       final loader = _Loader();
       _ads(loader).refresh();
       await Future<void>.delayed(Duration.zero);
-      expect(loader.asked, isEmpty);
+      expect(loader.asked, hasLength(1));
+    });
+
+    test('but a slot that already has one is left alone', () async {
+      // The de-duplication that makes the above free: a resume with a fresh ad
+      // in the slot must not throw it away and ask for another.
+      final loader = _Loader();
+      final ads = _ads(loader);
+      ads.prepare('x');
+      await Future<void>.delayed(Duration.zero);
+      ads.refresh();
+      await Future<void>.delayed(Duration.zero);
+      expect(loader.asked, hasLength(1));
     });
 
     test('and the shipping default has a refresh that does nothing', () {

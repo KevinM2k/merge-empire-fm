@@ -9,6 +9,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:merge_empire_fc/data/config.dart';
 import 'package:merge_empire_fc/engine/free_shelf_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
@@ -190,7 +191,13 @@ void main() {
     expect(button.onTap, isNull);
   });
 
-  testWidgets('and three a day is the cap on the cooldown skip', (tester) async {
+  testWidgets('and past three a day it REPRICES rather than dying', (
+    tester,
+  ) async {
+    // **It used to read "Daily cap" and go dead**, which is a door with no
+    // handle on the one control that shortens the wait to the next match. Asked
+    // for from the couch in the shape the training sheet's skip-all already
+    // has: the yellow ad button becomes a blue gem button, one gem, same grant.
     await _pump(
       tester,
       _Ads(AdOutcome.rewarded),
@@ -201,7 +208,8 @@ void main() {
     final button = tester.widget<StoreButton>(
       find.byKey(const ValueKey('shop-buy-ad-match-cooldown')).first,
     );
-    expect(button.onTap, isNull);
-    expect(find.text(t('shop.daily_cap')), findsWidgets);
+    expect(button.onTap, isNotNull, reason: 'the tile went dead at the cap');
+    expect(find.text(t('shop.daily_cap')), findsNothing);
+    expect(find.text('${Minigame.skipGemCost}'), findsWidgets);
   });
 }

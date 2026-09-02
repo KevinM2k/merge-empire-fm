@@ -79,6 +79,13 @@ class _GameHostState extends ConsumerState<GameHost>
     setAnalyticsStateReader(() => _runner.game.state);
     // The cold-boot half of the same thing — see [_warmArt].
     _warmArt();
+    // **AND ONE AD IS WARM BEFORE ANYBODY ASKS.** Every placement serves from
+    // a single unit now, so there is exactly one to keep ready and no risk of
+    // warming the wrong one — and until this, only the training sheet and the
+    // match summary primed it, which left every other offer in the game paying
+    // a cold load on the tap. `refresh` fills an empty slot as well as a stale
+    // one; it is a no-op once there is an ad in it.
+    ref.read(rewardedAdsProvider).refresh();
     logAppBoot();
     _weather = ref.read(weatherProvider.notifier);
     _ensureRegion(_runner.game, dispatcher.locale.toLanguageTag());

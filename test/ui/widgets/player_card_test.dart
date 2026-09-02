@@ -3,6 +3,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/data/card_theme.dart';
 import 'package:merge_empire_fc/ui/theme/app_theme.dart';
@@ -500,7 +501,25 @@ void main() {
         suspended: false,
       ));
       expect(find.byKey(const ValueKey('card-trait')), findsOneWidget);
-      expect(find.text('⚽ III'), findsOneWidget);
+      // **THE GAME'S OWN MARK, not the platform's emoji.** `traits.dart` carries
+      // an emoji per trait because the JS does and that file is the spec's;
+      // what gets DRAWN is the app's line art for it — see `traitIcons`.
+      // Reported from the couch, about this badge and the detail sheet's
+      // buttons in the same breath.
+      expect(find.text('⚽ III'), findsNothing);
+      expect(find.text('III'), findsOneWidget);
+      expect(
+        tester
+            .widgetList<GameIcon>(
+              find.descendant(
+                of: find.byKey(const ValueKey('card-trait')),
+                matching: find.byType(GameIcon),
+              ),
+            )
+            .single
+            .name,
+        traitIcons['⚽'],
+      );
       // What anything that READS rather than looks is given: the emoji and a
       // roman numeral are not a sentence.
       expect(
