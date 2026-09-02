@@ -6,17 +6,18 @@ actually wrong, because that is the part worth keeping.
 
 ## Where this queue stands
 
-**11 done, 10 open.** The nine that are done were each a real defect with a
+**13 done, 8 open.** The nine that are done were each a real defect with a
 mechanism behind it, and three of them were shipped code doing nothing: a
 `strategyId` nothing ever wrote, a `skyPaneTint` with no caller, and a turf band
 whose whole job was hiding a seam it was itself making.
 
-The ten still open split into two piles and the split is worth keeping. Six are
-**one job**: the scene is painted by a handful of very large `paint()` methods,
-and animating hair, stopping the customiser stuttering and fixing the dugout's
-hanging arms are all downstream of taking that apart into layers — with the
-Spine question sitting on top of the same work. The other four are ordinary and
-independent.
+The eight still open split into two piles and the split is worth keeping. Five
+are **one job**: the scene is painted by a handful of very large `paint()`
+methods, and animating hair, stopping the customiser stuttering and fixing the
+dugout's hanging arms are all downstream of taking that apart into layers — with
+the Spine question sitting on top of the same work. The other three are
+ordinary and independent, and two of those need a device or a recording rather
+than a change.
 
 ---
 
@@ -125,14 +126,38 @@ independent.
       straight in, because they exist nowhere else. `welcomeBackFloorMs` is one
       number to move.)
 
+- [x] **The keeper's elbow no longer snaps across his arm.** (Reported as the
+      arms bending the wrong way at the elbow. The two-bone solve picked which
+      side to bow with `perp.dx * side < 0`, and `perp.dx` is `-way.dy` — it
+      changes sign the instant an arm passes through HORIZONTAL. The TRAILING
+      arm does exactly that on every dive, sweeping 158° → 22° through 90°, so
+      mid-dive the elbow jumped from one side of the shoulder-to-glove line to
+      the other in a single frame. Measured: a 12.8px snap at dive 0.50, and
+      either side of it one of the two poses reads as a backwards bend. It is a
+      fixed quarter turn now, mirrored between the arms, which is continuous
+      everywhere and still right at rest. Note the figure is the PENALTY
+      keeper — Goalkeeper Practice is the keeper's-eye view and has no figure in
+      it at all.)
+
+- [x] **The pitch says whose end is which.** (Asked as a question — "does the
+      arrow point the right way? I started dominating as away team but it was
+      pointing to the right." It was, and the tests already pinned it:
+      `ourSideLeft = isHome`, the clips mirror off the same flag, and the
+      scoreboard reads home-side-left. The defect is that a pitch's markings are
+      SYMMETRIC, so "pointing right" carries no information unless you already
+      know which end you are attacking, and nothing on the grass said. Each goal
+      now carries the defending club's name, painted on the turf in the mown
+      stripe's own green — passed in the SAME two expressions `_Scoreboard`
+      takes, so the board and the pitch cannot disagree by construction.)
+
 ---
 
 ## Open
 
 ### One job: the scene is one big `paint()`
 
-These six are the same piece of work seen from six angles, and doing them
-separately would mean doing the hard part six times.
+These five are the same piece of work seen from five angles, and doing them
+separately would mean doing the hard part five times.
 
 - [ ] **Draw the background in LAYERS, not one `paint()`.** Stadium tiers want
       to be layer 1 (nearest), 2, 3 — each a little smaller and further away —
@@ -150,24 +175,18 @@ separately would mean doing the hard part six times.
       the foot of this file for the licence, the price, what is actually in the
       examples and what it would cost this repo. Short version: the licence is
       a real gate, `mix-and-match` IS the manager customiser, and the example
-      ART cannot ship but the example RIGS can.
+      ART cannot ship but the example RIGS can. **The penalty keeper is a third
+      candidate** — added after the research, and deliberately parked behind the
+      other two: his arms are the one rig in the game already solved as bones,
+      so he is the cheapest thing to swap and the least in need of swapping.
 - [ ] **The manager customiser stutters on most tabs.** Skin colour and hair
       colour are fine; the rest lag. Same cause, most likely: every tab rebuild
       repaints the whole rig.
 - [ ] **The dugout manager has hanging arms between transitions** — one behind,
       one in front, as if a forward walk were paused mid-stride.
-- [ ] **The goalkeeper's arms bend the wrong way at the elbow** in Goalkeeper
-      Practice.
 
 ### Independent
 
-- [ ] **Does the arrow point the right way?** Reported as pointing RIGHT while
-      dominating away. The logic is correct end to end and now says so: the
-      scoreboard is home-left, `ourSideLeft = isHome`, and the clips and the
-      arrow agree. **The bug is that nothing on the pitch says which goal is
-      whose** — the markings are symmetric, so "pointing right" carries no
-      meaning unless you already know which end you are attacking. Needs an end
-      marker, not a sign flip.
 - [ ] **Native bounce missing on the Players tab.** The scroll view already
       forces `AlwaysScrollable(Bouncing(RangeMaintaining))` and the app sets
       `BouncingScrollPhysics` app-wide, so the physics are not it. The structural
@@ -296,6 +315,14 @@ customiser feature-for-feature and the manager is what was actually reported as
 boring; a spinning gem is something the existing painter can do once the layers
 are split, so the shop is the weaker case for a $379 licence and a native
 dependency.
+
+**The penalty keeper is third, and that ordering is deliberate.** He was raised
+as a later candidate and later is right: his arms are already a two-bone solve
+in metres with a fixed-length invariant that four tests hold — `keeperRigFor` is
+the one rig in this game that is genuinely skeletal already. That makes him the
+cheapest thing to move onto Spine and the least in need of moving, and it means
+the argument for him is "smoother secondary motion", not "he looks static". Do
+him after the manager has proved the pipeline, or not at all.
 
 **Open questions that are yours, not the queue's:** the $500k Enterprise
 threshold, and whether the manager's art leaving the spec repo is acceptable.

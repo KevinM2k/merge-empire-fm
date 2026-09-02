@@ -1649,6 +1649,19 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
                                   // mark on the grass rather than a tint over it.
                                   ours: momentumOurs,
                                   theirs: momentumTheirs,
+                                  // **WHOSE END IS WHICH, painted on the
+                                  // grass.** The SAME two expressions the
+                                  // scoreboard uses for its own sides — see
+                                  // `_Scoreboard`'s `left:`/`right:` above —
+                                  // so the board and the pitch cannot disagree
+                                  // about which way we are kicking. That
+                                  // disagreement is not hypothetical: the
+                                  // arrow was reported as pointing the wrong
+                                  // way when it was pointing the right way,
+                                  // because the markings are symmetric and
+                                  // nothing on them said.
+                                  leftEnd: home ? us : them,
+                                  rightEnd: home ? them : us,
                                 ),
                                 onDone: (_) {
                                   if (!mounted) return;

@@ -257,6 +257,56 @@ void main() {
       }
     });
 
+    test('AND AN ELBOW NEVER SNAPS ACROSS THE ARM MID-DIVE', () {
+      // **Reported from the couch: the keeper's arms move weird, almost
+      // bending at the elbows the wrong way.** The bow direction was chosen by
+      // `perp.dx * side < 0`, and `perp.dx` is `-way.dy` — it changes sign the
+      // instant an arm passes through HORIZONTAL. The TRAILING arm does exactly
+      // that on every dive: it sweeps from `_armRest`'s 158 degrees to
+      // `_armTrail`'s 22, through 90. So mid-dive the elbow jumped from one
+      // side of the shoulder-to-glove line to the other in a single frame — at
+      // a resting span that is a 0.4-unit snap, and either side of it one of
+      // the two poses reads as an elbow bending backwards.
+      //
+      // Measured as a SIGN, which is the thing that was discontinuous: the
+      // elbow's offset from the shoulder-to-glove line may grow and shrink, but
+      // it may never cross the line as the dive runs.
+      for (final side in [-0.98, -0.5, 0.5, 0.98]) {
+        for (final arm in [0, 1]) {
+          var last = 0.0;
+          for (var i = 0; i <= 40; i++) {
+            final dive = i / 40;
+            final rig = keeperRigFor(
+              KeeperPose(
+                hand: Vec3(side * keeperDiveSpan * dive, 0, 0.55 + 0.75 * dive),
+                dive: dive,
+                side: side,
+              ),
+              view,
+            )!;
+            final (joint, elbow, glove) = arm == 0
+                ? (rig.leadJoint, rig.leadElbow, rig.glove)
+                : (rig.trailJoint, rig.trailElbow, rig.trailGlove);
+            final along = glove - joint;
+            final off =
+                ((elbow.dx - joint.dx) * along.dy -
+                    (elbow.dy - joint.dy) * along.dx) /
+                along.distance;
+            if (last != 0) {
+              expect(
+                off * last,
+                greaterThan(0),
+                reason:
+                    'side $side arm $arm: the elbow crossed the arm at dive '
+                    '${dive.toStringAsFixed(2)} — $last to $off',
+              );
+            }
+            last = off;
+          }
+        }
+      }
+    });
+
     test('AND HIS ELBOWS ARE OUTSIDE HIM, not buried in his chest', () {
       // The elbow bowed toward his FEET, and for an arm hanging down-and-out
       // that direction resolves inward: measured, the elbow sat 0.1 units off

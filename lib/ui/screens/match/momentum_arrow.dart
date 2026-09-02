@@ -13,6 +13,7 @@
 /// figure the stat board prints.
 library;
 
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/widgets.dart';
@@ -59,6 +60,8 @@ class MomentumArrow extends StatelessWidget {
     required this.attackingRight,
     required this.ours,
     required this.theirs,
+    this.leftEnd,
+    this.rightEnd,
     super.key,
   });
 
@@ -73,6 +76,27 @@ class MomentumArrow extends StatelessWidget {
   /// The colour of a move going our way, and of one going theirs.
   final Color ours;
   final Color theirs;
+
+  /// **WHOSE GOAL IS AT EACH END** — the one thing the pitch never said.
+  ///
+  /// Reported from the couch as a question: *"does the arrow point the right
+  /// way? I started dominating as away team but it was pointing to the
+  /// right."* It was. `ourSideLeft = isHome`, the clips mirror off the same
+  /// flag, and the scoreboard reads home-side-left — the whole chain agrees.
+  ///
+  /// The problem is that a pitch's markings are SYMMETRIC, so "pointing right"
+  /// carries no information at all unless you already know which end you are
+  /// attacking, and nothing on the grass said. An arrow that is right and
+  /// unreadable is reported as an arrow that is wrong, which is exactly what
+  /// happened.
+  ///
+  /// So each goal is named, and the two are passed in the SAME expressions the
+  /// scoreboard uses for its own two sides — `home ? us : them` and its mirror
+  /// — which is what makes it impossible for the board and the pitch to
+  /// disagree. Null on both draws nothing, which is what the goal replay and
+  /// the summary want.
+  final String? leftEnd;
+  final String? rightEnd;
 
   @override
   Widget build(BuildContext context) => IgnorePointer(
@@ -89,6 +113,8 @@ class MomentumArrow extends StatelessWidget {
           // home, our best spell points left.
           ours: attackingRight ? ours : theirs,
           theirs: attackingRight ? theirs : ours,
+          leftEnd: leftEnd,
+          rightEnd: rightEnd,
         ),
       ),
     ),
@@ -100,11 +126,15 @@ class _ArrowPainter extends CustomPainter {
     required this.bias,
     required this.ours,
     required this.theirs,
+    this.leftEnd,
+    this.rightEnd,
   });
 
   final double bias;
   final Color ours;
   final Color theirs;
+  final String? leftEnd;
+  final String? rightEnd;
 
   /// How far off the halfway line the arrow gets at full pressure, as a share
   /// of the pitch. Kept short of the box, so at its furthest it is still a
@@ -184,9 +214,61 @@ class _ArrowPainter extends CustomPainter {
           ],
         ),
     );
+
+    // **AND WHOSE END IS WHICH.** See [MomentumArrow.leftEnd]: the arrow was
+    // right and unreadable, because a pitch's markings are symmetric.
+    if (leftEnd case final name? when name.isNotEmpty) {
+      _endName(canvas, size, name, left: true);
+    }
+    if (rightEnd case final name? when name.isNotEmpty) {
+      _endName(canvas, size, name, left: false);
+    }
+  }
+
+  /// The defending club's name, painted on the turf behind its own goal.
+  ///
+  /// **On the GRASS, in the grass's own colours** — the lighter mown shade, at
+  /// the size a sponsor's name is painted on a real pitch. It is a caption on
+  /// the ground rather than a label over it, which is what keeps it out of the
+  /// way of the arrow it exists to explain.
+  ///
+  /// Sideways: the writing on a pitch reads from the touchline, and a name laid
+  /// across the goalmouth would run into the arrow at full stretch. Rotated so
+  /// the two ends mirror each other and each reads from its own end.
+  void _endName(Canvas canvas, Size size, String name, {required bool left}) {
+    final text = TextPainter(
+      text: TextSpan(
+        text: name.toUpperCase(),
+        style: TextStyle(
+          fontSize: math.max(7, size.height * 0.11),
+          fontWeight: FontWeight.w900,
+          letterSpacing: 1.2,
+          // The mown stripe's own lighter green, kept well under the arrow's:
+          // this says WHOSE end, it is not a reading.
+          color: momentumOurs.withValues(alpha: 0.62),
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+      maxLines: 1,
+      ellipsis: '…',
+      textAlign: TextAlign.center,
+    )..layout(maxWidth: size.height * 0.82);
+
+    canvas.save();
+    // A twelfth in from the goal line, on the centre line, turned to face out
+    // of its own end.
+    canvas.translate(left ? size.width * 0.055 : size.width * 0.945,
+        size.height / 2);
+    canvas.rotate(left ? -math.pi / 2 : math.pi / 2);
+    text.paint(canvas, Offset(-text.width / 2, -text.height / 2));
+    canvas.restore();
   }
 
   @override
   bool shouldRepaint(_ArrowPainter old) =>
-      old.bias != bias || old.ours != ours || old.theirs != theirs;
+      old.bias != bias ||
+      old.ours != ours ||
+      old.theirs != theirs ||
+      old.leftEnd != leftEnd ||
+      old.rightEnd != rightEnd;
 }

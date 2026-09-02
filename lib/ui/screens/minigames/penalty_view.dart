@@ -836,12 +836,28 @@ KeeperRig? keeperRigFor(KeeperPose pose, Size view) {
     // INWARD: measured, the elbow sat 0.1 units off his centreline while the
     // glove was 0.4 out — inside the 0.30-wide torso stroke, so the upper arm
     // vanished into his chest and the forearm surfaced out of his ribs. That is
-    // the standing pose reported from the couch. Bowing to the arm's own side
-    // gives elbows out and gloves in, which is a keeper set to save; on the
-    // dive the arm is nearly straight and the bow is a couple of pixels either
-    // way.
-    var perp = Offset(-way.dy, way.dx);
-    if (perp.dx * side < 0) perp = -perp;
+    // the standing pose reported from the couch. Elbows out and gloves in is a
+    // keeper set to save; on the dive the arm is nearly straight and the bow is
+    // a couple of pixels either way.
+    //
+    // **AND IT IS A FIXED QUARTER TURN, NOT A SIGN TEST — which is the second
+    // report.** That rule was `perp.dx * side < 0`, and `perp.dx` is `-way.dy`:
+    // it changes sign the instant an arm passes through HORIZONTAL. The
+    // trailing arm does exactly that on every dive — it sweeps from
+    // [_armRest]'s 158° to [_armTrail]'s 22°, through 90° — so mid-dive the
+    // elbow jumped from one side of the shoulder-to-glove line to the other in
+    // a single frame. At a resting span the bow is 0.2 units, so that is a
+    // 0.4-unit snap, and either side of it one of the two poses reads as an
+    // elbow bending backwards. Reported from the couch in those words.
+    //
+    // A quarter turn in a FIXED rotational sense cannot do that: it is
+    // continuous in `way` everywhere, and mirroring it between the two arms is
+    // what keeps the figure symmetric. The sense is the one that is right at
+    // rest, which is the pose that is on screen most of the time and the one
+    // the paragraph above was written for.
+    final perp = side >= 0
+        ? Offset(way.dy, -way.dx)
+        : Offset(-way.dy, way.dx);
     return (joint, joint + way * reach + perp * drop, glove);
   }
 

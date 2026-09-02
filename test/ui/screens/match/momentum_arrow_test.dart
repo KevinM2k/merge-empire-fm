@@ -90,6 +90,122 @@ void main() {
     );
   });
 
+  group('AND THE PITCH SAYS WHOSE END IS WHICH', () {
+    // **Reported from the couch as a question: "does the arrow point the right
+    // way? I started dominating as away team but it was pointing to the
+    // right."** It was — `ourSideLeft = isHome`, the clips mirror off the same
+    // flag, and the scoreboard reads home-side-left, so the whole chain agrees
+    // and the tests above pin it. The problem is that a pitch's markings are
+    // SYMMETRIC: "pointing right" carries no information unless you already
+    // know which end you are attacking, and nothing on the grass said. An
+    // arrow that is right and unreadable is reported as an arrow that is
+    // wrong.
+    Future<void> pump(
+      WidgetTester tester, {
+      String? leftEnd,
+      String? rightEnd,
+    }) => tester.pumpWidget(
+      MaterialApp(
+        home: Center(
+          child: SizedBox(
+            width: 240,
+            height: 140,
+            child: MomentumArrow(
+              bias: 0.4,
+              attackingRight: true,
+              ours: momentumOurs,
+              theirs: momentumTheirs,
+              leftEnd: leftEnd,
+              rightEnd: rightEnd,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    testWidgets('a named end changes what is painted', (tester) async {
+      // Cheapest honest check: the painter is not equal to the one without
+      // names, and it repaints when a name changes — which is what a stale
+      // `shouldRepaint` would break.
+      await pump(tester);
+      await tester.pumpAndSettle();
+      final bare = tester
+          .widget<CustomPaint>(find.byKey(const ValueKey('match-momentum')))
+          .painter!;
+
+      await pump(tester, leftEnd: 'Testville', rightEnd: 'Ayton');
+      await tester.pumpAndSettle();
+      final named = tester
+          .widget<CustomPaint>(find.byKey(const ValueKey('match-momentum')))
+          .painter!;
+      expect(named.shouldRepaint(bare), isTrue);
+    });
+
+    testWidgets('AND IT IS THE DEFENDING SIDE AT EACH END', (tester) async {
+      // The invariant that matters, stated where a reader will find it: the
+      // match screen passes `home ? us : them` on the left and its mirror on
+      // the right — the SAME two expressions `_Scoreboard` takes — so the board
+      // and the grass cannot disagree about which way we are kicking. Pinned
+      // here as a painted picture: the left name is drawn in the left half.
+      final key = GlobalKey();
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Center(
+            child: RepaintBoundary(
+              key: key,
+              child: const SizedBox(
+                width: 240,
+                height: 140,
+                child: MomentumArrow(
+                  // Level, so the arrow itself is centred and anything off to
+                  // one side is a name.
+                  bias: 0,
+                  attackingRight: true,
+                  ours: momentumOurs,
+                  theirs: momentumTheirs,
+                  leftEnd: 'Testville',
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      late double leftWeight;
+      late double rightWeight;
+      await tester.runAsync(() async {
+        final boundary =
+            key.currentContext!.findRenderObject()! as RenderRepaintBoundary;
+        final image = await boundary.toImage();
+        final data = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+        final bytes = data!.buffer.asUint8List();
+        var left = 0.0;
+        var right = 0.0;
+        for (var y = 0; y < image.height; y++) {
+          for (var x = 0; x < image.width; x++) {
+            final alpha = bytes[(y * image.width + x) * 4 + 3] / 255;
+            // Only the outer eighth, which is where a name goes and where a
+            // level arrow never reaches.
+            if (x < image.width * 0.125) {
+              left += alpha;
+            } else if (x > image.width * 0.875) {
+              right += alpha;
+            }
+          }
+        }
+        leftWeight = left;
+        rightWeight = right;
+      });
+      expect(leftWeight, greaterThan(0), reason: 'the left end is unnamed');
+      expect(
+        rightWeight,
+        lessThan(leftWeight * 0.2),
+        reason: 'a name was painted at the end that has none',
+      );
+    });
+  });
+
   group('AND WHERE IT SITS IS THE OTHER HALF OF THE READING', () {
     // **"The location of the arrow should show the dominance — closer to them
     // if I'm dominating."** The sign of the bias had a test and the POSITION
