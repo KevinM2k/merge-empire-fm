@@ -32,3 +32,7 @@ coverage/
 
 # Python bytecode from tool/*.py
 __pycache__/
+
+# `/graphify`'s build output — a knowledge graph of this repo, rebuilt on
+# demand. The SKILL lives in `.claude/skills/graphify`; its output does not.
+graphify-out/

@@ -418,7 +418,7 @@ class PitchToken extends StatelessWidget {
                                     : 'squad.form.bad',
                               ),
                               style: TextStyle(
-                                fontSize: 11,
+                                fontSize: minFontSize,
                                 height: 1,
                                 fontWeight: FontWeight.w900,
                                 color: formInk(card.form),

@@ -1721,7 +1721,7 @@ class _CoachAside extends StatelessWidget {
                   label: Text(
                     label.toUpperCase(),
                     style: TextStyle(
-                      fontSize: 11,
+                      fontSize: minFontSize,
                       fontWeight: FontWeight.w900,
                       letterSpacing: 0.6,
                       color: kit.accentBright,

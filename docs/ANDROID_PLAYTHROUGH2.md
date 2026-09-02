@@ -6,7 +6,7 @@ actually wrong, because that is the part worth keeping.
 
 ## Where this queue stands
 
-**53 done, 5 open.** Nearly every one that is done had a mechanism behind it,
+**55 done, 3 open.** Nearly every one that is done had a mechanism behind it,
 and a striking number were shipped code doing nothing: a `strategyId` nothing
 ever wrote, a `skyPaneTint` with no caller, a turf band whose whole job was
 hiding a seam it was itself making, `startMatchCooldown` called by one of the two
@@ -17,20 +17,24 @@ class — between them found the half-time verdict, the opponent's substitutions
 the form arrows, the tactics heading and `commentary.snub` printing a literal
 `{opp}` to players.
 
-**Two of the five are FEATURES and the other three are a device, a decision, and
-the work that decision gates.** Cards and the full-time report are both specced
-above, and neither exists in the spec repo — nothing there books anybody and
-nothing there writes a report — so both are new work rather than porting.
+**Both FEATURES have landed and what is left is a decision and the work it
+gates.** Cards and the full-time report were the two big ones and neither
+existed in the spec repo — nothing there books anybody and nothing there writes
+a report — so both were new work rather than porting; both are described under
+Done with what the parity harness had to say about them.
 
-`lib/engine/booking_engine.dart` is the first slice of the cards row and is
-landed: the event, its rates, and the rule that a second yellow is a different
-thing from a straight red. It runs on its own seeded stream AFTER
-`generateMatchEvents`, because one extra draw inside that function would shift
-every pinned event in the match. The customiser's stutter is on the raster thread and its build side has
-been measured clean, so it wants a profile-mode run rather than another blind
-pass. Spine is a question about money and licensing. The layering remainder is
-where the manager rig gets taken apart — and doing that before the Spine answer
-risks doing it twice.
+Spine is a question about money and licensing. The layering remainder is where
+the manager rig gets taken apart — and doing that before the Spine answer risks
+doing it twice.
+
+**The customiser's stutter row is answered by a wider finding.** The app was
+profiled on a 120Hz handset: it renders a clean 60fps while scrolling — median
+16.7ms, p90 16.7ms, 1.6% jank over 127 frames — and was being run at 60Hz by
+the device on a panel whose default mode is 120. `MainActivity` asks for the
+best mode it is offered now. What was left after that is first-use raster work,
+which is why it eased after a few passes and came back after backgrounding:
+Android trims the image cache when an app leaves the foreground, so the squad's
+portraits are precached at boot and on every resume.
 
 **Two rows came off this list by being re-read rather than by being worked.**
 The Players tab's bounce was filed as wanting a device and was a widget sitting
@@ -445,53 +449,41 @@ nobody had checked.
 These three are the same piece of work seen from three angles, and doing them
 separately would mean doing the hard part three times.
 
-- [ ] **A FULL-TIME MATCH REPORT — the closing story.** Asked for from the
-      couch, with a worked example: *"the full time whistle goes and it's a 2-2
-      draw in an enthralling game. The visitors led twice but had to settle for
-      a point… player A got them in front with his first of the season before
-      player B levelled fifteen minutes later… team A had 66% possession and
-      have a trip to team D next week."*
+- [x] **A FULL-TIME MATCH REPORT — the closing story.** (`engine/match_report.dart`
+      is the sentence-builder the row asked for: facts in, beats out, each one a
+      key and its parameters, and nothing in it knows about Flutter or `t()`.
+      Thirty-two pools of three cover the result at the margin it was won by,
+      the shape the ninety minutes took, who scored, what the referee did, where
+      the table leaves the club and who is next. Every beat has its own
+      precondition and the ones with nothing to say are simply absent — a
+      routine 1–0 gets three sentences and a ten-man comeback gets six.
 
-      It is the companion to the story commentary rather than more of it: a
-      paragraph assembled from what ACTUALLY happened, not a pooled line.
-      Everything it needs is already computed and already on this screen —
-      `LiveStats` has possession and the shot counts, `feedOf` has the goals in
-      order with their scorers and what each did to the score,
-      `summary_league_move` has the table before and after, and the fixture list
-      has what is next. What is missing is the sentence-builder: facts in,
-      clauses out, joined into a paragraph, with the copy in ten catalogues.
+      It went on the summary screen first and was moved on sight: the write-up
+      is the last word on the COMMENTARY, at the head of the feed, in the feed's
+      own plate. It is written as a third party's account — every beat names the
+      club rather than saying "us" — which was asked for twice, the second time
+      about the next-fixture line saying "Home to Milbrook Park next" without
+      ever saying whose home.)
 
-      **It has to be contextually aware or it is worse than nothing.** "Led
-      twice" is only true if they did; "still waiting for a first win" is only
-      true at the top of a season. Every clause needs its own precondition, and
-      a clause that cannot be checked should not be written.
+- [x] **YELLOW AND RED CARDS.** (`engine/booking_engine.dart`, on its own seeded
+      stream: putting a booking through `generateMatchEvents` shifted every
+      pinned draw in the match and broke forty-six parity tests, twice, which is
+      the harness being right. The screen rolls them off the fixture key, so a
+      match books the same players every time it is watched.
 
-- [ ] **YELLOW AND RED CARDS.** Asked for from the couch as a feature, and it
-      is the largest thing on either queue. What was specified:
+      Every line of the spec above is in: the feed row with the card drawn
+      beside it, a second yellow as its own line and its own picture, the ten
+      per cent off what the subs panel quotes, the sending-off that opens the
+      bench with the man still on it and refusing a tap, the ban carried on his
+      card into the next fixture, and Colin explaining it. The referee books the
+      OPPOSITION too, added after the fact and written about the club — the port
+      never names an opposition player. Yellows and reds go on the card beside
+      its goals, in keys that only appear once a card has been shown so the
+      parity harness never sees them, and a clean afternoon is a match quest and
+      a season one.
 
-      - The feed carries them like any other event — `<time> YELLOW CARD`, the
-        player's name, and a picture of the card itself.
-      - A yellow costs that player about **10% of his rating** while he is on.
-      - A **second yellow is a sending-off**, and the feed must say so — a
-        second yellow and a straight red are different things, and a straight
-        one is for violent conduct or denying a goalscoring opportunity. Two
-        different lines, two different pictures.
-      - A red goes **straight to the subs page**, with a red card over the
-        player. He cannot be substituted — the side finishes with ten — but the
-        remaining ten can be moved around.
-      - A red-carded player is **banned from the next match**, and carries the
-        card on his card until he has served it.
-      - A **Coach Colin card** at the bottom explains what a red means, the
-        first time one happens.
-
-      **The engine has no such event.** `generateMatchEvents` emits goal,
-      commentary, halftime, fulltime, chance, corner, injury, no_sub and
-      opp_sub, and nothing in `../merge-empire-fc` books anybody — so this is a
-      port-side FEATURE rather than a port, and every piece of it is new: the
-      event, the rating penalty, the suspension on the save, the subs-panel
-      state, the art, and copy in ten catalogues. It wants its own session and
-      probably its own branch.
-
+      The caution's coach card is the small bubble bottom-left rather than the
+      full card: a caution is a remark, not a decision.)
 
 - [ ] **Draw the background in LAYERS, not one `paint()`.** **Half done** — the
       STADIUM TIERS are layers now (see Done), and the rest of this row is the

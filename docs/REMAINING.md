@@ -8,6 +8,62 @@ rough sense of size, not a target.
 
 ---
 
+## Playtest, 2 Sep 2026 — the referee, the write-up, and a phone on a cable
+
+The longest single session on this queue, and the first one profiled on a real
+handset rather than reasoned about. Everything below is done and tested unless
+it says otherwise.
+
+**Two features landed**, both specced on the Android queue and neither present
+in the spec repo: yellow and red cards (`engine/booking_engine.dart`) and the
+full-time write-up (`engine/match_report.dart`). See
+`docs/ANDROID_PLAYTHROUGH2.md` for what each row asked for.
+
+**What the phone said.** Profiled in profile and release builds over a cable.
+The app renders a clean 60fps while scrolling — median 16.7ms, p90 16.7ms, 1.6%
+jank over 127 frames — and was being run at **60Hz on a 120Hz panel**:
+`Display.getSupportedModes()` handed the activity 60 and below and never offered
+the 120 the screen defaults to, at `onCreate` and again once the window had
+focus. `MainActivity` asks for the best mode it is offered; on that device it
+changes nothing, and the note in the file says so rather than pretending
+otherwise. Enabling 120Hz on the handset left a second symptom — rough for a few
+scrolls, fine after, rough again after backgrounding — which is first-use raster
+work: Android trims the image cache when an app leaves the foreground, so the
+squad's portraits are precached at boot and on every resume.
+
+**Two harnesses had something to say, and both were right.** Adding two quests
+to the bank moved the seeded draw, so `season_difftest` disagreed with the JS
+byte for byte — the quests went into `../merge-empire-fc/src/data/quests.js` and
+its engine too, and all four fixtures were re-dumped from node. And the type
+floor caught two literals at 11pt that had been written by hand rather than
+through `minFontSize`. Neither was a fault in the change; both were the guard
+doing its job.
+
+**Still open from this session:**
+
+- [ ] **Confirm the raster fix on the device.** The precache is reasoned from
+      the symptom's shape and the platform's documented behaviour, and it was
+      NOT possible to measure per-frame timings on that handset:
+      `dumpsys SurfaceFlinger --latency` returned frames once and then only its
+      header for every subsequent layer, and `gfxinfo` counts HWUI rather than
+      Flutter's own surface. What would settle it is a `flutter run --profile`
+      with DevTools' timeline open, driven by hand.
+
+- [ ] **The nine locales' `report.*` pools have three variants each and the
+      English has three of its own.** The non-English sets were brought into the
+      third person where they said "we" — fifty strings across nine files — but
+      they were written against the FIRST-person English and read a little
+      flatter than the rewrite. A translator pass would improve them; nothing is
+      wrong.
+
+- [ ] **A batch signing flies every keeper home, and a card being cashed in
+      bursts instead.** Reported as only one card travelling on a multi-buy.
+      The mechanism is correct and now has a test (`AND A BATCH FLIES ALL OF
+      THEM`); what a player is most likely seeing is three auto-sold bronzes
+      bursting and one keeper flying. Worth watching rather than changing.
+
+---
+
 ## Playtest, 1 Sep 2026 — Colin's card, the tutorial, and the daily reward
 
 Reported from the couch during an iOS playthrough, newest session first. Struck

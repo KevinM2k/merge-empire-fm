@@ -121,6 +121,20 @@ node tool/gen_manager_art.mjs # lib/data/manager_art.g.dart
 Locale copy and generated catalogue text are fixed in `../merge-empire-fc`'s own
 `en.js` and regenerated — the catalogue comes from the JS.
 
+## Mapping the repo
+
+`/graphify` is checked in at `.claude/skills/graphify`, so it is available to
+anyone who clones this rather than only to the machine it was installed on. It
+turns the tree into a navigable knowledge graph — communities, an audit trail,
+and a queryable JSON — which is worth having HERE specifically: the port is 56
+engines and a UI layer whose rule is that the bottom half may not import
+Flutter, and "what reaches this" is the question `tool/unreached.sh` and
+`tool/unreached_ui.sh` already ask one file at a time.
+
+Build it with `/graphify` and query it with `/graphify query "<question>"`. The
+output goes to `graphify-out/` and is git-ignored: it is derived, and it goes
+stale the moment the tree moves.
+
 ## Architecture
 
 **The bottom half may not import Flutter.** `lib/engine/`, `lib/data/`,
