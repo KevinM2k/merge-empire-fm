@@ -717,6 +717,28 @@ class _RecipeSheet extends StatelessWidget {
         // survives — and this used to be an 80×110 thumbnail beside a column of
         // text. An unfound card keeps its `❓`: a silhouette is still the card,
         // and giving it away is what the whole screen exists not to do.
+        // **THE NAME LEADS, above the figure.** It sat in a column beside a
+        // thumbnail, and when the thumbnail became a 260-point hero the name
+        // went under it — which is the one thing the squad's own sheet does
+        // not do: there the name is the sheet's title, written across the
+        // portrait, because a bar above it would say his name twice. This sheet
+        // has no bar, so the name IS the title and goes where a title goes.
+        // Asked for from the couch, with the Players tab as the comparison.
+        Padding(
+          padding: const EdgeInsets.only(bottom: 10),
+          child: Text(
+            discovered ? indexCardName(entry) : '???',
+            key: ValueKey('pi-recipe-name-${_key(entry)}'),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.w900,
+              height: 1.2,
+              color: discovered ? accentLight : null,
+            ),
+          ),
+        ),
         ClipRRect(
           borderRadius: BorderRadius.circular(16),
           child: discovered
@@ -745,15 +767,6 @@ class _RecipeSheet extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          discovered ? indexCardName(entry) : '???',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w900,
-                            height: 1.2,
-                            color: discovered ? accentLight : null,
-                          ),
-                        ),
                         const SizedBox(height: 5),
                         Text(
                           '${def.position} · ${tierLabel[def.tier] ?? ''}',

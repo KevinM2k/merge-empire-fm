@@ -10,7 +10,10 @@
 /// computed separately once and drifted by two to three times, which is the reason
 /// `getProductGrantCoins` exists, so both are pinned at every division.
 ///
-/// See `tool/dump_iap_reference.mjs`.
+/// See `tool/dump_iap_parity_reference.mjs` — and note that it is NOT
+/// `dump_iap_reference.mjs`, which this comment used to point at and which
+/// writes a different, narrower file. The generator for THIS fixture was
+/// missing from the repo entirely until a coin-pack change needed it.
 library;
 
 import 'dart:convert';

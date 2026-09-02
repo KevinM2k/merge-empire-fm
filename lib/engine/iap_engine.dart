@@ -119,10 +119,11 @@ const List<IapProduct> products = [
     category: 'coins',
     name: 'Bag of Coins',
     icon: '💰',
-    desc: '{coins} coins',
+    desc: '{coins} coins + 5 energy',
     price: '£0.99',
     priceValue: 0.99,
     coins: 5000,
+    energyAdd: 5,
   ),
   IapProduct(
     id: 'coins_medium',
@@ -131,10 +132,11 @@ const List<IapProduct> products = [
     category: 'coins',
     name: 'Chest of Coins',
     icon: '💰',
-    desc: '{coins} coins',
+    desc: '{coins} coins + 15 energy',
     price: '£2.49',
     priceValue: 2.49,
     coins: 15000,
+    energyAdd: 15,
     popular: true,
   ),
   IapProduct(
@@ -144,10 +146,11 @@ const List<IapProduct> products = [
     category: 'coins',
     name: 'Vault of Coins',
     icon: '💰',
-    desc: '{coins} coins',
+    desc: '{coins} coins + 30 energy',
     price: '£5.99',
     priceValue: 5.99,
     coins: 50000,
+    energyAdd: 30,
   ),
   IapProduct(
     id: 'coins_mega',
@@ -156,12 +159,35 @@ const List<IapProduct> products = [
     category: 'coins',
     name: 'Coin Mountain',
     icon: '💰',
-    desc: '{coins} coins',
+    desc: '{coins} coins + 60 energy',
     price: '£12.99',
     priceValue: 12.99,
     coins: 150000,
+    energyAdd: 60,
     bonus: 'BEST VALUE',
   ),
+
+  // **EVERY COIN PACK CARRIES ENERGY, and the reference set is why.** Asked for
+  // directly — "coin packs should have other things in them" — with every pack
+  // in the shots holding four or five items and the coin count only the
+  // headline.
+  //
+  // **Energy is the one that can be given twice.** A coin bundle is a
+  // CONSUMABLE, bought as often as the player likes, and the two obvious
+  // sweeteners are not: the scout voucher is one-at-a-time by design
+  // (`anyVoucherArmed` blocks a second across the whole ladder), and both coin
+  // boosts are per-season FLAGS compared against the current season rather than
+  // stacking timers — buy either pack twice in a season and the second pays
+  // nothing. Energy is additive, has a Pro-mode branch already written, and is
+  // what the reference set actually bundles.
+  //
+  // **And not gems**, which is the other thing the shots suggest: every gem
+  // price in this game is quoted against one rate, so a coin bundle handing out
+  // gems discounts the whole catalogue and squeezes the Style Vault's ceiling
+  // with it.
+  //
+  // The screen half needed nothing: `PackContentsRow` draws whatever
+  // `packContents` returns and that function has read `energyAdd` all along.
 
   // The coin component scales with division on grant, so the pack keeps its
   // value late-game — at Champions Cup it pays 10M instead of 10k. Energy is a
