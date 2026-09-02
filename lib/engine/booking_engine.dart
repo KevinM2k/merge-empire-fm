@@ -57,6 +57,44 @@ bool cardSendsOff(String card) => card != cardYellow;
 /// as a point off a 90-rated icon.
 const double yellowCardRatingMult = 0.9;
 
+/// The per-player rating multipliers a live booking list implies.
+///
+/// Keyed by instance id, for [computeSquadRatings] — which is compared field
+/// for field by the parity harness and rightly knows nothing about cards, so
+/// the port's own referee reaches it through a parameter the JS never passes.
+/// The same shape the suspension uses: the RULE is the port's, the arithmetic
+/// stays the spec's.
+///
+/// A man who has been sent off is not in here. He is out of the lineup
+/// entirely, which is a hole rather than a discount.
+Map<String, double> bookedRatingMultipliers(Iterable<String> cautioned) => {
+  for (final id in cautioned) id: yellowCardRatingMult,
+};
+
+/// What the referee has cost a side that exists only as a NUMBER.
+///
+/// **The opponent gets no lineup, so they were getting no punishment.**
+/// Reported from the couch: "opponent got a red card and I did not see that
+/// affect their team rating whilst I was in a game — yellow should also affect
+/// them just as it affects us, and the sim should reroll based on new numbers."
+/// It should, and it was not: our own side loses its man because the lineup is
+/// real and [computeSquadRatings] scores the hole, while theirs is a pair of
+/// ATK/DEF figures with nobody in it.
+///
+/// So the same rule is applied to the figure instead of being invented for it.
+/// One of eleven gone is 1/11 off the side; one of eleven carrying
+/// [yellowCardRatingMult] is that player's ten per cent spread over the same
+/// eleven. That is what our own numbers do by construction — this is the only
+/// way to say it about a side with no players.
+///
+/// Floored at half: a side reduced to seven is a forfeit in the laws of the
+/// game and a rating heading for zero would turn a red card into a cheat code.
+double oppTeamRatingMult(int yellows, int sendOffs) {
+  const squad = 11.0;
+  final lost = sendOffs + yellows * (1 - yellowCardRatingMult);
+  return math.max(0.5, (squad - lost) / squad);
+}
+
 /// How many bookings a match tends to produce, per side.
 ///
 /// Real football averages about three and a half yellows across both sides. A

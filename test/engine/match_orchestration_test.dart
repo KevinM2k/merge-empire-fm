@@ -15,6 +15,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:merge_empire_fc/data/formations.dart';
 import 'package:merge_empire_fc/engine/lineup_engine.dart';
 import 'package:merge_empire_fc/engine/match_events.dart';
+import 'package:merge_empire_fc/engine/booking_engine.dart'
+    show oppTeamRatingMult;
 import 'package:merge_empire_fc/engine/match_orchestration.dart';
 import 'package:merge_empire_fc/state/card_instance.dart';
 import 'package:merge_empire_fc/util/analytics.dart';
@@ -430,6 +432,143 @@ void main() {
         reSimulateRemainder(result, 45, 'balanced', 0, 0, state);
         expect(result['drawn'], isFalse, reason: 'seed $seed');
       }
+    });
+
+    group('THE REFEREE REACHES THE MATHS', () {
+      /// One re-sim of a fresh league match, with the live ratings it rolled
+      /// with and the state it rolled against.
+      ({Map<String, dynamic> live, Map<String, dynamic> state}) resim({
+        Map<String, double> booked = const {},
+        double oppMult = 1.0,
+      }) {
+        seeded.setSeed(7);
+        final state = _state();
+        final result = simulateMatch(state, 'regional_league');
+        final out = <String, dynamic>{};
+        seeded.setSeed(7);
+        reSimulateRemainder(
+          result,
+          45,
+          'balanced',
+          0,
+          0,
+          state,
+          bookedMultipliers: booked,
+          oppRatingMult: oppMult,
+          liveRatingsOut: out,
+        );
+        return (live: out, state: state);
+      }
+
+      test('THE RESULT IS NEVER STAMPED WITH THEM, which the harness insists on', () {
+        // `match_orchestration_parity_test` compares the whole result object
+        // against a node dump, and a booking is a mechanic the JS has never
+        // had. The first version of this wrote the live pair onto the result
+        // and seventeen parity scenarios refused it — correctly. The screen is
+        // where a divergence goes.
+        seeded.setSeed(7);
+        final state = _state();
+        final result = simulateMatch(state, 'regional_league');
+        reSimulateRemainder(
+          result,
+          45,
+          'balanced',
+          0,
+          0,
+          state,
+          bookedMultipliers: const {'anyone': 0.5},
+          oppRatingMult: 0.5,
+        );
+        for (final key in result.keys) {
+          expect(
+            key.startsWith('live'),
+            isFalse,
+            reason: '$key was stamped on the result',
+          );
+        }
+      });
+
+      test('a caution on one of ours lowers what we re-roll with', () {
+        // **AND IT IS QUANTISED, which is worth knowing rather than hiding.**
+        // `computeSquadRatings` returns whole numbers — the JS's own rounding,
+        // held there by the parity harness — so ten per cent of ONE man is
+        // about 0.9% of eleven, which on a mid-table side is half a rating
+        // point. It lands as a point or as nothing depending on where the side
+        // already sat.
+        //
+        // That is the right size for a caution and the wrong size to prove a
+        // wire with, so the wire is proved with a number that cannot round
+        // away. The real multiplier is asserted at full resolution in
+        // `squad_rating_test`.
+        //
+        // **AND THE WHOLE ELEVEN IS BOOKED RATHER THAN ONE MAN**, which is not
+        // laziness. The first draft booked the first slot's occupant and
+        // asserted nothing had changed — because the seeded match injures that
+        // player, an injured man is already scored zero, and a multiplier on
+        // zero is zero. Whoever is on the pitch at the 45th minute is a
+        // property of the seed; booking all of them is the assertion that does
+        // not depend on it.
+        final clean = resim();
+        final everyone = {
+          for (final id in (clean.state['squad']
+                  as Map<String, dynamic>)['lineup'] as List)
+            if (id is Map<String, dynamic> && id['cardInstanceId'] is String)
+              id['cardInstanceId'] as String: 0.4,
+        };
+        final booked = resim(booked: everyone);
+        expect(
+          (booked.live['liveAttackRating'] as num) +
+              (booked.live['liveDefenceRating'] as num),
+          lessThan(
+            (clean.live['liveAttackRating'] as num) +
+                (clean.live['liveDefenceRating'] as num),
+          ),
+        );
+      });
+
+      test('AND THEIR CARD LOWERS THEIRS, which nothing did at all', () {
+        // "Opponent got a red card and I did not see that affect their team
+        // rating whilst I was in a game." It did not — their side is a pair of
+        // numbers with nobody in it, so there was no man to take out of it.
+        final clean = resim();
+        final theirRed = resim(oppMult: oppTeamRatingMult(0, 1));
+        expect(
+          theirRed.live['liveOppAttackRating'] as num,
+          lessThan(clean.live['liveOppAttackRating'] as num),
+        );
+        expect(
+          theirRed.live['liveOppDefenceRating'] as num,
+          lessThan(clean.live['liveOppDefenceRating'] as num),
+        );
+        expect(
+          theirRed.live['liveOppRating'] as num,
+          lessThan(clean.live['liveOppRating'] as num),
+        );
+      });
+
+      test('and a clean match re-rolls with exactly what it had', () {
+        // The common case, and the one that must not move: no cards, no
+        // change, or the port has quietly re-balanced every match in the game.
+        seeded.setSeed(7);
+        final state = _state();
+        final result = simulateMatch(state, 'regional_league');
+        final out = <String, dynamic>{};
+        seeded.setSeed(7);
+        reSimulateRemainder(
+          result,
+          45,
+          'balanced',
+          0,
+          0,
+          state,
+          liveRatingsOut: out,
+        );
+        expect(
+          out['liveOppAttackRating'],
+          result['effOppAttackRating'],
+          reason: 'an unbooked opposition is the side that kicked off',
+        );
+      });
     });
 
     test('the remainder feed names exactly the remainder goals', () {

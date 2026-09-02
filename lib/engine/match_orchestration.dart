@@ -323,8 +323,12 @@ TeamSplit hardLiveRatings(
   MatchResult result,
   int fromMinute,
   Map<String, dynamic>? state,
-  String? strategyId,
-) {
+  String? strategyId, {
+  /// The referee's, by instance id — see [reSimulateRemainder]. Pro mode prices
+  /// every man's fitness individually, so a caution belongs beside the fatigue
+  /// factor rather than on the team total after it.
+  Map<String, double> bookedMultipliers = const {},
+}) {
   final hs = _map(result['hardSim']) ?? <String, dynamic>{};
   final cards = _cards(state);
   final byId = {for (final c in cards) c.instanceId: c};
@@ -385,10 +389,11 @@ TeamSplit hardLiveRatings(
       slotPosition: lineup[i]['slotPosition'] as String?,
       definitionRatios: ratios,
     );
+    final booked = bookedMultipliers[iid] ?? 1.0;
     entries[i] = SplitEntry(
       slotPosition: lineup[i]['slotPosition'] as String? ?? 'MID',
-      attack: st.attack * fat,
-      defence: st.defence * fat,
+      attack: st.attack * fat * booked,
+      defence: st.defence * fat * booked,
     );
   }
 
@@ -1495,6 +1500,40 @@ List<Map<String, dynamic>> reSimulateRemainder(
   /// subs re-rolling, a re-simulated remainder injured a bench player between
   /// two substitutions and the cap test could not bring him on.
   bool rerollInjuries = true,
+
+  /// What the referee has cost OUR side, by instance id — see
+  /// `booking_engine.bookedRatingMultipliers`.
+  ///
+  /// **A yellow used to be worth nothing to the maths.** The ten per cent came
+  /// off the number on the pitch token and off the number the bench compared
+  /// against, and stopped there: the scoreline was still being rolled by a side
+  /// nobody had booked. Reported from the couch — "that player's rating drop
+  /// should also affect the team rating and ATK/DEF on the main card at the top
+  /// of the match popup, and the new number should be what the SIM rerolls
+  /// with."
+  ///
+  /// A sending-off is NOT in here: he leaves the lineup, and the hole is what
+  /// the rating engine scores.
+  Map<String, double> bookedMultipliers = const {},
+
+  /// The same, for a side that exists only as a rating —
+  /// `booking_engine.oppTeamRatingMult`. 1.0 is a clean opposition.
+  double oppRatingMult = 1.0,
+
+  /// **WHERE THE LIVE RATINGS GO, and it is deliberately NOT the result.**
+  ///
+  /// The board at the top of the match popup needs the numbers the remainder
+  /// was actually rolled with — a caution and the opponent's red both move
+  /// them, and until they did the card looked like theatre. The first attempt
+  /// wrote them onto `result` beside the kickoff pair, and
+  /// `match_orchestration_parity_test` refused it: it compares the whole result
+  /// object against a node dump field for field, so a field the JS has never
+  /// heard of cannot live there. Which is right — bookings are the port's own
+  /// mechanic, and this repo's rule is that a divergence belongs on the SCREEN.
+  ///
+  /// So the caller passes a map to be filled. Null, and nothing is written and
+  /// the result is byte-for-byte what the JS produces.
+  Map<String, dynamic>? liveRatingsOut,
 }) {
   final strat = strategies[strategyId] ?? strategies[defaultStrategy];
   final addedTime = _num(result['addedTime'])?.toInt() ?? 0;
@@ -1523,10 +1562,22 @@ List<Map<String, dynamic>> reSimulateRemainder(
     oppAttack *= decay;
     oppDefence *= decay;
   }
+  // And what their own referee has cost them. Applied after the fatigue decay
+  // for the same reason our booking is applied inside the rating rather than
+  // after the tactic: both are facts about the players, and the tactic and the
+  // clock are what act on the result of them.
+  oppAttack *= oppRatingMult;
+  oppDefence *= oppRatingMult;
 
   double adjAttack;
   double adjDefence;
   double adjSquad;
+  // The live pair on the SAME basis as `ourAttackRating`: straight off
+  // `computeSquadRatings`, before home advantage, stagnation or the tactic. The
+  // board applies the tactic itself, so handing it a post-tactic figure would
+  // apply the multipliers twice.
+  double liveBaseAttack;
+  double liveBaseDefence;
   if (fixedRating) {
     // An event cup: team strength is a fixed external rating — the chosen
     // nation — NOT the player's club squad. Tactics still bias the match, so the
@@ -1536,6 +1587,8 @@ List<Map<String, dynamic>> reSimulateRemainder(
     adjAttack = math.max(1.0, applyTacticAtk(fixedBase, strat, oppAttackRatio));
     adjDefence = math.max(1.0, applyTacticDef(fixedBase, strat, oppAttackRatio));
     adjSquad = math.max(1.0, fixedBase);
+    liveBaseAttack = fixedBase;
+    liveBaseDefence = fixedBase;
   } else {
     final liveLineup = _lineupOf(state);
     final liveHomeAdv = (!isCup && _flag(result['isHome']))
@@ -1565,7 +1618,13 @@ List<Map<String, dynamic>> reSimulateRemainder(
       }
     }
     final liveRatings = (hardMode && hardSim != null)
-        ? hardLiveRatings(result, fromMinute, state, strategyId)
+        ? hardLiveRatings(
+            result,
+            fromMinute,
+            state,
+            strategyId,
+            bookedMultipliers: bookedMultipliers,
+          )
         // A cup tie in Pro mode carries no per-minute sim — still price in the
         // squad's persistent fitness, so a tired team cannot re-sim at full
         // strength.
@@ -1574,6 +1633,7 @@ List<Map<String, dynamic>> reSimulateRemainder(
             lineup: liveLineup,
             definitionRatios: _map(state?['definitionRatios']) ?? const {},
             fatigue: hardMode,
+            ratingMultipliers: bookedMultipliers,
           );
     final liveAttack =
         math.min(liveRatings.attack + liveHomeAdv, 100) + liveStag;
@@ -1582,6 +1642,8 @@ List<Map<String, dynamic>> reSimulateRemainder(
 
     adjAttack = math.max(1.0, applyTacticAtk(liveAttack, strat, oppAttackRatio));
     adjDefence = math.max(1.0, applyTacticDef(liveDefence, strat, oppAttackRatio));
+    liveBaseAttack = liveRatings.attack.toDouble();
+    liveBaseDefence = liveRatings.defence.toDouble();
 
     // A combined figure for the possession display. The multipliers are
     // near-zero-sum on the composite, so the tactic leaves it unchanged.
@@ -1590,6 +1652,7 @@ List<Map<String, dynamic>> reSimulateRemainder(
       lineup: liveLineup,
       definitionRatios: _map(state?['definitionRatios']) ?? const {},
       fatigue: hardMode,
+      ratingMultipliers: bookedMultipliers,
     );
     adjSquad =
         math.max(1.0, (math.min(liveBase + liveHomeAdv, 100) + liveStag).toDouble());
@@ -1605,6 +1668,31 @@ List<Map<String, dynamic>> reSimulateRemainder(
       poissonGoals(goalRateLambda(adjAttack, oppDefence) * fraction * variance);
   final remainAway =
       poissonGoals(goalRateLambda(oppAttack, adjDefence) * fraction * variance);
+
+  // **WHAT THE REMAINDER WAS ROLLED WITH, so the board can print it.**
+  //
+  // Reported from the couch about a caution and again about the opponent's red:
+  // the numbers at the top of the match popup never moved, so a card looked
+  // like theatre even once it was not. They could not move — every rating on
+  // that board came off the fields `buildMatchResult` wrote at KICKOFF, and
+  // nothing has ever written a second set.
+  //
+  // Handed OUT rather than stamped on the result — see [liveRatingsOut]. The
+  // kickoff pair stays exactly as it was: it is what the side was worth when it
+  // walked out, and `quest_match` reads it to judge "beat a stronger side",
+  // which is a question about the fixture rather than about the 73rd minute.
+  if (liveRatingsOut != null) {
+    liveRatingsOut
+      ..['liveAttackRating'] = liveBaseAttack
+      ..['liveDefenceRating'] = liveBaseDefence
+      ..['liveSquadRating'] = adjSquad
+      ..['liveOppAttackRating'] = oppAttack
+      ..['liveOppDefenceRating'] = oppDefence
+      // The opponent's single figure is the kickoff one scaled by what their
+      // own referee cost them — there is no squad of theirs to re-rate.
+      ..['liveOppRating'] =
+          (_num(result['effectiveOppRating']) ?? 0) * oppRatingMult;
+  }
 
   result['homeGoals'] = currentOurGoals + remainHome;
   result['awayGoals'] = currentTheirGoals + remainAway;

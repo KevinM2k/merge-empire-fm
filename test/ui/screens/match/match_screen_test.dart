@@ -38,6 +38,7 @@ import 'package:merge_empire_fc/ui/screens/squad/squad_providers.dart';
 import 'package:merge_empire_fc/ui/theme/app_theme.dart';
 import 'package:merge_empire_fc/ui/theme/sky.dart';
 import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
+import 'package:merge_empire_fc/engine/squad_rating.dart' show CardStats;
 import 'package:merge_empire_fc/engine/booking_engine.dart';
 
 Map<String, dynamic> matchResult({
@@ -1019,6 +1020,43 @@ void main() {
           .firstWhere((t) => t.slot.cardInstanceId == booked);
       expect(shown.slot.effRating, (slot.effRating * yellowCardRatingMult).round());
       expect(shown.slot.effRating, lessThan(slot.effRating));
+    });
+
+    test('AND THE BENCH IS COMPARED AGAINST WHAT HE IS WORTH NOW', () {
+      // "When a player has a yellow and ratings drop and we go to bench, it's
+      // still comparing the player's ratings before the game vs the subs — it
+      // should use his rating now, which is the one after his yellow card."
+      // The ten per cent came off the token drawn on the pitch and off nothing
+      // else, so the tile that says "this man is better than the one coming
+      // off" was answering about a player who no longer existed — in the one
+      // place a manager acts on the answer.
+      //
+      // Asserted on the BASIS rather than through the panel: the chip prints
+      // the bench man's own rating either way and carries the comparison in its
+      // colour, so a widget test sees the same numbers and proves nothing.
+      const clean = CardStats(
+        attack: 60,
+        defence: 40,
+        rating: 50,
+        baseAttack: 61,
+        baseDefence: 41,
+        baseRating: 51,
+      );
+
+      expect(bookedStats(clean, false), same(clean), reason: 'no card, no cut');
+
+      final booked = bookedStats(clean, true);
+      expect(booked.rating, (50 * yellowCardRatingMult).round());
+      expect(booked.attack, (60 * yellowCardRatingMult).round());
+      expect(booked.defence, (40 * yellowCardRatingMult).round());
+      expect(booked.rating, lessThan(clean.rating));
+
+      // **THE BASE TRIO IS UNTOUCHED.** Those are what the CARD is worth — the
+      // number on the Players tab, the number a sale is priced off — and a
+      // booking is a fact about this afternoon rather than about him.
+      expect(booked.baseRating, clean.baseRating);
+      expect(booked.baseAttack, clean.baseAttack);
+      expect(booked.baseDefence, clean.baseDefence);
     });
 
     testWidgets('and a man who is OFF cannot be taken off', (tester) async {

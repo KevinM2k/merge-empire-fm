@@ -238,9 +238,18 @@ TeamSplit computeSquadRatings(
   List<Map<String, dynamic>>? lineup,
   Map<String, dynamic> definitionRatios = const {},
   bool fatigue = false,
+  Map<String, double> ratingMultipliers = const {},
 }) {
   final cards = gridCells.whereType<CardInstance>().toList();
   if (cards.isEmpty) return (attack: 0, defence: 0);
+
+  // **THE PORT'S REFEREE, through a door the JS never opens.** A booked player
+  // plays within himself for the rest of the match, and this function is
+  // compared field for field by the parity harness — so cards reach it the way
+  // the suspension reaches the squad screen: as an input, defaulting to nothing
+  // and passed by nobody the harness runs. Empty is the JS's own arithmetic,
+  // unchanged. See `booking_engine.bookedRatingMultipliers`.
+  double booked(String id) => ratingMultipliers[id] ?? 1.0;
 
   List<_Slot> slots;
 
@@ -264,7 +273,7 @@ TeamSplit computeSquadRatings(
           final penalty = computePositionPenalty(def.position, slotPos);
           final fat = fatigue ? fatigueRatingFactor(energyPct(c)) : 1.0;
           return _Slot(
-            effectiveRating: raw * (1 - penalty) * fat,
+            effectiveRating: raw * (1 - penalty) * fat * booked(c.instanceId),
             slotPosition: slotPos,
             attackRatio: _attackRatio(c, def, definitionRatios),
             atkBonus: trait.atkBonus,
@@ -285,7 +294,8 @@ TeamSplit computeSquadRatings(
       rated.add(
         _Slot(
           effectiveRating: getEffectiveRating(c) *
-              (fatigue ? fatigueRatingFactor(energyPct(c)) : 1.0),
+              (fatigue ? fatigueRatingFactor(energyPct(c)) : 1.0) *
+              booked(c.instanceId),
           slotPosition: def.position,
           attackRatio: _attackRatio(c, def, definitionRatios),
           atkBonus: trait.atkBonus,
@@ -329,12 +339,14 @@ int computeSquadRating(
   List<Map<String, dynamic>>? lineup,
   Map<String, dynamic> definitionRatios = const {},
   bool fatigue = false,
+  Map<String, double> ratingMultipliers = const {},
 }) {
   final split = computeSquadRatings(
     gridCells,
     lineup: lineup,
     definitionRatios: definitionRatios,
     fatigue: fatigue,
+    ratingMultipliers: ratingMultipliers,
   );
   return math.min(100, teamRatingFromSplit(split.attack, split.defence));
 }

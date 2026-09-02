@@ -131,6 +131,48 @@ void main() {
     expect(rollBookings(squad: const [], seed: 1), isEmpty);
   });
 
+
+  group('WHAT A CARD IS WORTH TO THE MATHS', () {
+    test('a caution is ten per cent off THAT MAN, keyed by instance', () {
+      expect(bookedRatingMultipliers(const ['a', 'b']), {
+        'a': yellowCardRatingMult,
+        'b': yellowCardRatingMult,
+      });
+      expect(bookedRatingMultipliers(const []), isEmpty);
+    });
+
+    test('A CLEAN OPPOSITION IS UNCHANGED, which is the common case', () {
+      // Every match nobody was booked in has to come out exactly as it did, or
+      // the port has quietly re-balanced itself.
+      expect(oppTeamRatingMult(0, 0), 1.0);
+    });
+
+    test('and their sending-off costs them one of eleven', () {
+      // Ours costs a whole man out of the lineup, because the lineup is real
+      // and `computeSquadRatings` scores the hole. Theirs is a number with
+      // nobody in it, so the same rule is applied to the number.
+      expect(oppTeamRatingMult(0, 1), closeTo(10 / 11, 1e-9));
+      expect(oppTeamRatingMult(0, 2), closeTo(9 / 11, 1e-9));
+    });
+
+    test('and their caution costs one player ten per cent of himself', () {
+      expect(
+        oppTeamRatingMult(1, 0),
+        closeTo((11 - (1 - yellowCardRatingMult)) / 11, 1e-9),
+      );
+      // A booking is worth about a tenth of a sending-off, which is what makes
+      // one an event and the other a note.
+      expect(1 - oppTeamRatingMult(1, 0), lessThan(1 - oppTeamRatingMult(0, 1)));
+    });
+
+    test('AND IT IS FLOORED AT HALF, so a red card is not a cheat code', () {
+      // Seven men is a forfeit in the laws of the game; a rating running down
+      // to nothing would make dismissing the opposition better than scoring.
+      expect(oppTeamRatingMult(0, 11), 0.5);
+      expect(oppTeamRatingMult(20, 20), 0.5);
+    });
+  });
+
   group('what a match leaves behind', () {
     test('a sending-off is a suspension and a caution is not', () {
       const off = (
