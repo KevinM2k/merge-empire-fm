@@ -298,43 +298,87 @@ void main() {
       }
     });
 
-    testWidgets('AND ONE OF THEM SITS BESIDE ITS OWN FIGURE', (tester) async {
-      // Anchored outward, a fixture with a single modifier put a lone badge
-      // hard against the edge of the card with an inch of nothing between it
-      // and the rating it belongs to. Reported from the couch as looking odd
-      // with only one. It grows out from the figure now, not in from the edge.
+    testWidgets('THE COLUMN HAS ONE CENTRE, whatever is in it', (tester) async {
+      // Two goes at anchoring this. Outward, a lone badge sat hard against the
+      // edge of the card with an inch of nothing between it and the rating it
+      // belongs to. Inward, one sat tight against the well and two sat
+      // somewhere else again — reported with a screenshot: one is slightly
+      // misaligned, two have odd gaps, three would be worse. Both are the same
+      // fault, which is that an anchored group MOVES as the count changes.
+      Rect groupOf(String first, String last) {
+        Rect badge(String label) => tester.getRect(
+          find
+              .ancestor(of: find.text(label), matching: find.byType(Container))
+              .first,
+        );
+        final a = badge(first);
+        final b = badge(last);
+        return Rect.fromLTRB(
+          a.left < b.left ? a.left : b.left,
+          a.top,
+          a.right > b.right ? a.right : b.right,
+          b.bottom,
+        );
+      }
+
       await pumpRows(tester, leftMods: [mod(4)], rightMods: [mod(1)]);
       await tester.pumpAndSettle();
-
       final well = tester.getRect(find.byKey(const ValueKey('nm-stat-well')));
-      Rect badge(String label) => tester.getRect(
-        find.ancestor(of: find.text(label), matching: find.byType(Container)).first,
+      // **THE INNER EDGE IS THE ANCHOR** — the one nearest the figure. A third
+      // badge makes the column scale down, so the OUTER edge moves inward and
+      // the inner one does not: that is the point of anchoring it there.
+      final oneInner = groupOf('+4', '+4').right;
+      final oneRight = groupOf('+1', '+1').left;
+
+      // Two on each side, STACKED — and the column does not move sideways.
+      await pumpRows(
+        tester,
+        leftMods: [mod(4), mod(2)],
+        rightMods: [mod(1), mod(3)],
+      );
+      await tester.pumpAndSettle();
+      expect(groupOf('+4', '+2').right, closeTo(oneInner, 2));
+      expect(groupOf('+1', '+3').left, closeTo(oneRight, 2));
+      // One above the other, which is the whole of the change.
+      expect(
+        tester.getRect(find.text('+2')).top,
+        greaterThan(tester.getRect(find.text('+4')).top),
       );
 
-      final left = badge('+4');
-      final right = badge('+1');
-      // Still outside the ratings, which is the constraint the band exists for.
-      expect(left.right, lessThanOrEqualTo(well.left + 0.5));
-      expect(right.left, greaterThanOrEqualTo(well.right - 0.5));
+      // Three, and the column still starts in the same place — and still clear
+      // of the ratings, which is the constraint the margin exists for.
+      await pumpRows(
+        tester,
+        leftMods: [mod(4), mod(2), mod(6)],
+        rightMods: [mod(1)],
+      );
+      await tester.pumpAndSettle();
+      final three = groupOf('+4', '+6');
+      expect(three.right, closeTo(oneInner, 2));
+      expect(three.right, lessThanOrEqualTo(well.left + 0.5));
 
-      // And each is at the INNER end of its own margin: nearer the well than
-      // the card edge it used to be pinned to. The rating columns start at the
-      // card's own edges, so they are what the margin is measured from.
-      final leftCol = tester.getRect(
-        find.byKey(const ValueKey('nm-rating-left')),
+      // **AND EACH STANDS AGAINST ITS OWN FIGURE**, not out at the card's edge
+      // — reported from the couch as looking lost. `modInset` is half a figure
+      // plus a gap, so a badge clears the number and nothing else, and the two
+      // sides are reflections because both are measured the same way.
+      await pumpRows(tester, leftMods: [mod(4)], rightMods: [mod(1)]);
+      await tester.pumpAndSettle();
+      final leftFigure = tester.getRect(
+        find.byKey(const ValueKey('nm-figure-left')),
       );
-      final rightCol = tester.getRect(
-        find.byKey(const ValueKey('nm-rating-right')),
+      final rightFigure = tester.getRect(
+        find.byKey(const ValueKey('nm-figure-right')),
       );
+      final leftGap = leftFigure.left - groupOf('+4', '+4').right;
+      final rightGap = groupOf('+1', '+1').left - rightFigure.right;
+      expect(oneRight, isNotNaN);
+      expect(leftGap, greaterThanOrEqualTo(0));
+      expect(rightGap, greaterThanOrEqualTo(0));
+      expect(leftGap, closeTo(rightGap, 2), reason: 'the sides do not mirror');
       expect(
-        well.left - left.right,
-        lessThan(left.left - leftCol.left),
-        reason: 'the badge is still hugging the edge of the card',
-      );
-      expect(
-        right.left - well.right,
-        lessThan(rightCol.right - right.right),
-        reason: 'the badge is still hugging the edge of the card',
+        leftGap,
+        lessThan(leftFigure.width),
+        reason: 'the badge is nowhere near the number it annotates',
       );
     });
 
@@ -469,21 +513,50 @@ void main() {
       expect(find.text('Home advantage'), findsOneWidget);
     });
 
-    testWidgets('and a fixture with none pays nothing for the band', (
-      tester,
-    ) async {
-      // The match page's own board never carries one, and a strip of reserved
-      // air under the ratings on the one screen with no room to spare is a
-      // cost for nothing.
+    testWidgets('and the two sides are always the same height', (tester) async {
+      // **THE PAIR DECIDES, not each side.** The modifiers stood in a reserved
+      // band UNDER the figure for three rounds, and the reason the band was
+      // reserved on both sides is the one that still applies: a side WITH a
+      // modifier sitting higher than a side without is two ratings that stop
+      // lining up.
+      //
+      // What has changed is that the block GROWS with the count rather than
+      // scaling the badges into a fixed strip — because a scaled badge renders
+      // its figure under the type floor, which is the one thing this app does
+      // not do.
       await pumpRows(tester);
       await tester.pumpAndSettle();
       final bare = tester.getSize(find.byKey(const ValueKey('nm-rating-left')));
-      await pumpRows(tester, leftMods: const [homeAdv]);
-      await tester.pumpAndSettle();
-      final banded = tester.getSize(
-        find.byKey(const ValueKey('nm-rating-left')),
-      );
-      expect(banded.height, greaterThan(bare.height));
+
+      double heightOf(String key) =>
+          tester.getSize(find.byKey(ValueKey(key))).height;
+
+      var last = bare.height;
+      for (final mods in [
+        [homeAdv],
+        [homeAdv, mod(2)],
+        [homeAdv, mod(2), mod(3)],
+      ]) {
+        await pumpRows(tester, leftMods: mods);
+        await tester.pumpAndSettle();
+        expect(
+          heightOf('nm-rating-left'),
+          heightOf('nm-rating-right'),
+          reason: '${mods.length} on one side only, and the sides diverged',
+        );
+        expect(
+          heightOf('nm-rating-left'),
+          greaterThanOrEqualTo(last),
+          reason: 'the block shrank as modifiers were added',
+        );
+        last = heightOf('nm-rating-left');
+      }
+
+      // And the figure inside every one of them is at full size — no badge is
+      // ever scaled to fit, which is the whole reason the block grows.
+      for (final label in ['+3', '+2']) {
+        expect(tester.widget<Text>(find.text(label)).style!.fontSize, 13);
+      }
     });
 
     testWidgets('AND THE TWO FIGURES STILL LINE UP', (tester) async {

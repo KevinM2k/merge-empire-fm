@@ -1529,7 +1529,12 @@ class _QuestTile extends StatelessWidget {
                 color: won
                     ? glassText(context)
                     : glassText(context).withValues(alpha: 0.8),
-                fontSize: 12,
+                // **A POINT OVER THE FLOOR, like the next-match card's badge.**
+                // The floor is a floor, not a house style — everything that
+                // took it in the type sweep landed on 12 and this block came
+                // out reading as small print against the badges beside it.
+                // Reported from the couch, in exactly that comparison.
+                fontSize: 13,
                 height: 1.2,
                 fontWeight: FontWeight.w600,
               ),
@@ -1558,11 +1563,19 @@ class _QuestTile extends StatelessWidget {
           // a seven-figure payout do not fit a tile that shares its row with
           // the dugout cam — on a narrow phone that is barely a hundred points
           // across. The type floor's own escape hatch.
-          // `Flexible`, or the fit has nothing to fit INTO: a `FittedBox` sizes
-          // to its child unless something bounds it.
+          // **`Flexible` BOUNDS THE FIT, and the FIT is what right-aligns.**
+          //
+          // A `FittedBox` sizes to its child unless something bounds it, which
+          // is why the cell is flexible at all. But a `Flexible` takes a SHARE
+          // of the row, so the box is wider than its contents — and a tick
+          // centred in that box landed in the middle of the tile rather than at
+          // its right edge. Reported from the couch with a screenshot. The
+          // Flexible is the LAST child, so its own right edge IS the row's:
+          // aligning the fit to it is all that was missing.
           Flexible(
             child: FittedBox(
             fit: BoxFit.scaleDown,
+            alignment: Alignment.centerRight,
             child: Row(
             key: ValueKey('match-quest-${row['id']}'),
             mainAxisSize: MainAxisSize.min,

@@ -67,9 +67,16 @@ typedef MatchSide = ({
 /// Everything the card draws, already in COLUMN order — home on the left.
 typedef NextMatch = ({MatchSide left, MatchSide right, String? bonusNote});
 
-/// The relegation lift, as the engine applies it. Named here because the chip
-/// prints the figure.
-const int _relegationBoost = 4;
+/// The relegation lift, as the engine applies it.
+///
+/// **IT WAS A LOCAL `4` AND THE ENGINE'S IS ONE.** `relegationBoost` in
+/// `match_tactics.dart` is 1.0 and is added to attack AND defence — "deliberately
+/// modest — they are bad teams" — so the chip was claiming four times the lift a
+/// relegation scrap actually gives, on both sides of every such fixture.
+/// Reported from the couch, in the form of doubting the number: does it really
+/// add +4, I thought it was +2. It is +1, and the fix is to stop keeping a
+/// second copy of an engine constant on a screen.
+final int _relegationBoost = relegationBoost.round();
 
 Map<String, dynamic>? _map(Object? v) => v is Map<String, dynamic> ? v : null;
 

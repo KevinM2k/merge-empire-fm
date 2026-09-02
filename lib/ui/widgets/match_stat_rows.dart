@@ -30,6 +30,7 @@ library;
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:merge_empire_fc/ui/theme/app_theme.dart' show minFontSize;
 import 'package:merge_empire_fc/ui/widgets/bar_fill.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 
@@ -391,6 +392,22 @@ class MatchStatRows extends StatelessWidget {
         // at the inner end of this and a badge flush against the well is not
         // the same thing as a badge that clears it.
         final modRoom = (w - rowsWidth) / 2 - modWellGap;
+        // The figure, and with it the room its modifiers stand in — see
+        // [ratingFigureSizeFor].
+        //
+        // **CAPPED BY THE WELL, because the rating column overlaps it.** The
+        // column is deliberately wide so the figure can centre under the club
+        // name, and it runs a good forty points past the ATK/DEF block doing
+        // it — so a figure sized off the PHONE alone can reach in and print
+        // over the ratings it is meant to sit beside. A two-digit numeral is
+        // about as wide as its font size either side of centre, so this is the
+        // largest one that still stops short of the well.
+        // Held open for the PAIR — see [_Rating.slots].
+        final modSlots = math.max(leftMods.length, rightMods.length);
+        final figureSize = math.min(
+          ratingFigureSizeFor(MediaQuery.sizeOf(context).width),
+          modRoom + modWellGap - ratingBox / 2,
+        );
 
         return Padding(
           padding: const EdgeInsets.only(top: 10, bottom: 9),
@@ -418,10 +435,11 @@ class MatchStatRows extends StatelessWidget {
                     figureKey: const ValueKey('nm-figure-left'),
                     value: leftRating,
                     mods: leftMods,
-                    // BOTH sides or neither — see [_Rating._modBand].
-                    band: leftMods.isNotEmpty || rightMods.isNotEmpty,
                     boot: leftBoot,
                     modRoom: modRoom,
+                    columnWidth: ratingBox,
+                    figureSize: figureSize,
+                    slots: modSlots,
                     // Always OUTWARD, away from the stat bars.
                     bootOnLeft: true,
                   ),
@@ -434,9 +452,11 @@ class MatchStatRows extends StatelessWidget {
                     figureKey: const ValueKey('nm-figure-right'),
                     value: rightRating,
                     mods: rightMods,
-                    band: leftMods.isNotEmpty || rightMods.isNotEmpty,
                     boot: rightBoot,
                     modRoom: modRoom,
+                    columnWidth: ratingBox,
+                    figureSize: figureSize,
+                    slots: modSlots,
                     bootOnLeft: false,
                   ),
                 ),
@@ -448,6 +468,85 @@ class MatchStatRows extends StatelessWidget {
     );
   }
 }
+
+/// The rating figure's own size, for a phone this wide.
+///
+/// **It went up when the modifiers moved off the row below it.** They stood in a
+/// reserved band under the figure for three rounds; stacked in the margin beside
+/// it they cost the block no height at all, and the number is what the block is
+/// for.
+///
+/// **Up, to close the gap to the club name, and then back down.** The figure is
+/// centred against the ATK/DEF well beside it, which is taller than it is — so
+/// it sat a long way under the name it belongs to and read as disconnected. 44
+/// closed that and overshot: reported from the couch as too big, and as taking
+/// the focus off the club names, which are what the card is about. This is the
+/// size that joins the two without becoming the loudest thing between them.
+///
+/// **A LADDER, because the concern came with it.** The room either side of the
+/// figure is what the modifier column stands in, and both scale off this — so a
+/// figure sized for a 6.7" phone would leave a 320pt one with a badge scaled to
+/// a smudge. The steps are the ones this file already breaks at: the same
+/// widths [_barsFrom] uses for the stat bars.
+double ratingFigureSizeFor(double width) => width >= _barsFrom
+    ? 34
+    : width >= 360
+    ? 32
+    : 30;
+
+/// The height the figure and its modifier column share, for a figure this size.
+///
+/// **Reserved whether there are modifiers or not**, and that matters as much as
+/// the size: a side WITH one used to sit higher than a side without, and the two
+/// ratings stopped lining up.
+///
+/// **Barely more than the figure**, because everything under this block moves
+/// with it: at 44 the number read as sitting low against the club name above,
+/// reported from the couch. Two badges stack inside it at full size and a third
+/// scales down rather than growing the block, which is the whole reason the
+/// column is a `FittedBox`.
+double ratingBlockHeightFor(double figure, int slots) => math.max(
+  figure + 4,
+  slots * modBadgeHeight + math.max(0, slots - 1) * _modGap,
+);
+
+/// One stacked badge's height: the glyph, its gap, the figure, the badge's own
+/// padding and the tap margin round it.
+///
+/// **Stated rather than measured, because the BLOCK is sized from it.** A column
+/// that has to scale to fit renders its figure below the floor, which is the one
+/// thing this app does not do — so the block grows to hold the badges at full
+/// size instead, and this is what it grows by.
+const double modBadgeHeight = 27;
+
+/// How far the modifier column's inner edge sits from the rating column's own
+/// edge — which is to say, how close to the figure it stands.
+///
+/// A two-digit numeral at [ratingFigureSize] measures about twice that across,
+/// so HALF of it is one whole size — plus a gap. Measured from the column's CENTRE,
+/// which is where the figure is. A figure that grew would want this to grow with
+/// it, which is why it is derived rather than typed.
+double modInsetFor(double figure) => figure * 0.9 + modFigureGap;
+
+/// The air between a modifier column and the rating figure it annotates.
+///
+/// Asked for from the couch, in that unit: about twelve points, close enough to
+/// read as belonging to the number and far enough not to crowd it.
+///
+/// **Five, and the seven points it is down from are the type floor.** The room between the
+/// card's edge and the figure is `columnWidth / 2 - modInset`, and a stacked
+/// badge is thirty-two of it — so at twelve the column had to be scaled to fit
+/// and the figure inside it rendered below [minFontSize], which is the one
+/// thing this app does not do. Four points of gap buys the badge its full size.
+const double modFigureGap = 5;
+
+/// The gap between two modifier badges, and the only gap in the column.
+///
+/// The badges carry their own 3pt padding either side — see [_Mod] — so this is
+/// what sits between two of those, and nothing else in the band spaces anything.
+/// One number, because the fault it replaces was three positions decided by an
+/// anchor rather than by a measurement. Vertical now — see the build.
+const double _modGap = 2;
 
 /// The air between a modifier and the ATK/DEF well beside it.
 ///
@@ -730,10 +829,12 @@ class _Rating extends StatelessWidget {
     super.key,
     required this.value,
     required this.mods,
-    required this.band,
     required this.boot,
     required this.bootOnLeft,
     required this.modRoom,
+    required this.columnWidth,
+    required this.figureSize,
+    required this.slots,
     required this.figureKey,
   });
 
@@ -745,46 +846,47 @@ class _Rating extends StatelessWidget {
   final int? value;
   final List<StatMod> mods;
 
-  /// Whether to hold the band open — see [_modBand]. Decided for the PAIR, not
-  /// for this side: a fixture with no modifier at either end (the match page's
-  /// own board, always) pays nothing for it.
-  final bool band;
   final bool boot;
   final bool bootOnLeft;
 
-  /// How wide the modifier band may be before it reaches the ATK/DEF well.
+  /// How wide the modifier column may be before it reaches the ATK/DEF well.
   final double modRoom;
 
-  /// The figure's own height, which is what the modifiers hang below.
-  static const double _figureHeight = 26;
+  /// The rating column's own width. The figure is centred in it, so this is what
+  /// says where the figure's edge is — see [modInsetFor].
+  final double columnWidth;
 
-  /// The band the modifiers sit in, RESERVED whether there are any or not.
-  ///
-  /// **They were a `Positioned` hanging out of a `Clip.none` stack, and that is
-  /// why tapping one did nothing.** Flutter paints outside a box happily and
-  /// hit-tests nothing outside it, so the glyphs drew where they were meant to
-  /// and every tap on one fell through to the card behind — which opens the
-  /// league table. The `Tooltip` explaining home advantage had been unreachable
-  /// since it was written. Reported as the icons under the next-match card
-  /// needing a popup saying what they are.
-  ///
-  /// Reserving the band on both sides is what the out-of-flow trick was buying:
-  /// in flow and only when present, a side WITH a modifier sat higher than a
-  /// side without and the two ratings stopped lining up.
-  ///
-  /// **Tall enough for the BADGE**, which is what it holds now — at the old 20
-  /// the chip was clipped to a sliver with its contents cut off, which reads as
-  /// a mark too small to find rather than as a badge.
-  static const double _modBand = 26;
+  /// How big the figure is drawn, which the phone's width decides — see
+  /// [ratingFigureSizeFor]. Everything else in the block is measured off it.
+  final double figureSize;
+
+  /// How many badge slots the block holds open — the PAIR's largest count, not
+  /// this side's. A side with two modifiers and one with none must be the same
+  /// height, or the two ratings stop lining up.
+  final int slots;
 
   @override
   Widget build(BuildContext context) {
-    final ink = Theme.of(context).colorScheme.onSurface;
+    // **NOT THE FULL-STRENGTH ONSURFACE.** In light mode that is a near black,
+    // and a big near-black numeral on a pale glass pane is the hardest edge on
+    // the card — reported from the couch as jarring, twice. It went to 88% (the
+    // position chip's own) and then further: the club name above it is what
+    // this card is about, and the rating is an annotation on it. A step back in
+    // weight is what says so.
+    final ink = Theme.of(
+      context,
+    ).colorScheme.onSurface.withValues(alpha: 0.72);
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
         SizedBox(
-          height: _figureHeight,
+          height: ratingBlockHeightFor(figureSize, slots),
+          // **THE FULL COLUMN WIDTH, and without it the geometry is a lie.** A
+          // `Stack` shrink-wraps its non-positioned children, so this one sized
+          // itself to the FIGURE — sixty-eight points — and a `Positioned`
+          // measured from the edge of the number rather than from the edge of
+          // the column. The modifiers came out hanging off the card.
+          width: double.infinity,
           child: Stack(
             clipBehavior: Clip.none,
             alignment: Alignment.center,
@@ -793,13 +895,74 @@ class _Rating extends StatelessWidget {
                 '${value ?? '?'}',
                 key: figureKey,
                 style: TextStyle(
-                  fontSize: 26,
+                  // **BIGGER, because the row under it has gone.** The
+                  // modifiers moved into the margin beside the figure — see
+                  // [_modBand] — which hands the block back the band they used
+                  // to stand in. Asked for from the couch in the same breath as
+                  // the move: then we can probably increase the size of the
+                  // number.
+                  fontSize: figureSize,
                   height: 1,
                   fontWeight: FontWeight.w900,
                   color: ink,
                   fontFeatures: const [FontFeature.tabularFigures()],
                 ),
               ),
+              // **THE MODIFIERS, STACKED IN THE MARGIN BESIDE THE FIGURE.**
+              //
+              // They spent three rounds as a horizontal band UNDER the rating,
+              // and the fault was the same every time: anchored outward a lone
+              // badge floated at the card's edge, anchored inward it hugged the
+              // well, centred it was in neither place, and none of it mirrored.
+              // All of that is one problem — a row of things next to a number
+              // has no natural place to start.
+              //
+              // Asked for from the couch: there is room to the LEFT of the home
+              // rating and to the RIGHT of the away one, so use it. Stacked
+              // there, each badge is the same distance from the figure it
+              // annotates whatever the count is, the two sides are exact
+              // reflections, a third one costs the block no height, and the
+              // band it used to occupy goes back to the figure.
+              if (mods.isNotEmpty)
+                // **BESIDE THE FIGURE, not out at the card's edge.** Pinned to
+                // the margin the column had the room but no anchor — reported
+                // from the couch as looking lost, which is the same fault the
+                // horizontal band kept hitting from the other direction. It is
+                // an annotation ON the number, so it stands against it: the
+                // inner edge is half a figure plus a gap from the centre, and
+                // it grows outward from there into the margin it is allowed.
+                Positioned(
+                  top: 0,
+                  bottom: 0,
+                  left: bootOnLeft ? null : columnWidth / 2 + modInsetFor(figureSize),
+                  right: bootOnLeft ? columnWidth / 2 + modInsetFor(figureSize) : null,
+                  // From the figure's edge out to the card's, which is as much
+                  // room as there is — and it is comfortably inside the margin
+                  // the well leaves, because the figure is centred in a column
+                  // that starts at the card's edge.
+                  width: math.max(0, columnWidth / 2 - modInsetFor(figureSize)),
+                  child: FittedBox(
+                    fit: BoxFit.scaleDown,
+                    // Anchored at the end nearest the figure, so a second and a
+                    // third stack away from it rather than pushing it.
+                    alignment: bootOnLeft
+                        ? Alignment.centerRight
+                        : Alignment.centerLeft,
+                    child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: bootOnLeft
+                            ? CrossAxisAlignment.start
+                            : CrossAxisAlignment.end,
+                        children: [
+                          for (final mod in mods) ...[
+                            if (mod != mods.first)
+                              const SizedBox(height: _modGap),
+                            _Mod(mod: mod),
+                          ],
+                        ],
+                    ),
+                  ),
+                ),
               // Hangs into the empty margin rather than widening the figure —
               // in flow it pushed the number off the line it shares with the
               // club name above, so the one fixture in ten with a weakened
@@ -817,58 +980,6 @@ class _Rating extends StatelessWidget {
             ],
           ),
         ),
-        if (band)
-          SizedBox(
-            height: _modBand,
-            child: mods.isEmpty
-                ? null
-                // **THREE OF THEM USED TO SPILL INTO THE ATK/DEF BLOCK.** The
-                // row was `MainAxisSize.min` and centred inside a rating column
-                // that sits in a `Clip.none` stack, so as soon as a fixture had
-                // more than one modifier the badges grew past the column and
-                // painted straight over the well between the two sides.
-                // Reported from the couch, with the count: an away grudge
-                // against a side in the drop zone is three.
-                //
-                // Two things stop it. The band is `modRoom` wide and pinned
-                // to the card's own margin — the clear air outside the well,
-                // where the Lucky Boot already hangs — so it cannot reach the
-                // ratings whatever is in it. And it scales down rather than
-                // overflowing, so three badges on a narrow phone are three
-                // smaller badges instead of three badges over the ratings.
-                //
-                // **INSIDE that band it is anchored INWARD, and the first cut
-                // had it the other way.** Anchored outward, a fixture with one
-                // modifier put a lone badge hard against the edge of the card
-                // with an inch of nothing between it and the figure it belongs
-                // to — reported from the couch as looking odd with only one.
-                // Anchored inward, one badge sits beside its own rating and a
-                // second and third grow out from it towards the margin, which
-                // is the direction the room is in.
-                : Align(
-                    alignment: bootOnLeft
-                        ? Alignment.centerLeft
-                        : Alignment.centerRight,
-                    child: SizedBox(
-                      width: modRoom,
-                      child: FittedBox(
-                        fit: BoxFit.scaleDown,
-                        alignment: bootOnLeft
-                            ? Alignment.centerRight
-                            : Alignment.centerLeft,
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            for (final mod in mods) ...[
-                              if (mod != mods.first) const SizedBox(width: 2),
-                              _Mod(mod: mod),
-                            ],
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-          ),
       ],
     );
   }
@@ -955,10 +1066,17 @@ class _Mod extends StatelessWidget {
             _ => vsGreenBright,
           };
           return Padding(
-            // **A TARGET, not just a mark.** The glyph and its number are 22
-            // by 10; the padding is what a thumb actually lands on, and it is
-            // inside the tooltip's own detector so it is all live.
-            padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 2),
+            // **A TARGET, not just a mark.** The padding is what a thumb
+            // actually lands on, and it is inside the tooltip's own detector so
+            // it is all live.
+            //
+            // **Vertical only, now the badge is stacked.** The room beside the
+            // rating is under thirty points and the badge is twenty-seven; a
+            // horizontal margin here was the last three of them, and it was the
+            // difference between the figure drawing at [minFontSize] and being
+            // scaled to ten. The badge is twice as tall as it was, so the
+            // target has not shrunk — it has changed axis.
+            padding: const EdgeInsets.symmetric(vertical: 2),
             child: Container(
               // **A BADGE, and a readable one.** It was a bare glyph and a
               // signed number on the pane, in a colour chosen for a dark
@@ -967,24 +1085,39 @@ class _Mod extends StatelessWidget {
               // tint for a plate, the colour at 45% for a rim, the colour full
               // strength for the ink — and it is a size up, because the first
               // pass at this was a chip too small to find.
-              padding: const EdgeInsets.fromLTRB(5, 3, 6, 3),
+              padding: const EdgeInsets.fromLTRB(3, 3, 3, 3),
               decoration: BoxDecoration(
                 color: vividWellFill,
                 borderRadius: BorderRadius.circular(6),
                 border: Border.all(color: hue.withValues(alpha: 0.55)),
               ),
+              // **GLYPH AND FIGURE SIDE BY SIDE, and the badges stacked.**
+              //
+              // The stack is what buys the type its full size: the room between
+              // the card's edge and the rating is under forty points, and a
+              // COLUMN of badges can use all the height it likes. Inside one,
+              // the glyph belongs beside the number — asked for from the couch.
+              //
+              // Every measurement in here is spent on making that fit at the
+              // size the daily reward's badge is drawn at: a 3pt padding, a 1pt
+              // gap, and an 11pt glyph against a 13pt figure.
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   // The GLYPH carries the tone and the FIGURE is read: a shape
                   // identifies at any luminance and a number has to be legible,
                   // which is the split the coin figure's own helpers state.
-                  GameIcon(mod.icon, size: 10.5, color: hue),
-                  const SizedBox(width: 2),
+                  GameIcon(mod.icon, size: 11, color: hue),
+                  const SizedBox(width: 1),
                   Text(
                     '${mod.amount < 0 ? '-' : '+'}${mod.amount.abs()}',
                     style: const TextStyle(
-                      fontSize: 12,
+                      // **THE DAILY REWARD'S OWN SIZE.** At the bare floor the
+                      // badge read as small print beside a 34pt rating —
+                      // reported from the couch, with that comparison. A point
+                      // over the floor and a glyph to match is what the other
+                      // badge in this app is drawn at.
+                      fontSize: 13,
                       height: 1,
                       fontWeight: FontWeight.w900,
                       color: vividWellInk,

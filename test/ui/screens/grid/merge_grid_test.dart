@@ -1759,15 +1759,16 @@ void main() {
       // It was measured off the screen's own box, which starts behind the HUD and
       // above the action bar — so a card had to be dragged under the glass and
       // most of the way off the top before the grid moved.
+      // **THE SCROLLER ITSELF NOW STARTS AT THE TOP**, because the scout bar
+      // moved inside it so the whole page bounces the way every other tab
+      // does. So what has to be clear of the HUD is the first CARD, which is
+      // what a finger is actually reaching for — the band is measured from
+      // `hudClearanceOf` inside `_autoScroll` for the same reason.
       await pumpGrid(tester, cards: {0: _card(_baseDefId, 'a')});
-      final viewport = tester.getRect(find.byKey(const ValueKey('merge-grid')));
-      // The list starts well below the top of the screen, which is the whole
-      // point: anything measured from zero is measuring the wrong thing.
       expect(
-        viewport.top,
+        tester.getRect(find.byKey(const ValueKey('grid-card-0'))).top,
         greaterThan(hudClearance),
-        reason:
-            'the list is not clear of the HUD, so the band cannot be either',
+        reason: 'the first card is under the glass, so no band can reach it',
       );
     });
 

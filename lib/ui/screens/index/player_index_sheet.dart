@@ -501,13 +501,22 @@ class _IndexCard extends StatelessWidget {
                       )
                     else
                       Positioned.fill(
+                        // **`cover`, ANCHORED TO THE TOP — the squad card's own
+                        // crop.** It was `contain`, which letterboxes the
+                        // figure inside the tile and leaves the art floating in
+                        // a box it does not fill: reported from the couch, with
+                        // the Players tab as the comparison. `PlayerHeroArt`
+                        // has always done this and for the documented reason —
+                        // these are portrait crops, so the slack has to come
+                        // off the BOTTOM or the head goes with it.
                         child: ArtImage(
                           path: playerImagePath(
                             entry.def.position,
                             entry.def.tier,
                             _variantFor(entry.female),
                           ),
-                          fit: BoxFit.contain,
+                          fit: BoxFit.cover,
+                          alignment: Alignment.topCenter,
                           fallback: PlayerPortrait(
                             variantIndex: _variantFor(entry.female),
                             kitColor: accent,
@@ -673,13 +682,16 @@ class _RecipeDialog extends StatelessWidget {
                     width: 80,
                     height: 110,
                     child: discovered
+                        // The same crop as the tile behind it and as the squad
+                        // card — see the grid above.
                         ? ArtImage(
                             path: playerImagePath(
                               def.position,
                               def.tier,
                               _variantFor(entry.female),
                             ),
-                            fit: BoxFit.contain,
+                            fit: BoxFit.cover,
+                            alignment: Alignment.topCenter,
                             fallback: PlayerPortrait(
                               variantIndex: _variantFor(entry.female),
                               kitColor: cssColor(theme.accent),

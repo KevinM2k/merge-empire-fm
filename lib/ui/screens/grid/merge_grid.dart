@@ -374,12 +374,17 @@ class MergeGridState extends ConsumerState<MergeGrid>
     final local = box.globalToLocal(globalPosition);
     const band = 72.0;
     final height = box.size.height;
+    // **AND THE TOP OF THE SCROLLER IS NOT THE TOP OF THE GRID any more.** The
+    // scout bar moved INSIDE the list so the whole page bounces — see the
+    // build — which puts the scroller's own top back behind the HUD glass. The
+    // band is measured from the first thing a finger can actually reach.
+    final top = hudClearanceOf(context);
 
     // Speed ramps with how far INTO the band the finger is, so the edge nudges
     // and the very corner races.
     var delta = 0.0;
-    if (local.dy < band) {
-      delta = -(band - local.dy) / band * 18;
+    if (local.dy < top + band) {
+      delta = -(top + band - local.dy) / band * 18;
     } else if (local.dy > height - band) {
       delta = (local.dy - (height - band)) / band * 18;
     }
@@ -581,20 +586,6 @@ class MergeGridState extends ConsumerState<MergeGrid>
         children: [
           Column(
             children: [
-              // The bar is the FIRST thing on the tab, above the grid. The port had
-              // it under the cards with the pills on top, which is the JS's order
-              // inverted: the pills are a readout and belong beside the last row
-              // they describe, and the two controls a player came here to press
-              // belong where the thumb lands first.
-              Padding(
-                padding: EdgeInsets.fromLTRB(
-                  _pad,
-                  hudClearanceOf(context),
-                  _pad,
-                  0,
-                ),
-                child: const ScoutActionBar(),
-              ),
               Expanded(
                 child: SingleChildScrollView(
                   key: const ValueKey('merge-grid'),
@@ -617,7 +608,7 @@ class MergeGridState extends ConsumerState<MergeGrid>
                       parent: RangeMaintainingScrollPhysics(),
                     ),
                   ),
-                  padding: const EdgeInsets.fromLTRB(_pad, _pad, _pad, 12),
+                  padding: const EdgeInsets.fromLTRB(_pad, 0, _pad, 12),
                   child: LayoutBuilder(
                     builder: (context, constraints) {
                       final cols = gridColumnsFor(
@@ -635,6 +626,36 @@ class MergeGridState extends ConsumerState<MergeGrid>
 
                       return Column(
                         children: [
+                          // **THE BAR IS INSIDE THE SCROLLER, and that is what
+                          // the bounce was missing.** It sat above it, pinned,
+                          // so a drag gave under the grid while the bar stayed
+                          // nailed to the top — which is not what Settings, the
+                          // shop or the club assets do, and is exactly why this
+                          // tab was reported as not having the native bounce.
+                          // The whole page gives now, the way the whole page
+                          // gives everywhere else.
+                          //
+                          // It is still the FIRST thing on the tab, which was
+                          // the point of moving it above the cards: the pills
+                          // are a readout and belong beside the last row they
+                          // describe, and the two controls a player came here
+                          // to press belong where the thumb lands first.
+                          Padding(
+                            // **`underBar: false`, and that is the doubling.**
+                            // The full clearance is written for content that
+                            // starts UNDER the bar with its own margin; this
+                            // bar is the first thing in the list and carries
+                            // `_pad` of its own below, so the two margins
+                            // stacked and the air above Add Player came out
+                            // twice what it should be. Reported from the couch.
+                            padding: EdgeInsets.fromLTRB(
+                              0,
+                              hudClearanceOf(context, underBar: false),
+                              0,
+                              _pad,
+                            ),
+                            child: const ScoutActionBar(),
+                          ),
                           SizedBox(
                             height: rows * cellH + (rows - 1) * _gap,
                             child: Stack(
