@@ -203,8 +203,14 @@ Set<String> cautionedIn(Iterable<Booking> bookings) {
 /// Written as the match number he is free again for rather than a countdown:
 /// nothing then has to remember to tick it down, a save restored from the cloud
 /// mid-ban is still mid-ban, and two reds in consecutive matches extend the ban
-/// rather than resetting it. [playedSoFar] is `progression.matchesPlayed` at
-/// the moment of the whistle.
+/// rather than resetting it.
+///
+/// **[playedSoFar] INCLUDES the match just finished.** The whistle is the
+/// moment the ban is written and the moment the match counts, and the two are
+/// not the same line of code: the match screen writes this BEFORE the save's
+/// own counter moves, so it adds the one itself. Passing the stored figure
+/// instead wrote a ban that lapsed the instant the whistle was recorded, and
+/// the player was available for the very fixture he was supposed to miss.
 void applySuspensions(
   Map<String, dynamic>? state,
   Iterable<String> sentOff, {
@@ -283,4 +289,26 @@ void recordBookings(Map<String, dynamic>? state, Iterable<Booking> bookings) {
     if (b.card == cardYellow || b.card == cardSecondYellow) bump('yellows');
     if (cardSendsOff(b.card)) bump('reds');
   }
+}
+
+/// Everyone in the squad who is banned from the NEXT fixture.
+///
+/// The ban is stored as the match number a player is free again for — see
+/// [applySuspensions] — so answering "who is banned" needs the save's own
+/// `progression.matchesPlayed` as well as the card. This is that question asked
+/// once, for the lineup rules that need a set rather than a card at a time.
+Set<String> suspendedIn(Map<String, dynamic>? state) {
+  final prog = state?['progression'];
+  final played = prog is Map<String, dynamic>
+      ? (prog['matchesPlayed'] as num?)?.toInt() ?? 0
+      : 0;
+  final grid = state?['grid'];
+  final cells = grid is Map<String, dynamic> ? grid['cells'] : null;
+  if (cells is! List) return const {};
+  return {
+    for (final cell in cells)
+      if (cell is Map<String, dynamic>)
+        if (isSuspended(cell, playedSoFar: played))
+          if (cell['instanceId'] case final String id) id,
+  };
 }

@@ -8,6 +8,8 @@
 /// Deliberately Flutter-free so it runs under plain `dart test`.
 library;
 
+import 'package:merge_empire_fc/engine/booking_engine.dart'
+    show suspendedIn;
 import 'package:merge_empire_fc/data/formations.dart';
 import 'package:merge_empire_fc/data/players.dart';
 import 'package:merge_empire_fc/engine/player_energy_engine.dart';
@@ -146,8 +148,16 @@ List<LineupSlot> buildDefaultLineup(
 List<LineupSlot> fillLineupGaps(
   List<LineupSlot> lineup,
   String? formationId,
-  List<CardInstance?> gridCells,
-) {
+  List<CardInstance?> gridCells, {
+  /// Who may not be picked, whatever their rating.
+  ///
+  /// **A SUSPENSION IS NOT AN INJURY.** `isSelectable` covers injured, loaned
+  /// and listed; a ban is none of those — the card is fit and at the club and
+  /// simply cannot play the next one. It arrives as a set because the rule
+  /// needs `progression.matchesPlayed` to evaluate and this function is handed
+  /// cards rather than the save. See `booking_engine.isSuspended`.
+  Set<String> banned = const {},
+}) {
   final emptyIndices = <int>[
     for (var i = 0; i < lineup.length; i++)
       if (lineup[i].cardInstanceId == null) i,
@@ -161,7 +171,11 @@ List<LineupSlot> fillLineupGaps(
 
   final available = <CardInstance>[
     for (final c in gridCells)
-      if (c != null && c.isSelectable && !existing.contains(c.instanceId)) c,
+      if (c != null &&
+          c.isSelectable &&
+          !banned.contains(c.instanceId) &&
+          !existing.contains(c.instanceId))
+        c,
   ];
   if (available.isEmpty) return lineup;
 
@@ -225,8 +239,14 @@ List<LineupSlot> fillLineupGaps(
 List<LineupSlot> cleanAndFillLineup(
   List<LineupSlot> lineup,
   String? formationId,
-  List<CardInstance?> gridCells,
-) => fillLineupGaps(cleanLineup(lineup, gridCells), formationId, gridCells);
+  List<CardInstance?> gridCells, {
+  Set<String> banned = const {},
+}) => fillLineupGaps(
+  cleanLineup(lineup, gridCells),
+  formationId,
+  gridCells,
+  banned: banned,
+);
 
 /// Drop anyone who is no longer available, and leave the hole.
 ///
@@ -314,6 +334,7 @@ bool syncLineupWithGrid(Map<String, dynamic> state) {
 ///
 /// Returns true when the lineup changed.
 bool refillLineupFromBench(Map<String, dynamic> state) {
+  final banned = suspendedIn(state);
   final squad = state['squad'];
   if (squad is! Map) return false;
 
@@ -340,6 +361,7 @@ bool refillLineupFromBench(Map<String, dynamic> state) {
     lineup,
     squad['formation'] as String? ?? defaultFormation,
     cards,
+    banned: banned,
   );
 
   var changed = false;
@@ -437,10 +459,17 @@ bool restoreKickoffLineup(
 
   final grid = state['grid'];
   final rawCells = grid is Map ? grid['cells'] : null;
+  // **AND A BANNED MAN DOES NOT GO BACK IN.** The card is written at the
+  // whistle — see `applySuspensions` — and this runs immediately after it, so
+  // the side that comes off the pitch is the side that starts the next one.
+  // Reported from the couch: a sent-off player was still in the team
+  // afterwards, with nothing on him to say why.
+  final banned = suspendedIn(state);
   final fit = <String>{
     if (rawCells is List)
       for (final c in rawCells)
-        if (CardInstance.from(c) case final card? when card.isSelectable)
+        if (CardInstance.from(c) case final card?
+            when card.isSelectable && !banned.contains(card.instanceId))
           card.instanceId,
   };
 

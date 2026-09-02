@@ -428,6 +428,45 @@ void main() {
         (s as Map)['cardInstanceId'] as String?,
     ];
 
+    test('BUT A BANNED MAN DOES NOT COME BACK', () {
+      // **The whole point of the red card, and it was missing.** The ban is
+      // written at the whistle and this runs immediately after it, so the side
+      // that comes off the pitch is the side that starts the next one.
+      // Reported from the couch: the sent-off player was still in the team
+      // afterwards, with nothing on him to say why.
+      final started = <String?>[for (var i = 0; i < 11; i++) 'p$i'];
+      final state = stateWith(
+        grid: [..._squad(), _card('cover')],
+        lineupIds: [...started],
+      );
+      // Free again for match 6; four have been played.
+      (((state['grid'] as Map)['cells'] as List)
+              .firstWhere((c) => (c as Map)['instanceId'] == 'p$midSlot')
+          as Map<String, dynamic>)['suspendedUntilMatch'] = 6;
+      state['progression'] = <String, dynamic>{'matchesPlayed': 4};
+
+      expect(restoreKickoffLineup(state, kickoffOf(started)), isTrue);
+      final ids = idsOf(state);
+      expect(ids, isNot(contains('p$midSlot')), reason: 'a banned man played');
+      // And the bench covers the hole rather than leaving the side short.
+      expect(ids[midSlot], 'cover');
+    });
+
+    test('and he comes back once the ban has been served', () {
+      final started = <String?>[for (var i = 0; i < 11; i++) 'p$i'];
+      final state = stateWith(
+        grid: [..._squad(), _card('cover')],
+        lineupIds: [...started],
+      );
+      (((state['grid'] as Map)['cells'] as List)
+              .firstWhere((c) => (c as Map)['instanceId'] == 'p$midSlot')
+          as Map<String, dynamic>)['suspendedUntilMatch'] = 6;
+      state['progression'] = <String, dynamic>{'matchesPlayed': 6};
+
+      restoreKickoffLineup(state, kickoffOf(started));
+      expect(idsOf(state), contains('p$midSlot'));
+    });
+
     test('an ordinary swap goes back: the kickoff man returns', () {
       // "If we only subbed and not injured then you should keep the original
       // team." A substitution is a change for THIS match.

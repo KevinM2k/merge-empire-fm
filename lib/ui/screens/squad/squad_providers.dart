@@ -6,6 +6,8 @@
 library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:merge_empire_fc/engine/booking_engine.dart'
+    show suspendedIn;
 import 'package:merge_empire_fc/data/divisions.dart';
 import 'package:merge_empire_fc/data/formations.dart';
 import 'package:merge_empire_fc/engine/fixture_preview.dart';
@@ -150,6 +152,7 @@ final pitchSlotsProvider = savePick<List<PitchSlot>>((s) {
     for (final slot in lineup)
       if (slot.cardInstanceId == null) slot,
   ];
+  final banned = suspendedIn(s);
   final vacatedBy = <String, Map<String, dynamic>>{};
   for (final hole in holes) {
     if (orphans.isEmpty) break;
@@ -166,7 +169,10 @@ final pitchSlotsProvider = savePick<List<PitchSlot>>((s) {
         final raw = slot.cardInstanceId == null
             ? null
             : byId[slot.cardInstanceId];
-        final view = cardViewFor(raw, proMode: pro);
+        // The bans, so the token can say a man cannot play. NOT the state —
+        // that switches the income line on, which a pitch token has no room
+        // for. See `cardViewFor.banned`.
+        final view = cardViewFor(raw, proMode: pro, banned: banned);
         final instance = CardInstance.from(raw);
         final stats = getCardStats(
           instance,
@@ -194,8 +200,11 @@ final pitchSlotsProvider = savePick<List<PitchSlot>>((s) {
           // the one number that should have said "change this" said the
           // opposite. `getCardStats` is right not to know: it rates a CARD, and
           // whether he can take the field is the lineup's question.
-          effRating: instance != null &&
-                  (instance.injured || instance.isUnavailable)
+          effRating:
+              instance != null &&
+                  (instance.injured ||
+                      instance.isUnavailable ||
+                      (view?.suspended ?? false))
               ? 0
               : stats.rating,
           penalty: view == null
@@ -256,7 +265,7 @@ final benchProvider = savePick<List<({String instanceId, CardView card})>>((s) {
           cardViewFor(raw, proMode: pro) != null)
         (
           instanceId: raw['instanceId'] as String,
-          card: cardViewFor(raw, proMode: pro)!,
+          card: cardViewFor(raw, proMode: pro, banned: suspendedIn(s))!,
         ),
   ];
 });

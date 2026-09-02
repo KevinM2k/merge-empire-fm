@@ -226,4 +226,52 @@ void main() {
       });
     });
   });
+
+  group('WHO IS BANNED FROM THE NEXT ONE', () {
+    Map<String, dynamic> save(Map<String, int?> bans, {int played = 4}) => {
+      'progression': {'matchesPlayed': played},
+      'grid': {
+        'cells': [
+          for (final entry in bans.entries)
+            <String, dynamic>{
+              'instanceId': entry.key,
+              if (entry.value != null) 'suspendedUntilMatch': entry.value,
+            },
+        ],
+      },
+    };
+
+    test('the ban is read against the count, not as a countdown', () {
+      // Written as the match number he is free again FOR, so nothing has to
+      // remember to tick it down and a cloud restore mid-ban is still mid-ban.
+      expect(suspendedIn(save({'a': 5, 'b': 4, 'c': null})), {'a'});
+    });
+
+    test('and it lapses on its own once the match has been played', () {
+      final state = save({'a': 5}, played: 5);
+      expect(suspendedIn(state), isEmpty);
+    });
+
+    test('a save with no grid, or none at all, bans nobody', () {
+      expect(suspendedIn(null), isEmpty);
+      expect(suspendedIn(<String, dynamic>{}), isEmpty);
+      expect(suspendedIn({'grid': <String, dynamic>{}}), isEmpty);
+    });
+
+    test('two reds in a row EXTEND the ban rather than resetting it', () {
+      // `applySuspensions` never shortens one — a man sent off while already
+      // banned serves both.
+      final state = save({'a': 9});
+      applySuspensions(state, ['a'], playedSoFar: 4);
+      expect(
+        ((state['grid'] as Map)['cells'] as List).first['suspendedUntilMatch'],
+        9,
+      );
+      applySuspensions(state, ['a'], playedSoFar: 12);
+      expect(
+        ((state['grid'] as Map)['cells'] as List).first['suspendedUntilMatch'],
+        13,
+      );
+    });
+  });
 }

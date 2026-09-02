@@ -1780,6 +1780,31 @@ void main() {
     });
   });
 
+
+  testWidgets('A BAN IS ON THE TEAM SHEET, where the side is picked', (
+    tester,
+  ) async {
+    // Reported from the couch: the red card was on the Players tab and it
+    // should be on the squad page and the bench. The grid is a collection;
+    // this is the eleven.
+    await pumpSquad(
+      tester,
+      mutate: (s) {
+        final cells = (s['grid'] as Map<String, dynamic>)['cells'] as List;
+        (cells[0] as Map<String, dynamic>)['suspendedUntilMatch'] = 9;
+        s['progression'] = <String, dynamic>{
+          ...?(s['progression'] as Map<String, dynamic>?),
+          'matchesPlayed': 4,
+        };
+      },
+    );
+    expect(find.byKey(const ValueKey('token-suspended')), findsOneWidget);
+  });
+
+  testWidgets('and a squad with nobody banned draws none', (tester) async {
+    await pumpSquad(tester);
+    expect(find.byKey(const ValueKey('token-suspended')), findsNothing);
+  });
 }
 
 

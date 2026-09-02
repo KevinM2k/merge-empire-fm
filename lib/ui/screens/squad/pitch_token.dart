@@ -365,6 +365,38 @@ class PitchToken extends StatelessWidget {
                               child: InjuryCross(size: pitchTokenWidth * 0.34),
                             ),
                           ),
+                        // **A BAN IS DRAWN ON THE TEAM SHEET.** It was on the
+                        // Players tab and nowhere else, which is the wrong page
+                        // for it — reported from the couch. The grid is a
+                        // collection; this is the eleven, and a man who cannot
+                        // play the next one has to say so where the side is
+                        // picked. Same red, angled the way a card is held, over
+                        // the art the way the injury cross is.
+                        if (card.suspended)
+                          Center(
+                            child: Transform.rotate(
+                              angle: -0.22,
+                              child: Container(
+                                key: const ValueKey('token-suspended'),
+                                width: pitchTokenWidth * 0.26,
+                                height: pitchTokenWidth * 0.36,
+                                decoration: BoxDecoration(
+                                  color: const Color(0xFFE0342B),
+                                  borderRadius: BorderRadius.circular(3),
+                                  border: Border.all(
+                                    color: const Color(0x66000000),
+                                  ),
+                                  boxShadow: const [
+                                    BoxShadow(
+                                      color: Color(0x73000000),
+                                      blurRadius: 6,
+                                      offset: Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ),
                         // The rating IN THIS SLOT, coloured by what the slot
                         // costs him.
                         Positioned(

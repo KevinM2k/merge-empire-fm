@@ -21,7 +21,6 @@ import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/state/card_instance.dart';
 import 'package:merge_empire_fc/ui/widgets/player_card.dart';
 import 'package:merge_empire_fc/ui/widgets/trait_copy.dart';
-import 'package:merge_empire_fc/engine/booking_engine.dart' show isSuspended;
 
 /// One slot: a card, an empty slot the player has room for, or a slot beyond
 /// the roster they have not grown into yet.
@@ -52,6 +51,21 @@ CardView? cardViewFor(
   bool proMode = false,
   Map<String, dynamic>? state,
   int? maxTier,
+
+  /// Who is banned from the next fixture — see `booking_engine.suspendedIn`.
+  ///
+  /// **A SET, not a flag off [state], and that distinction cost a regression.**
+  /// The obvious move is to read the ban out of `state` the way the income rate
+  /// is read out of it; the trap is that `state` is what SWITCHES THE INCOME
+  /// LINE ON. Handing it to the bench turned on an income bar per card — a
+  /// looping `AnimationController` that `pumpAndSettle` can never settle, which
+  /// is how it was caught — and taking it off the grid to hide the ban there
+  /// would have quietly deleted the `+25.1/s` from every card on the Players
+  /// tab, which is the whole point of that tab.
+  ///
+  /// So the two are separate inputs. The grid passes [state] and no bans; the
+  /// squad and the bench pass bans and no state.
+  Set<String> banned = const {},
 }) {
   final card = CardInstance.from(raw);
   if (card == null) return null;
@@ -96,13 +110,13 @@ CardView? cardViewFor(
     form: card.form.toInt(),
     // **A BAN IS A FACT ABOUT THE NEXT FIXTURE**, so it is measured against the
     // match count rather than stored as a countdown — see `isSuspended`.
-    suspended: isSuspended(
-      card.raw,
-      playedSoFar:
-          (_map(_map(state)?['progression'])?['matchesPlayed'] as num?)
-              ?.toInt() ??
-          0,
-    ),
+    //
+    // **And it is only drawn where the NEXT FIXTURE is the subject** — see
+    // [banned]. Reported from the couch: the red card was on the Players tab
+    // and it should be on the squad page and the bench. The grid is a
+    // collection; the squad page is a team sheet, and a man who cannot play
+    // belongs marked on the team sheet.
+    suspended: banned.contains(card.instanceId),
   );
 }
 

@@ -897,6 +897,46 @@ void main() {
       await settleSave(tester);
     });
 
+    testWidgets('AND A SENDING-OFF IS PLAYED OUT BY THE TEN WHO ARE LEFT', (
+      tester,
+    ) async {
+      // **The card used to be theatre.** The scoreline is decided at kickoff by
+      // `generateMatchEvents` and the port cannot touch that — it is pinned
+      // field for field — but `reSimulateRemainder` reads the LIVE lineup, and
+      // it is what a mid-match tactic switch already goes through. Reported
+      // from the couch: "my rating didn't update so I don't know if the loss of
+      // that player actually counted."
+      //
+      // `s1_m39` is the fixture the referee shows a straight red in.
+      final container = await pumpMatch(
+        tester,
+        matchResult(fixtureKey: 's1_m39'),
+        save: squadSave(),
+      );
+      final state = stateOf(tester);
+      final off = [
+        for (final b in state.bookings)
+          if (b['team'] != 'away' && cardSendsOff('${b['card']}'))
+            '${b['playerInstanceId']}',
+      ];
+      expect(off, hasLength(1), reason: 'nobody was sent off in s1_m39');
+
+      final before = container.read(pitchSlotsProvider).length;
+      state.skipToEnd();
+      await tester.pumpAndSettle();
+
+      // His slot is empty, so the eleven really are ten — which is what
+      // `reSimulateRemainder` reads when it rolls the rest of the match.
+      final onPitch = container
+          .read(pitchSlotsProvider)
+          .where((s) => s.cardInstanceId != null)
+          .map((s) => s.cardInstanceId)
+          .toList();
+      expect(container.read(pitchSlotsProvider), hasLength(before));
+      expect(onPitch, isNot(contains(off.single)));
+      await settleSave(tester);
+    });
+
     testWidgets('a booked man is worth ten per cent less, and shows it', (
       tester,
     ) async {

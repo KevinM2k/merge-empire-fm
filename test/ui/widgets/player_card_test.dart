@@ -6,6 +6,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/data/card_theme.dart';
+import 'package:merge_empire_fc/data/players.dart';
+import 'package:merge_empire_fc/ui/screens/grid/grid_providers.dart'
+    show cardViewFor;
 import 'package:merge_empire_fc/ui/theme/app_theme.dart';
 import 'package:merge_empire_fc/ui/widgets/art_image.dart';
 import 'package:merge_empire_fc/ui/widgets/player_card.dart';
@@ -598,6 +601,23 @@ void main() {
     testWidgets('and everybody else does not', (tester) async {
       await pumpCard(tester, _view);
       expect(find.byKey(const ValueKey('card-suspended')), findsNothing);
+    });
+  });
+
+  group('A BAN IS DRAWN WHERE THE SIDE IS PICKED', () {
+    // Reported from the couch: the red card was on the Players tab and it
+    // should be on the squad page and the bench. The grid is a collection; the
+    // squad page is a team sheet, and a man who cannot play belongs marked on
+    // the team sheet. `cardViewFor` takes the bans as their own input for
+    // exactly this — see its note on why it is not read off `state`.
+    test('the grid asks for no bans, so it draws none', () {
+      final raw = <String, dynamic>{
+        'instanceId': 'c0',
+        'definitionId': players.first.id,
+        'suspendedUntilMatch': 99,
+      };
+      expect(cardViewFor(raw)?.suspended, isFalse);
+      expect(cardViewFor(raw, banned: const {'c0'})?.suspended, isTrue);
     });
   });
 }

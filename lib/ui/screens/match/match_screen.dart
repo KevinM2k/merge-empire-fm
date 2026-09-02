@@ -808,6 +808,13 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
             if (who != null) {
               _cautioned.remove(who);
               _sentOff.add(who);
+              // **AND THE SIDE IS ACTUALLY A MAN SHORT.** Before this the card
+              // was theatre: the man stayed in the lineup, the squad rating did
+              // not move, and the rest of the match was played out by a
+              // scoreline decided at kickoff by eleven players. Reported from
+              // the couch — "my rating didn't update so I don't know if the
+              // loss of that player actually counted."
+              _playerSentOff(who, event.minute);
             }
             WidgetsBinding.instance.addPostFrameCallback(
               (_) => unawaited(_onSendingOff(event.player ?? '')),
@@ -1237,6 +1244,53 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
     _timer = null;
     if (_reported) return;
     _reported = true;
+    _catchUpSendingsOff();
+    // **AND THE BANS ARE WRITTEN AT THE WHISTLE.** A sending-off costs the next
+    // match as well as the rest of this one — see `applySuspensions`. It goes
+    // here rather than in `settleMatch` because the bookings are the port's own
+    // and live on this screen; the engine's result has never heard of them.
+    //
+    // **BEFORE `_restoreKickoffLineup`, which is the ordering that matters.**
+    // That sweep puts the kickoff eleven back and refuses anybody it considers
+    // unavailable — and a ban is exactly that, so the ban has to be on the card
+    // before it runs. Written after it instead, the sweep put the sent-off man
+    // straight back into the side and the next match was played with twelve
+    // legs too many. Reported from the couch: he was still in the team
+    // afterwards, with nothing on him to say why.
+    //
+    // Also before `onFinished`, which is what commits the match count.
+    final off = [
+      for (final b in _bookings)
+        if (cardSendsOff('${b['card']}')) '${b['playerInstanceId']}',
+    ];
+    // **AND THE REPORT NEEDS THEM.** The summary is the next screen and it is
+    // handed this same map — see `MatchReportCard`, which counts the cards to
+    // decide whether the referee gets a sentence. Both sides' rows travel; the
+    // ones with no `playerInstanceId` are theirs.
+    widget.result['bookings'] = _bookings;
+    if (_bookingRecords.isNotEmpty) {
+      final game = ref.read(gameProvider);
+      game.update((state) {
+        final prog = state['progression'];
+        // **PLUS ONE, because this match has not been counted yet.**
+        // `onFinished` is what increments `matchesPlayed`, and it runs after
+        // this — so passing the stored figure wrote a ban that expired the
+        // instant the whistle was recorded, and the man was available for the
+        // very fixture he was supposed to miss. `applySuspensions` wants the
+        // count INCLUDING the match just played; the save does not have it yet.
+        applySuspensions(
+          state,
+          off,
+          playedSoFar:
+              (prog is Map<String, dynamic>
+                  ? (prog['matchesPlayed'] as num?)?.toInt() ?? 0
+                  : 0) +
+              1,
+        );
+        // And the cards themselves go on the record, beside his goals.
+        recordBookings(state, _bookingRecords);
+      });
+    }
     _restoreKickoffLineup();
     // **NO FULL-TIME SHOT HERE ANY MORE.** It was the payoff the whole feature
     // was for, laid into the head of the feed — and this screen now leaves at
@@ -1263,37 +1317,6 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
         ),
       ),
     );
-    // **AND THE BANS ARE WRITTEN AT THE WHISTLE.** A sending-off costs the next
-    // match as well as the rest of this one — see `applySuspensions`. It goes
-    // here rather than in `settleMatch` because the bookings are the port's own
-    // and live on this screen; the engine's result has never heard of them.
-    //
-    // Before `onFinished`, which is what commits the match count: the ban is
-    // written against the count as it stood when the red was shown.
-    final off = [
-      for (final b in _bookings)
-        if (cardSendsOff('${b['card']}')) '${b['playerInstanceId']}',
-    ];
-    // **AND THE REPORT NEEDS THEM.** The summary is the next screen and it is
-    // handed this same map — see `MatchReportCard`, which counts the cards to
-    // decide whether the referee gets a sentence. Both sides' rows travel; the
-    // ones with no `playerInstanceId` are theirs.
-    widget.result['bookings'] = _bookings;
-    if (_bookingRecords.isNotEmpty) {
-      final game = ref.read(gameProvider);
-      game.update((state) {
-        final prog = state['progression'];
-        applySuspensions(
-          state,
-          off,
-          playedSoFar: prog is Map<String, dynamic>
-              ? (prog['matchesPlayed'] as num?)?.toInt() ?? 0
-              : 0,
-        );
-        // And the cards themselves go on the record, beside his goals.
-        recordBookings(state, _bookingRecords);
-      });
-    }
     widget.onFinished?.call(widget.result);
     // **AND THEN IT WAITS.** It used to leave on a 1,400ms timer, on the
     // reasoning that full time here is a screen with nothing left to say: the
@@ -1636,12 +1659,68 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
   /// the baseline goals are counted from those kept EVENTS rather than from the
   /// scoreboard tally. Passing the tally would drop a goal the feed has already
   /// promised, and the screen would end 2-1 with the engine calling it a draw.
-  void applyStrategy(String id) {
-    if (frame.finished || id == _strategy || _tacticCooldown) return;
-    final strat = strategies[id];
-    if (strat == null) return;
+  /// **A SENDING-OFF IS A CHANGE TO THE SIDE, so the rest of the match is
+  /// played by the side that is left.**
+  ///
+  /// The card used to be pure theatre. The scoreline is decided at kickoff by
+  /// `generateMatchEvents` and the port cannot touch that — it is pinned field
+  /// for field — but `reSimulateRemainder` exists for exactly this shape of
+  /// problem and reads the LIVE lineup out of the save. It is what a mid-match
+  /// tactic switch already goes through.
+  ///
+  /// So the slot is emptied first and the remainder re-rolled against ten men,
+  /// under the tactic already being played. Reported from the couch: the rating
+  /// did not move, so there was no way to tell whether losing the player had
+  /// counted for anything.
+  void _playerSentOff(String instanceId, int minute) {
+    ref.read(gameProvider).update((state) {
+      final squad = state['squad'];
+      if (squad is! Map<String, dynamic>) return;
+      final lineup = squad['lineup'];
+      if (lineup is! List) return;
+      for (final row in lineup) {
+        if (row is Map<String, dynamic> && row['cardInstanceId'] == instanceId) {
+          row['cardInstanceId'] = null;
+        }
+      }
+    });
+    _resimulate(minute, _strategy);
+    if (mounted) {
+      setState(() => _timeline = timelineOf(widget.result, bookings: _bookings));
+    }
+  }
 
-    final at = _minute;
+  /// **A SKIPPED MATCH IS STILL A MATCH SOMEBODY WAS SENT OFF IN.**
+  ///
+  /// `skipToEnd` jumps the clock rather than running it, so the per-minute
+  /// dispatch never fires and a red card the player skipped past had no effect
+  /// at all: eleven men for the whole ninety, and a scoreline decided as though
+  /// nothing had happened. Watching and skipping have to agree about what the
+  /// match WAS.
+  ///
+  /// Earliest first, so two dismissals compose the way they would have on the
+  /// clock. The ban itself is written separately and was never affected — it
+  /// comes off `_bookingRecords` at the whistle.
+  void _catchUpSendingsOff() {
+    final missed = [
+      for (final b in _bookingRecords)
+        if (cardSendsOff(b.card) && !_sentOff.contains(b.instanceId)) b,
+    ]..sort((a, b) => a.minute.compareTo(b.minute));
+    for (final b in missed) {
+      _sentOff.add(b.instanceId);
+      _playerSentOff(b.instanceId, b.minute);
+    }
+  }
+
+  /// Re-roll `[minute + 1, 90]` against the save as it stands now.
+  ///
+  /// **The split is the JS's and its reasoning is worth keeping:** events whose
+  /// minute has PASSED are kept — they have either fired or are guaranteed to,
+  /// a goal whose cutaway is still playing being the case that matters — and
+  /// the baseline goals are counted from those kept EVENTS rather than from the
+  /// scoreboard tally. Passing the tally would drop a goal the feed has already
+  /// promised, and the screen would end 2-1 with the engine calling it a draw.
+  void _resimulate(int at, String strategyId) {
     final raw = widget.result['events'];
     final kept = [
       for (final e in raw is List ? raw : const [])
@@ -1658,16 +1737,24 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
         ours++;
       }
     }
-
     final fresh = reSimulateRemainder(
       widget.result,
       at,
-      id,
+      strategyId,
       ours,
       theirs,
       ref.read(gameProvider).state,
     );
     widget.result['events'] = [...kept, ...fresh];
+  }
+
+  void applyStrategy(String id) {
+    if (frame.finished || id == _strategy || _tacticCooldown) return;
+    final strat = strategies[id];
+    if (strat == null) return;
+
+    final at = _minute;
+    _resimulate(at, id);
 
     // What the quests and the achievements read. `strategiesUsed` opens with
     // the tactic the side kicked off in, so a switch is genuinely a second
