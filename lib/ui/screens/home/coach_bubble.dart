@@ -26,6 +26,8 @@ import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/theme/tactic_style.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
+import 'package:merge_empire_fc/ui/screens/squad/squad_pickers.dart'
+    show setStrategy;
 
 Map<String, dynamic>? _map(Object? v) => v is Map<String, dynamic> ? v : null;
 num _num(Object? v) => v is num ? v : 0;
@@ -498,25 +500,48 @@ class _CoachLabel extends ConsumerWidget {
               color: kit.textMuted,
             ),
           ),
-          Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              GameIcon(
-                tacticIconName(suggested),
-                size: 11,
-                color: tacticColor(context, suggested),
-              ),
-              const SizedBox(width: 3),
-              Text(
-                t('strategy.$suggested.name').toUpperCase(),
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: 0.5,
+          // **THE TACTIC IS A BUTTON.** He names the one he would pick and the
+          // player then has to go and find it in a dropdown on another card —
+          // two steps to agree with advice that is already on screen. Asked for
+          // from the couch: tapping it should just set it.
+          //
+          // `setStrategy` is the picker's own writer, so the dropdown that says
+          // TACTIC — and the next-match card's own multipliers, and the arrow —
+          // all follow from the same key. Nothing here has to tell them.
+          //
+          // It goes quiet rather than away once it is taken: `coachTacticPick`
+          // is his READ, not his disagreements, so he keeps agreeing with you.
+          GestureDetector(
+            key: ValueKey('coach-take-$suggested'),
+            behavior: HitTestBehavior.opaque,
+            onTap: () => setStrategy(ref, suggested),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                GameIcon(
+                  tacticIconName(suggested),
+                  size: 11,
                   color: tacticColor(context, suggested),
                 ),
-              ),
-            ],
+                const SizedBox(width: 3),
+                Text(
+                  t('strategy.$suggested.name').toUpperCase(),
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 0.5,
+                    color: tacticColor(context, suggested),
+                    // It is a control, so it looks like one — the one mark on
+                    // this header that says a finger belongs here.
+                    decoration: TextDecoration.underline,
+                    decorationColor: tacticColor(
+                      context,
+                      suggested,
+                    ).withValues(alpha: 0.5),
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ],

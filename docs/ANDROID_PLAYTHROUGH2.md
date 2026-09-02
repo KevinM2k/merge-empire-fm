@@ -6,7 +6,7 @@ actually wrong, because that is the part worth keeping.
 
 ## Where this queue stands
 
-**53 done, 3 open.** Nearly every one that is done had a mechanism behind it,
+**53 done, 5 open.** Nearly every one that is done had a mechanism behind it,
 and a striking number were shipped code doing nothing: a `strategyId` nothing
 ever wrote, a `skyPaneTint` with no caller, a turf band whose whole job was
 hiding a seam it was itself making, `startMatchCooldown` called by one of the two
@@ -17,8 +17,16 @@ class — between them found the half-time verdict, the opponent's substitutions
 the form arrows, the tactics heading and `commentary.snub` printing a literal
 `{opp}` to players.
 
-**The three still open are a device, a decision, and the work that decision
-gates.** The customiser's stutter is on the raster thread and its build side has
+**Two of the five are FEATURES and the other three are a device, a decision, and
+the work that decision gates.** Cards and the full-time report are both specced
+above, and neither exists in the spec repo — nothing there books anybody and
+nothing there writes a report — so both are new work rather than porting.
+
+`lib/engine/booking_engine.dart` is the first slice of the cards row and is
+landed: the event, its rates, and the rule that a second yellow is a different
+thing from a straight red. It runs on its own seeded stream AFTER
+`generateMatchEvents`, because one extra draw inside that function would shift
+every pinned event in the match. The customiser's stutter is on the raster thread and its build side has
 been measured clean, so it wants a profile-mode run rather than another blind
 pass. Spine is a question about money and licensing. The layering remainder is
 where the manager rig gets taken apart — and doing that before the Spine answer
@@ -436,6 +444,54 @@ nobody had checked.
 
 These three are the same piece of work seen from three angles, and doing them
 separately would mean doing the hard part three times.
+
+- [ ] **A FULL-TIME MATCH REPORT — the closing story.** Asked for from the
+      couch, with a worked example: *"the full time whistle goes and it's a 2-2
+      draw in an enthralling game. The visitors led twice but had to settle for
+      a point… player A got them in front with his first of the season before
+      player B levelled fifteen minutes later… team A had 66% possession and
+      have a trip to team D next week."*
+
+      It is the companion to the story commentary rather than more of it: a
+      paragraph assembled from what ACTUALLY happened, not a pooled line.
+      Everything it needs is already computed and already on this screen —
+      `LiveStats` has possession and the shot counts, `feedOf` has the goals in
+      order with their scorers and what each did to the score,
+      `summary_league_move` has the table before and after, and the fixture list
+      has what is next. What is missing is the sentence-builder: facts in,
+      clauses out, joined into a paragraph, with the copy in ten catalogues.
+
+      **It has to be contextually aware or it is worse than nothing.** "Led
+      twice" is only true if they did; "still waiting for a first win" is only
+      true at the top of a season. Every clause needs its own precondition, and
+      a clause that cannot be checked should not be written.
+
+- [ ] **YELLOW AND RED CARDS.** Asked for from the couch as a feature, and it
+      is the largest thing on either queue. What was specified:
+
+      - The feed carries them like any other event — `<time> YELLOW CARD`, the
+        player's name, and a picture of the card itself.
+      - A yellow costs that player about **10% of his rating** while he is on.
+      - A **second yellow is a sending-off**, and the feed must say so — a
+        second yellow and a straight red are different things, and a straight
+        one is for violent conduct or denying a goalscoring opportunity. Two
+        different lines, two different pictures.
+      - A red goes **straight to the subs page**, with a red card over the
+        player. He cannot be substituted — the side finishes with ten — but the
+        remaining ten can be moved around.
+      - A red-carded player is **banned from the next match**, and carries the
+        card on his card until he has served it.
+      - A **Coach Colin card** at the bottom explains what a red means, the
+        first time one happens.
+
+      **The engine has no such event.** `generateMatchEvents` emits goal,
+      commentary, halftime, fulltime, chance, corner, injury, no_sub and
+      opp_sub, and nothing in `../merge-empire-fc` books anybody — so this is a
+      port-side FEATURE rather than a port, and every piece of it is new: the
+      event, the rating penalty, the suspension on the save, the subs-panel
+      state, the art, and copy in ten catalogues. It wants its own session and
+      probably its own branch.
+
 
 - [ ] **Draw the background in LAYERS, not one `paint()`.** **Half done** — the
       STADIUM TIERS are layers now (see Done), and the rest of this row is the

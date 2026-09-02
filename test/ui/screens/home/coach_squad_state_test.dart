@@ -20,6 +20,8 @@ import 'package:merge_empire_fc/state/state_schema.dart';
 import 'package:merge_empire_fc/ui/screens/home/coach_bubble.dart';
 import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
 import 'package:merge_empire_fc/ui/theme/tactic_style.dart' show tacticColor;
+import 'package:merge_empire_fc/ui/screens/squad/squad_pickers.dart'
+    show strategyIdProvider;
 
 ProviderContainer boot() {
   final container = ProviderContainer(
@@ -182,4 +184,38 @@ void main() {
     await tester.pump(const Duration(seconds: 3));
   });
 
+
+  testWidgets('AND TAPPING THE TACTIC SETS IT', (tester) async {
+    // He names the one he would pick and the player then had to go and find it
+    // in a dropdown on another card — two steps to agree with advice already on
+    // screen. Asked for from the couch. `setStrategy` is the picker's own
+    // writer, so the dropdown, the multipliers and the arrow all follow from
+    // the same key without being told.
+    final c = boot();
+    final pick = c.read(coachTacticPickProvider);
+    expect(pick, isNotNull);
+    expect(c.read(strategyIdProvider), isNot(pick));
+
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: c,
+        child: Consumer(
+          builder: (context, ref, _) => MaterialApp(
+            theme: ref.watch(appThemeProvider),
+            home: const Scaffold(body: CoachLabelProbe()),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(ValueKey('coach-take-$pick')));
+    await tester.pumpAndSettle();
+    expect(c.read(strategyIdProvider), pick);
+    // And he keeps agreeing with you rather than falling silent — the header is
+    // his READ, not his disagreements.
+    expect(c.read(coachTacticPickProvider), pick);
+    expect(find.text(t('strategy.$pick.name').toUpperCase()), findsOneWidget);
+    await tester.pump(const Duration(seconds: 3));
+  });
 }
