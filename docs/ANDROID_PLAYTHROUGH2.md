@@ -6,18 +6,18 @@ actually wrong, because that is the part worth keeping.
 
 ## Where this queue stands
 
-**13 done, 8 open.** The nine that are done were each a real defect with a
+**14 done, 7 open.** The nine that are done were each a real defect with a
 mechanism behind it, and three of them were shipped code doing nothing: a
 `strategyId` nothing ever wrote, a `skyPaneTint` with no caller, and a turf band
 whose whole job was hiding a seam it was itself making.
 
-The eight still open split into two piles and the split is worth keeping. Five
+The seven still open split into two piles and the split is worth keeping. Four
 are **one job**: the scene is painted by a handful of very large `paint()`
 methods, and animating hair, stopping the customiser stuttering and fixing the
 dugout's hanging arms are all downstream of taking that apart into layers — with
 the Spine question sitting on top of the same work. The other three are
-ordinary and independent, and two of those need a device or a recording rather
-than a change.
+ordinary and independent, and two of those three need a device or a recording
+rather than a change.
 
 ---
 
@@ -150,14 +150,25 @@ than a change.
       stripe's own green — passed in the SAME two expressions `_Scoreboard`
       takes, so the board and the pitch cannot disagree by construction.)
 
+- [x] **The dugout manager's arms hang instead of holding a stride.** (Exactly
+      as reported — "one behind and one in front, almost like it's a pause of
+      him walking forwards" — and that is what it was. The idle swung about
+      `armNearRest`/`armFarRest`, and `gesture_poses.dart` says what those are
+      in as many words: *the walk cycle's own mid-swing values*, +27 and −27.
+      A fifty-four degree split is a stride, and the idle's own sway of 1.6°
+      on top could not touch it. The stand has its own pair now —
+      `camArmNearRest` / `camArmFarRest`, eleven degrees apart so the far arm
+      still reads behind the near one — and the gestures keep the walk's pair,
+      because a gesture returns to the angles it was authored from.)
+
 ---
 
 ## Open
 
 ### One job: the scene is one big `paint()`
 
-These five are the same piece of work seen from five angles, and doing them
-separately would mean doing the hard part five times.
+These four are the same piece of work seen from four angles, and doing them
+separately would mean doing the hard part four times.
 
 - [ ] **Draw the background in LAYERS, not one `paint()`.** Stadium tiers want
       to be layer 1 (nearest), 2, 3 — each a little smaller and further away —
@@ -180,10 +191,20 @@ separately would mean doing the hard part five times.
       other two: his arms are the one rig in the game already solved as bones,
       so he is the cheapest thing to swap and the least in need of swapping.
 - [ ] **The manager customiser stutters on most tabs.** Skin colour and hair
-      colour are fine; the rest lag. Same cause, most likely: every tab rebuild
-      repaints the whole rig.
-- [ ] **The dugout manager has hanging arms between transitions** — one behind,
-      one in front, as if a forward walk were paused mid-stride.
+      colour are fine; the rest lag. **Measured before guessing, because this
+      file's own history says to** — `customise_timeline_test.dart` exists
+      precisely because the first two passes each moved the cost somewhere else
+      and were reported again. A tab-switch timeline over skin, colour, hat,
+      hair, emote and outfit came back at 20-26ms on the frame the dropdown
+      closes and **not one frame over 16ms after it**, on every axis — with the
+      colour axes no cheaper than the rig ones. So the BUILD side is not it, and
+      the things that would have been the obvious suspects are all already done:
+      SVG paths are memoised by their `d` string, each chip is a `SnapshotWidget`
+      texture rather than a live rig, the snapshot is capped at 2x, blur is off,
+      and the fill is one chip a frame off a notifier.
+      **What is left is the RASTER thread** — eighteen rigs each rasterised once
+      — and a widget test never runs it. This needs a profile-mode run on the
+      device with the DevTools timeline, not another blind pass.
 
 ### Independent
 
@@ -301,6 +322,20 @@ Not the money — the structure. The manager is a `CustomPainter` chain over SVG
 **out of the spec repo** — which is a one-way move away from "the JS is the
 spec" for that art, and the first place this port would have two sources of
 truth.
+
+### The assets, if it goes ahead
+
+Written up separately and in full: **`docs/SPINE_MANAGER_ASSETS.md`** is the
+generation brief for every piece the rig needs, read off the shipping catalogue
+rather than guessed — 6 builds × 4 outfits, 15 hair styles as back-and-front
+pairs, 9 beards, 17 hats, 11 face items, 5 mood mouths and the 15 body parts,
+with the pivots, the two-layer hair rule and the paint-versus-hardware rule
+stated. About 112 pieces.
+
+It also says loudly what must NOT be asked for: the 19 hair colours and the 8
+skin tones are runtime TINTS, and the 16 gestures are ANIMATIONS. Asking a
+generator for them is 285 hairstyles and sixteen poses of a wardrobe, which is
+the shape of mistake that makes an asset order unusable.
 
 ### The recommendation
 

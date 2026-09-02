@@ -24,7 +24,6 @@ import 'package:merge_empire_fc/data/manager_art.g.dart'
     show managerArtHeight, managerArtWidth;
 import 'package:merge_empire_fc/data/manager_mood.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
-import 'package:merge_empire_fc/ui/screens/home/gesture_poses.dart';
 import 'package:merge_empire_fc/ui/screens/home/manager_walker.dart';
 import 'package:merge_empire_fc/ui/screens/home/manager_idle.dart';
 import 'package:merge_empire_fc/ui/screens/match/dugout_cam.dart';
@@ -200,18 +199,54 @@ void main() {
         camIdleAt(tune, breath: 0, weight: 0, sway: 0, scan: 0).pose.bodyLift,
         closeTo(0, 0.001),
       );
-      // The arms swing about the angles the WALK rests them at.
+      // **The arms drift about the angles a STANDING man holds them at — and
+      // it used to be the WALK's.** `gesture_poses.dart` says what
+      // `armNearRest`/`armFarRest` are in as many words: the walk cycle's own
+      // mid-swing values, +27 and −27. So the planted figure stood in a walk
+      // pose with the clock stopped, one arm forward and one back by fifty-four
+      // degrees, and the sway's 1.6 on top of that changed nothing. Reported
+      // from the couch: "weird hanging arms, one behind and one in front,
+      // almost like it's a pause of him walking forwards."
       final arms = camIdleAt(tune, breath: 0, weight: 0, sway: 0.5, scan: 0).pose;
-      expect(arms.armNear, closeTo(armNearRest + tune.swayDegrees, 0.001));
-      // And out of phase with each other: at 44% the far arm is at its own
-      // extreme while the near one is still on its way to its.
+      expect(arms.armNear, closeTo(camArmNearRest + tune.swayDegrees, 0.001));
+      // And slightly out of phase, so the two do not move as one piece: at 44%
+      // the far arm is at its own extreme while the near one is still on its
+      // way to its.
       final far = camIdleAt(tune, breath: 0, weight: 0, sway: 0.44, scan: 0).pose;
-      expect(far.armFar, closeTo(armFarRest - tune.swayDegrees * 0.7, 0.001));
+      expect(far.armFar, closeTo(camArmFarRest - tune.swayDegrees * 0.7, 0.001));
       // The scan, which the walker ADDS to the mood's own head carriage.
       expect(
         camIdleAt(tune, breath: 0, weight: 0, sway: 0, scan: 0.3).pose.head,
         closeTo(tune.scanDegrees * 0.85, 0.001),
       );
+    });
+
+    test('AND HE IS NOT PAUSED MID-STRIDE — the arms HANG', () {
+      // The whole of the report, as the quantity that produces it: the gap
+      // between the two arms. The walk's rest pair is 54 degrees apart, which
+      // IS a stride; a man standing and watching holds them together, with
+      // just enough between them for the far one to read behind the near one.
+      for (final mood in Mood.values) {
+        final tune = camIdle[mood] ?? camIdle[Mood.neutral]!;
+        for (final sway in [0.0, 0.25, 0.44, 0.5, 0.75, 1.0]) {
+          final pose = camIdleAt(
+            tune,
+            breath: 0,
+            weight: 0,
+            sway: sway,
+            scan: 0,
+          ).pose;
+          final split = (pose.armNear! - pose.armFar!).abs();
+          expect(
+            split,
+            lessThan(18),
+            reason: '$mood at sway $sway: the arms are $split degrees apart',
+          );
+          // But not zero, or the far arm draws inside the near one and he has
+          // one arm.
+          expect(split, greaterThan(4), reason: '$mood at sway $sway');
+        }
+      }
     });
 
     test('and the lean and the weight rock are ONE rotation', () {

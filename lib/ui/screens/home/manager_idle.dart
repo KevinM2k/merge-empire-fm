@@ -112,10 +112,34 @@ const GestureTrack _breathTrack = [(0, 0), (0.38, -1), (1, 0)];
 /// about the boots — forward onto the balls of the feet and back.
 const GestureTrack _weightTrack = [(0, -1), (0.5, 1), (1, -1)];
 
-/// The arms hang and drift, OUT OF PHASE with each other so he does not look
-/// like he is swinging both at once — which is a walk, not a stand.
+/// The arms hang and drift, slightly out of phase so the two do not move as one
+/// piece. At [CamIdleTuning.swayDegrees] — under two degrees on every mood —
+/// this is a drift rather than a swing; what decides whether he reads as
+/// standing or as paused mid-stride is [camArmNearRest], not this.
 const GestureTrack _armNearTrack = [(0, -1), (0.5, 1), (1, -1)];
 const GestureTrack _armFarTrack = [(0, 0.62), (0.44, -0.7), (1, 0.62)];
+
+/// **WHERE A PLANTED MAN'S ARMS ACTUALLY HANG, which is not where a walking
+/// man's rest.**
+///
+/// The idle used to swing about `armNearRest`/`armFarRest`, and
+/// `gesture_poses.dart` says in as many words what those are: *"the walk
+/// cycle's own mid-swing values"*. They are +27 and −27 — a fifty-four degree
+/// split, one arm forward and one back — so the dugout figure stood in a walk
+/// pose with the clock stopped, and the sway's 1.6 degrees on top of it changed
+/// nothing. Reported from the couch, exactly: *"weird hanging arms, one behind
+/// and one in front, almost like it's a pause of him walking forwards."*
+///
+/// The gestures are all drawn against the walk's rest pair and must keep it —
+/// a gesture returns to the angles it was authored from. This is the STAND's
+/// pair and nothing else reads it.
+///
+/// Eleven degrees apart rather than nought, because two arms at exactly the
+/// same angle in profile draw as one arm: the far one has to be readable behind
+/// the near one. Both hang forward of vertical, which is where a man watching
+/// something holds them.
+const double camArmNearRest = 7;
+const double camArmFarRest = -4;
 
 /// He is watching the game. Small, and slow enough to read as attention rather
 /// than as a tic — the head pivots at the base of the neck, so a degree here
@@ -141,10 +165,10 @@ const GestureTrack _scanTrack = [(0, -1), (0.3, 0.85), (0.62, -0.3), (1, -1)];
   required double scan,
 }) => (
   pose: (
-    // The arms swing about the angles the walk rests them at, so the drift is
-    // a nudge either side of where he already holds them.
-    armNear: armNearRest + trackAt(_armNearTrack, sway)! * tune.swayDegrees,
-    armFar: armFarRest + trackAt(_armFarTrack, sway)! * tune.swayDegrees,
+    // The arms drift either side of where a STANDING man holds them — see
+    // [camArmNearRest] for why that is not where the walk rests them.
+    armNear: camArmNearRest + trackAt(_armNearTrack, sway)! * tune.swayDegrees,
+    armFar: camArmFarRest + trackAt(_armFarTrack, sway)! * tune.swayDegrees,
     foreNear: null,
     foreFar: null,
     // The scan ADDS to however his mood has him carrying his head — see the
