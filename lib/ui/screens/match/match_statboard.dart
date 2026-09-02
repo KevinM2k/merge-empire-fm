@@ -26,6 +26,7 @@ import 'package:flutter/material.dart';
 import 'package:merge_empire_fc/engine/match_tactics.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/ui/screens/match/match_clock.dart';
+import 'package:merge_empire_fc/ui/theme/app_theme.dart' show minFontSize;
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 
 /// One side's tallies, home first.
@@ -435,4 +436,400 @@ class _PulsingState extends State<_Pulsing>
       ),
     );
   }
+}
+
+/// **WHAT THE NINETY MINUTES CAME TO, ON THE GRASS THAT PLAYED THEM.**
+///
+/// The page holds at full time now rather than leaving on a timer — see the
+/// footer's CONTINUE — which means the stage has a job it never had before: at
+/// the whistle it is a pitch with nothing happening on it. The statistics were
+/// behind the board, one tap away, on a screen the player was about to be taken
+/// off. Asked for from the couch: show them ON the pitch, in transparent boxes.
+///
+/// The row shape is the couch's too — `<home> <bar> STAT <bar> <away>` — and it
+/// is the right one for this: two counts of the same thing read as a contest
+/// when the bars grow away from a shared label, and as two unrelated numbers
+/// when they sit in columns. It is the same idea `MatchStatRows` draws on the
+/// next-match card, in the one shape that survives being laid over grass.
+class PitchStatOverlay extends StatelessWidget {
+  const PitchStatOverlay({
+    super.key,
+    required this.stats,
+    required this.isHome,
+    this.moments = const [],
+    this.onReplay,
+  });
+
+  final LiveStats stats;
+
+  /// Which column is OURS, so the accent goes on the right side of the row.
+  final bool isHome;
+
+  /// **EVERY MOMENT THE 2D PITCH ACTUALLY RETOLD**, in the order it told them.
+  ///
+  /// Goals and chances both: the clip is rebuilt from the minute and the
+  /// match's own seed rather than recorded, so asking for one again costs
+  /// nothing and gives back exactly the passage that was played. Asked for from
+  /// the couch — anything that made it to the pitch should be replayable from
+  /// here.
+  final List<({int minute, bool ours, bool goal})> moments;
+
+  /// Play that moment again on the grass under this panel. The panel goes while
+  /// it runs — see the match screen's own `_clip == null` guard.
+  final void Function(int minute)? onReplay;
+
+  /// The bar's own share of the row, per side. The label sits between them.
+  static const double _barFlex = 3;
+
+  @override
+  Widget build(BuildContext context) {
+    final rows = <({String label, int home, int away, String? suffix})>[
+      (
+        label: t('match.stat.possession'),
+        home: stats.possHome,
+        away: stats.possAway,
+        suffix: '%',
+      ),
+      for (final row in stats.rows)
+        (label: t(row.labelKey), home: row.home, away: row.away, suffix: null),
+    ];
+    // **THE BAND IS A FIXED HEIGHT and the list is not.** Six rows of statistics
+    // do not fit the pitch on a short phone, and a stat that has overflowed off
+    // the bottom is worse than a small one — so the whole block scales to the
+    // grass it is laid on, which is what `FittedBox` is for and what the type
+    // floor's own note names as the escape hatch. `Center` first, or the fitted
+    // child is pinned to the top-left of the band.
+    // **THE BAND IS A FIXED HEIGHT and the list is not.** Six rows of statistics
+    // do not fit the pitch on a short phone, and a stat that has overflowed off
+    // the bottom is worse than a small one — so the whole block scales to the
+    // grass it is laid on, which is what `FittedBox` is for and what the type
+    // floor's own note names as the escape hatch.
+    //
+    // **ONE scale for the whole block, and that is the point.** Every row is
+    // laid out at the SAME size and the fit is applied to all of them at once,
+    // so no figure and no label is ever a different size from the one beside
+    // it. Asked for from the couch: do not change font sizes in the stats. The
+    // width is measured rather than left unbounded, because a `FittedBox` hands
+    // its child infinity and a `Row` with flexible children cannot lay out in
+    // it.
+    // **NOT `IgnorePointer` any more.** It was, because a panel over a pitch
+    // that eats taps is a panel in the way; the replay buttons are the reason
+    // it cannot be — they are the one thing on this overlay a finger is for.
+    return Padding(
+        // **THE BOXES USE THE PITCH.** They were inset a token 8 points and sat
+        // as a narrow stack in the middle of the grass with air all round them;
+        // asked for from the couch to fill the band out. The rows are wider and
+        // the gaps between them are bigger, so the panel reads as the pitch's
+        // own scoreboard rather than as a note left on it.
+        //
+        // **And then not quite so wide.** At 14 the rows ran almost to the
+        // touchlines and the panel stopped reading as something ON the pitch;
+        // ten more a side puts the grass back round it. Reported from the couch
+        // in exactly that measure.
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
+        child: LayoutBuilder(
+          builder: (context, box) => Center(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: SizedBox(
+                width: box.maxWidth,
+                // **ONE CARD, not one per row.** Six plates stacked with air
+                // between them read as six separate notices laid on the grass;
+                // asked for from the couch to be one. The rows keep their own
+                // rhythm inside it and the panel is a single object on the
+                // pitch, which is what a scoreboard is.
+                child: Container(
+                  key: const ValueKey('pitch-stats'),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 12,
+                  ),
+                  decoration: BoxDecoration(
+                    color: pitchStatPlate,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      for (final row in rows)
+                        Padding(
+                          // A bit more air between the rows than the first
+                          // cut had: asked for from the couch, and the panel
+                          // has the room now that it is one card.
+                          padding: const EdgeInsets.symmetric(vertical: 5),
+                          child: _PitchStatRow(
+                            label: row.label,
+                            home: row.home,
+                            away: row.away,
+                            suffix: row.suffix,
+                            isHome: isHome,
+                            barFlex: _barFlex,
+                          ),
+                        ),
+                      if (moments.isNotEmpty && onReplay != null) ...[
+                        const SizedBox(height: 6),
+                        _MomentStrip(moments: moments, onReplay: onReplay!),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+  }
+}
+
+/// The panel's ground.
+///
+/// **A DARK PLATE, whatever theme the app is in.** It is laid over grass, and
+/// grass is a mid green in both — so what the figures stand on is decided
+/// against the PITCH rather than against the page.
+///
+/// **And far more transparent than a panel off the pitch.** It began at 80% —
+/// the opacity a panel wants when it is the thing you are reading — and on
+/// grass that is a black slab with a football pitch showing round the edges.
+/// Reported from the couch, then reported again as having gone too far the
+/// other way; this is where the two landed. It sits ON the picture rather than
+/// over it: enough ground to hold white figures and no more.
+const Color pitchStatPlate = Color(0x733A4A42);
+
+/// The slot the stat's NAME sits in, so the bars either side of it start at the
+/// same place on every row.
+///
+/// Wide enough for the longest label in the set at [minFontSize] — the block's
+/// own `FittedBox` takes care of a language where it is not, by scaling every
+/// row together rather than this one on its own.
+const double pitchStatLabelWidth = 96;
+
+/// One row of [PitchStatOverlay].
+class _PitchStatRow extends StatelessWidget {
+  const _PitchStatRow({
+    required this.label,
+    required this.home,
+    required this.away,
+    required this.suffix,
+    required this.isHome,
+    required this.barFlex,
+  });
+
+  final String label;
+  final int home;
+  final int away;
+  final String? suffix;
+  final bool isHome;
+  final double barFlex;
+
+  @override
+  Widget build(BuildContext context) {
+    const ink = Color(0xFFF2F5F3);
+
+    // A share of the pair, so the two bars are one comparison. Nil-nil gives
+    // both of them nothing rather than half each, which is honest: neither side
+    // did anything.
+    final total = home + away;
+    final homeShare = total == 0 ? 0.0 : home / total;
+    final awayShare = total == 0 ? 0.0 : away / total;
+
+    // **THE BIGGER BAR IS GREEN AND THE SMALLER ONE RED**, whoever they belong
+    // to. It was the club's accent against a white wash — which says whose row
+    // it is, and this row already says that: the figures sit under the score,
+    // home on the left. What a manager is reading here is who WON each of these
+    // contests, and the app has a green and a red for exactly that. Asked for
+    // from the couch. Level is neither, because level is not a win.
+    //
+    // Fixed members rather than `vsGreenOn`/`vsRedOn`: this is laid over grass,
+    // which is a mid green in both themes, so the pair is chosen against the
+    // pitch rather than against the page.
+    const won = Color(0xFF4ADE80);
+    const lost = Color(0xFFF87171);
+    const level = Color(0x8AFFFFFF);
+    final mine = home == away
+        ? level
+        : home > away
+        ? won
+        : lost;
+    final theirs = home == away
+        ? level
+        : away > home
+        ? won
+        : lost;
+
+    Widget figure(int n, TextAlign align) => SizedBox(
+      width: 34,
+      child: Text(
+        '$n${suffix ?? ''}',
+        textAlign: align,
+        maxLines: 1,
+        style: const TextStyle(
+          fontSize: minFontSize,
+          height: 1.1,
+          fontWeight: FontWeight.w900,
+          color: ink,
+          fontFeatures: [FontFeature.tabularFigures()],
+        ),
+      ),
+    );
+
+    // **THE TRACK IS THE WHOLE HALF, and the fill is this side's share of the
+    // pair.** Eight shots to two is a bar at 80% and one at 20%, each in an
+    // outline the size it COULD have been — asked for from the couch in exactly
+    // those terms, and the outline is what makes the empty part of a bar mean
+    // something: a side that had one shot to nine reads as nearly empty rather
+    // than as a short mark floating in space.
+    //
+    // Each bar grows AWAY from the label, so the pair reads out from the middle
+    // rather than both running the same way.
+    Widget bar(double share, Color colour, {required bool fromRight}) =>
+        Expanded(
+          flex: barFlex.round(),
+          child: Container(
+            height: 7,
+            decoration: BoxDecoration(
+              border: Border.all(color: const Color(0x33FFFFFF)),
+              borderRadius: BorderRadius.circular(3),
+            ),
+            child: Align(
+              alignment: fromRight
+                  ? Alignment.centerRight
+                  : Alignment.centerLeft,
+              child: FractionallySizedBox(
+                widthFactor: share.clamp(0.0, 1.0),
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: colour,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+
+    // No plate of its own any more: the panel above is one card and this is a
+    // row inside it.
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 2),
+      child: Row(
+        children: [
+          figure(home, TextAlign.left),
+          const SizedBox(width: 6),
+          bar(homeShare, mine, fromRight: true),
+          const SizedBox(width: 6),
+          // **THE LABEL AS THE CATALOGUE WRITES IT, at the row's own size, in a
+          // column of its own WIDTH.**
+          //
+          // It was uppercased and wrapped in a `FittedBox` of its own, so a
+          // long stat shrank while a short one beside it did not — three rows
+          // at three sizes down one panel. Asked for from the couch: no caps,
+          // and no changing sizes.
+          //
+          // And then the bars still started somewhere different on every row,
+          // because a centred label sized to its own text is what decides where
+          // they begin — "Shots" and "Big Chances" are not the same width, so
+          // the two columns of bars were not columns. Reported next, and
+          // [pitchStatLabelWidth] is the answer: one slot, so the bars line up
+          // down the panel whatever the words are.
+          SizedBox(
+            width: pitchStatLabelWidth,
+            child: Text(
+              label,
+              maxLines: 1,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                fontSize: minFontSize,
+                height: 1.1,
+                fontWeight: FontWeight.w900,
+                color: ink,
+              ),
+            ),
+          ),
+          const SizedBox(width: 6),
+          bar(awayShare, theirs, fromRight: false),
+          const SizedBox(width: 6),
+          figure(away, TextAlign.right),
+        ],
+      ),
+    );
+  }
+}
+
+/// The moments the pitch retold, as a row of buttons.
+///
+/// **A MINUTE IS THE WHOLE LABEL.** The feed above says what happened at each
+/// of them and the panel this sits in is already dense; a chip carrying "GOAL —
+/// Smith" would be a third telling of the same thing. What it has to say is
+/// "there is a passage here", and the colour says whose it was — the same green
+/// and red the bars use.
+class _MomentStrip extends StatelessWidget {
+  const _MomentStrip({required this.moments, required this.onReplay});
+
+  final List<({int minute, bool ours, bool goal})> moments;
+  final void Function(int minute) onReplay;
+
+  @override
+  Widget build(BuildContext context) => Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      // The seam the rows end on, so the buttons read as a second thing rather
+      // than as a seventh statistic.
+      const Divider(height: 9, thickness: 1, color: Color(0x26FFFFFF)),
+      Wrap(
+        key: const ValueKey('pitch-replays'),
+        alignment: WrapAlignment.center,
+        spacing: 6,
+        runSpacing: 6,
+        children: [
+          for (final moment in moments)
+            GestureDetector(
+              key: ValueKey('pitch-replay-${moment.minute}'),
+              onTap: () => onReplay(moment.minute),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 8,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0x2EFFFFFF),
+                  borderRadius: BorderRadius.circular(999),
+                  border: Border.all(
+                    // A goal is the moment worth going back for, so it is the
+                    // one that carries a colour; a chance takes the quiet rim.
+                    color: !moment.goal
+                        ? const Color(0x33FFFFFF)
+                        : moment.ours
+                        ? const Color(0xFF4ADE80)
+                        : const Color(0xFFF87171),
+                  ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(
+                      Icons.play_arrow_rounded,
+                      size: 13,
+                      color: Color(0xFFF2F5F3),
+                    ),
+                    const SizedBox(width: 2),
+                    Text(
+                      "${moment.minute}'",
+                      style: const TextStyle(
+                        fontSize: minFontSize,
+                        height: 1.1,
+                        fontWeight: FontWeight.w900,
+                        color: Color(0xFFF2F5F3),
+                        fontFeatures: [FontFeature.tabularFigures()],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
+    ],
+  );
 }

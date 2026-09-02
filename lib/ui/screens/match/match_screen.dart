@@ -339,6 +339,20 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
   /// feed prints for it. See `feedOf`'s `clippedChanceKeys`.
   final Map<int, String> _clippedChanceKeys = {};
 
+  /// **EVERY MOMENT THE PITCH ACTUALLY RETOLD**, in the order it told them.
+  ///
+  /// The full-time panel offers each of them back — see [PitchStatOverlay] —
+  /// and this is the only record of which ones there were: `clipFor` refuses a
+  /// chance for the pacing gap or for a switch the player has turned off, so
+  /// the timeline alone cannot answer "what did I actually see".
+  final List<TimelineEvent> _retold = [];
+
+  /// A replay the PLAYER asked for, rather than the clock cutting away.
+  ///
+  /// The dugout cam reacts to a clip when it ends; a replay of a goal from ten
+  /// minutes ago is not news, so it does not.
+  bool _replaying = false;
+
   /// What Colin is saying, and when he last said anything.
   ///
   /// **He had NOTHING to say for the whole match.** Twenty-four pooled
@@ -820,6 +834,7 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
       // reaction to something already over, and the thing replacing it is
       // happening now.
       _closeDugoutCam();
+      _retold.add(event);
       _clip = clip;
       // Ours only: the engine picks scorers from OUR squad, so a face for one
       // of theirs cannot be drawn.
@@ -1686,14 +1701,37 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
                                 onDone: (_) {
                                   if (!mounted) return;
                                   final told = _clippedMinute;
+                                  final asked = _replaying;
                                   setState(() {
                                     _clip = null;
                                     _clippedEvent = null;
+                                    _replaying = false;
                                   });
-                                  // Now it has been told, he can react to it.
-                                  _dugoutCamFor(told);
+                                  // Now it has been told, he can react to it —
+                                  // unless the player asked to see it again,
+                                  // which is not news.
+                                  if (!asked) _dugoutCamFor(told);
                                 },
                               ),
+                              // **THE WHISTLE FILLS THE PITCH WITH THE
+                              // NUMBERS.** The page holds at full time now
+                              // instead of leaving on a timer, so the stage has
+                              // a job it never had: at the whistle it is a pitch
+                              // with nothing happening on it, while what the
+                              // ninety minutes came to sat behind the board one
+                              // tap away. Asked for from the couch. Only once
+                              // the clock has stopped and only while no clip is
+                              // running — a replay still owns the grass.
+                              if (f.finished && _clip == null)
+                                PitchStatOverlay(
+                                  stats: stats,
+                                  isHome: home,
+                                  // Goals and chances alike — anything the
+                                  // pitch retold is worth being able to ask for
+                                  // again. See [replayMoment].
+                                  moments: retoldMoments,
+                                  onReplay: replayMoment,
+                                ),
                           ],
                         ),
                       ),
@@ -1999,6 +2037,55 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
   /// moved to the screen the player is sitting on when they want it.
   Widget _feedLine(FeedLine line) =>
       _FeedLine(line: line, state: ref.read(gameProvider).state);
+
+  /// **PLAY A RETOLD MOMENT AGAIN, on the same grass.**
+  ///
+  /// Full time only, from the panel over the pitch. The clip is rebuilt from the
+  /// minute and the match's own seed — the same two numbers the live cut used —
+  /// so what comes back is the passage that was played rather than another draw
+  /// from the same table.
+  ///
+  /// **The switches and the pacing gap are not consulted.** Both exist to stop
+  /// the screen cutting away on its own; this is the player asking for something
+  /// they have already seen, and a control that refuses the thing it offers is
+  /// worse than no control.
+  void replayMoment(int minute) {
+    if (_clip != null) return;
+    final event = _retold.where((e) => e.minute == minute).firstOrNull;
+    if (event == null) return;
+    final ours = event.team != 'away';
+    final clip = clipFor(
+      event,
+      ourSideLeft: widget.result['isHome'] == true,
+      ours: ours,
+      names: lineupNames(ref.read(gameProvider).state),
+      scorerName: clipScorerName(
+        ref.read(gameProvider).state,
+        event,
+        ours: ours,
+        nameOf: cardDisplayName,
+      ),
+      seed: ((widget.result['seed'] as num?)?.toInt() ?? 0) + event.minute,
+    );
+    if (clip == null) return;
+    setState(() {
+      _replaying = true;
+      _clip = clip;
+      _clippedEvent = event;
+      _clipScorerId = event.type == 'goal' && ours ? event.scorerId : null;
+    });
+  }
+
+  /// What the full-time panel offers back, in the order they happened — which
+  /// is the order the feed above reads in.
+  List<({int minute, bool ours, bool goal})> get retoldMoments => [
+    for (final event in _retold)
+      (
+        minute: event.minute,
+        ours: event.team != 'away',
+        goal: event.type == 'goal',
+      ),
+  ];
 
   /// The scorer's face for the clip on the pitch, or null when there is nobody
   /// to name.

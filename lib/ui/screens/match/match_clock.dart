@@ -267,6 +267,14 @@ const List<int> openingFillMinutes = [6, 11];
 /// disagree about which pool is being emptied.
 const String openFlowPrefix = 'commentary.flow.open.';
 
+/// Which line of that pool is about the FIRST WHISTLE rather than about the
+/// opening period, and so may only ever be said at kick-off.
+///
+/// `commentary.flow.open.0` is "Kick-off! Both sides finding their feet." The
+/// other two are atmosphere — early pressure, a loud crowd — and read correctly
+/// at any minute in the window. See [openingFillMinutes].
+const int openKickoffIndex = 0;
+
 /// **WHICH CHANCES THE PLAYER ACTUALLY SEES.**
 ///
 /// There are about thirteen chances in a match and the feed prints three or
@@ -484,8 +492,17 @@ List<FeedLine> feedOf(
               (({List<int> range, String bucket, int count}) p) =>
                   p.bucket == 'open',
             );
+            // **THE KICK-OFF LINE IS THE KICK-OFF LINE, and it cannot be
+            // moved.** `open.0` is "Kick-off! Both sides finding their feet." —
+            // it is about the first whistle rather than about the opening
+            // period — and when the engine's seeded pick landed on one of the
+            // other two, this offered it as filler and a match printed "6'
+            // Kick-off" six minutes in. Reported from the couch. The other two
+            // lines are atmosphere and travel fine; the pool is one line
+            // shorter than it looks.
             final rest = [
-              for (var i = 0; i < pool.count; i++) '$openFlowPrefix$i',
+              for (var i = 0; i < pool.count; i++)
+                if (i != openKickoffIndex) '$openFlowPrefix$i',
             ]..remove(e.textKey);
             for (var i = 0; i < openingFillMinutes.length && i < rest.length; i++) {
               // Not yet, if the clock has not reached it — see [minute].

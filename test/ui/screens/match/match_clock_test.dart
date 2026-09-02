@@ -422,7 +422,7 @@ void main() {
       });
 
       test('and they land in the window the engine leaves empty', () {
-        final lines = opening('${openFlowPrefix}1');
+        final lines = opening('$openFlowPrefix$openKickoffIndex');
         expect(lines.map((l) => l.minute), [1, ...openingFillMinutes]);
         // Before `firstA` can possibly speak, which is the whole point.
         final firstA = commentaryPools.firstWhere(
@@ -430,6 +430,23 @@ void main() {
               p.bucket == 'firstA',
         );
         expect(lines.last.minute, lessThan(firstA.range[0]));
+      });
+
+      test('BUT THE KICK-OFF LINE NEVER MOVES', () {
+        // `open.0` is "Kick-off! Both sides finding their feet." — it is about
+        // the first whistle, not about the opening period — so when the engine
+        // opened with one of the other two, this offered it as filler and a
+        // match printed "6' Kick-off" six minutes in. Reported from the couch.
+        for (final opener in [1, 2]) {
+          final lines = opening('$openFlowPrefix$opener');
+          expect(
+            lines.map((l) => l.key),
+            isNot(contains('$openFlowPrefix$openKickoffIndex')),
+            reason: 'kick-off was said after kick-off',
+          );
+          // The pool is one line shorter than it looks, so one filler lands.
+          expect(lines.map((l) => l.minute), [1, openingFillMinutes.first]);
+        }
       });
 
       test('AND NOTHING IS SAID BEFORE THE CLOCK REACHES IT', () {

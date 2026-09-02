@@ -2297,6 +2297,74 @@ void main() {
       expect(find.byKey(const ValueKey('match-coach-line')), findsNothing);
     });
   });
+  testWidgets('AND EVERY MOMENT THE PITCH TOLD IS OFFERED BACK', (
+    tester,
+  ) async {
+    // Goals and chances alike: the clip is rebuilt from the minute and the
+    // match's own seed rather than recorded, so asking for one again costs
+    // nothing and gives back the passage that was played. Asked for from the
+    // couch — anything that made it to the 2D pitch should be replayable from
+    // the full-time panel, and the stats stand aside while it runs.
+    // **THE CLOCK HAS TO RUN.** A skipped match retells nothing — `clipFor` is
+    // only ever asked on the minute it lands — so the panel honestly offers
+    // nothing back. This one watches the goal go in.
+    await pumpMatch(
+      tester,
+      matchResult(
+        events: [
+          {'minute': 10, 'type': 'goal', 'team': 'home', 'scorer': 'Smith'},
+        ],
+      ),
+      reduceMotion: false,
+    );
+    final state = stateOf(tester);
+    await tester.pump(minuteDurationFor(10));
+    await tester.pump();
+    expect(state.clipPlaying, isTrue, reason: 'the goal drew no clip');
+    await endClip(tester);
+    state.skipToEnd();
+    await tester.pumpAndSettle();
+
+    expect(state.retoldMoments, isNotEmpty, reason: 'the pitch told nothing');
+    final minute = state.retoldMoments.first.minute;
+    final chip = find.byKey(ValueKey('pitch-replay-$minute'));
+    expect(chip, findsOneWidget);
+
+    await tester.tap(chip);
+    await tester.pump();
+    // The panel gets out of the way of the grass it is laid on.
+    expect(find.byKey(const ValueKey('pitch-stats')), findsNothing);
+    expect(state.clipPlaying, isTrue);
+  });
+
+  testWidgets('AND AT FULL TIME THEY ARE ON THE PITCH', (tester) async {
+    // The page holds at the whistle now rather than leaving on a timer, which
+    // leaves the stage showing a pitch with nothing happening on it while what
+    // the ninety minutes came to sits behind the board one tap away. Asked for
+    // from the couch: put them on the grass, in transparent boxes.
+    await pumpMatch(
+      tester,
+      matchResult(
+        events: [
+          {'minute': 10, 'type': 'goal', 'team': 'home', 'scorer': 'Smith'},
+        ],
+      ),
+    );
+    expect(find.byKey(const ValueKey('pitch-stats')), findsNothing);
+
+    stateOf(tester).skipToEnd();
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('pitch-stats')), findsOneWidget);
+    // Every row the board would show, on the grass — possession leads it.
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('pitch-stats')),
+        matching: find.text(t('match.stat.possession')),
+      ),
+      findsOneWidget,
+    );
+  });
+
   testWidgets('THE STATISTICS ARE BEHIND THE BOARD, and nowhere else', (
     tester,
   ) async {
