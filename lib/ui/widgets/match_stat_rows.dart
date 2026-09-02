@@ -932,15 +932,28 @@ class _Mod extends StatelessWidget {
           // pane is already a pale green — so a green ink is short of the bar
           // before any tint is added to it.
           //
-          // So the plate is OPAQUE and NEUTRAL — the app's own `surface2`, the
-          // colour a card is — with the hue on the rim and on the ink. The
-          // badge has a chassis in both themes, the figure has a known ground
-          // to be measured against, and none of it is a block of colour.
+          // So the plate is the card's own `surface2` with a WASH OF THE HUE
+          // over it — a tinted chip rather than the white slab that reads as a
+          // sticker on a UI built out of transparency and blur, which is what
+          // the bare surface was reported as.
+          //
+          // **The backing has to be opaque, and that is the contrast sweep's
+          // doing.** A badge with only a translucent wash under it is measured
+          // against whatever pane it lands on, and this card sits on glass over
+          // a pitch — on a club with a green kit that pane is already green,
+          // and the figure came out at 2.70:1. And the wash has to be the HUE
+          // rather than `glassInk`: on a light pane `glassInk` is near black,
+          // so 7% of it took the same figure to 2.94. Seven per cent of the
+          // ink's own colour tints without darkening.
           final ink = semanticInk(
             context,
             statToneColor(context, mod.tone, mod.amount),
           );
           final kit = Theme.of(context).extension<KitTheme>()!;
+          final plate = Color.alphaBlend(
+            ink.withValues(alpha: 0.07),
+            kit.surface2,
+          );
           return Padding(
             // **A TARGET, not just a mark.** The glyph and its number are 22
             // by 10; the padding is what a thumb actually lands on, and it is
@@ -956,7 +969,7 @@ class _Mod extends StatelessWidget {
               // pass at this was a chip too small to find.
               padding: const EdgeInsets.fromLTRB(5, 3, 6, 3),
               decoration: BoxDecoration(
-                color: kit.surface2,
+                color: plate,
                 borderRadius: BorderRadius.circular(6),
                 border: Border.all(color: ink.withValues(alpha: 0.55)),
               ),

@@ -1015,4 +1015,46 @@ group('a tie decided on penalties', () {
   });
 });
 
+
+  group('NO 2D PITCH, NO REPLAYS', () {
+    // A player who has turned the cutaway off for our team never saw the
+    // passage, and a Replay that rebuilds one they were never shown is offering
+    // something this screen has no business inventing — as well as one `clipFor`
+    // would refuse anyway, leaving a control that does nothing. Asked for from
+    // the couch, and it is the same rule the match feed's own replays follow.
+    Map<String, dynamic> scored() => result(
+      events: [
+        {
+          'minute': 22,
+          'type': 'goal',
+          'team': 'home',
+          'scorer': 'Bobby',
+          'scorerInstanceId': 'gone',
+        },
+      ],
+    );
+
+    testWidgets('the scorers card keeps its replay when the pitch is on', (
+      tester,
+    ) async {
+      final state = await pumpSummary(tester, scored());
+      expect(find.byKey(const ValueKey('summary-replay-22')), findsOneWidget);
+      expect(state.mounted, isTrue);
+    });
+
+    testWidgets('and loses it when the pitch is off', (tester) async {
+      final state = await pumpSummary(tester, scored());
+      state.ref
+          .read(gameProvider)
+          .update(
+            (s) => (s['settings'] as Map<String, dynamic>)['cutawayOurTeam'] =
+                false,
+          );
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('summary-replay-22')), findsNothing);
+      // The row itself stays: the goal happened whether or not it was drawn.
+      expect(find.text('Bobby'), findsWidgets);
+      await tester.pump(const Duration(seconds: 3));
+    });
+  });
 }

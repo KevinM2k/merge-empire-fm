@@ -27,6 +27,8 @@ import 'package:merge_empire_fc/ui/theme/app_theme.dart' show displayText;
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/services/rewarded_ads.dart';
+import 'package:merge_empire_fc/ui/screens/settings_controls.dart'
+    show settingPick;
 import 'package:merge_empire_fc/ui/screens/match/shootout_row.dart';
 import 'package:merge_empire_fc/ui/screens/home/league_providers.dart'
     show managerLookProvider;
@@ -970,6 +972,9 @@ class _ScorersCardState extends ConsumerState<_ScorersCard>
       seed: ((result['seed'] as num?)?.toInt() ?? 0) + minute,
       names: lineupNames(save),
       scorerName: scorerName,
+      // The same switch the button is gated on, so the two cannot disagree
+      // about whether there is a passage here.
+      ourTeamOn: ref.read(settingPick<bool>('cutawayOurTeam', true)),
     );
     if (clip == null) return;
     _hold?.cancel();
@@ -1095,6 +1100,14 @@ class _ScorersCardState extends ConsumerState<_ScorersCard>
                   // added to the spec's `en.js` and regenerated, because there
                   // was no key for it and inventing one here would print
                   // English to nine other languages.
+                  // **AND ONLY IF THE 2D PITCH IS ON.** A player who has
+                  // turned the cutaway off for our team never saw the passage,
+                  // and a Replay button that rebuilds one they were never shown
+                  // is offering a thing this screen has no business inventing —
+                  // as well as one `clipFor` would refuse anyway, leaving a
+                  // control that does nothing. Asked for from the couch, in
+                  // exactly those terms: no 2D pitch, no replays, here too.
+                  if (ref.watch(settingPick<bool>('cutawayOurTeam', true)))
                   TextButton.icon(
                     key: ValueKey('summary-replay-${g.minute}'),
                     // A text link, not a moulded button: it sits on a row of
@@ -1491,10 +1504,14 @@ class _QuestTile extends StatelessWidget {
         // verdict onto its own line last time.
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // A passed quest wears the tick rather than its own glyph: it has
-          // already paid, and what it asked for no longer matters. The home
-          // block makes the same trade for a completed row.
-          GameIcon(won ? 'check' : glyph, size: 14, color: ink),
+          // **THE QUEST'S OWN GLYPH, WON OR LOST.** A passed one used to wear
+          // the tick instead, on the reasoning that it has already paid and
+          // what it asked for no longer matters. What that missed is that the
+          // column is READ DOWN: three rows where one glyph is a tick and two
+          // are targets do not line up as the same kind of thing, and the tick
+          // is saying what the right-hand cell is already there to say. Asked
+          // for from the couch — leave the left icon as the standard one.
+          GameIcon(glyph, size: 14, color: ink),
           const SizedBox(width: 7),
           Expanded(
             child: Text(
@@ -1531,11 +1548,28 @@ class _QuestTile extends StatelessWidget {
           // says so better than the noun; a red ✕ against three rows where the
           // others show money is unambiguous. Both are also translation-free,
           // which is how this cell stopped needing two lines in any language.
-          Row(
+          //
+          // **AND A TICK BESIDE THE MONEY**, which is the half that was
+          // missing. The verdict cell said "✕" on a miss and a coin figure on a
+          // pass — two different KINDS of answer to one question, so the column
+          // could not be scanned for pass-or-fail without reading the figures.
+          // Asked for from the couch: a tick or a cross on every row.
+          // **AND THE CELL SHRINKS RATHER THAN OVERFLOWING.** A tick, a coin and
+          // a seven-figure payout do not fit a tile that shares its row with
+          // the dugout cam — on a narrow phone that is barely a hundred points
+          // across. The type floor's own escape hatch.
+          // `Flexible`, or the fit has nothing to fit INTO: a `FittedBox` sizes
+          // to its child unless something bounds it.
+          Flexible(
+            child: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Row(
             key: ValueKey('match-quest-${row['id']}'),
             mainAxisSize: MainAxisSize.min,
             children: won
                 ? [
+                    Icon(Icons.check_rounded, size: 15, color: ink),
+                    const SizedBox(width: 4),
                     // **GOLD, NOT THE VERDICT'S GREEN — always.** It took the
                     // pass colour, so the one coin figure on the report drawn
                     // in green sat two inches from four drawn in gold.
@@ -1552,6 +1586,8 @@ class _QuestTile extends StatelessWidget {
                     ),
                   ]
                 : [Icon(Icons.close_rounded, size: 15, color: ink)],
+              ),
+            ),
           ),
         ],
       ),

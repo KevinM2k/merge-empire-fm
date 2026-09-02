@@ -163,10 +163,10 @@ void main() {
         inkOfFigure(tester, '+4'),
         toneInk(tester, '+4', StatTone.delta, 4),
       );
-      // **THE GROUND CARRIES NONE OF IT.** Reported from the couch: three solid
+      // **THE GROUND BARELY CARRIES IT.** Reported from the couch: three solid
       // blocks of colour stand out a lot on a card whose loudest thing is meant
-      // to be the two ratings. The plate is the app's own card surface now, so
-      // the tone lives on the rim and the figure.
+      // to be the two ratings. The plate is the app's own card surface under a
+      // 7% wash of the hue — a tint, not a fill.
       expect(plateOfFigure(tester, '+4'), plateOfFigure(tester, '+3'));
       expect(
         plateOfFigure(tester, '+4'),
@@ -184,13 +184,22 @@ void main() {
         await pumpRows(tester, leftMods: [mod(4)], light: light);
         await tester.pumpAndSettle();
         final plate = plateOfFigure(tester, '+4');
-        // OPAQUE, so the figure has a known ground to be measured against.
+        // OPAQUE, so the figure has a known ground to be measured against —
+        // this card sits on glass over a pitch and the pane's own colour is not
+        // something a contrast sweep can be run against.
         expect(plate.a, 1, reason: 'light: $light');
+        // And NOT the bare surface: an opaque white slab was reported as
+        // jarring on a UI built out of transparency and blur, so the app's own
+        // recess is washed over it.
+        final context = tester.element(find.text('+4'));
+        final surface = Theme.of(context).extension<KitTheme>()!.surface2;
+        expect(plate, isNot(surface), reason: 'light: $light');
         expect(
           plate,
-          Theme.of(
-            tester.element(find.text('+4')),
-          ).extension<KitTheme>()!.surface2,
+          Color.alphaBlend(
+            toneInk(tester, '+4', StatTone.delta, 4).withValues(alpha: 0.07),
+            surface,
+          ),
         );
       }
     });
@@ -206,9 +215,10 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('-2'), findsOneWidget);
       expect(inkOfFigure(tester, '-2'), isNot(inkOfFigure(tester, '+5')));
-      // The plate is the card's own surface either way: only the figure and its
-      // rim change colour.
-      expect(plateOfFigure(tester, '-2'), plateOfFigure(tester, '+5'));
+      // And the plate with it — it is the card's surface under a 7% wash of the
+      // figure's own hue, so a minus is a faintly red chip and a plus a faintly
+      // green one. Faint is the whole point: see the round it took to get here.
+      expect(plateOfFigure(tester, '-2'), isNot(plateOfFigure(tester, '+5')));
     });
 
     testWidgets('and a relegation scrap is neither, on either side', (
