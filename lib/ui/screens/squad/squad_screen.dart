@@ -589,8 +589,19 @@ class _SlotTarget extends ConsumerWidget {
             ),
             // Named, not punished, here: the rating penalty is the engine's,
             // and the screen's job is to say why a number looks low.
+            //
+            // **And it says HOW low.** `squad.out_of_position` is "Out of
+            // Position {pct}" in ten catalogues and was called with no
+            // parameters at all, so the tooltip printed its own placeholder —
+            // which is worse than saying nothing, because the number is the
+            // whole reason the label is worth a tooltip.
             child: slot.outOfPosition
-                ? Tooltip(message: t('squad.out_of_position'), child: token)
+                ? Tooltip(
+                    message: t('squad.out_of_position', {
+                      'pct': '-${(slot.penalty * 100).round()}%',
+                    }),
+                    child: token,
+                  )
                 : token,
           ),
         );

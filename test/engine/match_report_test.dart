@@ -1,5 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:merge_empire_fc/engine/match_report.dart';
+import 'package:merge_empire_fc/i18n/catalogs.g.dart';
+import 'package:merge_empire_fc/i18n/i18n.dart';
 
 /// The report is a sequence of BEATS, so what is tested is which sentences a
 /// match earns — not the prose, which is a catalogue's business.
@@ -260,4 +262,80 @@ void main() {
       );
     });
   });
+
+  group('EVERY VARIANT OF EVERY BEAT IS FILLED IN', () {
+    // **A pool's variants do not all take the same placeholders.** Reported
+    // from the couch: a match summary printing a literal `{opp}`. It was
+    // `report.clean_sheet`, whose second of three variants opens "{opp} were
+    // kept out entirely" while the beat passed `club` alone — so one clean
+    // sheet in three read its own placeholder at the player.
+    //
+    // Asserting the RENDERED beat would have missed it two runs in three,
+    // because `t()` picks one variant. This expands the pool instead and
+    // checks every line of it, in every catalogue, for every shape of match
+    // the report can describe. Any beat that ever needs a name it is not given
+    // fails here rather than on somebody's phone.
+    final shapes = <String, ReportFacts>{
+      'clean sheet': facts(ours: 2, theirs: 0),
+      'goalless': facts(ours: 0, theirs: 0, scorers: const []),
+      'rout': facts(ours: 5, theirs: 0, scorers: const ['A', 'B', 'C']),
+      'hammered': facts(ours: 0, theirs: 4, scorers: const [], wasAhead: false),
+      'turnaround': facts(ours: 2, theirs: 1, wasBehind: true),
+      'threw it': facts(ours: 1, theirs: 2, wasBehind: true, wasAhead: true),
+      'our red': facts(ourReds: 1),
+      'two reds': facts(ourReds: 2),
+      'our yellows': facts(ourYellows: 3),
+      'their red': facts(theirReds: 1),
+      'climbed': facts(posDelta: 2),
+      'dropped': facts(posDelta: -1),
+      'held': facts(posDelta: 0),
+      'one place': facts(posDelta: 1),
+      'cup tie': facts(isCup: true, position: null, points: null),
+      'both next': facts(oppNextOpponent: 'Beeches'),
+      'shut up shop': facts(
+        lateSwitch: (minute: 74, tactic: 'parkTheBus'),
+      ),
+      'went for it': facts(
+        lateSwitch: (minute: 70, tactic: 'allOutAttack'),
+      ),
+      'settled': facts(lateSwitch: (minute: 80, tactic: 'balanced')),
+      'brace': facts(ours: 2, scorers: const ['Bobby', 'Bobby']),
+      'hat-trick': facts(
+        ours: 3,
+        scorers: const ['Bobby', 'Bobby', 'Bobby'],
+      ),
+    };
+
+    for (final locale in localeIds) {
+      test('in $locale', () {
+        setLocale(locale);
+        addTearDown(resetLocale);
+        final catalog = catalogs[locale]!;
+        for (final entry in shapes.entries) {
+          for (final beat in buildMatchReport(entry.value)) {
+            final raw = catalog[beat.key] ?? catalogs['en']![beat.key];
+            expect(
+              raw,
+              isNotNull,
+              reason: '${beat.key} is not in $locale or in English',
+            );
+            for (final variant in raw!.split('|')) {
+              var filled = variant;
+              for (final p in beat.params.entries) {
+                filled = filled.replaceAll('{${p.key}}', '${p.value}');
+              }
+              expect(
+                RegExp(r'\{\w+\}').firstMatch(filled)?.group(0),
+                isNull,
+                reason:
+                    '${entry.key}: ${beat.key} leaves a placeholder unfilled '
+                    'in $locale — it is given ${beat.params.keys.toList()}',
+              );
+            }
+          }
+        }
+      });
+    }
+  });
+
 }
