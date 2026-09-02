@@ -6,9 +6,9 @@ because that is the part worth keeping.
 
 ## Where this queue stands
 
-**30 done, 3 open**, and all three of the open ones are features rather than
-faults: a gesture contract for every popup, commentary matched to the cutaway,
-and the register of the full-time write-up.
+**43 done, 2 open.** Both open rows are features rather than faults, and one of
+them is a feature that was built, tried and turned down — which is written up
+where it happened rather than quietly dropped.
 
 The pattern in this batch is worth naming: **almost every "the game said X"
 report was a claim the game itself contradicted.** Copy that asserted "ten
@@ -194,17 +194,95 @@ them were something being said that was not true.
       a diorama and there is no bar. This tab has one, so the buttons sat
       against the glass.)
 
+- [x] **The write-up reads like somebody wrote it.** (Reported as not reading
+      "as if someone is writing independently about the two teams to give
+      information to people who didn't watch the game." All thirty-four English
+      pools rewritten against three rules that came out of that sentence: name
+      both clubs rather than assuming the reader supports one; say WHY rather
+      than restating a scoreline the reader can already see; and write full
+      sentences, because one clause that reads as a caption breaks the voice of
+      the ones either side of it. The nine locales still carry the older,
+      terser shape and are queued.)
+
+
+- [x] **The write-up says how it was seen out.** (Asked for directly: "we know
+      the context of the tactics used, if we switched to defence in 70m we can
+      happily say they spent the last part of the game defending." Nothing
+      recorded WHEN a switch happened — `strategiesUsed` is a set — so
+      `applyStrategy` keeps a minute-stamped log and the report reads the last
+      one after the hour. Three keys, ten catalogues.)
+
+- [x] **The explanation of a red card is spent once.** (It is a tutorial: the
+      man is gone and the substitution is not refunded, which is worth a card
+      the first time it happens to anybody and worth nothing the second. It
+      goes through `seenTips`, the same ledger every other once-only
+      explanation in the game uses. After that the bench opens straight away.)
+
+- [x] **And the bench cannot replace him.** (Clearing `cardInstanceId` is what
+      makes the engine field ten — `reSimulateRemainder` reads the live lineup —
+      and the same clearing turned his square into an ordinary hole the panel
+      offered to fill. The screen hands the panel the slot as it stood the
+      instant before, so he is drawn back into it, rated zero and refusing a
+      tap.)
+
+- [x] **A banned man cannot be sent on, and is worth nothing while he is
+      banned.** (Three faults in one report. The Send On button was live; it
+      put him in the side; and the squad rating went UP when it did.
+      `computeSquadRatings` zeroes an injured or unavailable player and knows
+      nothing about bans — it is compared field for field by the parity
+      harness — so the suspension is applied at the provider, by handing it a
+      hole where he stands. Which is what the sim fields anyway.)
+
+- [x] **And his sheet says so before it offers anything.** (A red card over the
+      portrait, the same treatment an injury gets on a bench card.)
+
+- [x] **One rating per player, in the chip the card already has.** (Three
+      reports, one cause. The subs bench carried an ATK/DEF strip across the
+      bottom of the portrait and the slot picker carried a coloured bar under
+      the card — so a tile showed `26` in the corner and `13` underneath, two
+      numbers for one man with the one that mattered furthest from his face.
+      Both are now `PlayerCard.ratingInstead`: what he is worth in the hole
+      being filled, in the corner, on the pitch token's own green/amber/red.)
+
+- [x] **A trait moves the number on the card.** (`CardView.rating` was
+      `getCardRating(def)` — the DEFINITION's rating, with no trait, no form
+      and no aging in it — so the one thing a player spends coins to change was
+      the one thing the card could not show, and it is also why an `18` on a
+      card sat over a `20` on the pill: two different functions answering one
+      question. `getCardStats` is the documented single source of truth, and
+      the save's split ratios travel with it so every screen prints the same
+      figure.)
+
+- [x] **`★ MAX ★` loses its stars.** (The two stars are wider than the word
+      between them, so the ribbon outgrew `T8 MAX` and the rating chip beside
+      it — the flexible one — scaled itself to nothing to make room. The
+      decoration goes rather than the type size; a `★` is a DOM flourish the
+      same way `<strong>` is, and the catalogues are generated, so it is
+      stripped at the boundary.)
+
+- [x] **Every sheet leaves room for its grabber.** (The handle is an overlay
+      rather than a row, which kept each sheet its full height and left the
+      clearance to the content — so the ones with a `SheetHeader` happened to
+      have enough and the ones without had none. The frame pays for it now, so
+      no sheet has to.)
+
+- [x] **Pro mode's squad-fitness alert could never fire.** (Found answering a
+      question about whether notifications are wired up. `notification_plan`
+      read `grid.cells` as `c is CardInstance`, and a save is JSON — a cell is
+      a `Map` — so it saw eleven empty squares on every real save. Its test put
+      `CardInstance` objects into the grid directly, which is a shape the game
+      never loads, so it passed against a save that cannot exist.)
+
+- [x] **The three controls under the pitch are one row again.** (Subs wore the
+      substitution green, so three buttons came in three colours and the green
+      one read as a confirmation. The colour is left to the speed toggle, which
+      is the one control it is genuinely information for, and all three carry a
+      glyph instead.)
+
 ---
 
 ## Open
 
-- [ ] **The write-up still reads short-handed.** Asked for in those terms: it
-      "doesn't read as if someone is writing independently about the two teams
-      to give information to people who didn't watch the game." The score
-      orientation, the vacuous clauses and the two-club close are fixed; what is
-      left is the register. The beats are correct and clipped, and they want to
-      be joined into prose that names both sides and explains rather than
-      labels. **English first**; the nine locales inherit the shape afterwards.
 
 - [ ] **Commentary matched to the CUTAWAY, so a line can describe how a goal
       was scored again.** The contradictions are gone — see the two rows under
@@ -217,9 +295,16 @@ them were something being said that was not true.
       the player is actually watching. Worth doing; it is a feature rather than
       a fix.
 
-- [ ] **A gesture contract for every popup.** Swipe up → full screen; swipe up
-      again → scroll. Swipe down → scroll to the top; again → back to the small
-      size; again → close. Asked for as "the same on ALL popups", which is the
-      hard half: it belongs in `showBottomSheetPopup` rather than in each sheet.
+- [ ] **A gesture contract for every popup — BUILT AND REVERTED, at the user's
+      call.** Swipe up → full screen; swipe down → back to its own size; again →
+      close, driven from the drag handle and from the content's own overscroll,
+      all of it in `showBottomSheetPopup` rather than in any sheet. It worked
+      and it was not liked, and the sizing question underneath it is why: the
+      ask was for every popup to open at half the screen, and a sheet's fraction
+      turns out not to be decoration — half put the daily reward's claim button
+      under the fold and cut the subs panel through the middle of the pitch.
+      Reverted whole rather than left half-applied. If it comes back it should
+      come back as the gesture ALONE, with every sheet keeping its own resting
+      size.
 
 

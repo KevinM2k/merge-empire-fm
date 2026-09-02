@@ -99,63 +99,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     if (mounted) setState(() => _walkerBottom = bottom);
   }
 
-  /// **THE PAGE ARRIVES IN PIECES.**
-  ///
-  /// Asked for from the couch: "what if we load it in in stages — so the
-  /// background, then the pitch flies in and starts moving, then the next match
-  /// card flies in, then the man drops in — all within ms, but it means the
-  /// page instantly comes up and isn't delayed waiting on everything to load."
-  ///
-  /// It is not really a loading problem: this page builds a diorama, a card of
-  /// five bands and a rigged figure on one frame, and a frame that does all of
-  /// that at once is a frame that misses. Staggering the three does not make
-  /// the work smaller — it spreads it over four frames, and it turns the wait
-  /// into an entrance.
-  ///
-  /// **Ticks per stage rather than a timer**, so a slow first frame does not
-  /// leave a stage running before the thing it animates has been laid out. The
-  /// scene is stage 0 and is never held back; nothing should ever show an empty
-  /// page.
-  int _stage = 0;
-  Timer? _stageTimer;
-
-  /// Schedule the next band, off the frame that drew this one.
-  ///
-  /// **Held in a field and cancelled on dispose.** A bare `Future.delayed` is a
-  /// timer nothing can stop, which a widget test correctly refuses to leave the
-  /// tree with — and a screen that can be swiped away mid-entrance must not
-  /// call `setState` afterwards.
-  void _nextStage({required bool stillPage}) {
-    if (!mounted || _stage >= _homeStages || _stageTimer != null) return;
-    // Reduced motion gets the whole page at once, so there is nothing to
-    // schedule — see [_Stage], which draws every band immediately there.
-    if (stillPage) {
-      _stage = _homeStages;
-      return;
-    }
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      _stageTimer = Timer(homeStageGap, () {
-        _stageTimer = null;
-        if (mounted) setState(() => _stage++);
-      });
-    });
-  }
-
-  @override
-  void dispose() {
-    _stageTimer?.cancel();
-    super.dispose();
-  }
-
   @override
   Widget build(BuildContext context) {
     // The footer changes height between builds — an event strip arrives, a cup
     // button appears — so the pill is re-read after every one.
     WidgetsBinding.instance.addPostFrameCallback((_) => _measure());
-    // And the next band of the page is scheduled off the frame that drew this
-    // one — see [_stage].
-    _nextStage(stillPage: MediaQuery.disableAnimationsOf(context));
 
     return Stack(
       key: const ValueKey('home-screen'),
@@ -178,10 +126,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           left: 0,
           right: 0,
           top: 0,
-          child: _Stage(
-            shown: _stage >= 1,
-            from: const Offset(0, -0.35),
-            child: Padding(
+          child: Padding(
             // Clears the HUD and the notch. The SCENE behind it does not: it
             // runs to the top of the glass, which is the whole point of it.
             // No bar to clear here — just the notch and the floating cluster.
@@ -191,18 +136,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               13,
               0,
             ),
-              child: const NextMatchCard(),
-            ),
+            child: const NextMatchCard(),
           ),
         ),
         Positioned(
           left: 0,
           right: 0,
           bottom: 0,
-          child: _Stage(
-            shown: _stage >= 2,
-            from: const Offset(0, 0.35),
-            child: SafeArea(
+          child: SafeArea(
             top: false,
             child: Padding(
               padding: const EdgeInsets.fromLTRB(13, 0, 13, playPageGap),
@@ -306,54 +247,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ],
               ),
             ),
-            ),
           ),
         ),
       ],
-    );
-  }
-}
-
-/// How long between one band of the page arriving and the next.
-///
-/// Short enough that the whole entrance is over before a thumb has reached the
-/// screen, long enough that the three do not land on the same frame — which is
-/// the entire point. See `_HomeScreenState._stage`.
-const Duration homeStageGap = Duration(milliseconds: 70);
-
-/// How many bands there are after the scene.
-const int _homeStages = 2;
-
-/// One band of the page, sliding in from where it lives.
-///
-/// **`shown` is a latch, not a toggle.** Once a band has arrived it stays; the
-/// page rebuilds constantly — the idle loop ticks every second — and a stage
-/// that re-evaluated would replay its entrance every time the coins moved.
-class _Stage extends StatelessWidget {
-  const _Stage({required this.shown, required this.from, required this.child});
-
-  final bool shown;
-
-  /// Where it comes from, as a fraction of its own size: the card drops from
-  /// above the notch, the footer rises from under the bar.
-  final Offset from;
-
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    // Reduced motion gets the page whole and immediately: an entrance is
-    // decoration, and this one exists to spread work rather than to be watched.
-    if (MediaQuery.disableAnimationsOf(context)) return child;
-    return AnimatedSlide(
-      offset: shown ? Offset.zero : from,
-      duration: const Duration(milliseconds: 260),
-      curve: Curves.easeOutCubic,
-      child: AnimatedOpacity(
-        opacity: shown ? 1 : 0,
-        duration: const Duration(milliseconds: 200),
-        child: child,
-      ),
     );
   }
 }

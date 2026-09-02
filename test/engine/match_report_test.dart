@@ -19,6 +19,7 @@ void main() {
     int? posDelta = 0,
     String? nextOpponent = 'Ayton',
     String? oppNextOpponent,
+    ({int minute, String tactic})? lateSwitch,
     bool isCup = false,
   }) => (
     ours: ours,
@@ -40,6 +41,7 @@ void main() {
     nextOpponent: nextOpponent,
     nextIsHome: false,
     oppNextOpponent: oppNextOpponent,
+    lateSwitch: lateSwitch,
   );
 
   List<String> keysOf(ReportFacts f) =>
@@ -212,6 +214,50 @@ void main() {
 
     test('nothing happened, nothing swung', () {
       expect(leadSwings(const []), (wasBehind: false, wasAhead: false));
+    });
+  });
+
+  group('HOW IT WAS SEEN OUT', () {
+    // Asked for from the couch: "we know the context of the tactics used, like
+    // if we switched to defence in 70m we can happily say they spent the last
+    // part of the game defending — we have that info so we should use it." The
+    // match screen logs the minute now; nothing recorded it before.
+    test('a late switch is named, and which way it went decides the line', () {
+      expect(
+        keysOf(facts(lateSwitch: (minute: 70, tactic: 'parkTheBus'))),
+        contains('report.tactic.shut_up_shop'),
+      );
+      expect(
+        keysOf(facts(lateSwitch: (minute: 70, tactic: 'counterAttack'))),
+        contains('report.tactic.shut_up_shop'),
+      );
+      expect(
+        keysOf(facts(lateSwitch: (minute: 68, tactic: 'allOutAttack'))),
+        contains('report.tactic.went_for_it'),
+      );
+      expect(
+        keysOf(facts(lateSwitch: (minute: 68, tactic: 'highPress'))),
+        contains('report.tactic.went_for_it'),
+      );
+      expect(
+        keysOf(facts(lateSwitch: (minute: 75, tactic: 'balanced'))),
+        contains('report.tactic.settled'),
+      );
+    });
+
+    test('and the minute travels, because the sentence prints it', () {
+      final beat = buildMatchReport(
+        facts(lateSwitch: (minute: 72, tactic: 'parkTheBus')),
+      ).firstWhere((b) => b.key.startsWith('report.tactic.'));
+      expect(beat.params['minute'], 72);
+      expect(beat.params['club'], 'Testville');
+    });
+
+    test('a match nobody changed anything in says nothing about tactics', () {
+      expect(
+        keysOf(facts()).where((k) => k.startsWith('report.tactic.')),
+        isEmpty,
+      );
     });
   });
 }

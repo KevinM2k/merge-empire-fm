@@ -279,9 +279,29 @@ class PlayerCard extends StatelessWidget {
     this.onTap,
     this.selected = false,
     this.kitColor,
+    this.ratingInstead,
   });
 
   final CardView view;
+
+  /// The rating chip, saying something else.
+  ///
+  /// **A BENCH IN A SUBSTITUTION IS READ AGAINST ONE MAN.** It used to carry a
+  /// second, differently-coloured pair of figures on a strip across the bottom
+  /// of the card — reported from the couch as "a different rating underneath
+  /// them, it's a bit weird", which it was: two ratings for one player, and
+  /// the one that mattered was the smaller and lower of them. So the
+  /// comparison takes over the chip the rating was already in, in his slot's
+  /// terms, coloured for whether he is an upgrade. One number, in the place a
+  /// number already lived.
+  ///
+  /// **The whole chip changes colour, not the digits.** Reported from the
+  /// couch with a shot of the slot picker's version — the number in a red bar
+  /// below the card — asking for it "in the top left in place of the 26, with
+  /// the background red instead of the thing underneath, it's clearer." It is,
+  /// and it is the same three colours the pitch tokens use for a man out of
+  /// position, because it is the same judgement.
+  final ({int value, Color ink, Color background})? ratingInstead;
 
   /// Light mode swaps the BODY for a pale tint of the same rarity. The chips
   /// stay dark so their bright rarity text stays readable on top.
@@ -680,9 +700,9 @@ class PlayerCard extends StatelessWidget {
                     children: [
                       Flexible(
                         child: _Chip(
-                          label: '${view.rating}',
-                          background: chipBg,
-                          foreground: chipInk,
+                          label: '${ratingInstead?.value ?? view.rating}',
+                          background: ratingInstead?.background ?? chipBg,
+                          foreground: ratingInstead?.ink ?? chipInk,
                           bold: true,
                         ),
                       ),
@@ -705,8 +725,20 @@ class PlayerCard extends StatelessWidget {
                       // ones that give, and they already do.
                       if (view.maxed || view.atCap)
                         _Ribbon(
+                            // **WITHOUT ITS STARS.** `★ MAX ★` is what the
+                            // catalogue ships and the two stars are wider than
+                            // the word between them, so the ribbon outgrew
+                            // `T8 MAX` and the rating chip beside it — the
+                            // flexible one — scaled itself to nothing to make
+                            // room. Reported from the couch: the number went
+                            // tiny on maxed cards only. The decoration goes
+                            // rather than the type size; a `★` is a DOM
+                            // flourish the same way `<strong>` is, and the
+                            // catalogues are generated so it is stripped here.
                             label: view.maxed
                                 ? t('card.max_ribbon')
+                                      .replaceAll('★', '')
+                                      .trim()
                                 : t('card.tier_locked', {'tier': view.tier}),
                             // Gold for the top of the game, and a flat warning
                             // colour for the top of this division — one is an

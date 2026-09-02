@@ -162,11 +162,14 @@ final pitchSlotsProvider = savePick<List<PitchSlot>>((s) {
       if (slot.cardInstanceId == null) slot,
   ];
   final banned = suspendedIn(s);
+  final ratios = definitionRatiosOf(s);
   final vacatedBy = <String, Map<String, dynamic>>{};
   for (final hole in holes) {
     if (orphans.isEmpty) break;
     final natural = orphans.indexWhere(
-      (raw) => cardViewFor(raw, proMode: pro)?.position == hole.slotPosition,
+      (raw) => cardViewFor(raw, proMode: pro, definitionRatios: ratios)
+              ?.position ==
+          hole.slotPosition,
     );
     vacatedBy[hole.slotId] = orphans.removeAt(natural >= 0 ? natural : 0);
   }
@@ -181,7 +184,12 @@ final pitchSlotsProvider = savePick<List<PitchSlot>>((s) {
         // The bans, so the token can say a man cannot play. NOT the state —
         // that switches the income line on, which a pitch token has no room
         // for. See `cardViewFor.banned`.
-        final view = cardViewFor(raw, proMode: pro, banned: banned);
+        final view = cardViewFor(
+          raw,
+          proMode: pro,
+          banned: banned,
+          definitionRatios: ratios,
+        );
         final instance = CardInstance.from(raw);
         final stats = getCardStats(
           instance,
@@ -198,7 +206,11 @@ final pitchSlotsProvider = savePick<List<PitchSlot>>((s) {
           card: view,
           vacatedBy: view != null
               ? null
-              : cardViewFor(vacatedBy[slot.slotId], proMode: pro),
+              : cardViewFor(
+                  vacatedBy[slot.slotId],
+                  proMode: pro,
+                  definitionRatios: ratios,
+                ),
           vacatedById: view != null
               ? null
               : vacatedBy[slot.slotId]?['instanceId'] as String?,
@@ -274,10 +286,20 @@ final benchProvider = savePick<List<({String instanceId, CardView card})>>((s) {
     for (final raw in gridCells(s))
       if (raw is Map<String, dynamic> &&
           !picked.contains(raw['instanceId']) &&
-          cardViewFor(raw, proMode: pro) != null)
+          cardViewFor(
+                raw,
+                proMode: pro,
+                definitionRatios: definitionRatiosOf(s),
+              ) !=
+              null)
         (
           instanceId: raw['instanceId'] as String,
-          card: cardViewFor(raw, proMode: pro, banned: suspendedIn(s))!,
+          card: cardViewFor(
+            raw,
+            proMode: pro,
+            banned: suspendedIn(s),
+            definitionRatios: definitionRatiosOf(s),
+          )!,
         ),
   ];
 });
@@ -285,12 +307,22 @@ final benchProvider = savePick<List<({String instanceId, CardView card})>>((s) {
 final squadRatingsProvider = savePick<SquadRatings>((s) {
   final cards = _cards(s);
   final lineup = lineupFor(s);
+  // **A BANNED MAN IS AN EMPTY SLOT to the number on the header.** Reported
+  // from the couch, from the other end: sending a suspended player on made the
+  // squad rating go UP. `computeSquadRatings` zeroes an injured or unavailable
+  // one, but a ban is the port's own idea and not the JS's — that function is
+  // compared field for field by the parity harness, so the suspension is
+  // applied HERE, by handing it a hole where he stands. Which is what the sim
+  // fields anyway.
+  final banned = suspendedIn(s);
   final asMaps = [
     for (final slot in lineup)
       <String, dynamic>{
         'slotId': slot.slotId,
         'slotPosition': slot.slotPosition,
-        'cardInstanceId': slot.cardInstanceId,
+        'cardInstanceId': banned.contains(slot.cardInstanceId)
+            ? null
+            : slot.cardInstanceId,
       },
   ];
   final eleven = asMaps.length == 11 ? asMaps : null;
@@ -362,7 +394,11 @@ final slotCandidatesProvider = Provider.family<List<SlotCandidate>, String>((
     if (id is! String || picked.contains(id)) continue;
     final instance = CardInstance.from(raw);
     if (instance == null || !instance.isSelectable) continue;
-    final view = cardViewFor(raw, proMode: pro);
+    final view = cardViewFor(
+      raw,
+      proMode: pro,
+      definitionRatios: ratios,
+    );
     if (view == null) continue;
     out.add((
       instanceId: id,

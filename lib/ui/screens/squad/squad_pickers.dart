@@ -14,6 +14,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/data/formations.dart';
+import 'package:merge_empire_fc/engine/booking_engine.dart' show suspendedIn;
 import 'package:merge_empire_fc/engine/match_tactics.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/ui/popups/bottom_sheet_popup.dart';
@@ -683,10 +684,10 @@ class _SlotPickerState extends ConsumerState<_SlotPicker> {
                     ),
                     mainAxisSpacing: 8,
                     crossAxisSpacing: 8,
-                    // The card keeps the bench's 0.78; the cell is taller by
-                    // the pill under it, which is the one thing this sheet
-                    // knows that the bench does not.
-                    childAspectRatio: 0.66,
+                    // The bench's own, now the slot rating is on the card
+                    // rather than on a pill under it — a cell taller than the
+                    // card it holds left a strip of gap where the pill was.
+                    childAspectRatio: 0.78,
                   ),
                   itemCount: candidates.length,
                   itemBuilder: (context, i) {
@@ -702,20 +703,23 @@ class _SlotPickerState extends ConsumerState<_SlotPicker> {
                         );
                         Navigator.of(context).pop();
                       },
-                      child: Column(
-                        children: [
-                          Expanded(
-                            child: PlayerCard(view: entry.card, light: light),
-                          ),
-                          const SizedBox(height: 4),
-                          // What he is worth IN THIS SLOT, and what the slot
-                          // costs him. The whole reason this sheet is not just
-                          // the bench again, so it stays on every candidate.
-                          _EffPill(
-                            rating: entry.effRating,
-                            penalty: entry.penalty,
-                          ),
-                        ],
+                      // **WHAT HE IS WORTH IN THIS SLOT, in the chip the card
+                      // already has.** It was a coloured bar UNDER the card —
+                      // reported from the couch with a shot of it: a `26` in
+                      // the corner and a red `13` on a strip below, two
+                      // numbers for one player with the one that mattered the
+                      // further from his face. "Put that score in the top left
+                      // in place of the 26 and make the background red." The
+                      // colours are the pitch token's own, which is where the
+                      // out-of-position judgement is already made.
+                      child: PlayerCard(
+                        view: entry.card,
+                        light: light,
+                        ratingInstead: (
+                          value: entry.effRating,
+                          ink: penaltyColor(entry.penalty),
+                          background: penaltyBg(entry.penalty),
+                        ),
                       ),
                     );
                   },
@@ -726,36 +730,6 @@ class _SlotPickerState extends ConsumerState<_SlotPicker> {
   }
 }
 
-/// A candidate's rating FOR THE SLOT, coloured by what playing out of position
-/// costs him.
-class _EffPill extends StatelessWidget {
-  const _EffPill({required this.rating, required this.penalty});
-
-  final int rating;
-  final double penalty;
-
-  @override
-  Widget build(BuildContext context) {
-    final ink = penaltyColor(penalty);
-    return Container(
-      height: 20,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        color: penaltyBg(penalty),
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: ink),
-      ),
-      child: Text(
-        '$rating',
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w900,
-          color: ink,
-        ),
-      ),
-    );
-  }
-}
 
 /// The line filter — All, GK, DEF, MID, FWD.
 ///
@@ -877,6 +851,11 @@ void sendOnFromBench(WidgetRef ref, {required String instanceId}) {
       ),
     );
     if (incoming == null) return;
+    // **A BAN IS THE ONE REFUSAL LEFT.** The button is hidden for a suspended
+    // man, and this is the other end of the same rule: he is scored zero, so
+    // fielding him is fielding a hole, and `refillLineupFromBench` would put
+    // him straight back out again anyway.
+    if (suspendedIn(s).contains(instanceId)) return;
     final ratios = _ratios(s);
 
     int worthIn(CardInstance? card, String slotPosition) => card == null

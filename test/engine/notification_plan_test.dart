@@ -10,7 +10,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:merge_empire_fc/engine/energy_engine.dart';
 import 'package:merge_empire_fc/engine/notification_plan.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
-import 'package:merge_empire_fc/state/card_instance.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
 import 'package:merge_empire_fc/util/time.dart';
 
@@ -96,13 +95,18 @@ void main() {
       // There are no pips in Pro — match fitness is the gate, players recover
       // in parallel, so the slowest one is the whole squad's answer.
       final s = _save(pro: true);
-      final tired = CardInstance({
-        'instanceId': 'c1',
-        'definitionId': 'player_t5_fwd',
-        'energy': 1,
-        'energyUpdatedAt': _now,
-      });
-      (s['grid'] as Map<String, dynamic>)['cells'] = <CardInstance?>[tired];
+      // **A MAP, because that is what a save holds.** This test used to put a
+      // `CardInstance` straight into `grid.cells` and the plan used to accept
+      // one — so it passed against a shape the game never loads, while every
+      // real Pro save read as eleven empty squares and the alert never fired.
+      (s['grid'] as Map<String, dynamic>)['cells'] = <Object?>[
+        <String, dynamic>{
+          'instanceId': 'c1',
+          'definitionId': 'player_t5_fwd',
+          'energy': 1,
+          'energyUpdatedAt': _now,
+        },
+      ];
       final notice = energyNotice(s, now: _now);
       expect(notice, isNotNull);
       expect(notice!.title, t('notif.squad_fit_title'));
@@ -111,7 +115,7 @@ void main() {
 
     test('and a fully fit squad in Pro says nothing', () {
       final s = _save(pro: true);
-      (s['grid'] as Map<String, dynamic>)['cells'] = <CardInstance?>[null];
+      (s['grid'] as Map<String, dynamic>)['cells'] = <Object?>[null];
       expect(energyNotice(s, now: _now), isNull);
     });
   });

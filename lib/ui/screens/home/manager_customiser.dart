@@ -534,6 +534,8 @@ class _ManagerCustomiserState extends ConsumerState<ManagerCustomiser> {
         // scene's own sky and turf (`theme/sky.dart`), so what you are dressing
         // him for is the ground he will be standing on.
         _PreviewStage(
+          // The camera looks at whatever this axis changes — see [_zoomFor].
+          axis: axis,
           overlay: offer == null
               ? null
               : _LockedOfferBar(
@@ -677,9 +679,17 @@ final double _standAlignment =
 /// them — one source for the two means a look chosen in here is judged against
 /// the light it will actually be seen in.
 class _PreviewStage extends StatelessWidget {
-  const _PreviewStage({required this.child, this.overlay});
+  const _PreviewStage({
+    required this.child,
+    required this.axis,
+    this.overlay,
+  });
 
   final Widget child;
+
+  /// Which part of him is being changed, so the camera can look at it — see
+  /// [_zoomFor].
+  final LookAxis axis;
 
   /// **THE OFFER FOR A LOCKED ITEM, drawn ON the stage.** Asked for directly:
   /// the touchline box is the biggest thing on the sheet and the emptiest, the
@@ -704,7 +714,22 @@ class _PreviewStage extends StatelessWidget {
           stride: walkDurationFor(Mood.pleased),
           child: SizedBox(
             height: _stageHeight,
+            // **THE WHOLE SCENE ZOOMS, not the man inside it.** The first go
+            // cropped the RIG to the part an axis affects, which magnified him
+            // against a sky and a lawn that stayed exactly where they were —
+            // reported from the couch as looking weird, and it did: a camera
+            // that moves closer moves closer to everything.
+            //
+            // A `Transform` over the whole `Stack` is the camera. Scaling about
+            // the head's own point keeps it still while the world grows around
+            // it, which is what a push-in looks like, and the clip that is
+            // already here is what stops the enlarged backdrop escaping the box.
             child: Stack(
+              fit: StackFit.expand,
+              children: [
+                _Camera(
+                  zoom: _zoomFor(axis.kind),
+                  child: Stack(
               fit: StackFit.expand,
               children: [
                 // **A DRAWN HORIZON, not a bare wash.** The sky gradient alone left
@@ -774,16 +799,81 @@ class _PreviewStage extends StatelessWidget {
                     child: child,
                   ),
                 ),
-                if (overlay case final bar?)
-                  Positioned(left: 0, right: 0, bottom: 0, child: bar),
+                // **OUTSIDE THE CAMERA.** The offer bar is chrome laid over the
+                // scene, not part of it — pushed in with the diorama it would
+                // grow to twice its size and slide off the bottom with the
+                // grass. It stays in the stage's own coordinates.
               ],
             ),
+            ),
+            if (overlay case final bar?)
+              Positioned(left: 0, right: 0, bottom: 0, child: bar),
+          ],
+        ),
           ),
         ),
         ),
       ),
     );
   }
+}
+
+/// How far in the camera goes for an axis, and what it looks at.
+///
+/// **Only the head axes move it**, and that is a decision rather than a
+/// shortcut: build, outfit and the celebrations are the whole body — a build IS
+/// the silhouette — so pulling in on them would hide the thing being chosen.
+/// Asked for in those terms too: body and outfit zoomed right out.
+///
+/// Zero is the wide shot the stage was built around.
+double _zoomFor(String kind) => switch (kind) {
+  'hair' || 'color' || 'beard' || 'hat' || 'face' || 'skin' => 1,
+  _ => 0,
+};
+
+/// The push-in, and the glide between two of them.
+///
+/// The focal point is the HEAD's place in the stage rather than the middle of
+/// the box: scaling about the centre would send his face off the top as the
+/// world grew. `skullOnScreen` is where the rig actually draws it — see the
+/// note in CLAUDE.md about the head group being moved after the circle is laid
+/// out — and the rest is where that lands once the figure has been placed on
+/// the grass line.
+class _Camera extends StatelessWidget {
+  const _Camera({required this.zoom, required this.child});
+
+  /// 0 for the wide shot, 1 for the close one.
+  final double zoom;
+
+  final Widget child;
+
+  /// How much bigger the close shot is.
+  static const double _closeScale = 2.1;
+
+  /// Long enough to read as a camera move and short enough not to be waited on.
+  static const Duration _glide = Duration(milliseconds: 420);
+
+  /// The head's centre as an [Alignment] within the stage box.
+  static Alignment get _onHead {
+    const figure = walkerHeight * _previewScale;
+    // `Align(0, a)` puts the child's top at this fraction of the free space.
+    final top = (_stageHeight - figure) * (1 + _standAlignment) / 2;
+    final headY = top + (skullOnScreen.dy / walkerHeight) * figure;
+    return Alignment(0, (headY / _stageHeight) * 2 - 1);
+  }
+
+  @override
+  Widget build(BuildContext context) => TweenAnimationBuilder<double>(
+    tween: Tween<double>(end: zoom),
+    duration: _glide,
+    curve: Curves.easeInOutCubic,
+    builder: (context, t, inner) => Transform.scale(
+      scale: 1 + (_closeScale - 1) * t,
+      alignment: Alignment.lerp(Alignment.center, _onHead, t)!,
+      child: inner,
+    ),
+    child: child,
+  );
 }
 
 /// The backdrop, travelling past him.
@@ -1079,6 +1169,20 @@ Rect _regionFor(String kind) => switch (kind) {
   _ => const Rect.fromLTWH(38, 54, 44, 44),
 };
 
+/// The same regions, as what the PREVIEW should be looking at.
+///
+/// Asked for from the couch: "when we go to facial hair the manager rig should
+/// animate to zoom in to his face as that's all it affects — the same type of
+/// zooming based on what the things are." The chips have cropped to the part
+/// each axis changes since they were built; the full-size preview beside them
+/// never did, so picking a beard meant hunting for it on a figure drawn head to
+/// boots.
+///
+/// **Wider than the chip's crop, and that is deliberate.** A chip is a thumbnail
+/// and wants the part alone; the preview is the man, and a face with no
+/// shoulders under it reads as a floating head. This is the chip's region
+/// opened out enough to keep him attached to himself.
+///
 /// One choice, as a picture of itself.
 /// A picture of ONE choice, cropped to the part of him the axis changes.
 ///

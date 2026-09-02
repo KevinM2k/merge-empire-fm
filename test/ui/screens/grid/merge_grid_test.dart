@@ -6,6 +6,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:merge_empire_fc/engine/squad_rating.dart' show getCardStats;
+import 'package:merge_empire_fc/state/card_instance.dart';
 import 'package:merge_empire_fc/ui/hud/hud.dart' show hudClearance;
 import 'package:merge_empire_fc/data/config.dart';
 import 'package:merge_empire_fc/data/player_art.dart';
@@ -389,10 +391,29 @@ void main() {
     });
   });
 
+  test('AND A TRAIT MOVES THE NUMBER ON THE CARD', () {
+    // Reported from the couch in one line: "if the player has a trait, it
+    // should change that number top left." It could not — the view carried the
+    // DEFINITION's rating, so the one thing a player spends coins to change
+    // was the one thing the card would not show.
+    final plain = cardViewFor(_card(_baseDefId, 'a'))!;
+    final withTrait = cardViewFor({
+      ..._card(_baseDefId, 'a'),
+      'trait': {'id': 'finisher', 'level': 3},
+    })!;
+    expect(withTrait.rating, greaterThan(plain.rating));
+  });
+
   test('the card view is resolved through the engines, not guessed', () {
     final view = cardViewFor(_card(_baseDefId, 'a'))!;
     final def = getPlayerDef(_baseDefId)!;
     expect(view.tier, def.tier);
+    // **`getCardStats`, not `getCardRating`.** The latter is the definition's
+    // own number and knows nothing about a trait, form or aging — reported
+    // from the couch as a trait that never moved the figure on the card. A
+    // plain card with neither still reads its definition's rating, which is
+    // what this asserts; the trait case is below.
+    expect(view.rating, getCardStats(CardInstance.from(_card(_baseDefId, 'a'))).rating);
     expect(view.rating, getCardRating(def));
     expect(view.position, def.position);
     expect(view.injured, isFalse);

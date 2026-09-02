@@ -25,6 +25,8 @@ import 'package:merge_empire_fc/ui/screens/grid/grid_providers.dart'
 import 'package:merge_empire_fc/engine/tactic_coach.dart'
     show baselineInjuryRisk, injuryCostPoints;
 import 'package:merge_empire_fc/engine/match_tactics.dart';
+import 'package:merge_empire_fc/engine/coach_tip_engine.dart'
+    show hasSeenTip, markTipSeen;
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/providers/sound_providers.dart';
@@ -58,7 +60,7 @@ import 'package:merge_empire_fc/ui/screens/match/subs_panel.dart';
 export 'package:merge_empire_fc/ui/widgets/card_glyph.dart'
     show CardGlyph, cardYellowInk, cardRedInk, cardInk;
 import 'package:merge_empire_fc/ui/screens/squad/squad_providers.dart'
-    show pitchSlotsProvider, slotCandidatesProvider, SlotCandidate;
+    show pitchSlotsProvider, slotCandidatesProvider, SlotCandidate, PitchSlot;
 import 'package:merge_empire_fc/ui/screens/squad/player_detail_sheet.dart'
     show cardById;
 import 'package:merge_empire_fc/ui/screens/settings_controls.dart'
@@ -195,16 +197,44 @@ double stageBandHeight({
 /// - the speed toggle is a STATE, so it lights in the club's accent when 2× is
 ///   on and sits neutral when it is not — the one control on the page whose
 ///   colour is information;
-/// - Subs is the green a substitution is drawn in everywhere else in this game
-///   ([vsGreenPlate], the ATK/DEF green the stat rows and the HUD's chips use),
-///   because it is the only decision in the row;
-/// - Skip stays neutral, and that is the point of the other two: it is giving up
-///   on watching, and a control for that should be the quiet one.
+/// - Subs and Skip are both neutral. Subs was the substitution green for a
+///   while, on the reasoning that it is the only decision in the row — and
+///   three buttons in three colours read as three unrelated things rather than
+///   as one row, with the green one looking like a confirmation. Reported from
+///   the couch: "not sure why Subs is green, it should just be the same as
+///   Skip Match." So the colour is left to the one control it is genuinely
+///   information for, and what tells the other two apart is a glyph.
 ///
 /// Through `mouldedButtonStyle` rather than `styleFrom`, because a moulded
 /// button's face is painted in a `backgroundBuilder` over a transparent
 /// Material — `backgroundColor:` colours the layer underneath it and fails
 /// silently. `architecture_test.dart` checks exactly this.
+/// A glyph and a word, for one of the three controls under the pitch.
+///
+/// **All three carry one**, asked for from the couch alongside the colours:
+/// with the green gone, Subs and Skip are the same shape in the same face and
+/// the word is doing all of the work. `FittedBox` rather than a smaller type:
+/// `common.skip` is two words in several languages and the row is fixed.
+class _ControlFace extends StatelessWidget {
+  const _ControlFace({required this.glyph, required this.label});
+
+  final String glyph;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) => FittedBox(
+    fit: BoxFit.scaleDown,
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        GameIcon(glyph, size: 16),
+        const SizedBox(width: 6),
+        Text(label, maxLines: 1, softWrap: false),
+      ],
+    ),
+  );
+}
+
 Color _onFace(Color face) {
   final l = face.computeLuminance();
   return 1.05 / (l + 0.05) >= (l + 0.05) / 0.0575
@@ -1416,6 +1446,7 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
       onSub: _onSub,
       openOn: openOn,
       sentOff: _sentOff,
+      sentOffSlots: _sentOffSlots,
       cautioned: _cautioned,
     );
     if (mounted) setState(() => _paused = false);
@@ -1542,23 +1573,39 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
     );
   }
 
+  /// **THE EXPLANATION IS A TUTORIAL, SO IT IS SPENT ONCE.**
+  ///
+  /// A sending-off is the one event in a match whose RULES are not obvious —
+  /// the man is gone and the substitution is not refunded — so it is worth a
+  /// card the first time it happens to somebody. It is worth nothing the
+  /// second time, and reported as exactly that from the couch: "this can
+  /// happen once as a tutorial, but after this one time it should just go
+  /// straight to the bench." So it goes through `seenTips`, the same ledger
+  /// every other once-only explanation in the game is spent from.
   Future<void> _onSendingOff(String player) async {
     if (!mounted || frame.finished) return;
-    setState(() => _paused = true);
-    await showCoachCard<void>(
-      context,
-      titleKey: 'coach.red_card.title',
-      bodyKey: 'coach.red_card.body',
-      bodyParams: {'player': player},
-      actions: [
-        CoachAction(labelKey: 'coachtip.tap_dismiss', onTap: () {}),
-      ],
-    );
-    if (!mounted) return;
-    setState(() => _paused = false);
-    if (frame.finished) return;
+    final game = ref.read(gameProvider);
+    if (!hasSeenTip(game.state, redCardTipId)) {
+      game.update((s) => markTipSeen(s, redCardTipId));
+      setState(() => _paused = true);
+      await showCoachCard<void>(
+        context,
+        titleKey: 'coach.red_card.title',
+        bodyKey: 'coach.red_card.body',
+        bodyParams: {'player': player},
+        actions: [
+          CoachAction(labelKey: 'coachtip.tap_dismiss', onTap: () {}),
+        ],
+      );
+      if (!mounted) return;
+      setState(() => _paused = false);
+    }
+    if (!mounted || frame.finished) return;
     await openSubs();
   }
+
+  /// The ledger id the red-card explanation is spent from.
+  static const String redCardTipId = 'red_card_rules';
 
   /// Everyone taken off this match.
   ///
@@ -1568,6 +1615,9 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
   /// man back on the pitch. It belongs with [_kickoffLineup] — both are facts
   /// about the match rather than about the sheet that happens to be open.
   final Set<String> _withdrawn = <String>{};
+
+  /// Slot id → the man the referee took out of it. See [_playerSentOff].
+  final Map<String, PitchSlot> _sentOffSlots = <String, PitchSlot>{};
 
   /// Record a change the panel has already written to the save.
   ///
@@ -1693,6 +1743,15 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
   /// did not move, so there was no way to tell whether losing the player had
   /// counted for anything.
   void _playerSentOff(String instanceId, int minute) {
+    // **WHERE HE WAS STANDING, taken before the square is cleared.** The
+    // clearing is what makes the engine field ten, and it is also what turned
+    // his square into an ordinary hole the bench offered to fill. The panel
+    // draws him back into it from this.
+    final was = ref
+        .read(pitchSlotsProvider)
+        .where((s) => s.cardInstanceId == instanceId)
+        .firstOrNull;
+    if (was != null) _sentOffSlots[was.slotId] = was;
     ref.read(gameProvider).update((state) {
       final squad = state['squad'];
       if (squad is! Map<String, dynamic>) return;
@@ -1788,6 +1847,16 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
     if (!usedList.contains(id)) usedList.add(id);
     widget.result['strategiesUsed'] = usedList;
     widget.result['finalStrategy'] = id;
+    // **AND WHEN, which nothing recorded.** `strategiesUsed` says a side played
+    // Counter at some point and `finalStrategy` says it finished there; neither
+    // says the manager went defensive on the hour and saw it out. That is the
+    // half a report wants — see `match_report.dart`. Asked for from the couch:
+    // "we know the context of the tactics used… we have that info so we should
+    // use it."
+    final log = widget.result['strategyLog'];
+    final logList = log is List ? log : <Object?>[];
+    logList.add({'minute': at, 'id': id});
+    widget.result['strategyLog'] = logList;
     if (id == _coachSuggestion) {
       widget.result['followedCoachSuggestion'] = true;
     }
@@ -2317,7 +2386,10 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
                                 ).extension<KitTheme>()!.accent,
                               ),
                               onPressed: _leaveFullTime,
-                              child: Text(t('common.continue')),
+                              child: _ControlFace(
+                                glyph: 'play',
+                                label: t('common.continue'),
+                              ),
                             ),
                           )
                         : Row(
@@ -2356,12 +2428,21 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
                               Expanded(
                                 child: OutlinedButton(
                                   key: const ValueKey('match-subs'),
-                                  style: matchControlStyle(
-                                    context,
-                                    face: vsGreenPlate,
-                                  ),
+                                  // **THE SAME FACE AS SKIP.** It wore
+                                  // `vsGreenPlate`, which put three different
+                                  // colours in a row of three buttons and made
+                                  // the green one look like a confirmation.
+                                  // Reported from the couch: "not sure why
+                                  // Subs is green, it should just be the same
+                                  // as Skip Match." The speed toggle keeps its
+                                  // colour because there the colour IS the
+                                  // state.
+                                  style: matchControlStyle(context),
                                   onPressed: openSubs,
-                                  child: Text(t('match.subs')),
+                                  child: _ControlFace(
+                                    glyph: 'squad',
+                                    label: t('match.subs'),
+                                  ),
                                 ),
                               ),
                               const SizedBox(width: 8),
@@ -2370,10 +2451,9 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
                                   key: const ValueKey('match-skip'),
                                   style: matchControlStyle(context),
                                   onPressed: skipToEnd,
-                                  child: Text(
-                                    t('common.skip'),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
+                                  child: _ControlFace(
+                                    glyph: 'skip',
+                                    label: t('common.skip'),
                                   ),
                                 ),
                               ),

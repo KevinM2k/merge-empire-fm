@@ -214,6 +214,7 @@ ReportFacts? reportFactsFor(
     points: row?.pts,
     // Positive is a CLIMB, and a climb is a smaller position number.
     posDelta: was == null || row == null ? null : was - (at + 1),
+    lateSwitch: _lateSwitchIn(result),
     nextOpponent: preview?.opponentName,
     nextIsHome: preview?.isHome ?? true,
     oppNextOpponent: _nextFor(save, '${result['opponentName'] ?? ''}'),
@@ -255,3 +256,31 @@ String? _nextFor(Map<String, dynamic>? save, String club) {
   }
   return best?.opponent;
 }
+
+/// The last tactical change, when it came late enough to be about seeing the
+/// match out rather than about how to start it.
+///
+/// **Sixty minutes is the line**, and it is a judgement rather than a
+/// measurement: a switch on the hour is a manager reacting to what is in front
+/// of him, and one in the twentieth is still the plan. The log is written by
+/// the match screen — see `applyStrategy` — because the engine's own result
+/// records WHAT was played and never WHEN it changed.
+({int minute, String tactic})? _lateSwitchIn(Map<String, dynamic> result) {
+  final log = result['strategyLog'];
+  if (log is! List) return null;
+  ({int minute, String tactic})? best;
+  for (final raw in log) {
+    final row = _map(raw);
+    if (row == null) continue;
+    final minute = (row['minute'] as num?)?.toInt() ?? 0;
+    final id = '${row['id'] ?? ''}';
+    if (minute < lateSwitchFrom || id.isEmpty) continue;
+    if (best == null || minute > best.minute) {
+      best = (minute: minute, tactic: id);
+    }
+  }
+  return best;
+}
+
+/// When a tactical change stops being the plan and starts being a response.
+const int lateSwitchFrom = 60;

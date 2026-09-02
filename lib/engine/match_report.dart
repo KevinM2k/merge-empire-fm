@@ -63,6 +63,16 @@ typedef ReportFacts = ({
   int? points,
   int? posDelta,
 
+  /// **THE LAST TACTICAL CHANGE, when it was late enough to be a decision
+  /// about seeing the match out.**
+  ///
+  /// Asked for from the couch: the game knows a manager went defensive on the
+  /// hour, and a report that does not mention it is leaving out the only thing
+  /// on the pitch the reader could not have guessed from the score. Null when
+  /// nobody changed anything, or when the change came early enough to be a plan
+  /// rather than a response.
+  ({int minute, String tactic})? lateSwitch,
+
   /// Who is next, and where. Null when the season has run out of fixtures.
   String? nextOpponent,
   bool nextIsHome,
@@ -210,7 +220,29 @@ List<ReportBeat> buildMatchReport(ReportFacts f) {
     ));
   }
 
-  // ── 5. Where it leaves us ────────────────────────────────────────────────
+  // ── 5. How it was seen out ───────────────────────────────────────────────
+  //
+  // Only a LATE change, and only one of them: two sentences about the dial is a
+  // report about the manager rather than about the match. Which sentence
+  // depends on what he went to, because shutting up shop and throwing men
+  // forward are opposite stories told at the same minute.
+  final late = f.lateSwitch;
+  if (late != null) {
+    beats.add((
+      key: switch (late.tactic) {
+        'parkTheBus' || 'counterAttack' => 'report.tactic.shut_up_shop',
+        'allOutAttack' || 'highPress' => 'report.tactic.went_for_it',
+        _ => 'report.tactic.settled',
+      },
+      params: {
+        'club': f.clubName,
+        'opp': f.opponentName,
+        'minute': late.minute,
+      },
+    ));
+  }
+
+  // ── 6. Where it leaves us ────────────────────────────────────────────────
   //
   // A cup tie has no table to move in, and neither has a save whose season has
   // not started — both come through as a null position rather than as a zero.
@@ -244,7 +276,7 @@ List<ReportBeat> buildMatchReport(ReportFacts f) {
     ));
   }
 
-  // ── 6. And who is next ───────────────────────────────────────────────────
+  // ── 7. And who is next ───────────────────────────────────────────────────
   final next = f.nextOpponent;
   final theirNext = f.oppNextOpponent;
   if (next != null && next.isNotEmpty) {

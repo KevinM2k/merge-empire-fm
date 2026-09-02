@@ -65,7 +65,12 @@ List<CardInstance?> _cells(Map<String, dynamic>? state) {
   final grid = state?['grid'];
   final cells = grid is Map<String, dynamic> ? grid['cells'] : null;
   if (cells is! List) return const [];
-  return [for (final c in cells) c is CardInstance ? c : null];
+  // **`CardInstance.from`, not an `is` check.** The save is JSON, so a grid
+  // cell is a `Map` and never a `CardInstance` — so this returned eleven nulls
+  // for every real save and Pro mode's squad-fitness alert could not fire at
+  // all. It went unseen because the test put `CardInstance` objects into
+  // `grid.cells` directly, which is a shape the game never loads.
+  return [for (final c in cells) CardInstance.from(c)];
 }
 
 /// **The energy alert, and in Pro mode it is a different alert entirely.**

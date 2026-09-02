@@ -42,8 +42,6 @@ import 'package:merge_empire_fc/ui/screens/squad/squad_providers.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/card_glyph.dart';
 import 'package:merge_empire_fc/ui/widgets/player_card.dart';
-import 'package:merge_empire_fc/ui/widgets/match_stat_rows.dart'
-    show vsGreenOn, vsRedOn;
 import 'package:merge_empire_fc/ui/theme/app_theme.dart' show minFontSize;
 import 'package:merge_empire_fc/ui/screens/squad/squad_pickers.dart'
     show PositionFilterBar;
@@ -61,6 +59,7 @@ Future<void> showSubsPanel(
   required void Function(SubMade) onSub,
   String? openOn,
   Set<String> sentOff = const {},
+  Map<String, PitchSlot> sentOffSlots = const {},
   Set<String> cautioned = const {},
 }) => showBottomSheetPopup<void>(
   context,
@@ -71,6 +70,7 @@ Future<void> showSubsPanel(
     onSub: onSub,
     openOn: openOn,
     sentOff: sentOff,
+    sentOffSlots: sentOffSlots,
     cautioned: cautioned,
   ),
 );
@@ -83,6 +83,7 @@ class SubsPanel extends ConsumerStatefulWidget {
     required this.onSub,
     this.openOn,
     this.sentOff = const {},
+    this.sentOffSlots = const {},
     this.cautioned = const {},
   });
 
@@ -105,6 +106,18 @@ class SubsPanel extends ConsumerStatefulWidget {
   /// refuses a tap — the panel is open precisely so the other ten can be moved
   /// around him. Asked for from the couch in those words.
   final Set<String> sentOff;
+
+  /// Where a sent-off man was standing, keyed on his slot.
+  ///
+  /// **The save empties his square and the panel has to un-empty it.** Clearing
+  /// `cardInstanceId` is what makes the engine field ten — `reSimulateRemainder`
+  /// reads the live lineup, and a row it can still see is a row it still
+  /// counts — and the same clearing turns his square into an ordinary hole, so
+  /// the panel offered to fill it. Reported from the couch, in those words:
+  /// "it took me to the bench and allowed me to replace them with someone
+  /// else, this can't be the case." So the screen hands over the slot as it
+  /// stood the instant before, and the panel draws him back into it.
+  final Map<String, PitchSlot> sentOffSlots;
 
   /// Who is on a caution, and playing within themselves for it.
   ///
@@ -286,17 +299,29 @@ class SubsPanelState extends ConsumerState<SubsPanel> {
         Expanded(
           child: PitchBoard(
             slots: slots,
-            slotBuilder: (context, slot) => _SubSlot(
-              slot: slot,
-              enabled:
-                  !none &&
-                  (slot.cardInstanceId == null ||
-                      (!widget.withdrawn.contains(slot.cardInstanceId) &&
-                          !widget.sentOff.contains(slot.cardInstanceId))),
-              sentOff: widget.sentOff.contains(slot.cardInstanceId),
-              cautioned: widget.cautioned.contains(slot.cardInstanceId),
-              onTap: () => _pick(slot),
-            ),
+            slotBuilder: (context, slot) {
+              // His square reads as a hole in the save, so the panel puts him
+              // back in it — rated zero, which is what the sim scores the ten
+              // men anyway, and refusing every tap.
+              final gone = slot.card == null
+                  ? widget.sentOffSlots[slot.slotId]
+                  : null;
+              final shown = gone == null ? slot : _zeroed(gone);
+              return _SubSlot(
+                slot: shown,
+                enabled:
+                    gone == null &&
+                    !none &&
+                    (slot.cardInstanceId == null ||
+                        (!widget.withdrawn.contains(slot.cardInstanceId) &&
+                            !widget.sentOff.contains(slot.cardInstanceId))),
+                sentOff:
+                    gone != null ||
+                    widget.sentOff.contains(slot.cardInstanceId),
+                cautioned: widget.cautioned.contains(slot.cardInstanceId),
+                onTap: () => _pick(slot),
+              );
+            },
           ),
         ),
         Padding(
@@ -331,6 +356,22 @@ class SubsPanelState extends ConsumerState<SubsPanel> {
 
 /// One place on the pitch, as this panel needs it: tappable, and dimmed once the
 /// man in it has already been withdrawn.
+/// The same man, worth nothing.
+PitchSlot _zeroed(PitchSlot slot) => (
+  slotId: slot.slotId,
+  slotPosition: slot.slotPosition,
+  x: slot.x,
+  y: slot.y,
+  cardInstanceId: slot.cardInstanceId,
+  card: slot.card,
+  vacatedBy: null,
+  vacatedById: null,
+  outOfPosition: slot.outOfPosition,
+  effRating: 0,
+  penalty: slot.penalty,
+  seasons: slot.seasons,
+);
+
 class _SubSlot extends ConsumerWidget {
   const _SubSlot({
     required this.slot,
@@ -597,38 +638,30 @@ class _BenchSheetState extends ConsumerState<_BenchSheet> {
                             }
                           }
                         : null,
-                    // **THE COMPARISON IS ON THE CARD, not under it.** It was
-                    // a row below the portrait, so the tile read as a card and
-                    // a caption — two objects for one player — and the figures
-                    // were the furthest thing on the tile from the face they
-                    // are about. Asked for from the couch: the ATK/DEF rating
-                    // should be IN the card.
-                    child: Stack(
-                      children: [
-                        Positioned.fill(
-                          child: PlayerCard(
-                            key: ValueKey('sub-bench-${entry.instanceId}'),
-                            view: entry.card,
-                            light: light,
-                          ),
-                        ),
-                        if (offStats case final against?) ...[
-                          Positioned(
-                            left: 3,
-                            right: 3,
-                            bottom: 3,
-                            child: _VsOff(
-                              instanceId: entry.instanceId,
-                              them: getCardStats(
+                    // **THE COMPARISON IS THE RATING, not a second one.** It
+                    // was an ATK/DEF strip across the bottom of the portrait —
+                    // reported from the couch as "a different rating
+                    // underneath them, it's a bit weird" — so a tile carried
+                    // the card's own number in the corner and two more,
+                    // smaller, in a different colour scheme, for the same
+                    // player. Now the chip that already holds a rating holds
+                    // THIS one: what he is worth in the hole being filled,
+                    // green over the man coming off, amber level with him, red
+                    // under. See `PlayerCard.ratingInstead`.
+                    child: PlayerCard(
+                      key: ValueKey('sub-bench-${entry.instanceId}'),
+                      view: entry.card,
+                      light: light,
+                      ratingInstead: offStats == null
+                          ? null
+                          : _against(
+                              getCardStats(
                                 _cardById(state, entry.instanceId),
                                 slotPosition: slotPosition,
                                 definitionRatios: _ratios(state),
                               ),
-                              against: against,
+                              offStats,
                             ),
-                          ),
-                        ],
-                      ],
                     ),
                   ),
                 );
@@ -710,86 +743,24 @@ class _FormLegend extends StatelessWidget {
   }
 }
 
-/// A bench card's ATK and DEF, against the man he would replace.
+/// His rating in the hole, and whether it is an upgrade.
 ///
-/// **THE FIGURE ALONE IS NOT THE ANSWER**, which is the whole of why this
-/// exists: a manager reading `62` on a bench card has to remember what the man
-/// coming off is worth, in the ninety seconds a substitution actually takes.
-/// Green is better than him and red is worse — the same pair every stat row and
-/// every quest verdict in the game already uses. Asked for from the couch in
-/// exactly those terms.
-///
-/// Level is MUTED rather than green: "no change" is not good news, and colouring
-/// it as though it were is what makes a scale stop meaning anything.
-class _VsOff extends StatelessWidget {
-  const _VsOff({
-    required this.instanceId,
-    required this.them,
-    required this.against,
-  });
-
-  final String instanceId;
-  final CardStats them;
-  final CardStats against;
-
-  @override
-  Widget build(BuildContext context) {
-    final kit = Theme.of(context).extension<KitTheme>()!;
-    Widget cell(String label, int mine, int theirs) {
-      final delta = mine - theirs;
-      return Expanded(
-        child: FittedBox(
-          fit: BoxFit.scaleDown,
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                label,
-                style: const TextStyle(
-                  fontSize: minFontSize,
-                  fontWeight: FontWeight.w900,
-                  color: Color(0xD9FFFFFF),
-                ),
-              ),
-              const SizedBox(width: 3),
-              Text(
-                '$mine',
-                style: TextStyle(
-                  fontSize: minFontSize,
-                  fontWeight: FontWeight.w900,
-                  color: delta == 0
-                      ? kit.textMuted
-                      : delta > 0
-                      ? vsGreenOn(context)
-                      : vsRedOn(context),
-                ),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    // **A GROUND, because it sits on the portrait now.** Under the card it had
-    // the sheet's own surface behind it; over the art it needs one of its own
-    // or the figures are read off whatever the player's shirt happens to be.
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: const Color(0xB8000000),
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
-        child: Row(
-          key: ValueKey('sub-bench-vs-$instanceId'),
-          children: [
-            cell('ATK', them.attack, against.attack),
-            cell('DEF', them.defence, against.defence),
-          ],
-        ),
-      ),
-    );
-  }
+/// Amber for level, because "the same" is a real answer to "is he better" and
+/// colouring it green or red would make a lateral swap look like a decision.
+/// The colours are `penaltyColor`/`penaltyBg` — the pitch token's three, asked
+/// for the same question about a different thing — so the two sheets a manager
+/// swaps players on do not use two palettes for one judgement.
+({int value, Color ink, Color background}) _against(CardStats them, CardStats off) {
+  final band = them.rating > off.rating
+      ? 0.0
+      : them.rating == off.rating
+      ? 0.2
+      : 1.0;
+  return (
+    value: them.rating,
+    ink: penaltyColor(band),
+    background: penaltyBg(band),
+  );
 }
 
 CardInstance? _cardById(Map<String, dynamic>? state, String instanceId) {
@@ -825,8 +796,11 @@ class _SwapPreview extends ConsumerWidget {
     // it, so the confirmation must too or the swap loses the number the whole
     // decision was made on.
     final pro = isProMode(ref.watch(gameProvider).state);
-    final off = going == null ? null : cardViewFor(going!.raw, proMode: pro);
-    final on = cardViewFor(coming.raw, proMode: pro);
+    final ratios = _ratios(ref.watch(gameProvider).state);
+    final off = going == null
+        ? null
+        : cardViewFor(going!.raw, proMode: pro, definitionRatios: ratios);
+    final on = cardViewFor(coming.raw, proMode: pro, definitionRatios: ratios);
     if (on == null) return const SizedBox.shrink();
     return Padding(
       padding: const EdgeInsets.only(top: 4, bottom: 2),

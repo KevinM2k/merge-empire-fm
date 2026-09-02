@@ -38,6 +38,8 @@ import 'package:merge_empire_fc/data/art_paths.dart';
 import 'package:merge_empire_fc/providers/sound_providers.dart';
 import 'package:merge_empire_fc/data/players.dart';
 import 'package:merge_empire_fc/data/traits.dart';
+import 'package:merge_empire_fc/engine/booking_engine.dart'
+    show cardRed, suspendedIn;
 import 'package:merge_empire_fc/engine/loan_engine.dart';
 import 'package:merge_empire_fc/engine/player_energy_engine.dart';
 import 'package:merge_empire_fc/engine/squad_rating.dart';
@@ -54,6 +56,7 @@ import 'package:merge_empire_fc/ui/popups/bottom_sheet_popup.dart';
 import 'package:merge_empire_fc/ui/screens/grid/grid_providers.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/art_image.dart';
+import 'package:merge_empire_fc/ui/widgets/card_glyph.dart';
 import 'package:merge_empire_fc/ui/popups/coach_card.dart';
 import 'package:merge_empire_fc/ui/popups/player_name_card.dart';
 import 'package:merge_empire_fc/ui/popups/feature_unlock.dart';
@@ -194,6 +197,7 @@ class _PlayerDetailState extends ConsumerState<_PlayerDetail> {
     final onLoanToUs = isLoan(card);
     final outOnLoan = isLoanedOut(card);
     final proMode = state != null && isProMode(state);
+    final suspended = suspendedIn(state).contains(instanceId);
 
     // **`getCardStats`, not `getCardRating`.** The latter is the DEFINITION's
     // rating plus a merge bonus and knows nothing about traits, aging, form or
@@ -223,6 +227,7 @@ class _PlayerDetailState extends ConsumerState<_PlayerDetail> {
               onLoanToUs: onLoanToUs,
               outOnLoan: outOnLoan,
               actionsBelow: !outOnLoan,
+              suspended: suspended,
               divisionIndex: divisions
                   .indexWhere(
                     (d) =>
@@ -240,7 +245,11 @@ class _PlayerDetailState extends ConsumerState<_PlayerDetail> {
                 bottom: 10,
                 child: _SlotActions(
                   slotId: slotId,
-                  selectable: card.isSelectable,
+                  // **A BANNED MAN CANNOT BE SENT ON.** Reported from the
+                  // couch: the button was live, it put him on the pitch, and
+                  // the squad rating went UP — he is scored zero, so the side
+                  // it fielded was worse than the one it read.
+                  selectable: card.isSelectable && !suspended,
                 ),
               ),
           ],
@@ -385,6 +394,7 @@ class _Header extends StatelessWidget {
     required this.outOnLoan,
     required this.actionsBelow,
     required this.divisionIndex,
+    required this.suspended,
   });
 
   final CardInstance card;
@@ -395,6 +405,9 @@ class _Header extends StatelessWidget {
   final int divisionIndex;
   final bool onLoanToUs;
   final bool outOnLoan;
+
+  /// Banned from the next fixture.
+  final bool suspended;
 
   /// Whether Replace/Bench/Send On is floating over the artwork's lower edge.
   ///
@@ -466,6 +479,24 @@ class _Header extends StatelessWidget {
           // about a person. What he is as a footballer goes top left, what he
           // has cost and what he pays goes top right, and the artwork keeps the
           // room the box was taking.
+          // **A BAN IS THE FIRST THING ABOUT HIM.** Reported from the couch:
+          // a sent-off player opened the same sheet as anybody else and the
+          // only tell was a Send On button that should not have been there.
+          // Big, centred and over the artwork — the same treatment an injury
+          // gets on a bench card, because it says the same thing: this one
+          // cannot take the field.
+          if (suspended)
+            const Positioned.fill(
+              child: IgnorePointer(
+                child: Center(
+                  child: CardGlyph(
+                    key: ValueKey('detail-suspended'),
+                    card: cardRed,
+                    height: 96,
+                  ),
+                ),
+              ),
+            ),
           Positioned(
             top: 10,
             left: 12,

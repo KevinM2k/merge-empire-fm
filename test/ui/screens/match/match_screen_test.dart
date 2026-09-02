@@ -704,6 +704,7 @@ void main() {
     );
     await tester.tap(find.byKey(const ValueKey('match-skip')));
     await tester.pumpAndSettle();
+    await reachFeed(tester, find.text(t('commentary.halftime_level')));
     expect(find.text(t('commentary.halftime_level')), findsOneWidget);
     expect(find.text('commentary.halftime_level'), findsNothing);
   });
@@ -749,7 +750,9 @@ void main() {
     );
     await tester.tap(find.byKey(const ValueKey('match-skip')));
     await tester.pumpAndSettle();
+    await reachFeed(tester, find.text(t('match.half_time').toUpperCase()));
     expect(find.text(t('match.half_time').toUpperCase()), findsOneWidget);
+    await reachFeed(tester, find.text(t('commentary.halftime_level')));
     expect(find.text(t('commentary.halftime_level')), findsOneWidget);
     expect(
       find.text(t('match.half_time')),
@@ -1114,6 +1117,7 @@ void main() {
     );
     await tester.tap(find.byKey(const ValueKey('match-skip')));
     await tester.pumpAndSettle();
+    await reachFeed(tester, find.text(t('match.subs').toUpperCase()));
     expect(find.text(t('match.subs').toUpperCase()), findsOneWidget);
     expect(
       find.text(t('commentary.opp_sub', {'opp': 'Ayton'})),
@@ -1143,6 +1147,7 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('match-skip')));
     await tester.pumpAndSettle();
     expect(find.textContaining('{opp}'), findsNothing);
+    await reachFeed(tester, find.text(t('commentary.snub', {'opp': 'Ayton'})));
     expect(find.text(t('commentary.snub', {'opp': 'Ayton'})), findsOneWidget);
   });
 

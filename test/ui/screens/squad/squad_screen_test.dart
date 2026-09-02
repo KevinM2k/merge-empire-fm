@@ -1805,6 +1805,121 @@ void main() {
     await pumpSquad(tester);
     expect(find.byKey(const ValueKey('token-suspended')), findsNothing);
   });
+
+  // ── A ban is a ban on the sheet too ──────────────────────────────────────
+  //
+  // Reported from the couch, all three in one breath: "when a player had a red
+  // card and I clicked on them in squad, I could click on Send On, this puts
+  // them on the pitch, and I noticed my rating went UP — they should count as
+  // 0, the Send On button should be out of action, and when I click on them it
+  // should be clear they are out."
+
+  /// Ban [instanceId], and return him.
+  ///
+  /// Written after the pump rather than into the fixture: who ends up on the
+  /// bench is the lineup builder's call, not the cell index's.
+  Future<String> ban(
+    WidgetTester tester,
+    ProviderContainer container,
+    String instanceId,
+  ) async {
+    container.read(gameProvider).update((s) {
+      final cells = (s['grid'] as Map<String, dynamic>)['cells'] as List;
+      for (final raw in cells) {
+        if (raw is Map<String, dynamic> && raw['instanceId'] == instanceId) {
+          raw['suspendedUntilMatch'] = 9;
+        }
+      }
+      s['progression'] = <String, dynamic>{
+        ...?(s['progression'] as Map<String, dynamic>?),
+        'matchesPlayed': 4,
+      };
+    });
+    await settleSave(tester);
+    return instanceId;
+  }
+
+  group('A BANNED MAN CANNOT BE SENT ON', () {
+    testWidgets('the sheet says so, and offers nothing', (tester) async {
+      final container = await pumpSquad(tester, cards: 14);
+      final out = await ban(
+        tester,
+        container,
+        container.read(benchProvider).first.instanceId,
+      );
+
+      await tester.tap(find.byKey(const ValueKey('squad-subs')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(ValueKey('squad-bench-$out')));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const ValueKey('detail-suspended')), findsOneWidget);
+      expect(find.byKey(const ValueKey('detail-send-on')), findsNothing);
+    });
+
+    testWidgets('and the engine refuses him even if something asks', (
+      tester,
+    ) async {
+      final container = await pumpSquad(tester, cards: 14);
+      final out = await ban(
+        tester,
+        container,
+        container.read(benchProvider).first.instanceId,
+      );
+      final before = [
+        for (final s in container.read(pitchSlotsProvider)) s.cardInstanceId,
+      ];
+
+      late WidgetRef captured;
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: Consumer(
+            builder: (_, ref, _) {
+              captured = ref;
+              return const SizedBox();
+            },
+          ),
+        ),
+      );
+      sendOnFromBench(captured, instanceId: out);
+      await settleSave(tester);
+
+      expect(
+        [for (final s in container.read(pitchSlotsProvider)) s.cardInstanceId],
+        before,
+        reason: 'a ban is the one refusal Send On still owes',
+      );
+    });
+
+    testWidgets('and he is worth nothing to the squad rating', (tester) async {
+      // The report came from the other direction: sending him on made the
+      // number go UP. `computeSquadRatings` zeroes an injured or unavailable
+      // man and knows nothing about bans, so the provider hands it a hole.
+      final container = await pumpSquad(tester, cards: 14);
+      final inSide = container
+          .read(pitchSlotsProvider)
+          .firstWhere((s) => s.cardInstanceId != null);
+      final before = container.read(squadRatingsProvider).overall;
+
+      container.read(gameProvider).update((s) {
+        final cells = (s['grid'] as Map<String, dynamic>)['cells'] as List;
+        for (final raw in cells) {
+          if (raw is Map<String, dynamic> &&
+              raw['instanceId'] == inSide.cardInstanceId) {
+            raw['suspendedUntilMatch'] = 9;
+          }
+        }
+        s['progression'] = <String, dynamic>{
+          ...?(s['progression'] as Map<String, dynamic>?),
+          'matchesPlayed': 4,
+        };
+      });
+      await settleSave(tester);
+
+      expect(container.read(squadRatingsProvider).overall, lessThan(before));
+    });
+  });
 }
 
 

@@ -16,13 +16,12 @@ void main() {
   Set<String> placeholders(String s) =>
       placeholder.allMatches(s).map((m) => m.group(0)!).toSet();
 
-  test('ten catalogues, 2721 keys each', () {
+  test('ten catalogues, 2724 keys each', () {
     expect(catalogs.length, 10);
-    // `report.next.*_both` are the newest: the write-up closes on BOTH clubs'
-    // next fixtures, because it is a summary for anyone reading it rather than
-    // for one set of supporters. Bump this WITH the generator run, never
-    // instead of it.
-    expect(en.length, 2721);
+    // `report.tactic.*` are the newest: the write-up says when a manager went
+    // defensive and saw the match out, which the game knew and never mentioned.
+    // Bump this WITH the generator run, never instead of it.
+    expect(en.length, 2724);
   });
 
   test('the shipped catalogues match the list the detector narrows to', () {

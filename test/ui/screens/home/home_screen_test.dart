@@ -1233,37 +1233,6 @@ void main() {
     });
   });
 
-  testWidgets('THE PAGE ARRIVES IN PIECES, not on one frame', (tester) async {
-    // Asked for from the couch: the background, then the card, then the
-    // footer — "all within ms, but it means the page instantly comes up and
-    // isn't delayed waiting on everything to load."
-    //
-    // What is asserted is the STAGGER, not the animation: the scene is there on
-    // the first frame and the two bands over it arrive after it, each on its
-    // own. `homeStageGap` is the whole schedule.
-    await pumpHome(tester, motion: true);
-    expect(
-      tester.widgetList<AnimatedSlide>(find.byType(AnimatedSlide)),
-      hasLength(2),
-      reason: 'the card and the footer are the two staged bands',
-    );
-    expect(
-      tester.widgetList<AnimatedSlide>(find.byType(AnimatedSlide)).first.offset,
-      isNot(Offset.zero),
-      reason: 'the whole page landed on the first frame',
-    );
-
-    await tester.pump(homeStageGap * 2);
-    await tester.pump(const Duration(milliseconds: 300));
-    expect(
-      tester
-          .widgetList<AnimatedSlide>(find.byType(AnimatedSlide))
-          .map((w) => w.offset)
-          .toSet(),
-      {Offset.zero},
-      reason: 'a band never arrived',
-    );
-  });
 }
 
 /// A save that can actually take the field.

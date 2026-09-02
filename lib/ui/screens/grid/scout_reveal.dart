@@ -111,7 +111,11 @@ ScoutReveal? scoutRevealFor(Map<String, dynamic>? state, List<Signing> placed) {
   for (final signing in placed) {
     final idx = signing.idx;
     if (idx == null || idx >= cells.length) continue;
-    final view = cardViewFor(cells[idx], proMode: pro);
+    final view = cardViewFor(
+      cells[idx],
+      proMode: pro,
+      definitionRatios: definitionRatiosOf(state),
+    );
     if (view == null) continue;
     cards.add((
       view: view,

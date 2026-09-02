@@ -6,6 +6,7 @@
 library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:merge_empire_fc/engine/squad_rating.dart' show getCardStats;
 import 'package:merge_empire_fc/engine/merge_engine.dart';
 import 'package:merge_empire_fc/engine/merge_flow_engine.dart';
 
@@ -46,6 +47,15 @@ List<dynamic> gridCells(Map<String, dynamic>? state) {
 /// `hideIncome` and then none of the rate maths runs at all. A bench sheet is
 /// asking "who goes on", not "who earns what", and a looping bar on every card
 /// in a modal is a screenful of animation nobody is reading.
+/// The save's per-definition ATK/DEF split, or none.
+///
+/// Every screen that rates a card has to split it on the SAME ratios or two
+/// places print two numbers for one player — see [cardViewFor.definitionRatios].
+Map<String, dynamic> definitionRatiosOf(Map<String, dynamic>? s) {
+  final raw = s?['definitionRatios'];
+  return raw is Map<String, dynamic> ? raw : const {};
+}
+
 CardView? cardViewFor(
   Object? raw, {
   bool proMode = false,
@@ -66,6 +76,19 @@ CardView? cardViewFor(
   /// So the two are separate inputs. The grid passes [state] and no bans; the
   /// squad and the bench pass bans and no state.
   Set<String> banned = const {},
+
+  /// The save's per-definition ATK/DEF split, for [CardView.rating].
+  ///
+  /// **A trait moves the number on the card, and until now it did not.**
+  /// Reported from the couch in one line: "if the player has a trait, it
+  /// should change that number top left." The view carried `getCardRating`,
+  /// which is the DEFINITION's rating — no trait, no form, no aging — so the
+  /// one thing a player spends coins to change was the one thing the card
+  /// could not show. `getCardStats` is the documented single source of truth
+  /// and folds the trait's directional bonus back into an overall; the ratios
+  /// are what it splits on, and passing them keeps this number identical to
+  /// the detail sheet's, which has always used them.
+  Map<String, dynamic> definitionRatios = const {},
 }) {
   final card = CardInstance.from(raw);
   if (card == null) return null;
@@ -85,7 +108,7 @@ CardView? cardViewFor(
   return (
     name: getCardName(_map(raw), def.name),
     tier: def.tier,
-    rating: getCardRating(def),
+    rating: getCardStats(card, definitionRatios: definitionRatios).rating,
     position: def.position,
     injured: card.injured,
     onLoan: borrowed || card.loanedOut != null,
@@ -191,6 +214,7 @@ final gridCellsProvider = Provider<List<GridCell>>((ref) {
                   cells[i],
                   proMode: pro,
                   state: s,
+                  definitionRatios: definitionRatiosOf(s),
                   maxTier: getDivision(
                     _map(s['progression'])?['currentDivision'] as String? ??
                         divisions.first.id,

@@ -88,7 +88,19 @@ Future<T?> showBottomSheetPopup<T>(
           // nothing, and the space it sits in is a sheet's own top margin.
           child: Stack(
             children: [
-              child,
+              // **THE FRAME PAYS FOR THE GRABBER, so no sheet has to.**
+              // The handle is an overlay rather than a row — see below — which
+              // kept every sheet its full height and left the clearance to the
+              // content: the ones with a [SheetHeader] happened to have enough
+              // and the ones without had none, so a title, a first row or a
+              // chart started underneath the bar. Reported from the couch:
+              // "all of these popups should have some space at the top for the
+              // grabber, some of them do but not all, the bench is a good
+              // example." Twelve is where the bar's own bottom edge is.
+              Padding(
+                padding: const EdgeInsets.only(top: sheetGrabberSpace),
+                child: child,
+              ),
               Positioned(
                 top: 0,
                 left: 0,
@@ -102,6 +114,12 @@ Future<T?> showBottomSheetPopup<T>(
     ),
   ).whenComplete(uncover);
 }
+
+/// The room a sheet leaves above its content for [_DragHandle].
+///
+/// The handle is 8pt of padding, a 4pt bar and 8pt more, so its bar ends at
+/// twelve — which is the least a sheet can start at without drawing over it.
+const double sheetGrabberSpace = 12;
 
 /// The bar at the top of a sheet, and the thing you pull it down by.
 ///

@@ -490,7 +490,11 @@ class MergeGridState extends ConsumerState<MergeGrid>
     final cells = gridCells(ref.read(gameProvider).state);
     if (index < 0 || index >= cells.length) return;
     final cell = cells[index];
-    final view = cardViewFor(cell, proMode: ref.read(proModeProvider));
+    final view = cardViewFor(
+      cell,
+      proMode: ref.read(proModeProvider),
+      definitionRatios: definitionRatiosOf(ref.read(gameProvider).state),
+    );
     if (view == null || !mounted) return;
 
     // Held back for the length of the reveal, as a signing is: the card is
