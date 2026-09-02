@@ -1783,11 +1783,48 @@ void main() {
       // nothing to bounce. Reported as the Players tab not having the bounce
       // the other tabs do, which is exactly the case a one-card grid is in.
       await pumpGrid(tester, cards: {0: _card(_baseDefId, 'a')});
-      final view = tester.widget<SingleChildScrollView>(
+      final view = tester.widget<CustomScrollView>(
         find.byKey(const ValueKey('merge-grid')),
       );
       expect(view.physics, isA<AlwaysScrollableScrollPhysics>());
       expect(view.physics?.parent, isA<BouncingScrollPhysics>());
+    });
+
+    testWidgets('and a DRAG at the top really does give', (tester) async {
+      // **The types are not the behaviour.** The assertion above says the
+      // physics are the bouncing pair and says nothing about whether a finger
+      // on the grid reaches them — which is the thing that kept being reported
+      // as missing. So this drags, and reads the offset.
+      await pumpGrid(tester, cards: {0: _card(_baseDefId, 'a')});
+      final grid = find.byKey(const ValueKey('merge-grid'));
+      final position = tester
+          .state<ScrollableState>(
+            find.descendant(of: grid, matching: find.byType(Scrollable)),
+          )
+          .position;
+      expect(position.pixels, 0);
+
+      // **STARTING ON A CARD**, which is where a thumb actually lands: the
+      // grid is a wall of them, and a card carries a `LongPressDraggable`. If
+      // that claims the vertical drag the page does not move, which is exactly
+      // what kept being reported.
+      final drag = await tester.startGesture(
+        tester.getCenter(find.byKey(const ValueKey('grid-card-a'))),
+      );
+      // In steps, the way a finger moves — one 120pt jump resolves the arena
+      // after the travel has already happened.
+      for (var i = 0; i < 12; i++) {
+        await drag.moveBy(const Offset(0, 10));
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      expect(
+        position.pixels,
+        lessThan(0),
+        reason: 'the top of the Players tab refused the drag',
+      );
+      await drag.up();
+      await tester.pumpAndSettle();
+      expect(position.pixels, 0, reason: 'it did not spring back');
     });
   });
 

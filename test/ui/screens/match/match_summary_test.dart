@@ -228,8 +228,42 @@ void main() {
     // convention. The name is on the event whether or not the save still has a
     // card to draw, so a scorer since sold still scored.
     expect(find.byKey(const ValueKey('summary-scorers')), findsOneWidget);
-    expect(find.textContaining('Bobby'), findsOneWidget);
+    // Scoped to the scorers' well: the full-time write-up below names him too,
+    // which is the whole point of it.
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('summary-scorers')),
+        matching: find.textContaining('Bobby'),
+      ),
+      findsOneWidget,
+    );
     expect(find.textContaining("22'"), findsOneWidget);
+  });
+
+  testWidgets('AND SOMEBODY WRITES IT UP', (tester) async {
+    // The panels above are the match in figures; this is the match in words.
+    // Asked for from the couch three times, and the last time as "remember
+    // its a summary tho" — so it is one paragraph, not a list of lines.
+    await pumpSummary(tester, result());
+    final report = find.byKey(const ValueKey('summary-report'));
+    expect(report, findsOneWidget);
+    final prose = tester
+        .widgetList<Text>(find.descendant(of: report, matching: find.byType(Text)))
+        .map((w) => w.data ?? '')
+        .join(' ');
+    // The result, the table and who is next — the three beats every league
+    // match earns. Not the exact words: those are a pool of three per beat.
+    expect(prose, contains('Ayton'));
+    expect(prose, contains('Opponent'));
+    expect(prose.split('. ').length, greaterThan(2));
+    // And it is ONE paragraph: the beats are joined, not stacked.
+    expect(
+      tester.widgetList<Text>(
+        find.descendant(of: report, matching: find.byType(Text)),
+      ),
+      hasLength(2),
+      reason: 'a heading and the write-up, and nothing else',
+    );
   });
 
   testWidgets('and a defeat says so rather than dressing it up', (
@@ -595,6 +629,10 @@ void main() {
       await pumpSummary(tester, res, ads: ads);
       expect(ads.prepared, 1, reason: 'the offer was not warmed up');
 
+      // The report pushed the offer below the fold on a test-sized view; it
+      // scrolls on a phone too.
+      await tester.ensureVisible(find.byKey(const ValueKey('summary-double')));
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('summary-double')));
       await tester.pumpAndSettle();
       expect(ads.shown, 1);
@@ -608,6 +646,10 @@ void main() {
         final ads = FakeAds(outcome);
         final res = result(coins: 300);
         await pumpSummary(tester, res, ads: ads);
+        await tester.ensureVisible(
+          find.byKey(const ValueKey('summary-double')),
+        );
+        await tester.pumpAndSettle();
         await tester.tap(find.byKey(const ValueKey('summary-double')));
         await tester.pumpAndSettle();
         expect(res['coinsEarned'], 300, reason: '$outcome paid double');

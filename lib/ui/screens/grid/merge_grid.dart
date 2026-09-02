@@ -586,23 +586,8 @@ class MergeGridState extends ConsumerState<MergeGrid>
         children: [
           Column(
             children: [
-              // **THE BAR IS PINNED, AND THE GRID BENEATH IT BOUNCES.** Those
-              // read as one setting and are two. It went inside the scroller
-              // once, on the theory that the missing bounce was the bar being
-              // nailed down; the bounce was actually the physics below, and
-              // moving the bar only cost the two controls their fixed place.
-              // Both were reported from the couch, one after the other.
-              Padding(
-                padding: EdgeInsets.fromLTRB(
-                  _pad,
-                  hudClearanceOf(context, underBar: false),
-                  _pad,
-                  _pad,
-                ),
-                child: const ScoutActionBar(),
-              ),
               Expanded(
-                child: SingleChildScrollView(
+                child: CustomScrollView(
                   key: const ValueKey('merge-grid'),
                   controller: _scroll,
                   // **THE PLATFORM'S OWN BOUNCE, on both of them.** The default
@@ -623,9 +608,32 @@ class MergeGridState extends ConsumerState<MergeGrid>
                       parent: RangeMaintainingScrollPhysics(),
                     ),
                   ),
-                  padding: const EdgeInsets.fromLTRB(_pad, 0, _pad, 12),
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
+                  slivers: [
+                    // **THE BAR IS PINNED, AND THE WHOLE PAGE STILL GIVES.**
+                    // Those read as one setting and are two, and each was
+                    // reported separately. Outside the scroller the two
+                    // controls stayed put but a thumb landing on them moved
+                    // nothing, which reads as the tab having lost its bounce;
+                    // inside it the page gave but the buttons scrolled away.
+                    //
+                    // A pinned sliver is the arrangement that is both: the bar
+                    // holds the top of the viewport and every drag on it, and
+                    // on the grid below it, is the same scroll.
+                    SliverPersistentHeader(
+                      pinned: true,
+                      delegate: _ActionBarHeader(
+                        height: hudClearanceOf(context, underBar: false) +
+                            _barHeight +
+                            _pad,
+                        top: hudClearanceOf(context, underBar: false),
+                        background: Theme.of(context).scaffoldBackgroundColor,
+                      ),
+                    ),
+                    SliverPadding(
+                      padding: const EdgeInsets.fromLTRB(_pad, 0, _pad, 12),
+                      sliver: SliverToBoxAdapter(
+                        child: LayoutBuilder(
+                          builder: (context, constraints) {
                       final cols = gridColumnsFor(
                         MediaQuery.sizeOf(context).width,
                       );
@@ -750,8 +758,11 @@ class MergeGridState extends ConsumerState<MergeGrid>
                           const _GridStatusStrip(),
                         ],
                       );
-                    },
-                  ),
+                          },
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
@@ -1512,3 +1523,55 @@ class GridScreen extends StatelessWidget {
   Widget build(BuildContext context) =>
       Semantics(label: t('nav.players'), child: const MergeGrid());
 }
+
+/// The Players tab's action bar, pinned to the top of its own scroller.
+///
+/// **A sliver rather than a widget above the list**, which is the whole point:
+/// a bar outside the scrollable holds its place and swallows every drag that
+/// lands on it, so the top strip of the tab feels dead — reported repeatedly as
+/// the Players tab having lost its bounce. Pinned inside, it holds its place
+/// AND a thumb on it scrolls the page.
+///
+/// [height] is fixed rather than measured because a persistent header has to
+/// declare its extent before its child is laid out. `ScoutActionBar` is a row
+/// of two buttons at a fixed type size — 47 points, and [_barHeight] is that
+/// number with room for a language that wraps.
+class _ActionBarHeader extends SliverPersistentHeaderDelegate {
+  const _ActionBarHeader({
+    required this.height,
+    required this.top,
+    required this.background,
+  });
+
+  final double height;
+
+  /// The HUD's own clearance, so the bar clears the glass above it.
+  final double top;
+
+  /// What the pinned bar sits on once the grid has scrolled under it. Without
+  /// a ground the cards run straight through the buttons.
+  final Color background;
+
+  @override
+  double get minExtent => height;
+
+  @override
+  double get maxExtent => height;
+
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) =>
+      Container(
+        color: background,
+        padding: EdgeInsets.fromLTRB(_pad, top, _pad, _pad),
+        alignment: Alignment.topCenter,
+        child: const ScoutActionBar(),
+      );
+
+  @override
+  bool shouldRebuild(_ActionBarHeader old) =>
+      old.height != height || old.top != top || old.background != background;
+}
+
+/// `ScoutActionBar` at its natural height, with room for a language that wraps.
+const double _barHeight = 54;
+

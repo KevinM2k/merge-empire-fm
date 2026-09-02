@@ -79,7 +79,7 @@ import 'package:merge_empire_fc/ui/theme/sky.dart';
 import 'package:merge_empire_fc/ui/widgets/match_stat_rows.dart';
 import 'package:merge_empire_fc/util/stat_display.dart';
 import 'package:merge_empire_fc/ui/popups/coach_card.dart'
-    show CoachAction, CoachTone, showCoachCard;
+    show CoachAction, showCoachAside, showCoachCard;
 
 /// One dugout-cam shot, as the screen has decided it. Everything the widget
 /// needs and nothing it can work out for itself.
@@ -1273,6 +1273,11 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
       for (final b in _bookings)
         if (cardSendsOff('${b['card']}')) '${b['playerInstanceId']}',
     ];
+    // **AND THE REPORT NEEDS THEM.** The summary is the next screen and it is
+    // handed this same map — see `MatchReportCard`, which counts the cards to
+    // decide whether the referee gets a sentence. Both sides' rows travel; the
+    // ones with no `playerInstanceId` are theirs.
+    widget.result['bookings'] = _bookings;
     if (_bookingRecords.isNotEmpty) {
       final game = ref.read(gameProvider);
       game.update((state) {
@@ -1490,25 +1495,20 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
     _bookingAdvised = true;
     if (!mounted) return;
     setState(() => _paused = true);
-    final swap = await showCoachCard<bool>(
+    // **THE SMALL ONE, bottom left.** A caution is a remark, not a decision —
+    // reported from the couch as the big card being the wrong shape for it.
+    // See [showCoachAside]; a sending-off keeps the full card, because that
+    // one IS a decision about the ten who are left.
+    final swap = await showCoachAside(
       context,
-      titleKey: 'coach.booked.title',
-      bodyKey: 'coach.booked.body',
-      bodyParams: {
+      label: t('coach.booked.title'),
+      body: t('coach.booked.body', {
         'player': player,
         'rating': booked,
         'sub': best.card.name,
         'subRating': best.effRating,
-      },
-      actions: [
-        CoachAction(
-          labelKey: 'coach.booked.swap',
-          tone: CoachTone.confirm,
-          onTap: () {},
-          result: true,
-        ),
-        CoachAction(labelKey: 'coachtip.tap_dismiss', onTap: () {}),
-      ],
+      }),
+      actionLabel: t('coach.booked.swap'),
     );
     if (!mounted) return;
     setState(() => _paused = false);
@@ -3080,7 +3080,17 @@ class _FeedLine extends StatelessWidget {
                     letterSpacing: 0.8,
                     // A booking's head wears the card's own colour, so the row
                     // is read before it is read.
-                    color: line.card == null
+                    //
+                    // **EXCEPT THE YELLOW ONE.** `cardYellowInk` is the shade a
+                    // referee's card is, which is the right colour for a
+                    // rectangle and the wrong one for eight letters of text —
+                    // reported from the couch as not being readable. The GLYPH
+                    // beside it is already carrying the colour, so the words
+                    // take the feed's own ink and nothing is lost. A red still
+                    // wears its own: it reads at any size, and it is the one a
+                    // player must not miss.
+                    color:
+                        line.card == null || line.card == cardYellow
                         ? glassAccent(context, kit.accentBright)
                         : cardInk(line.card!),
                   ),
