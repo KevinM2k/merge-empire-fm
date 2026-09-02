@@ -2325,16 +2325,44 @@ void main() {
     state.skipToEnd();
     await tester.pumpAndSettle();
 
-    expect(state.retoldMoments, isNotEmpty, reason: 'the pitch told nothing');
-    final minute = state.retoldMoments.first.minute;
-    final chip = find.byKey(ValueKey('pitch-replay-$minute'));
+    expect(state.retoldMinutes, isNotEmpty, reason: 'the pitch told nothing');
+
+    // **ON THE LINE, not on the stats panel.** It spent one round as a strip of
+    // minute chips over the pitch and was asked for here instead: the sentence
+    // that describes the moment is where a player is already reading about it.
+    final chip = find.byKey(const ValueKey('feed-replay'));
     expect(chip, findsOneWidget);
 
     await tester.tap(chip);
     await tester.pump();
-    // The panel gets out of the way of the grass it is laid on.
+    // The stats get out of the way of the grass they are laid on.
     expect(find.byKey(const ValueKey('pitch-stats')), findsNothing);
     expect(state.clipPlaying, isTrue);
+  });
+
+  testWidgets('but NOT while the match is still being played', (tester) async {
+    // The ninety minutes are a thing you watch, and a control that stops the
+    // clock to show you a passage you are still in the middle of is the wrong
+    // offer at the wrong moment. Asked for from the couch, and it is why the
+    // spec's own `feed-replay-icon` came off in the first place.
+    await pumpMatch(
+      tester,
+      matchResult(
+        events: [
+          {'minute': 10, 'type': 'goal', 'team': 'home', 'scorer': 'Smith'},
+        ],
+      ),
+      reduceMotion: false,
+    );
+    final state = stateOf(tester);
+    await tester.pump(minuteDurationFor(10));
+    await tester.pump();
+    await endClip(tester);
+    await tester.pump(minuteDurationFor(2));
+    expect(state.frame.finished, isFalse);
+    expect(find.byKey(const ValueKey('feed-replay')), findsNothing);
+    state.skipToEnd();
+    await tester.pumpAndSettle();
   });
 
   testWidgets('AND AT FULL TIME THEY ARE ON THE PITCH', (tester) async {

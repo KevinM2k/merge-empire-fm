@@ -456,27 +456,12 @@ class PitchStatOverlay extends StatelessWidget {
     super.key,
     required this.stats,
     required this.isHome,
-    this.moments = const [],
-    this.onReplay,
   });
 
   final LiveStats stats;
 
   /// Which column is OURS, so the accent goes on the right side of the row.
   final bool isHome;
-
-  /// **EVERY MOMENT THE 2D PITCH ACTUALLY RETOLD**, in the order it told them.
-  ///
-  /// Goals and chances both: the clip is rebuilt from the minute and the
-  /// match's own seed rather than recorded, so asking for one again costs
-  /// nothing and gives back exactly the passage that was played. Asked for from
-  /// the couch — anything that made it to the pitch should be replayable from
-  /// here.
-  final List<({int minute, bool ours, bool goal})> moments;
-
-  /// Play that moment again on the grass under this panel. The panel goes while
-  /// it runs — see the match screen's own `_clip == null` guard.
-  final void Function(int minute)? onReplay;
 
   /// The bar's own share of the row, per side. The label sits between them.
   static const double _barFlex = 3;
@@ -512,10 +497,12 @@ class PitchStatOverlay extends StatelessWidget {
     // width is measured rather than left unbounded, because a `FittedBox` hands
     // its child infinity and a `Row` with flexible children cannot lay out in
     // it.
-    // **NOT `IgnorePointer` any more.** It was, because a panel over a pitch
-    // that eats taps is a panel in the way; the replay buttons are the reason
-    // it cannot be — they are the one thing on this overlay a finger is for.
-    return Padding(
+    // **`IgnorePointer`, because nothing on it is a control.** A row of replay
+    // buttons lived here for one round; they belong on the COMMENTARY LINE that
+    // describes the moment, which is where a player is already reading about it
+    // — asked for from the couch. See `_FeedLine.onReplay`.
+    return IgnorePointer(
+      child: Padding(
         // **THE BOXES USE THE PITCH.** They were inset a token 8 points and sat
         // as a narrow stack in the middle of the grass with air all round them;
         // asked for from the couch to fill the band out. The rows are wider and
@@ -567,10 +554,6 @@ class PitchStatOverlay extends StatelessWidget {
                             barFlex: _barFlex,
                           ),
                         ),
-                      if (moments.isNotEmpty && onReplay != null) ...[
-                        const SizedBox(height: 6),
-                        _MomentStrip(moments: moments, onReplay: onReplay!),
-                      ],
                     ],
                   ),
                 ),
@@ -578,7 +561,8 @@ class PitchStatOverlay extends StatelessWidget {
             ),
           ),
         ),
-      );
+      ),
+    );
   }
 }
 
@@ -754,82 +738,4 @@ class _PitchStatRow extends StatelessWidget {
       ),
     );
   }
-}
-
-/// The moments the pitch retold, as a row of buttons.
-///
-/// **A MINUTE IS THE WHOLE LABEL.** The feed above says what happened at each
-/// of them and the panel this sits in is already dense; a chip carrying "GOAL —
-/// Smith" would be a third telling of the same thing. What it has to say is
-/// "there is a passage here", and the colour says whose it was — the same green
-/// and red the bars use.
-class _MomentStrip extends StatelessWidget {
-  const _MomentStrip({required this.moments, required this.onReplay});
-
-  final List<({int minute, bool ours, bool goal})> moments;
-  final void Function(int minute) onReplay;
-
-  @override
-  Widget build(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    mainAxisSize: MainAxisSize.min,
-    children: [
-      // The seam the rows end on, so the buttons read as a second thing rather
-      // than as a seventh statistic.
-      const Divider(height: 9, thickness: 1, color: Color(0x26FFFFFF)),
-      Wrap(
-        key: const ValueKey('pitch-replays'),
-        alignment: WrapAlignment.center,
-        spacing: 6,
-        runSpacing: 6,
-        children: [
-          for (final moment in moments)
-            GestureDetector(
-              key: ValueKey('pitch-replay-${moment.minute}'),
-              onTap: () => onReplay(moment.minute),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 8,
-                  vertical: 4,
-                ),
-                decoration: BoxDecoration(
-                  color: const Color(0x2EFFFFFF),
-                  borderRadius: BorderRadius.circular(999),
-                  border: Border.all(
-                    // A goal is the moment worth going back for, so it is the
-                    // one that carries a colour; a chance takes the quiet rim.
-                    color: !moment.goal
-                        ? const Color(0x33FFFFFF)
-                        : moment.ours
-                        ? const Color(0xFF4ADE80)
-                        : const Color(0xFFF87171),
-                  ),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(
-                      Icons.play_arrow_rounded,
-                      size: 13,
-                      color: Color(0xFFF2F5F3),
-                    ),
-                    const SizedBox(width: 2),
-                    Text(
-                      "${moment.minute}'",
-                      style: const TextStyle(
-                        fontSize: minFontSize,
-                        height: 1.1,
-                        fontWeight: FontWeight.w900,
-                        color: Color(0xFFF2F5F3),
-                        fontFeatures: [FontFeature.tabularFigures()],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-        ],
-      ),
-    ],
-  );
 }

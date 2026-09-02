@@ -1723,15 +1723,7 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
                               // the clock has stopped and only while no clip is
                               // running — a replay still owns the grass.
                               if (f.finished && _clip == null)
-                                PitchStatOverlay(
-                                  stats: stats,
-                                  isHome: home,
-                                  // Goals and chances alike — anything the
-                                  // pitch retold is worth being able to ask for
-                                  // again. See [replayMoment].
-                                  moments: retoldMoments,
-                                  onReplay: replayMoment,
-                                ),
+                                PitchStatOverlay(stats: stats, isHome: home),
                           ],
                         ),
                       ),
@@ -2025,18 +2017,32 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
     return page;
   }
 
-  /// One row of the feed.
+  /// One row of the feed, with a replay on it once the whistle has gone.
   ///
-  /// **NO REPLAY CHIP, and that is a deliberate divergence from the spec.**
-  /// `MatchPopup.js` tags a goal's feed item with `feed-replay-icon` and the
-  /// port carried it across. Asked for from the couch: a replay belongs on the
-  /// full-time report and nowhere else — the ninety minutes are a thing you
-  /// watch, and a control that stops the clock to show you a passage you are
-  /// still in the middle of is the wrong offer at the wrong moment. The
-  /// summary's own goal list keeps it, so nothing has been taken away; it has
-  /// moved to the screen the player is sitting on when they want it.
-  Widget _feedLine(FeedLine line) =>
-      _FeedLine(line: line, state: ref.read(gameProvider).state);
+  /// **NOT DURING THE MATCH, which is the whole of the rule.** `MatchPopup.js`
+  /// tags every goal's feed item with `feed-replay-icon` and the port carried
+  /// that across; asked for from the couch to take it out, because the ninety
+  /// minutes are a thing you WATCH and a control that stops the clock to show
+  /// you a passage you are still in the middle of is the wrong offer at the
+  /// wrong moment.
+  ///
+  /// At full time it is the right offer, and this is where it goes: on the LINE
+  /// that describes the moment, where the player is already reading about it. It
+  /// spent one round as a strip of minute chips on the stats panel over the
+  /// pitch and was asked for here instead — a `10'` on a panel is a reference to
+  /// a sentence three inches away, and the sentence can carry the button itself.
+  ///
+  /// **Only what the pitch actually SHOWED.** `clipFor` refuses a chance for the
+  /// pacing gap or for a switch the player has turned off, so `retoldMinutes` is
+  /// the only honest answer to "is there a passage here" — offering a replay of
+  /// something that was never played is a control that does nothing.
+  Widget _feedLine(FeedLine line) => _FeedLine(
+    line: line,
+    state: ref.read(gameProvider).state,
+    onReplay: !frame.finished || !retoldMinutes.contains(line.minute)
+        ? null
+        : () => replayMoment(line.minute),
+  );
 
   /// **PLAY A RETOLD MOMENT AGAIN, on the same grass.**
   ///
@@ -2076,16 +2082,9 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
     });
   }
 
-  /// What the full-time panel offers back, in the order they happened — which
-  /// is the order the feed above reads in.
-  List<({int minute, bool ours, bool goal})> get retoldMoments => [
-    for (final event in _retold)
-      (
-        minute: event.minute,
-        ours: event.team != 'away',
-        goal: event.type == 'goal',
-      ),
-  ];
+  /// Which minutes the pitch actually retold — the feed lines that can offer a
+  /// replay. **A test seam** as well as the screen's own question.
+  Set<int> get retoldMinutes => {for (final event in _retold) event.minute};
 
   /// The scorer's face for the clip on the pitch, or null when there is nobody
   /// to name.
@@ -2658,9 +2657,14 @@ class _Scoreboard extends StatelessWidget {
 
 
 class _FeedLine extends StatelessWidget {
-  const _FeedLine({required this.line, required this.state});
+  const _FeedLine({required this.line, required this.state, this.onReplay});
 
   final FeedLine line;
+
+  /// Play this moment again on the pitch, or null when there is nothing to play
+  /// — every line during the match, and any line at full time the 2D pitch
+  /// never retold. See [MatchScreenState._feedLine].
+  final VoidCallback? onReplay;
 
   /// The save, for resolving [FeedLine.aboutId] into a face. Handed in rather
   /// than watched: the feed rebuilds on every tick of the clock, and a hundred
@@ -2788,6 +2792,9 @@ class _FeedLine extends StatelessWidget {
                 ),
               ),
             ),
+            // A chance the pitch retold is worth seeing again too — see
+            // [MatchScreenState._feedLine].
+            if (onReplay case final replay?) _ReplayChip(onTap: replay),
           ],
         ),
       ],
@@ -2918,13 +2925,17 @@ class _FeedLine extends StatelessWidget {
                 ),
               ],
               const SizedBox(height: 7),
-              // **THE CAPTION, and no chip beside it.** The replay control the
-              // spec puts here has gone to the full-time report — see
-              // [MatchScreenState._feedLine] — so the sentence takes the width
-              // it always wanted.
-              Text(
-                text,
-                style: TextStyle(fontSize: 12.5, color: kit.textMuted),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Expanded(
+                    child: Text(
+                      text,
+                      style: TextStyle(fontSize: 12.5, color: kit.textMuted),
+                    ),
+                  ),
+                  if (onReplay case final replay?) _ReplayChip(onTap: replay),
+                ],
               ),
             ],
           ),
@@ -2968,4 +2979,36 @@ int? _careerGoals(CardInstance card, int today) {
   if (stats is! Map<String, dynamic>) return null;
   final scored = stats['goals'];
   return (scored is num ? scored.toInt() : 0) + today;
+}
+
+/// **THE ONE THING WORTH SEEING TWICE.** A goal or a chance goes past while the
+/// manager is reading the line above it, and the passage is rebuilt from the
+/// minute rather than recorded — so asking for it again costs nothing but the
+/// chip.
+///
+/// It says the word as well as showing the glyph: `match.replay` is real shipped
+/// copy in all ten catalogues, and a bare arrow on a row of sentences is a
+/// control the player has to guess at.
+class _ReplayChip extends StatelessWidget {
+  const _ReplayChip({required this.onTap});
+
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final kit = Theme.of(context).extension<KitTheme>()!;
+    return TextButton.icon(
+      key: const ValueKey('feed-replay'),
+      style: TextButton.styleFrom(
+        foregroundColor: glassAccent(context, kit.accentBright),
+        visualDensity: VisualDensity.compact,
+        padding: const EdgeInsets.symmetric(horizontal: 6),
+        minimumSize: const Size(0, 30),
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      ),
+      icon: const Icon(Icons.replay, size: 15),
+      label: Text(t('match.replay'), maxLines: 1),
+      onPressed: onTap,
+    );
+  }
 }

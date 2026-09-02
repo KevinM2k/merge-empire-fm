@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/ui/theme/app_theme.dart';
 import 'package:merge_empire_fc/ui/widgets/match_stat_rows.dart';
+import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 
 Future<void> pumpRows(
   WidgetTester tester, {
@@ -88,10 +89,14 @@ StatMod mod(int amount, {StatTone tone = StatTone.delta}) =>
 Color inkOfFigure(WidgetTester tester, String label) =>
     tester.widget<Text>(find.text(label)).style!.color!;
 
-/// **A MODIFIER'S COLOUR IS ITS BADGE, not its ink.** It used to be the ink on
-/// the bare pane; it is a filled chip printed in white now — reported as
-/// needing to be white on green rather than green on green — so what carries
-/// the tone is the plate behind it.
+/// **A MODIFIER'S COLOUR IS ITS INK, on a neutral recess.**
+///
+/// Three rounds, and the middle one is why this helper exists: it was the hue
+/// on a 13% wash of itself (unreadable), then WHITE on a solid plate of the
+/// hue (readable, and three blocks of colour on a card whose loudest thing is
+/// meant to be the ratings), and now the deep member of the pair as ink on the
+/// recess every panel in the app recesses with. So the tone is back on the
+/// figure, and [plateOfFigure] is what checks the recess is NOT carrying it.
 Color plateOfFigure(WidgetTester tester, String label) {
   final box = tester.widget<Container>(
     find
@@ -99,6 +104,12 @@ Color plateOfFigure(WidgetTester tester, String label) {
         .first,
   );
   return (box.decoration! as BoxDecoration).color!;
+}
+
+/// The colour a modifier of this tone and amount should be printed in.
+Color toneInk(WidgetTester tester, String label, StatTone tone, int amount) {
+  final context = tester.element(find.text(label));
+  return semanticInk(context, statToneColor(context, tone, amount));
 }
 
 void main() {
@@ -147,16 +158,41 @@ void main() {
     testWidgets('the same plus is the same green on both sides', (tester) async {
       await pumpRows(tester, leftMods: [mod(4)], rightMods: [mod(3)]);
       await tester.pumpAndSettle();
+      expect(inkOfFigure(tester, '+4'), inkOfFigure(tester, '+3'));
+      expect(
+        inkOfFigure(tester, '+4'),
+        toneInk(tester, '+4', StatTone.delta, 4),
+      );
+      // **THE GROUND CARRIES NONE OF IT.** Reported from the couch: three solid
+      // blocks of colour stand out a lot on a card whose loudest thing is meant
+      // to be the two ratings. The plate is the app's own card surface now, so
+      // the tone lives on the rim and the figure.
       expect(plateOfFigure(tester, '+4'), plateOfFigure(tester, '+3'));
-      expect(inkOfFigure(tester, '+4'), Colors.white);
       expect(
         plateOfFigure(tester, '+4'),
-        semanticInk(
-          tester.element(find.text('+4')),
-          statToneColor(tester.element(find.text('+4')), StatTone.delta, 4),
-          light: true,
-        ),
+        isNot(toneInk(tester, '+4', StatTone.delta, 4)),
       );
+    });
+
+    testWidgets('AND IT STILL HAS A CHASSIS IN LIGHT MODE', (tester) async {
+      // Two rounds of this. A 5% wash of `glassInk` is WHITE on a light pane —
+      // the badge had no ground at all and the figure floated, reported
+      // immediately. A 16% wash of the hue put it back and failed the contrast
+      // sweep at 2.70:1, because this card sits on glass over a pitch and a
+      // green kit makes that pane green before any tint is added.
+      for (final light in [false, true]) {
+        await pumpRows(tester, leftMods: [mod(4)], light: light);
+        await tester.pumpAndSettle();
+        final plate = plateOfFigure(tester, '+4');
+        // OPAQUE, so the figure has a known ground to be measured against.
+        expect(plate.a, 1, reason: 'light: $light');
+        expect(
+          plate,
+          Theme.of(
+            tester.element(find.text('+4')),
+          ).extension<KitTheme>()!.surface2,
+        );
+      }
     });
 
     testWidgets('AND A MINUS IS RED, prints its own sign, and is not the green', (
@@ -169,7 +205,10 @@ void main() {
       await pumpRows(tester, leftMods: [mod(-2), mod(5)]);
       await tester.pumpAndSettle();
       expect(find.text('-2'), findsOneWidget);
-      expect(plateOfFigure(tester, '-2'), isNot(plateOfFigure(tester, '+5')));
+      expect(inkOfFigure(tester, '-2'), isNot(inkOfFigure(tester, '+5')));
+      // The plate is the card's own surface either way: only the figure and its
+      // rim change colour.
+      expect(plateOfFigure(tester, '-2'), plateOfFigure(tester, '+5'));
     });
 
     testWidgets('and a relegation scrap is neither, on either side', (
@@ -184,16 +223,11 @@ void main() {
         rightMods: [mod(4, tone: StatTone.delta)],
       );
       await tester.pumpAndSettle();
-      final plates = tester
-          .widgetList<Container>(
-            find.ancestor(
-              of: find.text('+4'),
-              matching: find.byType(Container),
-            ),
-          )
-          .map((c) => (c.decoration! as BoxDecoration).color)
+      final inks = tester
+          .widgetList<Text>(find.text('+4'))
+          .map((t) => t.style?.color)
           .toSet();
-      expect(plates.length, 2, reason: 'warn is not the plus green');
+      expect(inks.length, 2, reason: 'warn is not the plus green');
     });
 
     testWidgets('THREE OF THEM STAY OUT OF THE ATK/DEF BLOCK', (tester) async {

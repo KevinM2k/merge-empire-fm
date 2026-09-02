@@ -30,6 +30,7 @@ library;
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/bar_fill.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 
@@ -904,22 +905,42 @@ class _Mod extends StatelessWidget {
           // **THE SIGN IS PRINTED FROM THE NUMBER**, not hardcoded. It was a
           // literal `+`, which is why nothing here could ever have been a
           // subtraction and why the colour had to come from somewhere else.
-          // **WHITE ON A SOLID PLATE, not the colour on a tint of itself.**
-          // The badge was the league chip's recipe — a 13% wash, a rim, the
-          // colour as ink — which on a `+2` is a pale green lozenge with a
-          // green mark in it. Reported directly: white on green.
+          // **THE COLOUR IS THE INK, ON THE CARD'S OWN RECESS.**
           //
-          // The plate is the DAYLIGHT member of the pair in both themes, and
-          // that is what makes one recipe work on both: white on the mint
-          // `#4ADE80` is 1.8:1, white on `#11913F` is 4.9, and a solid green
-          // chip on the dark card reads exactly as well as it does on the light
-          // one. The vivid pair stays where it has a dark ground to sit on,
-          // which is the ATK/DEF recess above.
-          final plate = semanticInk(
+          // This has been round three times and all three are worth keeping.
+          // It began as a 13% wash of the hue with the hue as ink — a pale
+          // green lozenge with a green mark in it, reported as unreadable — and
+          // became white on a SOLID plate in the daylight member of the pair,
+          // which fixed that: white on the mint `#4ADE80` is 1.8:1 and white on
+          // `#11913F` is 4.9, so one recipe served both themes.
+          //
+          // And then it was three solid blocks of colour on a card whose
+          // loudest thing is meant to be the two ratings. Reported from the
+          // couch: they stand out a lot, is there something else we can do.
+          //
+          // There is, and it took two more goes to find it — both worth
+          // keeping, because both were reported.
+          //
+          // A 5% wash of `glassInk` — the recess the quest tiles use — left the
+          // badge with no chassis at all on a light pane, where `glassInk` is
+          // WHITE. Reported immediately: you cannot make them invisible in light
+          // mode.
+          //
+          // A 16% wash of the HUE fixed that and failed the contrast sweep at
+          // 2.70:1, which is the honest reason the solid plate existed: this
+          // card sits on GLASS over a pitch, and on a club with a green kit the
+          // pane is already a pale green — so a green ink is short of the bar
+          // before any tint is added to it.
+          //
+          // So the plate is OPAQUE and NEUTRAL — the app's own `surface2`, the
+          // colour a card is — with the hue on the rim and on the ink. The
+          // badge has a chassis in both themes, the figure has a known ground
+          // to be measured against, and none of it is a block of colour.
+          final ink = semanticInk(
             context,
             statToneColor(context, mod.tone, mod.amount),
-            light: true,
           );
+          final kit = Theme.of(context).extension<KitTheme>()!;
           return Padding(
             // **A TARGET, not just a mark.** The glyph and its number are 22
             // by 10; the padding is what a thumb actually lands on, and it is
@@ -935,22 +956,23 @@ class _Mod extends StatelessWidget {
               // pass at this was a chip too small to find.
               padding: const EdgeInsets.fromLTRB(5, 3, 6, 3),
               decoration: BoxDecoration(
-                color: plate,
+                color: kit.surface2,
                 borderRadius: BorderRadius.circular(6),
+                border: Border.all(color: ink.withValues(alpha: 0.55)),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  GameIcon(mod.icon, size: 10.5, color: Colors.white),
+                  GameIcon(mod.icon, size: 10.5, color: ink),
                   const SizedBox(width: 2),
                   Text(
                     '${mod.amount < 0 ? '-' : '+'}${mod.amount.abs()}',
-                    style: const TextStyle(
+                    style: TextStyle(
                       fontSize: 12,
                       height: 1,
                       fontWeight: FontWeight.w900,
-                      color: Colors.white,
-                      fontFeatures: [FontFeature.tabularFigures()],
+                      color: ink,
+                      fontFeatures: const [FontFeature.tabularFigures()],
                     ),
                   ),
                 ],
