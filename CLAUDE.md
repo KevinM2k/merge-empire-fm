@@ -54,9 +54,17 @@ separate repo and only this one is cloned. Read what the port already has (the
 source comments carry the JS's reasoning, which is why they are so long) and say
 in the commit that the JS could not be consulted; do not reconstruct a rule from
 memory and present it as the spec's. The generated catalogues are downstream of
-that repo too, so **no new `t()` key can be added from here** — a change that
-needs new copy is blocked on `en.js`, and the honest move is a glyph, an
-existing key, or the queue saying it is blocked.
+that repo too — but copy is no longer blocked on it. **`lib/i18n/en_copy.dart`
+is where English is written now, and `lib/i18n/copy/<id>_copy.dart` is where the
+other nine are**; both are laid over the generated catalogues at load in
+`i18n.dart`, so nothing generated is edited by hand and no key needs `en.js`.
+Read their headers before adding to either.
+
+**A new key needs all ten, not just English.** `t()` falls back to English for a
+missing translation, which is right for one string and wrong for a paragraph
+built out of pools: the match report had thirty English-only keys and a French
+write-up read French, then four sentences of English, then French again.
+`match_report_test`'s locale matrix now requires the locale's OWN entry.
 
 ```bash
 flutter analyze                      # must be clean before any commit
@@ -118,8 +126,9 @@ node tool/gen_club_art.mjs    # lib/data/club_art.g.dart
 node tool/gen_manager_art.mjs # lib/data/manager_art.g.dart
 ```
 
-Locale copy and generated catalogue text are fixed in `../merge-empire-fc`'s own
-`en.js` and regenerated — the catalogue comes from the JS.
+Generated catalogue text comes from `../merge-empire-fc`'s own `en.js`. Copy
+this repo owns is laid OVER it and never regenerated: `lib/i18n/en_copy.dart`
+for English, `lib/i18n/copy/<id>_copy.dart` for the other nine.
 
 ## Mapping the repo
 

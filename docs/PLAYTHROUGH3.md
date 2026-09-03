@@ -6,12 +6,14 @@ because that is the part worth keeping.
 
 ## Where this queue stands
 
-**85 done, 5 open, and one feature parked.** None of the open rows is a fault.
+**89 done, 5 open, and one feature parked.** None of the open rows is a fault.
 One is a feature that was built, tried and turned down; one is a balance
 question rather than work; one is a survey to run before building; and one is
-**blocked on the spec repo**, which is the row to read if the queue looks short
-— richer commentary and report copy cannot be written from a cloud container
-without the next generator run throwing it away in ten languages at once.
+**blocked on the spec repo** for the COMMENTARY, which is the row to read if the
+queue looks short. Report copy is no longer blocked with it:
+`lib/i18n/en_copy.dart` and `lib/i18n/copy/<id>_copy.dart` are overlays laid over
+the generated catalogues at load, so all ten languages of the write-up are
+written from this repo and no generator run can throw them away.
 
 The FIRST batch's pattern is worth naming: **almost every "the game said X"
 report was a claim the game itself contradicted.** Copy that asserted "ten
@@ -35,6 +37,117 @@ pointed at did not have. **Unreachable code is not finished code**, and wiring i
 up without reading it would have shipped both faults.
 
 ---
+
+## Asked for, 3 Sep 2026 — the write-up's tone
+
+One report, and it is the fifth batch being asked to go the other way: "the
+summary text is a little too clinical, it spits out the stats a bit too much,
+like it says what minute every goal was scored in and exactly what tactic we
+used and when… so not going in to detail on the tactics change or the scorer and
+what minutes but generalises on the main talking points of the game."
+
+- [x] **The write-up was a transcript, not a summary.** (The fifth batch built
+      it to "use everything the match has" and it did exactly that, one fact per
+      sentence: ten `report.goal.*` pools that each printed a minute and the
+      running score, a `report.stats.board` line reciting possession, shots, on
+      target and corners for both sides, a `report.subs.made` team sheet —
+      "Jones for Smith (60th) and Brown (75th)" — three tactics lines naming the
+      dial and the minute of every change, and a minute on the red card. A 4-1
+      ran to fifteen sentences and none of them said what the afternoon was
+      like.
+
+      What replaced them came from the report's own worked example — "player a
+      started us off and player b got a hat-trick, they were untouchable today,
+      team a dropped to defend deep late in the game to defend the lead, team b
+      tried throwing everything forward in the last part of the game but just
+      couldn't find a breakthrough". So: who opened it, by name and with no
+      minute, standing aside when the tally is about to name the same man; the
+      tally itself, which now always fires because nothing else names a scorer
+      any more; a half that ran away from the other, told as a half; the board
+      as one verdict with **no digits in it**, off two axes so that all the ball
+      and none of the chances stays a different afternoon from the reverse; a
+      substitute who SCORED instead of the team sheet; the last late change of
+      tactic and nothing else, told as a decision rather than as a setting; and
+      the losing side's late push, held out or answered with a consolation.
+
+      **The timeline is still read, it is simply not printed.** Every one of
+      those beats is derived from `ReportFacts.goals` — the list did not get
+      smaller, the prose did.
+
+      Fifteen keys added and thirteen dropped, all in `en_copy.dart` — and then
+      in all nine other languages, in the row below. `{minute}` and `{tactic}`
+      still travel on the tactics beat even though no shipped line prints them
+      any more: the GENERATED entries under the overlays still do, and that is
+      what a locale gets if its overlay ever loses the key.)
+
+- [x] **And then the same write-up in the other nine languages.** ("well do you
+      wanna crack on and do all the other languages too so it's done." The
+      answer was bigger than the tactics pools it was asked about: **thirty of
+      the sixty-five keys the report can emit existed in English alone** — every
+      `report.opp.*`, the six new headline pools, and everything added above —
+      so a French player got a French headline, four English sentences in the
+      middle of the paragraph, and a French table line at the end. `t()`'s
+      English fallback is right for one string a catalogue has not caught up
+      with; it is wrong for a paragraph COMPOSED out of pools, because the
+      reader gets both languages at once instead of one language that is behind.
+
+      `lib/i18n/copy/<id>_copy.dart` is `en_copy.dart`'s mechanism per locale —
+      replace-only, merged in `catalogFor`, cached per locale. Forty-three pools
+      each across nine languages: the thirty holes, the ten headline pools that
+      still opened on the score, and the three tactics pools that still named
+      the minute.
+
+      Each file follows the conventions of its OWN generated catalogue rather
+      than English's, because that is what keeps a paragraph reading as one
+      voice — the club takes an article in Spanish, Portuguese and Italian and
+      none in French or German; German's catalogue gives the club a singular
+      verb and the opponent a plural one, and that split is copied rather than
+      tidied; French writes "à la {minute}e" and Italian "al {minute}'", which
+      is why `ordinalOf` hands every locale but English a bare number.
+
+      `match_report_test`'s locale matrix now demands the locale's OWN entry
+      instead of accepting the English fallback, which is the guard that would
+      have caught this the day it started. `locale_copy_test` adds the rest:
+      the nine must carry the same NEW keys as each other, no overlay key may be
+      one nothing can print, no invented placeholder, no pool of one.
+
+      **These are the port's translations and nobody has read them but the port.**
+      The spec repo is not in a cloud container, and no test here checks grammar
+      — only placeholders, key drift and blank variants. A correction from a
+      player beats any of them.)
+
+### Found on the way, not built
+
+- [x] **"1 places de mieux", "1 Plätze besser", "أفضل بـ1 مراكز".** (The same
+      number-agreement fault the couch reported in English as "1 points", still
+      live in six of the nine — it turned up in the first rendered preview of
+      the French write-up. English fixed it with the `{s}` and `{ps}` suffixes
+      the engine already passes, and those work as-is in Spanish and French
+      where the plural really is an `s`. They do not in Portuguese
+      (lugar/lugares), Italian (posto/posti), German (Platz/Plätze) or Arabic,
+      whose agreement depends on the number itself — so those four are reworded
+      to put no counted noun beside the numeral at all: "sobe {n} na
+      classificação", "sale di {n} in classifica", "um {n} auf Rang {pos}",
+      "بفارق {n} في الترتيب". Japanese, Korean and Chinese have no plural and
+      were right already, which is why the drift guard checks NEW keys rather
+      than every key.)
+
+- [x] **A 2-0 shared between two scorers said one of them "got the goal".**
+      (`report.scorers.spread` needed three different names and everything below
+      it fell through to `report.scorers.one`, which names the first. It was
+      invisible for as long as a goal-by-goal timeline was naming both men
+      underneath it; making the tally the only thing that names a scorer put it
+      on screen. Two is a spread.)
+
+- [x] **"Ayton threw everything forward and could not find a way through" —
+      four goals down.** (The late-push beat's first cut asked only who was
+      behind going into the closing stages. Nobody four down with a quarter of
+      an hour left is chasing a breakthrough, so the gap has to be catchable at
+      both ends of it now — `chasableGap`. The same first cut let
+      `report.stats.pinned_back` claim the opposition "had the ball" on a match
+      the club had 55% of; that pool fires on a single axis, so it and `on_top`
+      are written about the better of it and about who looked like scoring, and
+      only the two CONTRASTING pools may say who had the ball.)
 
 ## Asked for, 3 Sep 2026 — the trait roll
 

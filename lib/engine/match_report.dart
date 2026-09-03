@@ -123,6 +123,12 @@ typedef ReportFacts = ({
   /// margin cannot say: which goal opened it, who levelled, and the minute of
   /// the one that settled it — see [deciderMinute]. Empty when the result
   /// carries no events, and the report falls back to telling the tally.
+  ///
+  /// **It is READ rather than PRINTED.** The write-up used to spend a sentence
+  /// and a minute on each of these; it now uses the same list to answer three
+  /// questions a reader actually asks — who started it, which half it was won
+  /// in, and what the side that lost did about it late on. See the goal
+  /// sections of [buildMatchReport].
   List<ReportGoal> goals,
 
   /// Every card the referee showed, both sides.
@@ -137,6 +143,13 @@ typedef ReportFacts = ({
   /// The tactic at kick-off, and every change to it in order. Null when the
   /// result does not say — the kick-off tactic is written by the match screen
   /// and an older result has none.
+  ///
+  /// **Recorded, and mostly not printed.** The write-up named the kick-off
+  /// tactic and then every switch by name and minute, which was three
+  /// sentences about the manager's dial; it now takes only the LAST LATE
+  /// change out of [switches] and says which way it went. Both fields stay on
+  /// the record for the same reason [theirSubs] does — the news section reads
+  /// this record, not the save.
   String? startTactic,
   List<ReportSwitch> switches,
 
@@ -280,78 +293,208 @@ List<ReportBeat> buildMatchReport(ReportFacts f) {
     ));
   }
 
-  // ── 3. The goals, one by one ─────────────────────────────────────────────
+  // ── 3. Who started it ────────────────────────────────────────────────────
   //
-  // **GOAL MINUTES, WHO SCORED THEM, and what each one did to the match.** A
-  // reader of a real summary is told the opener, the equaliser and the winner
-  // in order, and this is that: each goal is keyed by the situation it made —
-  // opened the scoring, levelled, put a side in front, stretched a lead, or
-  // pulled one back — and carries the minute, the scorer and the score it
-  // left. The opposition's goals carry the club, because the sim does not name
-  // their scorers. Every goal, because a 4-3 is seven sentences and that is
-  // the afternoon it was.
-  var scoredUs = 0;
-  var scoredThem = 0;
-  for (final g in ordered) {
-    final before = scoredUs - scoredThem;
-    if (g.ours) {
-      scoredUs++;
-    } else {
-      scoredThem++;
-    }
-    final after = scoredUs - scoredThem;
-    final situation = scoredUs + scoredThem == 1
-        ? 'opener'
-        : after == 0
-        ? 'leveller'
-        : before == 0
-        ? 'lead'
-        : after.abs() > before.abs()
-        ? 'extend'
-        : 'pull_back';
+  // **IT USED TO BE ONE SENTENCE PER GOAL, each with its minute and the
+  // running score.** Reported from the couch: the write-up "spits out the
+  // stats a bit too much… it says what minute every goal was scored in", and
+  // the ask that came with it is a paragraph about the afternoon rather than a
+  // transcript of it — "player a started us off and player b got a hat-trick,
+  // they were untouchable today". So a 4-1 is no longer five sentences with
+  // five minutes in them.
+  //
+  // **The timeline is still READ, it is simply no longer PRINTED.** It is what
+  // says who opened the scoring, which half the goals came in and what the
+  // side that lost did about it in the closing stages — three talking points
+  // that a list of minutes leaves the reader to work out for themselves.
+  //
+  // The tally comes first because the opener defers to it: "Bobby got them
+  // started" in front of "Bobby scored three" is one talking point told twice.
+  final tally = <String, int>{};
+  for (final name in f.scorers) {
+    if (name.isEmpty) continue;
+    tally[name] = (tally[name] ?? 0) + 1;
+  }
+  final best = tally.isEmpty
+      ? null
+      : tally.entries.reduce((a, b) => b.value > a.value ? b : a);
+  // Who the tally beat below will name, so the opener knows to stand aside. A
+  // spread of scorers names nobody, and neither does a blank.
+  final spread = best != null && best.value == 1 && tally.length > 1;
+  final standout = best == null || spread ? null : best.key;
+
+  // Ours only, and named only. The opposition's opener is already the shape
+  // beat's story, and the sim never names their scorers — "Ayton got them
+  // started" is a sentence about nobody.
+  final first = ordered.isEmpty ? null : ordered.first;
+  final openScorer = first != null && first.ours ? first.scorer : null;
+  if (openScorer != null &&
+      openScorer.isNotEmpty &&
+      openScorer != standout &&
+      ordered.length > 1) {
     beats.add((
-      key: 'report.goal.${g.ours ? 'ours' : 'theirs'}.$situation',
+      key: 'report.goals.opened',
       para: ReportPara.performance,
       params: {
         'club': f.clubName,
         'opp': f.opponentName,
-        'minute': ordinalOf(g.minute),
-        // A scorer the result did not name is told as the club.
-        'scorer': g.scorer ?? f.clubName,
-        // The score it left, written home team first like the headline's.
-        'score': f.isHome
-            ? '$scoredUs-$scoredThem'
-            : '$scoredThem-$scoredUs',
+        'player': openScorer,
       },
     ));
   }
 
-  // ── 4. The numbers ───────────────────────────────────────────────────────
+  // ── 4. And who took it away ──────────────────────────────────────────────
   //
-  // The board the statistics tab shows, in a sentence: possession, shots and
-  // corners, both sides. Asked for from the couch as part of the summary using
-  // everything the match has.
+  // A hat-trick, a brace and a name are three different sentences about the
+  // same fact, and the difference is the whole reason a player reads this.
+  //
+  // **All four come out again now the timeline is not printed.** The single
+  // scorer and the spread used to be suppressed whenever the result carried
+  // goal events, because the goal-by-goal beats had already named everybody.
+  // Nothing names them any more, so without this a 1-0 would say nothing at
+  // all about who scored it — which is the one fact the reader came for.
+  if (best != null) {
+    if (best.value >= 3) {
+      beats.add((
+        key: 'report.scorers.hat_trick',
+        para: ReportPara.performance,
+        params: {'club': f.clubName, 'player': best.key, 'n': best.value},
+      ));
+    } else if (best.value == 2) {
+      beats.add((
+        key: 'report.scorers.brace',
+        para: ReportPara.performance,
+        params: {'club': f.clubName, 'player': best.key},
+      ));
+    } else if (spread) {
+      // **TWO IS ALREADY A SPREAD.** This was three, and everything below it
+      // fell through to `report.scorers.one` — which names `best.key` and so
+      // told a 2-0 shared between two players that one of them "got the goal".
+      // It was invisible while a goal-by-goal timeline was naming both.
+      beats.add((
+        key: 'report.scorers.spread',
+        para: ReportPara.performance,
+        params: {'club': f.clubName, 'n': tally.length},
+      ));
+    } else {
+      beats.add((
+        key: 'report.scorers.one',
+        para: ReportPara.performance,
+        params: {'club': f.clubName, 'player': best.key},
+      ));
+    }
+  } else if (f.ours == 0) {
+    beats.add((
+      key: 'report.scorers.none',
+      para: ReportPara.performance,
+      params: {'club': f.clubName},
+    ));
+  }
+
+  // ── 5. When the damage was done, told in HALVES ──────────────────────────
+  //
+  // "Let's say we scored 4 in the second half" was the couch's own example of
+  // something the write-up should be able to say without listing the four
+  // minutes it took. So: one sentence, and only when a half genuinely ran away
+  // from the other — three or more after the break and at least two more than
+  // before it. Anything short of that is not a talking point, it is a
+  // scoreline, and the headline has already told it.
+  if (ordered.isNotEmpty) {
+    var oursFirst = 0;
+    var oursSecond = 0;
+    var theirsFirst = 0;
+    var theirsSecond = 0;
+    for (final g in ordered) {
+      if (g.ours) {
+        if (g.minute > halfTimeMinute) {
+          oursSecond++;
+        } else {
+          oursFirst++;
+        }
+      } else if (g.minute > halfTimeMinute) {
+        theirsSecond++;
+      } else {
+        theirsFirst++;
+      }
+    }
+    final surge = oursSecond >= surgeGoals && oursSecond >= oursFirst + 2
+        ? 'report.goals.surge.ours'
+        : theirsSecond >= surgeGoals && theirsSecond >= theirsFirst + 2
+        ? 'report.goals.surge.theirs'
+        : '';
+    if (surge.isNotEmpty) {
+      beats.add((
+        key: surge,
+        para: ReportPara.performance,
+        params: {'club': f.clubName, 'opp': f.opponentName},
+      ));
+    }
+  }
+
+  // A clean sheet is worth a line of its own, and only when it was actually
+  // worked for — nil-nil already said it in the headline.
+  if (f.theirs == 0 && f.ours > 0) {
+    // **`opp` TOO, and it was not being passed.** The second of the three
+    // variants opens "{opp} were kept out entirely" — so one write-up in three
+    // that kept a clean sheet printed a literal `{opp}` at the reader.
+    // Reported from the couch. A pool's variants do not all take the same
+    // placeholders, which is exactly why the parameters have to satisfy the
+    // WHOLE pool rather than the line that happened to be picked in testing.
+    beats.add((
+      key: 'report.clean_sheet',
+      para: ReportPara.performance,
+      params: {'club': f.clubName, 'opp': f.opponentName},
+    ));
+  }
+
+  // ── 6. How it looked, WITHOUT the numbers ────────────────────────────────
+  //
+  // **THE BOARD IS NOT A SENTENCE.** This read "{club} had 57% of the ball and
+  // 9 shots to {opp}'s 4, 5 of them on target" — which is the statistics panel
+  // transcribed into prose, and it is the line the couch meant by "it spits
+  // out the stats a bit too much". The panel is right there and prints all
+  // seven numbers properly. What a write-up owes the reader is what they ADD
+  // UP TO, so the same board now picks one sentence about who had the better
+  // of it, with no digits in it at all.
+  //
+  // Two axes, because a match can be dominated either way round and the
+  // interesting cases are the ones where they disagree: all of the ball and
+  // none of the chances is a different afternoon from the reverse, and both of
+  // those are a different afternoon from being on top of everything.
+  //
+  // **The two pools that CONTRAST them are the only ones that may claim the
+  // ball**, which is why they take both axes rather than a sum. `on_top` and
+  // `pinned_back` fire on a single axis as well — 55% of the ball and eight
+  // shots to twelve is a side second best — and a variant of theirs saying
+  // "{opp} had the ball" would be a flat lie about that match, so they are
+  // written about the better of it and about who looked like scoring.
   final st = f.stats;
   if (st != null) {
+    final ball = st.possession >= possessionEdge
+        ? 1
+        : st.possession <= 100 - possessionEdge
+        ? -1
+        : 0;
+    final shotGap = st.shots - st.theirShots;
+    final chances = shotGap >= shotEdge
+        ? 1
+        : shotGap <= -shotEdge
+        ? -1
+        : 0;
     beats.add((
-      key: 'report.stats.board',
-      para: ReportPara.performance,
-      params: {
-        'club': f.clubName,
-        'opp': f.opponentName,
-        'poss': st.possession,
-        'oppPoss': 100 - st.possession,
-        'shots': st.shots,
-        'oppShots': st.theirShots,
-        'onTarget': st.onTarget,
-        'oppOnTarget': st.theirOnTarget,
-        'corners': st.corners,
-        'oppCorners': st.theirCorners,
+      key: switch ((ball, chances)) {
+        (1, -1) => 'report.stats.ball_only',
+        (-1, 1) => 'report.stats.counter',
+        _ when ball + chances > 0 => 'report.stats.on_top',
+        _ when ball + chances < 0 => 'report.stats.pinned_back',
+        _ => 'report.stats.even',
       },
+      para: ReportPara.performance,
+      params: {'club': f.clubName, 'opp': f.opponentName},
     ));
   }
 
-  // ── 5. And how the OPPOSITION played ─────────────────────────────────────
+  // ── 7. And how the OPPOSITION played ─────────────────────────────────────
   //
   // **THE WRITE-UP IS FOR BOTH SETS OF SUPPORTERS, and everything between the
   // headline and the table was about us.** The shape, the scorers, the cards,
@@ -386,79 +529,18 @@ List<ReportBeat> buildMatchReport(ReportFacts f) {
     params: {'club': f.clubName, 'opp': f.opponentName},
   ));
 
-  // ── 6. Who scored, as a tally ────────────────────────────────────────────
-  //
-  // A hat-trick, a brace and a name are three different sentences about the
-  // same fact, and the difference is the whole reason a player reads this.
-  //
-  // **The single scorer and the spread are told by the timeline now**, so
-  // those two beats only come out when the result carried no goal events for
-  // the timeline to read — the tally is the one fact a list of goals does not
-  // say out loud.
-  final told = ordered.isNotEmpty;
-  final tally = <String, int>{};
-  for (final name in f.scorers) {
-    if (name.isEmpty) continue;
-    tally[name] = (tally[name] ?? 0) + 1;
-  }
-  if (tally.isNotEmpty) {
-    final best = tally.entries.reduce((a, b) => b.value > a.value ? b : a);
-    if (best.value >= 3) {
-      beats.add((
-        key: 'report.scorers.hat_trick',
-        para: ReportPara.performance,
-        params: {'club': f.clubName, 'player': best.key, 'n': best.value},
-      ));
-    } else if (best.value == 2) {
-      beats.add((
-        key: 'report.scorers.brace',
-        para: ReportPara.performance,
-        params: {'club': f.clubName, 'player': best.key},
-      ));
-    } else if (!told && tally.length >= 3) {
-      beats.add((
-        key: 'report.scorers.spread',
-        para: ReportPara.performance,
-        params: {'club': f.clubName, 'n': tally.length},
-      ));
-    } else if (!told) {
-      beats.add((
-        key: 'report.scorers.one',
-        para: ReportPara.performance,
-        params: {'club': f.clubName, 'player': tally.keys.first},
-      ));
-    }
-  } else if (f.ours == 0) {
-    beats.add((
-      key: 'report.scorers.none',
-      para: ReportPara.performance,
-      params: {'club': f.clubName},
-    ));
-  }
-
-  // A clean sheet is worth a line of its own, and only when it was actually
-  // worked for — nil-nil already said it in the headline.
-  if (f.theirs == 0 && f.ours > 0) {
-    // **`opp` TOO, and it was not being passed.** The second of the three
-    // variants opens "{opp} were kept out entirely" — so one write-up in three
-    // that kept a clean sheet printed a literal `{opp}` at the reader.
-    // Reported from the couch. A pool's variants do not all take the same
-    // placeholders, which is exactly why the parameters have to satisfy the
-    // WHOLE pool rather than the line that happened to be picked in testing.
-    beats.add((
-      key: 'report.clean_sheet',
-      para: ReportPara.performance,
-      params: {'club': f.clubName, 'opp': f.opponentName},
-    ));
-  }
-
-  // ── 7. The referee ───────────────────────────────────────────────────────
+  // ── 8. The referee ───────────────────────────────────────────────────────
   //
   // **What MATTERS, not everything.** A first cut told every card and was sent
   // back as too long: "if a team just got one booking… so what?! dont even
   // mention it!" So: a red is a named player and a minute, always; our
   // bookings only when there were two or more, by name; theirs only the reds.
   // Ours first, because ours is the one that costs a suspension.
+  //
+  // **And no minute on it.** "Sent off in the 63rd minute" is the same clinical
+  // habit as the goal timeline — what matters is that they finished a man
+  // short, and the English line says that. No catalogue's `our_red` uses a
+  // minute either, so nothing is left holding a placeholder.
   final cards = [...f.cards]..sort((a, b) => a.minute.compareTo(b.minute));
   for (final c in cards) {
     if (!c.ours || !c.red) continue;
@@ -467,12 +549,7 @@ List<ReportBeat> buildMatchReport(ReportFacts f) {
       // The generated line when the result did not keep the name.
       key: name.isEmpty ? 'report.cards.our_red' : 'report.cards.our_red_named',
       para: ReportPara.incidents,
-      params: {
-        'club': f.clubName,
-        'n': 1,
-        'player': name,
-        'minute': ordinalOf(c.minute),
-      },
+      params: {'club': f.clubName, 'player': name},
     ));
   }
   final ourBooked = [
@@ -507,86 +584,133 @@ List<ReportBeat> buildMatchReport(ReportFacts f) {
     ));
   }
 
-  // ── 8. The changes ───────────────────────────────────────────────────────
+  // ── 9. The changes ───────────────────────────────────────────────────────
   //
-  // Our substitutions as ONE sentence — both names and the minute each, which
-  // is the information, without a sentence per change, which was the length.
-  // The opposition's are counted on the result and not worth a line.
+  // **A SUBSTITUTION IS ONLY A TALKING POINT WHEN IT CHANGED SOMETHING.** This
+  // was one sentence listing every change with both names and the minute of
+  // each — "Jones for Smith (60th) and Brown (75th)" — which is a team sheet
+  // rather than a sentence, and it is the same complaint as the goal minutes.
+  // What a reader remembers is a substitute who scored, so that is the line; a
+  // bench emptied without one gets a mention only when there were enough
+  // changes to have been a plan.
   final subs = [...f.subs]..sort((a, b) => a.minute.compareTo(b.minute));
-  if (subs.isNotEmpty) {
+  final scored = f.scorers.toSet();
+  final impact = [
+    for (final sub in subs)
+      if (sub.on.isNotEmpty && scored.contains(sub.on)) sub.on,
+  ];
+  if (impact.isNotEmpty) {
     beats.add((
-      key: 'report.subs.made',
+      key: 'report.subs.impact',
       para: ReportPara.incidents,
-      params: {
-        'club': f.clubName,
-        'n': subs.length,
-        's': subs.length == 1 ? '' : 's',
-        'list': nameList([
-          for (final sub in subs)
-            sub.off == null || sub.off!.isEmpty
-                ? '${sub.on} (${ordinalOf(sub.minute)})'
-                : '${sub.on} for ${sub.off} (${ordinalOf(sub.minute)})',
-        ]),
-      },
+      params: {'club': f.clubName, 'player': impact.first},
+    ));
+  } else if (subs.length >= manyChanges) {
+    beats.add((
+      key: 'report.subs.changes',
+      para: ReportPara.incidents,
+      params: {'club': f.clubName, 'opp': f.opponentName},
     ));
   }
 
-  // ── 9. The tactics ───────────────────────────────────────────────────────
+  // ── 10. The tactics ──────────────────────────────────────────────────────
   //
-  // **WHAT WAS PLAYED, and every change to it.** It was one sentence about the
-  // last LATE switch, on the reasoning that two sentences about the dial is a
-  // report about the manager. The brief is a summary that uses everything, so:
-  // the tactic the side started with when it changed, each change with its
-  // minute, and the late one still gets the richer line — shutting up shop and
-  // throwing men forward are opposite stories told at the same minute, and
-  // that sentence says which.
+  // **ONE SENTENCE, AND IT NAMES NEITHER THE DIAL NOR THE MINUTE.** It was
+  // three: the tactic the side kicked off with, every change to it by name and
+  // minute, and then the late one. Reported from the couch — "exactly what
+  // tactic we used and when… changed tactics in 80 minutes to defence" — along
+  // with what it should say instead: "team a dropped to defend deep late in
+  // the game to defend the lead". That is the LAST LATE change and nothing
+  // else, keyed by which way it went, and the English copy tells it as a
+  // decision rather than as a setting.
+  //
+  // **`minute` and `tactic` still travel, and no shipped line uses them.** All
+  // ten catalogues have been moved off the minute now — English in
+  // `en_copy.dart` and the nine in `lib/i18n/copy/` — but the GENERATED entries
+  // underneath those overlays still read "{club} went defensive on {minute}
+  // minutes", and a locale falls back to the generated entry the moment its
+  // overlay does not carry the key. Dropping the parameters would make that
+  // fallback print a literal `{minute}` at a player rather than an older
+  // sentence. Two spare map entries is the cheaper side of that trade.
+  //
+  // [ReportFacts.startTactic] and the earlier switches are still recorded and
+  // simply no longer printed; see the field.
   final switches = [...f.switches]
     ..sort((a, b) => a.minute.compareTo(b.minute));
   ReportSwitch? lastLate;
   for (final sw in switches) {
     if (sw.minute >= lateSwitchFrom) lastLate = sw;
   }
-  // The kick-off tactic only when it CHANGED: "went with Balanced for the
-  // whole ninety" is a sentence about nothing happening.
-  final start = f.startTactic;
-  if (start != null && start.isNotEmpty && switches.isNotEmpty) {
+  if (lastLate != null) {
     beats.add((
-      key: 'report.tactic.started',
+      key: switch (lastLate.tactic) {
+        'parkTheBus' || 'counterAttack' => 'report.tactic.shut_up_shop',
+        'allOutAttack' || 'highPress' => 'report.tactic.went_for_it',
+        _ => 'report.tactic.settled',
+      },
       para: ReportPara.incidents,
-      params: {'club': f.clubName, 'tactic': tacticName(start)},
+      params: {
+        'club': f.clubName,
+        'opp': f.opponentName,
+        // The generated copy says "on {minute} minutes": a plain number.
+        'minute': lastLate.minute,
+        'tactic': tacticName(lastLate.tactic),
+      },
     ));
   }
-  for (final sw in switches) {
-    if (sw == lastLate) {
+
+  // ── 11. And what the losing side did about it ────────────────────────────
+  //
+  // **THE CLOSING STAGES, from the other dugout.** Asked for from the couch in
+  // the same breath as the tactics: "team b tried everything forward in the
+  // last part of the game but just couldn't find a breakthrough (or could only
+  // manage a consolation goal)". The timeline knows both halves of that — who
+  // was already behind going into the last quarter of an hour, and whether
+  // they got anything after it — so it is one sentence about the pressure
+  // rather than the late goal being told again as a minute.
+  //
+  // Only when somebody was chasing: a match still level at [closingFrom] was
+  // won late, and the headline has already said so in those words.
+  //
+  // **AND ONLY WHEN THEY WERE CHASING SOMETHING CATCHABLE.** Written without
+  // this, a 5-1 ended "Ayton threw everything forward and could not find a way
+  // through" — nobody four goals down is chasing a breakthrough, they are
+  // seeing the afternoon out. [chasableGap] is what a side can still believe
+  // in with a quarter of an hour to go, and it has to hold at BOTH ends: the
+  // gap they went into the closing stages with, and the one they finished on.
+  if (margin != 0 && margin.abs() <= chasableGap && ordered.isNotEmpty) {
+    var atClosing = 0;
+    var chaserLate = 0;
+    for (final g in ordered) {
+      if (g.minute <= closingFrom) {
+        atClosing += g.ours ? 1 : -1;
+      } else if (g.ours == (margin < 0)) {
+        // A goal in the closing stages by the side that ended up losing.
+        chaserLate++;
+      }
+    }
+    final wasChasing =
+        atClosing.abs() <= chasableGap &&
+        (margin > 0 ? atClosing > 0 : atClosing < 0);
+    if (wasChasing) {
       beats.add((
-        key: switch (sw.tactic) {
-          'parkTheBus' || 'counterAttack' => 'report.tactic.shut_up_shop',
-          'allOutAttack' || 'highPress' => 'report.tactic.went_for_it',
-          _ => 'report.tactic.settled',
-        },
+        key: chaserLate > 0
+            ? 'report.late.consolation'
+            : 'report.late.held_out',
         para: ReportPara.incidents,
         params: {
           'club': f.clubName,
           'opp': f.opponentName,
-          // The generated copy says "on {minute} minutes": a plain number.
-          'minute': sw.minute,
-          'tactic': tacticName(sw.tactic),
-        },
-      ));
-    } else {
-      beats.add((
-        key: 'report.tactic.switch',
-        para: ReportPara.incidents,
-        params: {
-          'club': f.clubName,
-          'tactic': tacticName(sw.tactic),
-          'minute': ordinalOf(sw.minute),
+          // The two roles by name, so the sentence can be about either club
+          // without the copy having to know which one the save belongs to.
+          'chaser': margin > 0 ? f.opponentName : f.clubName,
+          'holder': margin > 0 ? f.clubName : f.opponentName,
         },
       ));
     }
   }
 
-  // ── 7. Where it leaves us ────────────────────────────────────────────────
+  // ── 12. Where it leaves us ───────────────────────────────────────────────
   //
   // A cup tie has no table to move in, and neither has a save whose season has
   // not started — both come through as a null position rather than as a zero.
@@ -630,7 +754,7 @@ List<ReportBeat> buildMatchReport(ReportFacts f) {
     ));
   }
 
-  // ── 8. And who is next ───────────────────────────────────────────────────
+  // ── 13. And who is next ──────────────────────────────────────────────────
   final next = f.nextOpponent;
   final theirNext = f.oppNextOpponent;
   if (next != null && next.isNotEmpty) {
@@ -688,6 +812,44 @@ const int thrillerGoals = 5;
 /// A goal up to here is an EARLY one, which is what `chasing` and
 /// `never_behind` are written about.
 const int earlyGoalMinute = 30;
+
+/// The break. A goal after this one was scored in the second half.
+///
+/// The sim's clock runs to 90 without stoppage time, so the halves are the
+/// plain halves of it.
+const int halfTimeMinute = 45;
+
+/// Goals in one half that make it a SURGE worth a sentence.
+///
+/// Three, and at least two more than the other half — the couch's own example
+/// was four in the second, and the point of the line is that it says "the
+/// second half ran away from them" instead of listing four minutes.
+const int surgeGoals = 3;
+
+/// Where "the last part of the game" starts, for the losing side's late push.
+///
+/// A quarter of an hour: far enough out that a side really was chasing it,
+/// close enough that a goal in it is a consolation rather than a comeback.
+const int closingFrom = 75;
+
+/// Substitutions that add up to a plan rather than to a change of legs.
+const int manyChanges = 3;
+
+/// A deficit a side can still believe in with [closingFrom] gone.
+///
+/// Two. Three down with a quarter of an hour left is not a side throwing
+/// everything forward, it is a side seeing the afternoon out, and the write-up
+/// said the opposite of a 5-1 before this was here.
+const int chasableGap = 2;
+
+/// Possession from here up is HAVING THE BALL, and its mirror is not having it.
+///
+/// The write-up prints no percentages any more — see the board section of
+/// [buildMatchReport] — so the number is only ever a threshold.
+const int possessionEdge = 58;
+
+/// A shot count this far clear of the other side's is HAVING THE CHANCES.
+const int shotEdge = 3;
 
 /// Time behind that counts as "trailing for much of it" — see `rescued`.
 const int longSpellMinutes = 30;

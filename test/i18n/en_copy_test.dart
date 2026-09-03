@@ -11,6 +11,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:merge_empire_fc/i18n/catalogs.g.dart';
 import 'package:merge_empire_fc/i18n/en_copy.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
+import 'package:merge_empire_fc/i18n/locale_copy.dart';
 
 void main() {
   tearDown(resetLocale);
@@ -89,11 +90,25 @@ void main() {
     }
   });
 
-  test('the other nine catalogues are untouched by it', () {
-    // The overlay is English only. A translation keeps its own pool, and a key
-    // only English has resolves through `t()`'s existing fallback.
+  test('the other nine catalogues take nothing from THIS file', () {
+    // **This used to assert the nine were untouched, full stop**, on the
+    // reasoning that a translation keeps its own pool and an English-only key
+    // resolves through `t()`'s fallback. The nine now have an overlay of their
+    // own — see `lib/i18n/locale_copy.dart` — so what is still true, and is
+    // what this was really guarding, is narrower: nothing ENGLISH leaks into
+    // them. A key `enCopy` adds and a locale has not translated stays absent
+    // from that locale and goes down the fallback; it never arrives as an
+    // entry.
     for (final id in catalogs.keys.where((k) => k != 'en')) {
-      expect(catalogFor(id), same(catalogs[id]));
+      final merged = catalogFor(id);
+      for (final key in enCopy.keys) {
+        if (localeCopy[id]?.containsKey(key) ?? false) continue;
+        expect(
+          merged[key],
+          catalogs[id]![key],
+          reason: '$key in $id is not the generated entry any more',
+        );
+      }
     }
   });
 
