@@ -16,6 +16,13 @@ import 'package:merge_empire_fc/engine/negotiation_engine.dart'
     show findOurCard;
 import 'package:merge_empire_fc/engine/sell_card_engine.dart';
 import 'package:merge_empire_fc/engine/sell_engine.dart';
+import 'package:merge_empire_fc/engine/idle_engine.dart'
+    show injuryMinutesLeft;
+import 'package:merge_empire_fc/ui/screens/grid/grid_providers.dart'
+    show gridCells;
+import 'package:merge_empire_fc/ui/screens/squad/player_detail_sheet.dart'
+    show stripBadgeEmoji;
+import 'package:merge_empire_fc/ui/widgets/injury_cross.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/state/card_instance.dart';
@@ -134,6 +141,24 @@ Future<void> showSellSheet(
                 dimmed: view.injured,
               ),
             ),
+            // **AND WHAT AN INJURY ACTUALLY COSTS, where the selling happens.**
+            //
+            // Two things met here. `coach.grid.injury` tells the player to "tap
+            // the injured card to see the timer" — and a tap on the Players
+            // grid opens THIS sheet, which dimmed the artwork and said nothing
+            // else, so the pooled line was a promise the game did not keep.
+            // And `hint.injured_income` — "Injured players still earn 20% of
+            // their normal income while recovering, no need to sell them" —
+            // has shipped in ten languages with no caller, while the one screen
+            // it was written for is the one where somebody is deciding exactly
+            // that.
+            //
+            // Same badge as the squad sheet's, off the same helper, so a hurt
+            // man is marked the same wherever he is looked at.
+            if (view.injured) ...[
+              const SizedBox(height: 12),
+              _InjuryNote(instanceId: instanceId),
+            ],
             const SizedBox(height: 14),
             if (blocked == null)
               // **THE QUOTE IS LIVE.** It stands for its window and then moves,
@@ -469,4 +494,71 @@ ButtonStyle sellCancelStyle(BuildContext context) {
     deadInk: kit.textMuted,
     border: kit.border,
   );
+}
+
+/// How long he is out, and why that is not a reason to sell him.
+///
+/// A `ConsumerWidget` rather than a computed value in the sheet's build,
+/// because the minutes come off the save and the sheet is handed a `CardView` —
+/// which is a drawing, not a card. See `player_detail_sheet.dart` for the same
+/// badge on the same helper.
+class _InjuryNote extends ConsumerWidget {
+  const _InjuryNote({required this.instanceId});
+
+  final String instanceId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final kit = Theme.of(context).extension<KitTheme>()!;
+    final state = ref.watch(gameProvider).state;
+    final card = CardInstance.from(
+      [
+        for (final raw in gridCells(state ?? const {}))
+          if (raw is Map<String, dynamic> && raw['instanceId'] == instanceId)
+            raw,
+      ].firstOrNull,
+    );
+    if (card == null || !card.injured) return const SizedBox.shrink();
+    final mins = injuryMinutesLeft(state, card);
+
+    return Column(
+      key: const ValueKey('sell-injury'),
+      children: [
+        Container(
+          padding: const EdgeInsets.fromLTRB(6, 4, 9, 4),
+          decoration: BoxDecoration(
+            color: const Color(0xFFCC2222),
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const InjuryCross(size: 13),
+              const SizedBox(width: 5),
+              Text(
+                stripBadgeEmoji(
+                  t('squad.badge.injured', {
+                    'suffix': mins > 0
+                        ? t('squad.badge.injured_min_left', {'min': mins})
+                        : t('squad.badge.injured_soon'),
+                  }),
+                ),
+                style: const TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w900,
+                  color: Colors.white,
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          t('hint.injured_income'),
+          textAlign: TextAlign.center,
+          style: TextStyle(fontSize: 12, height: 1.35, color: kit.textMuted),
+        ),
+      ],
+    );
+  }
 }

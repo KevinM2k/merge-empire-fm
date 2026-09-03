@@ -24,6 +24,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/data/dugout_cam_policy.dart';
 import 'package:merge_empire_fc/data/quests.dart' show getQuest;
 import 'package:merge_empire_fc/ui/theme/app_theme.dart' show displayText;
+import 'package:merge_empire_fc/providers/sound_providers.dart'
+    show soundServiceProvider;
 import 'package:merge_empire_fc/ui/widgets/victory_confetti.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/engine/booking_engine.dart'
@@ -233,6 +235,21 @@ class MatchSummaryScreenState extends ConsumerState<MatchSummaryScreen>
     _quests = questCoins(widget.result);
     if (_base > 0) {
       ref.read(rewardedAdsProvider).prepare(doubleMatchPlacement);
+    }
+    // **THE PAPER GETS ITS BANG.** `playFirework` is the one effect in the game
+    // that is a RECORDING rather than a synth — the reason the audio backend
+    // has a second entry point at all — and `assets/audio/firework.mp3` has
+    // shipped with nothing in `lib/` calling it. A sound with no visual, in a
+    // game that until this session had no celebration to attach it to.
+    //
+    // Here rather than inside `VictoryConfetti`, because that widget is in
+    // `ui/widgets/` and reusable, and a widget that plays a sound whenever it
+    // is drawn is one nobody can put on a second screen. This screen decides
+    // that a win is worth a noise.
+    if (widget.result['won'] == true) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) unawaited(ref.read(soundServiceProvider).playFirework());
+      });
     }
   }
 

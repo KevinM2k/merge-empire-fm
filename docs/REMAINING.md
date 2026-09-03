@@ -44,9 +44,22 @@ own rule about where a divergence goes. And the placeholder sweep that found
       That is the right size for a booking and it means the board will not
       always visibly move for one yellow. A balance call, not a bug.
 
-- [ ] **Four squad badges and four injury hints still have no caller**, and
-      `playFirework` is a sound with no visual in a game that now has a confetti
-      painter. Listed in `PLAYTHROUGH3.md`.
+- [ ] **`bash tool/unreached.sh` needs running over the `hint.*` bank.** Of 39
+      `hint.*` keys, 37 have no caller — the four injury ones this queue listed
+      were a sample, not the set. And the count is not a work queue: three of
+      those four turned out to be SUPERSEDED rather than missing, because
+      `coach.grid.injury` is pooled, reachable, and already says all three
+      things on the same screen. The rest of the bank wants the same read
+      before any of it is built.
+
+**And the tail of this session is worth one line on its own.** Five more fixes
+after the reports ran out, every one of them a shipped string, asset or function
+with nothing calling it — and TWO had to be corrected rather than merely
+connected. `signBlockedCopy` named `grid.player_count`, a readout, as its
+refusal message for a full roster. `coach.grid.injury` told the player to tap an
+injured card "to see the timer", and the sheet that tap opens had no timer on
+it. Unreachable code is not finished code; wiring either up without reading it
+would have shipped the fault it was carrying.
 
 ## Playtest, 2 Sep 2026 — the referee, the write-up, and a phone on a cable
 

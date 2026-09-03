@@ -6,6 +6,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:merge_empire_fc/util/time.dart' show now;
 import 'package:merge_empire_fc/engine/squad_rating.dart' show getCardStats;
 import 'package:merge_empire_fc/state/card_instance.dart';
 import 'package:merge_empire_fc/ui/hud/hud.dart' show hudClearance;
@@ -19,6 +20,8 @@ import 'package:merge_empire_fc/engine/idle_engine.dart';
 import 'package:merge_empire_fc/engine/merge_flow_engine.dart';
 import 'package:merge_empire_fc/engine/sell_card_engine.dart';
 import 'package:merge_empire_fc/engine/tutorial_engine.dart';
+import 'package:merge_empire_fc/ui/screens/grid/add_player_button.dart'
+    show signBlockedCopy;
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/state/game_state.dart';
@@ -540,12 +543,39 @@ void main() {
       await tester.pumpAndSettle();
       await settleSave(tester);
 
-      expect(
-        tester.widget<InkWell>(find.byKey(const ValueKey('add-player'))).onTap,
-        isNull,
-      );
+      // **IT REFUSES BY NOT SIGNING, which is not the same as not
+      // responding.** This asserted `onTap` was null, and that is the half of
+      // the behaviour that changed: `signBlockedCopy` exists to say WHY the
+      // button is dead and had never been called by anything, so a dead button
+      // now takes the tap and toasts the reason. It is still grey, it still
+      // shows the price, and it still signs nobody — which is what this test
+      // was actually about.
+      await tester.tap(find.byKey(const ValueKey('add-player')));
+      await tester.pumpAndSettle();
       expect(find.text(t('players.addPlayer')), findsOneWidget);
       expect(filledCells(container), 0);
+      expect(container.read(coinsProvider), 0);
+    });
+
+    testWidgets('AND A FULL ROSTER IS TOLD WHAT TO DO ABOUT IT', (
+      tester,
+    ) async {
+      // `signBlockedCopy` named `grid.player_count` for this — "{count} / {max}
+      // players", a READOUT drawn two inches away on the same screen, with its
+      // placeholders unfilled. Nothing called the function, so nobody ever saw
+      // it; wiring it without fixing it would have shipped the bug.
+      //
+      // `event.deadline.blocked_squad_full` is the sentence for a full roster
+      // and already ships — Deadline Day refuses a signing with it for exactly
+      // this condition, so the game says one thing about one thing.
+      expect(signBlockedCopy('grid_full'), isNotEmpty);
+      expect(signBlockedCopy('grid_full'), isNot(contains('{')));
+      expect(signBlockedCopy('grid_full'), isNot(t('grid.player_count')));
+      expect(signBlockedCopy('insufficient_coins'), t('toast.not_enough_coins'));
+      // Nothing honest to say about an empty scout pool, and the catalogues are
+      // generated so a key cannot be added from here. Silence beats
+      // `settings.comingSoon`, which claims a feature is unbuilt.
+      expect(signBlockedCopy('no_candidate'), isNull);
     });
   });
 
@@ -2006,4 +2036,51 @@ void main() {
       );
     });
   });
+
+  group('TAPPING A HURT CARD SAYS WHY IT IS GREY', () {
+    // Two things met here. `coach.grid.injury` tells the player to "tap the
+    // injured card to see the timer" — and a tap on this grid opens the SELL
+    // sheet, which dimmed the artwork and said nothing else, so the pooled line
+    // was a promise the game did not keep. And `hint.injured_income` —
+    // "Injured players still earn 20% of their normal income while recovering,
+    // no need to sell them" — has shipped in ten languages with no caller,
+    // while the one screen it was written for is the one where somebody is
+    // deciding exactly that.
+    testWidgets('the timer and the reason not to sell him', (tester) async {
+      await pumpGrid(
+        tester,
+        cards: {
+          0: {
+            ..._card(_baseDefId, 'a'),
+            'injured': true,
+            'injuredAt': now(),
+            'injuryDurationMs': 9 * 60 * 1000,
+          },
+        },
+      );
+      await tester.tap(find.byKey(const ValueKey('grid-drop-0')));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const ValueKey('sell-injury')), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('sell-injury')),
+          matching: find.textContaining('9'),
+        ),
+        findsOneWidget,
+        reason: 'the timer the coach promised',
+      );
+      expect(find.text(t('hint.injured_income')), findsOneWidget);
+    });
+
+    testWidgets('and a fit card gets neither', (tester) async {
+      await pumpGrid(tester, cards: {0: _card(_baseDefId, 'a')});
+      await tester.tap(find.byKey(const ValueKey('grid-drop-0')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('sell-injury')), findsNothing);
+      expect(find.text(t('hint.injured_income')), findsNothing);
+    });
+  });
+
+
 }

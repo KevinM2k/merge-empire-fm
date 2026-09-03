@@ -12,6 +12,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:merge_empire_fc/services/sound_service.dart';
+import 'package:merge_empire_fc/providers/sound_providers.dart';
 import 'package:merge_empire_fc/ui/widgets/victory_confetti.dart';
 import 'package:merge_empire_fc/engine/booking_engine.dart';
 import 'package:merge_empire_fc/ui/widgets/card_glyph.dart';
@@ -98,10 +100,25 @@ Future<void> scrollReport(WidgetTester tester, Key target) async {
   await tester.pumpAndSettle();
 }
 
+/// A sound service that counts rather than plays.
+///
+/// The `noSuchMethod` pattern `sound_cues_test` already uses: everything the
+/// screen might reach for answers null, and the one method under test records.
+class _FireworkSpy implements SoundService {
+  int fireworks = 0;
+
+  @override
+  Future<void> playFirework() async => fireworks++;
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => null;
+}
+
 Future<MatchSummaryScreenState> pumpSummary(
   WidgetTester tester,
   Map<String, dynamic> res, {
   RewardedAds? ads,
+  SoundService? sound,
 
   /// Through the runner rather than a bare load — the schedule and the
   /// opponents are boot sweeps, and a save with no fixtures has no table for
@@ -114,6 +131,7 @@ Future<MatchSummaryScreenState> pumpSummary(
         MemorySaveStore({saveKeyPrimary: jsonEncode(createDefaultState())}),
       ),
       if (ads != null) rewardedAdsProvider.overrideWithValue(ads),
+      if (sound != null) soundServiceProvider.overrideWithValue(sound),
     ],
   );
   addTearDown(container.dispose);
@@ -1165,6 +1183,26 @@ group('a tie decided on penalties', () {
       await pumpSummary(tester, result());
       await tester.pumpAndSettle(const Duration(milliseconds: 100));
       expect(find.byKey(const ValueKey('summary-confetti')), findsOneWidget);
+    });
+
+    testWidgets('AND ITS BANG — the one recorded effect in the game', (
+      tester,
+    ) async {
+      // `playFirework` is why the audio backend has a second entry point at
+      // all: it is a recording rather than a synth. `assets/audio/firework.mp3`
+      // has shipped with nothing in `lib/` calling it — a sound with no visual,
+      // until there was paper to attach it to.
+      final sound = _FireworkSpy();
+      await pumpSummary(tester, result(), sound: sound);
+      await tester.pump();
+      expect(sound.fireworks, 1);
+    });
+
+    testWidgets('and a defeat is silent', (tester) async {
+      final sound = _FireworkSpy();
+      await pumpSummary(tester, result(won: false), sound: sound);
+      await tester.pump();
+      expect(sound.fireworks, 0);
     });
 
     test('the fall is DEALT, so one match falls one way', () {

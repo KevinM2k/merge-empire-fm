@@ -188,3 +188,45 @@ SquadStateHint? squadStateHint(Map<String, dynamic>? state) {
   // Nothing genuinely contextual. He stays quiet.
   return null;
 }
+
+/// Retirement is after fifteen seasons of service. `processAgeRegression`.
+const int retirementSeasons = 15;
+
+/// Where a player is on the age curve, as the badge key that says so.
+///
+/// **Four `squad.badge.*` keys shipped in ten languages with no caller.** The
+/// injured badge was one of eight and the other four are these: `last_season`,
+/// `sell_now`, `declining` and `ageing`. Nothing in `lib/` could print any of
+/// them, so the one thing a manager needs to know before spending coins on a
+/// veteran — that he is about to stop being worth them — was in the save, in
+/// the copy, and nowhere on the screen.
+///
+/// **The thresholds are NOT invented.** They are the ladder `coach_tips.dart`
+/// already runs on, lifted here so the badge on a card and the sentence out of
+/// Colin's mouth cannot disagree about the same player: he calls 14 and up a
+/// final season, 13 a sell-now, 10 to 12 declining, and 7 to 9 a veteran. That
+/// ladder is a port of `_squadTip`; this is the same ladder asked a different
+/// way.
+///
+/// **A wrinkle worth recording rather than smoothing over.** The badge reads
+/// "1 season left" at thirteen and the coach's own line reads "2 seasons left"
+/// at the same thirteen — the badge counts the seasons AFTER this one and he
+/// counts inclusively. Both are generated copy this port cannot edit, and both
+/// are true readings of `retirementSeasons`; picking a different threshold to
+/// make the two strings agree would break the ladder to fix a sentence.
+///
+/// Null for everybody under seven, which is most of a squad. A badge on every
+/// card says nothing about any of them — the rule the form arrow already
+/// follows.
+String? ageBadgeKeyFor(int seasonsPlayed) {
+  if (seasonsPlayed >= retirementSeasons - 1) return 'squad.badge.last_season';
+  if (seasonsPlayed == 13) return 'squad.badge.sell_now';
+  if (seasonsPlayed >= 10) return 'squad.badge.declining';
+  if (seasonsPlayed >= 7) return 'squad.badge.ageing';
+  return null;
+}
+
+/// Whether that badge is a WARNING — the two that mean act now, rather than the
+/// two that mean watch him. Drives its colour; the copy carries the rest.
+bool ageBadgeIsUrgent(String key) =>
+    key == 'squad.badge.last_season' || key == 'squad.badge.sell_now';

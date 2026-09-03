@@ -29,6 +29,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/engine/merge_flow_engine.dart';
 import 'package:merge_empire_fc/engine/scout_signing_engine.dart';
 import 'package:merge_empire_fc/engine/scout_voucher_engine.dart';
+import 'package:merge_empire_fc/util/event_bus.dart' show emit;
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/state/game_state.dart';
@@ -79,11 +80,32 @@ const _tierAccent = <int, (Color, Color)>{
   9: (Color(0xFF7E57C2), Color(0xFF9575CD)),
 };
 
-/// Why the button is dead, in copy that already ships.
-String signBlockedCopy(String reason) => switch (reason) {
+/// Why the button is dead, in copy that already ships — or null when there is
+/// nothing honest to say.
+///
+/// **This had no caller in `lib/` or in the suite, and it named the wrong
+/// string for the one reason a player actually hits.** `grid.player_count` is
+/// "{count} / {max} players" — a READOUT, and one drawn two inches away on the
+/// same screen — so a manager who filled their roster and pressed a dead button
+/// would have been told the number they could already see, with the placeholders
+/// unfilled on top of that. And the fallback was `settings.comingSoon`, which
+/// says a feature is not built when what happened is that the scout found
+/// nobody.
+///
+/// `event.deadline.blocked_squad_full` is the sentence for a full roster and it
+/// already ships: "No room in the squad — sell someone first." Deadline Day
+/// refuses a signing with it for exactly this condition, so the game says the
+/// same thing about the same thing in both places.
+///
+/// **Null for `no_candidate` rather than a wrong sentence.** There is no
+/// shipped copy for "the pool is empty at your division", it is not a state a
+/// player can act on, and the catalogues are generated so one cannot be added
+/// from here. Saying nothing beats saying something untrue — the button is
+/// still visibly dead.
+String? signBlockedCopy(String reason) => switch (reason) {
   'insufficient_coins' => t('toast.not_enough_coins'),
-  'grid_full' => t('grid.player_count'),
-  _ => t('settings.comingSoon'),
+  'grid_full' => t('event.deadline.blocked_squad_full'),
+  _ => null,
 };
 
 /// The bar: `[Add Player | ×N]  [Merge]`.
@@ -225,7 +247,20 @@ class AddPlayerButtonState extends ConsumerState<AddPlayerButton> {
                         ),
                   fill: fill,
                   ink: ink,
-                  onTap: dead ? null : () => _scout(game, batch),
+                  // **A DEAD BUTTON THAT CAN EXPLAIN ITSELF IS NOT A DEAD
+                  // END.** The same rule the play button follows at zero pips,
+                  // and the same one the shop's cooldown tile was rewritten
+                  // for: it went grey and said nothing, so a full roster read
+                  // as the game having broken. `signBlockedCopy` was written
+                  // for this and had never been called by anything.
+                  onTap: _revealing
+                      ? null
+                      : blocked == null
+                      ? () => _scout(game, batch)
+                      : switch (signBlockedCopy(blocked)) {
+                          final why? => () => emit('toast:info', why),
+                          _ => null,
+                        },
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [

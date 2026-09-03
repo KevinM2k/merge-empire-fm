@@ -6,9 +6,10 @@ because that is the part worth keeping.
 
 ## Where this queue stands
 
-**60 done, 2 open.** Both open rows are features rather than faults, and one of
-them is a feature that was built, tried and turned down — which is written up
-where it happened rather than quietly dropped.
+**65 done, 3 open.** Two of the open rows are features rather than faults, and
+one of those is a feature that was built, tried and turned down — written up
+where it happened rather than quietly dropped. The third is a balance question,
+not work.
 
 The FIRST batch's pattern is worth naming: **almost every "the game said X"
 report was a claim the game itself contradicted.** Copy that asserted "ten
@@ -22,6 +23,14 @@ already in the repository.** Four of the reports were shipped copy with no
 caller, one was a shipped AdMob unit with no button, and the worst of them was a
 screen calling a SIMULATION where it wanted a lookup. Only the confetti was
 genuinely new code rather than a wire that had never been run.
+
+**And the tail of that batch is the same pattern again**, which is the part to
+take seriously: five more fixes, and every one of them was a shipped string, a
+shipped asset or a shipped function with nothing calling it. Two of the five had
+to be CORRECTED on the way in rather than merely connected — `signBlockedCopy`
+named the wrong key, and a pooled coach line promised a timer the screen it
+pointed at did not have. **Unreachable code is not finished code**, and wiring it
+up without reading it would have shipped both faults.
 
 ---
 
@@ -394,25 +403,60 @@ Reported in one sitting, newest first in the report and oldest first here.
       a hardcoded palette is a bug here, and a ONE-SHOT — a looping animation
       would hang every `pumpAndSettle` that reaches a won match.)
 
+### Found on the way, and then built
+
+- [x] **The rest of the age badges.** `squad.badge.last_season`, `sell_now`,
+      `declining` and `ageing` — the injured badge was one of eight. The
+      thresholds are NOT invented: they are the ladder `coach_tips.dart` already
+      runs on, lifted into `ageBadgeKeyFor` so a badge on a card and a sentence
+      out of Colin cannot disagree about the same player, with a test that walks
+      0–20 seasons against his ladder. `squad.badge.seasons_inj` is deliberately
+      left alone — it is "{seasons} season{s} · {pct}% inj" and the sheet
+      already prints both halves in its own plates.
+
+- [x] **`stripBadgeEmoji`, one helper rather than five.** All eight badges open
+      on a pictograph because the catalogues were written for a DOM. The first
+      version of its test asserted "nothing above U+2600" and Japanese failed
+      it — 最 is a CJK ideograph and exactly what the strip must leave alone.
+      The stripper was right and the assertion was lazy.
+
+- [x] **The sell sheet says how long he is out, and why not to sell him.** Two
+      things met here. `coach.grid.injury` tells the player to "tap the injured
+      card to see the timer" — and a tap on the Players grid opens the SELL
+      sheet, which dimmed the artwork and said nothing else, so the pooled line
+      was a promise the game did not keep. And `hint.injured_income` — "still
+      earn 20% ... no need to sell them" — had no caller while the one screen
+      it was written for is the one where somebody is deciding exactly that.
+
+- [x] **The paper got its bang.** `playFirework` is the one effect in the game
+      that is a recording rather than a synth — the reason the audio backend has
+      a second entry point at all — and `assets/audio/firework.mp3` shipped with
+      nothing calling it. It is on the win screen, not inside `VictoryConfetti`:
+      a reusable widget that plays a sound whenever it is drawn is one nobody
+      can put on a second screen.
+
+- [x] **The Add Player button says why it is dead.** `signBlockedCopy` had no
+      caller anywhere, and it named `grid.player_count` — "{count} / {max}
+      players", a READOUT drawn two inches away on the same screen, placeholders
+      unfilled — for the one reason a player actually hits. Wiring it without
+      fixing it would have shipped the bug. It is
+      `event.deadline.blocked_squad_full` now ("No room in the squad — sell
+      someone first"), which Deadline Day already uses for the same condition,
+      and `no_candidate` returns NULL rather than `settings.comingSoon`: there
+      is no honest sentence for an empty scout pool and the catalogues are
+      generated, so silence beats claiming a feature is unbuilt.
+
 ### Found on the way, not built
 
-- [ ] **The rest of the squad badge set.** `squad.badge.ageing`,
-      `declining`, `last_season` and `seasons_inj` ship in ten languages with no
-      caller — the injured badge was one of eight. The other four are a feature
-      rather than the report, so they are here rather than in the diff.
-
-- [ ] **Four more injury hints with no caller**: `hint.injured_one`,
-      `hint.injured_multiple`, `hint.injured_income`, `hint.injured_on_grid`.
-      The last one is now TRUE again — it sends the player to the Squad tab for
-      a recovery time that exists — but nothing prints it.
-
-- [ ] **`signBlockedCopy` in `add_player_button.dart` has no caller** in `lib/`
-      or in the suite, and misuses `grid.player_count` (a "{count} / {max}
-      players" readout) as a refusal message. Nothing prints it, so it is not a
-      player-facing bug; giving a dead function a surface is a feature.
-
-- [ ] **`playFirework` has no caller either.** A sound with no visual, in a
-      game that now has a confetti painter.
+- [ ] **THE `hint.*` BANK IS 37 KEYS DEEP, not four.** The four injury ones this
+      queue listed were a sample: of 39 `hint.*` keys, 37 have no caller. And
+      counting them is not a work queue — `hint.injured_one`,
+      `hint.injured_multiple` and `hint.injured_on_grid` turn out to be
+      SUPERSEDED rather than missing, because `coach.grid.injury` is pooled,
+      reachable, and already says all three things on the same screen. Wiring
+      them would have been a second system contradicting the first. The rest of
+      the bank wants the same read before any of it is built: which are gaps and
+      which were replaced.
 
 - [ ] **A single caution is about a rating point, and sometimes none.**
       `computeSquadRatings` returns whole numbers — the JS's own rounding, held

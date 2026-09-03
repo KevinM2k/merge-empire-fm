@@ -1840,6 +1840,87 @@ void main() {
     return instanceId;
   }
 
+  group('AND HIS AGE IS ON THE SHEET', () {
+    /// Give the first bench man [seasons] of service.
+    Future<String> aged(
+      WidgetTester tester,
+      ProviderContainer container,
+      int seasons,
+    ) async {
+      final id = container.read(benchProvider).first.instanceId;
+      container.read(gameProvider).update((s) {
+        for (final raw in (s['grid'] as Map<String, dynamic>)['cells'] as List) {
+          if (raw is Map<String, dynamic> && raw['instanceId'] == id) {
+            raw['seasonsPlayed'] = seasons;
+          }
+        }
+      });
+      await settleSave(tester);
+      return id;
+    }
+
+    Future<void> openSheet(WidgetTester tester, String id) async {
+      await tester.tap(find.byKey(const ValueKey('squad-subs')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(ValueKey('squad-bench-$id')));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('a veteran is told he is one', (tester) async {
+      final container = await pumpSquad(tester, cards: 14);
+      final id = await aged(tester, container, 13);
+      await openSheet(tester, id);
+      expect(find.byKey(const ValueKey('detail-age-badge')), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('detail-age-badge')),
+          matching: find.text(stripBadgeEmoji(t('squad.badge.sell_now'))),
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('and a young player is not', (tester) async {
+      final container = await pumpSquad(tester, cards: 14);
+      final id = await aged(tester, container, 2);
+      await openSheet(tester, id);
+      expect(find.byKey(const ValueKey('detail-age-badge')), findsNothing);
+    });
+
+    testWidgets('AND NO BADGE PRINTS ITS OWN EMOJI, in any language', (
+      tester,
+    ) async {
+      // The catalogues open all eight of these with a pictograph — 🚑, 💀, ⚠️,
+      // 📉, 📅 — because they were written for a DOM. Five different glyphs
+      // across the set is why the strip is one helper rather than a
+      // `replaceFirst` per badge: a sixth would otherwise print silently.
+      for (final locale in localeIds) {
+        setLocale(locale);
+        addTearDown(resetLocale);
+        for (final key in const [
+          'squad.badge.last_season',
+          'squad.badge.sell_now',
+          'squad.badge.declining',
+          'squad.badge.ageing',
+        ]) {
+          final out = stripBadgeEmoji(t(key));
+          expect(out, isNotEmpty, reason: '$key in $locale stripped to nothing');
+          // **The pictographic blocks, not "anything above 0x2600".** The first
+          // draft used that cutoff and Japanese failed it — 最 is U+6700, which
+          // is a CJK ideograph and exactly the kind of character this must
+          // leave alone. The stripper was right; the assertion was lazy.
+          final first = out.runes.first;
+          expect(
+            (first >= 0x1F300 && first <= 0x1FAFF) ||
+                (first >= 0x2600 && first <= 0x27BF),
+            isFalse,
+            reason: '$key in $locale still opens on a glyph: $out',
+          );
+        }
+      }
+    });
+  });
+
   group('THE BENCH OFFERS TO HEAL THEM', () {
     // "There is no call to action on the bench to heal my injured players."
     // There was not — but every other part of the feature shipped: a real
