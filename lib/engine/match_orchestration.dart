@@ -1693,8 +1693,15 @@ List<Map<String, dynamic>> reSimulateRemainder(
       ..['liveOppDefenceRating'] = oppDefence
       // The opponent's single figure is the kickoff one scaled by what their
       // own referee cost them — there is no squad of theirs to re-rate.
-      ..['liveOppRating'] =
-          (_num(result['effectiveOppRating']) ?? 0) * oppRatingMult;
+      //
+      // **Through [fallbackOpp], which is the same chain their ATK and DEF are
+      // read through twenty lines above.** Reading `effectiveOppRating` alone
+      // meant a result that does not carry it re-simulated its opposition down
+      // to a flat ZERO — and the board prints this number, so the first card of
+      // the match blanked the side the player was watching. Anything that
+      // reaches this without the effective pair still has `opponentRating`,
+      // which is what the split was modelled from in the first place.
+      ..['liveOppRating'] = fallbackOpp * oppRatingMult;
   }
 
   result['homeGoals'] = currentOurGoals + remainHome;

@@ -192,6 +192,20 @@ void main() {
       expect(goals, shootout == null ? scored : scored - 1);
     });
 
+    test('THE BOARD GETS A RATING FOR BOTH SIDES, which it did not', () {
+      // Reported from the couch: a sending-off in a cup tie left the
+      // opposition's figure at the top of the match popup reading 0. It read 0
+      // from kick-off — the tie carried `squadRating`/`opponentRating` and the
+      // board reads the `effective*` pair — and the red card is what made it
+      // visible, because the re-simulation fills OUR half in from the live
+      // squad and nothing ever filled theirs.
+      final s = cupState();
+      final tie = beginCupRound(s)!;
+      expect(tie.result['effectiveSquadRating'], tie.prepared.squadRating);
+      expect(tie.result['effectiveOppRating'], tie.prepared.opponentRating);
+      expect(tie.result['effectiveOppRating'], greaterThan(0));
+    });
+
     test('and it carries a match quest track like any other match', () {
       final s = cupState();
       beginCupRound(s);
