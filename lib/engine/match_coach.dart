@@ -84,12 +84,19 @@ String coachReadKey({
 /// [coachReadKey] stops at the 89th minute, so the one moment they were written
 /// for was the one moment he had nothing to say.
 ///
-/// **They are `commentary.*` rather than `coach.match.*`, and that is where
-/// they go**: the feed is the commentary, and the final whistle is the last row
-/// of it. The full-time write-up in the same place is a different voice on
-/// purpose — a third party reporting on two clubs, which is what
-/// `match_report.dart` was rewritten to be. This is the manager talking to you
-/// about your own team.
+/// **They are keyed `commentary.*` and they are NOT the commentary**, which is
+/// the one thing about them worth spelling out. The key prefix is where they
+/// sit in a generated catalogue, not who says them: every one is written in the
+/// first person — "we took {opp} apart", "we came away with a point", "dust
+/// yourselves off" — and the feed on the match screen is an independent
+/// commentator describing two clubs, so it cannot say "we". A round spent
+/// printing them there was reported from the couch in exactly those words.
+///
+/// **So they go in Colin's bubble** — `MatchScreenState._sayFullTimeWord`,
+/// bottom-left, the shape the rest of his match talk already takes. This is the
+/// manager talking to you about your own team, and the third-party write-up of
+/// the same result is `match_report.dart` at the head of the feed. Two voices on
+/// one afternoon, each saying the thing only it can say.
 ///
 /// **Null for most matches, deliberately.** These nine describe results worth
 /// a sentence; a 1-1 is not one, and a line on every full time is a line

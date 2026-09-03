@@ -20,7 +20,9 @@ and what it cannot.
 strings written for that moment (`thriller_*`, `demolition`, `drubbing`,
 `high_scoring_*`, `nervy_one_nil`, `nil_nil`) shipped in ten languages with
 nothing able to reach one of them, because `match_coach.dart` had a read for
-every scoreline in progress and none for a RESULT. And the 2D pitch went from 35
+every scoreline in progress and none for a RESULT. **In his BUBBLE, not the
+feed** — they are written in the first person and the feed is an independent
+commentator, which is a fourth-batch correction after one reached a player. And the 2D pitch went from 35
 scripted passages to 47: three supply the missing opposite number of a named
 move, nine are shapes the set had none of. The table's own guards drive every
 sequence through the game and check the ball stays on the pitch and every kick

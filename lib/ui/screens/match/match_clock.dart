@@ -16,8 +16,6 @@ library;
 // Dart, like this file: nothing here reaches for Flutter.
 import 'package:merge_empire_fc/engine/booking_engine.dart' show cardYellow;
 import 'package:merge_empire_fc/util/sorting.dart' show stableSorted;
-import 'package:merge_empire_fc/engine/match_coach.dart'
-    show fullTimeReactionKey;
 import 'package:merge_empire_fc/engine/match_events.dart' show commentaryPools;
 
 /// One thing that happened, ready to show.
@@ -275,6 +273,17 @@ typedef FeedLine = ({
 
   /// Which card instance the row is about, when the engine names one.
   String? playerId,
+
+  /// **THE MAN WHO CAME OFF, on a substitution row.** Null on every other line
+  /// and on a change that withdrew nobody.
+  ///
+  /// A substitution is TWO players, and the row carried one: [aboutId] was the
+  /// man coming on and the one going off existed only as a name inside the
+  /// sentence. So the feed drew a single face and the change read as an
+  /// arrival. Reported from the couch against a real commentary feed, which
+  /// gives a substitution a block of its own with both men on it — see
+  /// `_SwapRow` in `match_screen.dart`, which is what draws them.
+  String? offId,
 });
 
 /// How long the feed waits before mentioning another chance, in minutes.
@@ -486,6 +495,7 @@ List<FeedLine> feedOf(
             aboutId: e.scorerId,
             card: null,
             playerId: null,
+            offId: null,
           ));
         } else {
           out.add((
@@ -503,6 +513,7 @@ List<FeedLine> feedOf(
             aboutId: null,
             card: null,
             playerId: null,
+            offId: null,
           ));
         }
       case 'halftime':
@@ -529,6 +540,7 @@ List<FeedLine> feedOf(
           aboutId: null,
           card: null,
           playerId: null,
+          offId: null,
         ));
       case 'injury':
         out.add((
@@ -541,6 +553,7 @@ List<FeedLine> feedOf(
           aboutId: null,
           card: null,
           playerId: null,
+          offId: null,
         ));
       case 'commentary':
         // **AN ATMOSPHERE LINE MAY NOT CLAIM A BOOKING.** Two of the JS's flow
@@ -571,6 +584,7 @@ List<FeedLine> feedOf(
             aboutId: null,
             card: null,
             playerId: null,
+            offId: null,
           ));
           // And the rest of the kick-off pool, into the quiet after it. See
           // [openingFillMinutes].
@@ -604,6 +618,7 @@ List<FeedLine> feedOf(
                 aboutId: null,
                 card: null,
                 playerId: null,
+                offId: null,
               ));
             }
           }
@@ -629,6 +644,7 @@ List<FeedLine> feedOf(
           aboutId: null,
           card: null,
           playerId: null,
+          offId: null,
         ));
       // **THEIR CHANGES, which the port dropped on the floor.**
       //
@@ -676,6 +692,7 @@ List<FeedLine> feedOf(
           aboutId: null,
           card: e.card,
           playerId: e.playerId,
+          offId: null,
         ));
       case 'opp_sub':
         out.add((
@@ -688,51 +705,27 @@ List<FeedLine> feedOf(
           aboutId: null,
           card: null,
           playerId: null,
+          offId: null,
         ));
-      // **AND HE HAS A WORD AT THE WHISTLE.** The engine emits a `fulltime`
-      // event and this list dropped it, so the feed simply stopped — while nine
-      // `commentary.*` strings written for exactly that moment
-      // (`thriller_win`, `demolition`, `drubbing`, `high_scoring_*`,
-      // `nervy_one_nil`, `nil_nil`) sat translated in ten catalogues with
-      // nothing able to reach one of them. Asked for from the couch as more
-      // variation in the commentary; this is nine results' worth that were
-      // already written.
+      // **THE WHISTLE IS HIS WORD, AND HIS WORD IS NOT THE FEED'S.** The nine
+      // `commentary.*` results lines — `thriller_*`, `demolition`, `drubbing`,
+      // `high_scoring_*`, `nervy_one_nil`, `nil_nil` — were routed through here
+      // for a round, on the reasoning that the final whistle is the last row of
+      // the commentary. It is, and they still cannot go in it: every one of
+      // them is written in the FIRST PERSON — "we took {opp} apart", "we came
+      // away with a point", "dust yourselves off" — and this feed is an
+      // independent commentator describing two clubs. Reported from the couch
+      // in exactly those terms: in commentary it cannot be "we".
       //
-      // **The goals are counted from the FEED, not read off the result.** The
-      // same rule `frameAt` follows and for the same reason: the number in his
-      // sentence can never run ahead of the goals that explain it. At the
-      // whistle they are the same figure, and on a re-sim that rewrote the
-      // scoreline they are the one the player actually watched.
+      // **They are the manager talking to you about your own team**, which is
+      // Colin, so that is where they went: `MatchScreenState._sayFullTimeWord`
+      // puts the reaction in his bubble at the bottom-left, the same shape the
+      // rest of his match talk already takes. `fullTimeReactionKey` still picks
+      // which one and is still quiet after an ordinary afternoon.
       //
-      // He is quiet after an ordinary afternoon — see `fullTimeReactionKey`.
-      case 'fulltime':
-        var ours = 0;
-        var theirs = 0;
-        for (final g in events) {
-          if (g.type != 'goal') continue;
-          if (g.team == 'away') {
-            theirs++;
-          } else {
-            ours++;
-          }
-        }
-        final reaction = fullTimeReactionKey(ours: ours, theirs: theirs);
-        if (reaction == null) continue;
-        out.add((
-          minute: e.minute,
-          type: e.type,
-          key: reaction,
-          // `{us}`–`{them}` is the SCORELINE in our order — he is talking to
-          // us about our own team — and `{opp}` is the club. Not the venue
-          // ordering the scoreboard uses: "a 1-0 win over Ayton" is his
-          // sentence whichever ground it was won on.
-          params: {'us': ours, 'them': theirs, 'opp': theirName},
-          seed: '${e.minute}-ft',
-          goal: null,
-          aboutId: null,
-          card: null,
-          playerId: null,
-        ));
+      // So the whistle earns no row, and it is not a hole in the feed: the
+      // third-party write-up of the same result is `match_report.dart`, which
+      // sits at the head of this list at full time.
       // A corner is a momentum nudge.
       default:
         continue;
