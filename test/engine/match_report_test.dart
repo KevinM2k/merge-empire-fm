@@ -906,10 +906,13 @@ void main() {
       );
     });
 
-    test('the minute and the tactic still travel, for the translations', () {
-      // The English no longer prints either — "on 80 minutes {club} switched
-      // to Defence" is a settings screen — but the nine generated catalogues
-      // do, so the beat goes on passing them.
+    test('the minute and the tactic still travel, for the fallback', () {
+      // No shipped line prints either any more — "on 80 minutes {club}
+      // switched to Defence" is a settings screen, and all ten catalogues have
+      // been moved off it. The GENERATED entries under the overlays still use
+      // them, though, and that is what a locale gets if its overlay ever loses
+      // the key, so the beat goes on passing them rather than risking a
+      // literal `{minute}` at a player.
       final beat = buildMatchReport(
         facts(lateSwitch: (minute: 72, tactic: 'parkTheBus')),
       ).firstWhere((b) => b.key.startsWith('report.tactic.'));
@@ -1142,11 +1145,22 @@ void main() {
         final catalog = catalogFor(locale);
         for (final entry in shapes.entries) {
           for (final beat in buildMatchReport(entry.value)) {
-            final raw = catalog[beat.key] ?? englishCatalog[beat.key];
+            // **THE LOCALE'S OWN ENTRY, not the English fallback.** This read
+            // `catalog[key] ?? englishCatalog[key]` and passed while thirty of
+            // the sixty-five keys existed in English alone — so a French
+            // write-up opened in French, said four sentences in English, and
+            // closed in French again. `t()`'s fallback is right for a string a
+            // catalogue has not caught up with; it is wrong for a paragraph
+            // COMPOSED out of pools, because the reader gets both languages at
+            // once rather than one language that is behind. See
+            // `lib/i18n/locale_copy.dart`.
+            final raw = catalog[beat.key];
             expect(
               raw,
               isNotNull,
-              reason: '${beat.key} is not in $locale or in English',
+              reason:
+                  '${beat.key} is missing from $locale — the write-up would '
+                  'fall back to English in the middle of a paragraph',
             );
             for (final variant in raw!.split('|')) {
               var filled = variant;

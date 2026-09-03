@@ -624,11 +624,17 @@ List<ReportBeat> buildMatchReport(ReportFacts f) {
   // else, keyed by which way it went, and the English copy tells it as a
   // decision rather than as a setting.
   //
-  // **`minute` still travels**, because the nine translated catalogues print
-  // it — theirs read "{club} went defensive on {minute} minutes" and only the
-  // English is replaced in `en_copy.dart`. `tactic` travels for the same
-  // reason. [ReportFacts.startTactic] and the earlier switches are still
-  // recorded and simply no longer printed; see the field.
+  // **`minute` and `tactic` still travel, and no shipped line uses them.** All
+  // ten catalogues have been moved off the minute now — English in
+  // `en_copy.dart` and the nine in `lib/i18n/copy/` — but the GENERATED entries
+  // underneath those overlays still read "{club} went defensive on {minute}
+  // minutes", and a locale falls back to the generated entry the moment its
+  // overlay does not carry the key. Dropping the parameters would make that
+  // fallback print a literal `{minute}` at a player rather than an older
+  // sentence. Two spare map entries is the cheaper side of that trade.
+  //
+  // [ReportFacts.startTactic] and the earlier switches are still recorded and
+  // simply no longer printed; see the field.
   final switches = [...f.switches]
     ..sort((a, b) => a.minute.compareTo(b.minute));
   ReportSwitch? lastLate;

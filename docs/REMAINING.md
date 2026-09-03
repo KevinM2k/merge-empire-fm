@@ -28,7 +28,15 @@ move, nine are shapes the set had none of. The table's own guards drive every
 sequence through the game and check the ball stays on the pitch and every kick
 comes off a boot; all twelve passed first time.
 
-**Blocked, and this is the row that matters.** More commentary and report LINES
+**No longer blocked, and this is the row that changed.** More commentary and
+report LINES *were* unwritable here; `lib/i18n/en_copy.dart` and, since the
+write-up was translated, `lib/i18n/copy/<id>_copy.dart` are overlays laid over
+the generated catalogues at load, so English and the other nine can both be
+written from this repo without touching anything generated. What follows is the
+reasoning that made it look impossible, kept because it is still why nothing
+generated may be edited:
+
+More commentary and report LINES
 cannot be written here. `commentary.*` is 64 keys / 120 lines and `report.*` is
 37 keys / 111 lines, and both are generated into `lib/i18n/locales/*.g.dart` from
 `../merge-empire-fc/src/i18n/locales/` — absent in a cloud container — so a line

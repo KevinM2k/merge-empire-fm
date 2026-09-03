@@ -14,6 +14,7 @@ import 'dart:math' as math;
 import 'package:merge_empire_fc/i18n/catalogs.g.dart';
 import 'package:merge_empire_fc/i18n/detect.dart';
 import 'package:merge_empire_fc/i18n/en_copy.dart';
+import 'package:merge_empire_fc/i18n/locale_copy.dart';
 import 'package:merge_empire_fc/util/format.dart';
 
 /// **ENGLISH, WITH THIS REPO'S OWN COPY LAID OVER IT.**
@@ -39,10 +40,31 @@ final Map<String, String> englishCatalog = () {
 
 final Map<String, String> _fallbackCatalog = englishCatalog;
 
-/// The catalogue for [id] as the app actually reads it — English through the
-/// overlay, every other locale exactly as generated.
-Map<String, String> catalogFor(String id) =>
-    id == fallbackLocale ? englishCatalog : catalogs[id]!;
+/// Built once per locale on first ask, for the reason [englishCatalog] is a
+/// `final` rather than a getter: `t()` is called from build methods and cannot
+/// afford a map rebuild per string.
+final Map<String, Map<String, String>> _overlaid = <String, Map<String, String>>{};
+
+/// The catalogue for [id] as the app actually reads it — the generated map with
+/// this repo's own copy laid over it.
+///
+/// **Every locale goes through an overlay now, not just English.** It was
+/// English through `en_copy.dart` and the other nine exactly as generated, on
+/// the reasoning that the nine are translations and this repo cannot write one.
+/// Thirty of the match report's sixty-five keys existed in English alone, so
+/// that reasoning was putting four English sentences in the middle of a French
+/// paragraph — see `locale_copy.dart`.
+Map<String, String> catalogFor(String id) {
+  if (id == fallbackLocale) return englishCatalog;
+  final base = catalogs[id]!;
+  final extra = localeCopy[id];
+  if (extra == null || extra.isEmpty) return base;
+  return _overlaid.putIfAbsent(id, () {
+    final out = Map<String, String>.from(base);
+    extra.forEach((key, value) => out[key] = value);
+    return Map<String, String>.unmodifiable(out);
+  });
+}
 
 String _locale = fallbackLocale;
 Map<String, String> _catalog = _fallbackCatalog;
