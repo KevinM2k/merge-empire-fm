@@ -917,10 +917,26 @@ class _Label extends ConsumerWidget {
     // the same in both themes gets the one ink that is: white, with the
     // stylesheet's own shadow back under it, because the gradient's far end is
     // an amber a flat white does not clear on its own.
+    // **AND A COOLDOWN IS THE SECOND EXCEPTION, for the same reason.**
+    // Reported from the couch: "the coach cooldown text is pretty much
+    // unreadable in some themes — until the bar fills anyways", which names the
+    // mechanism exactly. `_CooldownMask` lays 68% black over the part of the
+    // face the clock has not given back yet, and the ink above it is
+    // [playButtonInk] — a colour measured against the BRIGHT face. On a club
+    // whose accent is light that ink is a deep bronze, so for most of the wait
+    // it is a dark label on a nearly black panel, and it becomes readable only
+    // as the sweep uncovers the face underneath it. Which is why it looked like
+    // a bug that fixed itself.
+    //
+    // White with the cup's own shadow: white clears the mask, and the shadow is
+    // what carries it over the bright part the sweep has already returned. The
+    // same answer the cup face needed and for the same reason — the surface
+    // under the label is not the club's accent.
     final isCup = widget.cupRound != null;
+    final overFace = isCup || widget.inCooldown;
     final ink = widget.dead
         ? kit.textMuted
-        : isCup
+        : overFace
         ? Colors.white
         : playButtonInk(kit.accent);
     final blocked = ref.watch(matchBlockedProvider);
@@ -958,7 +974,7 @@ class _Label extends ConsumerWidget {
               // smeared under it, which on a dark ink is just a thicker letter.
               // A cup tie is the exception, and the reason is the one the
               // stylesheet had: the ink there IS white.
-              shadows: isCup ? playButtonCupLabelShadows : null,
+              shadows: overFace ? playButtonCupLabelShadows : null,
             ),
           ),
         ),
@@ -1023,6 +1039,13 @@ class _Label extends ConsumerWidget {
 /// The cooldown fill. Ticks at 100ms and moves by a sub-percent each time, so
 /// the sweep reads as continuous — rounding to whole percent made it jump once
 /// every couple of seconds on a thirty-minute clock.
+/// How black the unfilled part of a cooling-down button is.
+///
+/// Public because it is half of a contrast sum: the label is printed OVER this,
+/// not over the face, and `play_button_chrome_test` is what stops an ink being
+/// chosen against a surface that is not there. See the note on the label's ink.
+const double cooldownMaskAlpha = 0.68;
+
 class _CooldownMask extends ConsumerStatefulWidget {
   @override
   ConsumerState<_CooldownMask> createState() => _CooldownMaskState();
@@ -1059,7 +1082,9 @@ class _CooldownMaskState extends ConsumerState<_CooldownMask> {
       // the bright face grows out from the left as the wait runs down.
       alignment: Alignment.centerRight,
       fraction: fraction,
-      child: ColoredBox(color: Colors.black.withValues(alpha: 0.68)),
+      child: ColoredBox(
+        color: Colors.black.withValues(alpha: cooldownMaskAlpha),
+      ),
     );
   }
 }

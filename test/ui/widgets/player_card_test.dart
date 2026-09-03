@@ -32,12 +32,12 @@ const CardView _view = (
 
 /// The base view with one thing changed. Records have no `copyWith`, and the
 /// alternative is a second literal that drifts from the first.
-CardView withSuspension() => (
+CardView withSuspension({bool injured = false}) => (
   name: _view.name,
   tier: _view.tier,
   rating: _view.rating,
   position: _view.position,
-  injured: _view.injured,
+  injured: injured,
   onLoan: _view.onLoan,
   variant: _view.variant,
   fitness: _view.fitness,
@@ -596,6 +596,52 @@ void main() {
         (card.decoration! as BoxDecoration).color,
         const Color(0xFFE0342B),
       );
+    });
+
+    testWidgets('AND THE SAME RED WASH AN INJURY GETS', (tester) async {
+      // "Like the red overlay you put on injured players — put the same one on
+      // red carded players too." It is the same statement, this one cannot take
+      // the field, and it was the half a ban did not get: the card sat on
+      // unwashed artwork, so a hurt man read as out from across a bench and a
+      // banned one only read as out once you had looked at him.
+      const wash = Color(0x66640000);
+
+      /// Every full-bleed wash the card paints.
+      List<Color?> washes(WidgetTester tester) => [
+        for (final box in tester.widgetList<ColoredBox>(
+          find.byType(ColoredBox),
+        ))
+          box.color,
+      ];
+
+      await pumpCard(tester, withSuspension());
+      expect(washes(tester), contains(wash));
+
+      await pumpCard(tester, _view);
+      expect(
+        washes(tester),
+        isNot(contains(wash)),
+        reason: 'a fit, available man is not washed',
+      );
+    });
+
+    testWidgets('and a man with BOTH is washed once, not twice', (
+      tester,
+    ) async {
+      // Two stacked washes take the artwork almost black.
+      await pumpCard(tester, withSuspension(injured: true));
+      expect(
+        [
+          for (final box in tester.widgetList<ColoredBox>(
+            find.byType(ColoredBox),
+          ))
+            if (box.color == const Color(0x66640000)) box,
+        ],
+        hasLength(1),
+      );
+      // And both marks are still on him.
+      expect(find.byKey(const ValueKey('card-suspended')), findsOneWidget);
+      expect(find.byKey(const ValueKey('card-injury-cross')), findsOneWidget);
     });
 
     testWidgets('and everybody else does not', (tester) async {

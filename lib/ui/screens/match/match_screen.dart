@@ -360,6 +360,14 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
   /// suspension will be written from.
   List<Map<String, dynamic>> get bookings => _bookings;
 
+  /// What the opposition's own referee has cost them so far.
+  ///
+  /// Exposed for the test that holds watching and skipping to the same tally —
+  /// see [_oppCardsSeen]. `bookings` above is exposed for the same kind of
+  /// reason.
+  ({int yellows, int sendOffs}) get oppCards =>
+      (yellows: _oppYellows, sendOffs: _oppSendOffs);
+
   late List<TimelineEvent> _timeline = timelineOf(
     widget.result,
     bookings: _bookings,
@@ -430,12 +438,20 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
           'playerInstanceId': b.instanceId,
           'card': b.card,
         },
-      for (final b in theirs)
+      // **AN ID, EVEN THOUGH NOBODY IS NAMED.** Their eleven is synthetic and
+      // the copy is about the club, so there is no player for this to point at
+      // — it exists so a card can be counted ONCE. The live dispatch tallies
+      // their bookings as the clock reaches them and `_catchUpSendingsOff`
+      // tallies every booking at the whistle, so without something to key on, a
+      // fully WATCHED match double-counted every opposition card at full time
+      // and re-rolled the remainder against a side punished twice.
+      for (var i = 0; i < theirs.length; i++)
         {
-          'minute': b.minute,
+          'minute': theirs[i].minute,
           'type': 'booking',
           'team': 'away',
-          'card': b.card,
+          'playerInstanceId': 'oppcard-$i',
+          'card': theirs[i].card,
         },
     ];
   }
@@ -838,6 +854,10 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
           // strength. Reported from the couch. A second yellow is a sending-off
           // and stops counting as a caution: he is off, not booked.
           if (event.team == 'away') {
+            // Counted once — see the note where these ids are minted.
+            if (!_oppCardsSeen.add(who ?? '${event.minute}-${event.card}')) {
+              break;
+            }
             if (cardSendsOff(event.card ?? cardYellow)) {
               _oppSendOffs++;
               if (event.card == cardSecondYellow && _oppYellows > 0) {
@@ -1564,6 +1584,12 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
   int _oppYellows = 0;
   int _oppSendOffs = 0;
 
+  /// Which of their cards have already been counted, so watching and skipping
+  /// cannot both count the same one. Ours are guarded by [_cautioned] and
+  /// [_sentOff] being sets; theirs had nothing until this, and a fully watched
+  /// match re-tallied every opposition card at the whistle.
+  final Set<String> _oppCardsSeen = <String>{};
+
   /// **WHAT THE LAST RE-SIM ROLLED WITH, and why it is not on the result.**
   ///
   /// `reSimulateRemainder` fills this rather than stamping the result, because
@@ -1864,6 +1890,8 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
       final card = '${b['card'] ?? cardYellow}';
       final sendsOff = cardSendsOff(card);
       if (b['team'] == 'away') {
+        final id = b['playerInstanceId'];
+        if (!_oppCardsSeen.add(id is String ? id : '$minute-$card')) continue;
         if (sendsOff) {
           _oppSendOffs++;
           if (card == cardSecondYellow && _oppYellows > 0) _oppYellows--;

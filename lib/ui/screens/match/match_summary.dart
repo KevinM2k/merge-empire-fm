@@ -24,6 +24,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/data/dugout_cam_policy.dart';
 import 'package:merge_empire_fc/data/quests.dart' show getQuest;
 import 'package:merge_empire_fc/ui/theme/app_theme.dart' show displayText;
+import 'package:merge_empire_fc/ui/widgets/victory_confetti.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/engine/booking_engine.dart'
     show cardSendsOff, cardYellow;
@@ -604,7 +605,30 @@ class MatchSummaryScreenState extends ConsumerState<MatchSummaryScreen>
         ),
       ),
     );
-    return page;
+    // **AND A WIN GETS PAPER.** Asked for from the couch: "on the end game
+    // screen, if it's victory we should probably have some confetti or
+    // something." There was nothing — the screen said VICTORY in the largest
+    // type in the game and then behaved exactly like the one that says DEFEAT.
+    //
+    // OVER the page and outside the scroll, so it falls across the whole screen
+    // rather than down a column that moves under it. Not on a draw: a point is
+    // not a celebration, and paper for every result is paper that says nothing.
+    //
+    // Seeded on the fixture, so one match is one fall — a rebuild does not
+    // re-throw it, and a screenshot of full time is reproducible.
+    if (!won) return page;
+    return Stack(
+      children: [
+        page,
+        Positioned.fill(
+          child: VictoryConfetti(
+            key: const ValueKey('summary-confetti'),
+            seed: '${result['fixtureKey'] ?? result['opponentName'] ?? ''}'
+                .hashCode,
+          ),
+        ),
+      ],
+    );
   }
 }
 

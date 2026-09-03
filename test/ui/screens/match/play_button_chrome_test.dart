@@ -174,4 +174,58 @@ void main() {
       }
     });
   });
+
+  group('THE COOLDOWN LABEL IS READ OVER THE MASK, not over the face', () {
+    // Reported from the couch: "the coach cooldown text is pretty much
+    // unreadable in some themes — until the bar fills anyways." That last
+    // clause is the diagnosis. `_CooldownMask` lays [cooldownMaskAlpha] black
+    // over the part of the face the clock has not given back, and the label
+    // above it was inked with `playButtonInk` — a colour measured against the
+    // BRIGHT face. On a pale club that ink is a deep bronze, so it spent the
+    // wait as a dark label on a nearly black panel and only became readable as
+    // the sweep uncovered the face beneath it.
+
+    /// The face's stops with the cooldown mask over them.
+    List<Color> masked(Color accent) => [
+      for (final stop in playButtonFace(accent))
+        Color.lerp(stop, Colors.black, cooldownMaskAlpha)!,
+    ];
+
+    /// The worst contrast [ink] holds against a masked face.
+    double gapOn(Color accent, Color ink) => masked(accent)
+        .map(
+          (stop) => contrastRatio(
+            stop.computeLuminance(),
+            ink.computeLuminance(),
+          ),
+        )
+        .reduce(math.min);
+
+    test('WHITE CLEARS IT ON EVERY KIT IN THE GAME', () {
+      for (final accent in kitAccents) {
+        expect(
+          gapOn(accent, Colors.white),
+          greaterThanOrEqualTo(whiteInkMinContrast),
+          reason: 'white is unreadable over the mask on $accent',
+        );
+      }
+    });
+
+    test('AND THE OLD INK DID NOT, which is the report', () {
+      // Not "some kits fail" as a hedge — the pale end of the kit list is where
+      // it happened, and naming it is what stops the fix being reverted as
+      // unnecessary.
+      final failed = [
+        for (final accent in kitAccents)
+          if (gapOn(accent, playButtonInk(accent)) < whiteInkMinContrast) accent,
+      ];
+      expect(
+        failed,
+        isNotEmpty,
+        reason: 'if no kit fails, the report had another cause',
+      );
+    });
+  });
+
+
 }

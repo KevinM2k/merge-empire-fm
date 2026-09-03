@@ -901,6 +901,86 @@ void main() {
       await settleSave(tester);
     });
 
+    testWidgets('THEIR CARDS ARE COUNTED ONCE, watched or skipped', (
+      tester,
+    ) async {
+      // A caught bug rather than a reported one, and it came in with the fix
+      // for the reported one. Their cards now cut their rating, and the tally
+      // was being incremented in two places: the live dispatch as the clock
+      // reaches each card, and `_catchUpSendingsOff` over every booking at the
+      // whistle. Ours are guarded by `_cautioned` and `_sentOff` being SETS;
+      // theirs had nothing, so a fully watched match re-counted every
+      // opposition card at full time and re-rolled the remainder against a side
+      // punished twice.
+      // **`s1_m2`, whose only away card is in the 17th minute.** Chosen rather
+      // than reached for: a watched match cannot be pumped to the 84th here —
+      // it holds on a cutaway or a coach card well before then — so a fixture
+      // whose card lands early is the difference between exercising the live
+      // path and only looking like it. The first version used `s1_m13`, whose
+      // away card is at 84, and passed with either guard removed.
+      final container = await pumpMatch(
+        tester,
+        matchResult(fixtureKey: 's1_m2'),
+        save: squadSave(),
+      );
+      expect(container, isNotNull);
+      final state = stateOf(tester);
+      final theirs = [
+        for (final b in state.bookings)
+          if (b['team'] == 'away') b,
+      ];
+      expect(
+        theirs,
+        isNotEmpty,
+        reason: 'this fixture was chosen because their referee is busy in it',
+      );
+
+      // Watch past every one of them, then finish — which is what runs the
+      // catch-up over the whole list.
+      final last = theirs
+          .map((b) => (b['minute'] as num).toInt())
+          .reduce((a, b) => a > b ? a : b);
+      // **Until the CLOCK passes it, not for that many pumps.** A pump of one
+      // minute's duration does not always advance the match a minute, so
+      // counting pumps left the last card unreached and the watched path
+      // untested — which is how the first version of this passed with the guard
+      // taken out.
+      for (var i = 0; i < 400 && state.frame.minute <= last; i++) {
+        await tester.pump(minuteDurationFor(1));
+      }
+      expect(
+        state.frame.minute,
+        greaterThan(last),
+        reason: 'the clock never reached their card, so nothing was watched',
+      );
+      expect(
+        state.oppCards.yellows + state.oppCards.sendOffs,
+        theirs.length,
+        reason: 'the live dispatch missed one of their cards',
+      );
+
+      state.skipToEnd();
+      await tester.pumpAndSettle();
+
+      final wantSendOffs = theirs
+          .where((b) => cardSendsOff('${b['card']}'))
+          .length;
+      final wantYellows = theirs.length - wantSendOffs;
+      expect(
+        state.oppCards.sendOffs,
+        wantSendOffs,
+        reason: 'their dismissals were counted twice',
+      );
+      expect(
+        state.oppCards.yellows,
+        // A second yellow stops counting as a caution: he is off, not booked.
+        wantYellows -
+            theirs.where((b) => '${b['card']}' == cardSecondYellow).length,
+        reason: 'their cautions were counted twice',
+      );
+      await settleSave(tester);
+    });
+
     testWidgets('and the same fixture books the same players', (tester) async {
       // Seeded off the fixture key, so a match replays what it did — the same
       // promise the cutaway makes about its passages.
@@ -929,7 +1009,36 @@ void main() {
       ];
       expect(theirs, isNotEmpty, reason: 'only one side was ever bookable');
       // Nothing of theirs reaches the save: no name, no ban, no record.
-      expect(theirs.every((b) => b['playerInstanceId'] == null), isTrue);
+      //
+      // **This checked `playerInstanceId == null` and now checks the id is a
+      // MARKER**, which is the same claim made properly. Their cards grew an id
+      // when they started costing their side a rating — the tally is
+      // incremented by the live clock and again by the whistle's catch-up, so
+      // something has to say "this card, once". It is `oppcard-N`, which is not
+      // and can never be a card instance: it names a position in their own
+      // synthetic eleven, and nothing keyed on it is ever written to the grid.
+      expect(
+        theirs.every((b) => '${b['playerInstanceId']}'.startsWith('oppcard-')),
+        isTrue,
+      );
+      expect(
+        theirs.every((b) => b['player'] == null),
+        isTrue,
+        reason: 'the port never names an opposition player',
+      );
+      final cells =
+          (container.read(gameProvider).state!['grid']
+              as Map<String, dynamic>)['cells']
+          as List;
+      final ids = {
+        for (final c in cells)
+          if (c is Map<String, dynamic>) c['instanceId'],
+      };
+      expect(
+        theirs.every((b) => !ids.contains(b['playerInstanceId'])),
+        isTrue,
+        reason: 'a marker must never collide with one of our players',
+      );
       expect(
         state.bookings.where((b) => b['team'] == 'home').length,
         lessThan(state.bookings.length),

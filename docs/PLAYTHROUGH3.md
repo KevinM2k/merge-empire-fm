@@ -6,16 +6,22 @@ because that is the part worth keeping.
 
 ## Where this queue stands
 
-**44 done, 2 open.** Both open rows are features rather than faults, and one of
+**60 done, 2 open.** Both open rows are features rather than faults, and one of
 them is a feature that was built, tried and turned down — which is written up
 where it happened rather than quietly dropped.
 
-The pattern in this batch is worth naming: **almost every "the game said X"
+The FIRST batch's pattern is worth naming: **almost every "the game said X"
 report was a claim the game itself contradicted.** Copy that asserted "ten
 against ten" when eleven were playing eleven, a score printed in our order rather
 than the reader's, a coach reading a league fixture on a cup week, a trait badge
 announcing that a card has no trait. None of them were rendering faults; all of
 them were something being said that was not true.
+
+The SECOND batch's is different and worth naming beside it: **most of it was
+already in the repository.** Four of the reports were shipped copy with no
+caller, one was a shipped AdMob unit with no button, and the worst of them was a
+screen calling a SIMULATION where it wanted a lookup. Only the confetti was
+genuinely new code rather than a wire that had never been run.
 
 ---
 
@@ -286,6 +292,134 @@ them were something being said that was not true.
       the two are one decision — and a build is a SILHOUETTE, which the
       shoulders-to-hem crop was hiding in exactly the way the camera would
       have.)
+
+---
+
+## Second batch — the cup week, the referee's arithmetic, and a screen that was playing the game
+
+Reported in one sitting, newest first in the report and oldest first here.
+
+- [x] **LOOKING at a cup tie no longer plays it.** (The worst fault on either
+      queue, and three reports were one bug: "all my players got injured in that
+      last game", players "disappearing and going injured again" while the
+      manager sat still on the Squad page, and "ratings for teams is now showing
+      0". `nextMatchProvider` and `coachTipsProvider` named the due cup opponent
+      by calling `prepareCupRound` — on a comment of mine claiming it was
+      read-only because it does not COMMIT a round. It is not read-only in the
+      sense that mattered: it simulates the tie, rolls injuries and APPLIES
+      them, and spends the Lucky Boot. Both are `savePick`s, so injuring
+      somebody bumped the save revision, which re-ran the provider, which
+      injured somebody else. Eleven injured men rate 0, which is the third
+      report and not a separate bug. `previewCupTie` is the read-only answer to
+      the only question those two were asking.)
+
+- [x] **The fixtures sheet names the cup opponent.** (`CupTie.opponent` was null
+      until the tie had been PLAYED, on the reasoning that "before it is played
+      the opponent is not known" — which is not true and never was. The bracket
+      is drawn when the run starts. Reported with a screenshot: "you can see
+      Everton nowhere.")
+
+- [x] **And NEXT MATCH points at the tie, not past it.** (The heading hung off
+      `OurFixture.isNext`, which is the next LEAGUE fixture. Same screenshot:
+      a quarter-final due and the sheet announcing Rangers.)
+
+- [x] **Colin stops reading a record against the wrong club.** (The grudge and
+      the rating comparison were already gated on there being no tie; the
+      head-to-head was not, and neither was the tactic he says he would pick —
+      which was being chosen against the league opponent's ATK and DEF.)
+
+- [x] **Two placeholders that were being printed at players.** (`{opp}` in a
+      match summary: `report.clean_sheet`'s second of three variants opens "{opp}
+      were kept out entirely" and the beat passed `club` alone. A pool's
+      variants do not all take the same placeholders, so the test expands the
+      pool — every variant, ten catalogues, twenty-two shapes of match. The same
+      sweep found `squad.out_of_position` — "Out of Position {pct}" — called with
+      no parameters at all.)
+
+- [x] **An injured player says how long he is out for.** (`squad.badge.injured`,
+      `squad.badge.injured_min_left` and `squad.badge.injured_soon` have shipped
+      in ten languages since the generator first ran with nothing able to print
+      any of them — and `hint.injured_on_grid` goes as far as telling the player
+      to "check the Squad tab to see their recovery time", a promise the port
+      had no way of keeping.)
+
+- [x] **The bench offers to heal them.** (The one part of the mechanic that was
+      never built. A real `heal_all` AdMob unit for both stores, three strings in
+      ten languages, and `buyConsumable` pricing the Magic Sponge against "the
+      free rewarded video on the Squad bench, which heals the whole squad three
+      times a day" — so the coin item had been priced against a video that did
+      not exist. The heal is one function both call now.)
+
+- [x] **A banned card wears the injured card's red wash.** (Asked for in exactly
+      that shape. It had the red card and not the wash, so a hurt man read as out
+      from across a bench and a banned one only once you had looked at him. One
+      wash for both, or a man with an injury AND a ban gets it twice.)
+
+- [x] **A card costs the maths, on both sides.** (A yellow was worth ten per cent
+      on two widgets and nothing else — the rest of the match went on being
+      rolled by a side nobody had booked. And their card was worth nothing at
+      all: our man leaves the lineup and the rating engine scores the hole,
+      theirs is a pair of numbers with nobody in it. `oppTeamRatingMult` applies
+      our own rule to their figure rather than inventing one.
+      **The parity harness caught the first attempt and was right to** — the
+      live ratings were stamped onto the result, and seventeen scenarios refused
+      a field the JS has never heard of. They are handed out to the screen
+      instead.)
+
+- [x] **Their cards are counted ONCE, watched or skipped.** (Caught rather than
+      reported, and it came in with the fix above. Their tally is incremented by
+      the live clock as each card lands AND by the whistle's catch-up over every
+      booking; ours are guarded by `_cautioned` and `_sentOff` being sets and
+      theirs had nothing, so a fully watched match re-counted every opposition
+      card at full time and re-rolled the remainder against a side punished
+      twice. **The first version of the test passed with the guard taken out**
+      — it used a fixture whose away card is in the 84th minute, and a watched
+      match holds on a cutaway well before then, so it exercised only the
+      catch-up. `s1_m2` books them in the 17th.)
+
+- [x] **The cooldown label is read over the MASK, not over the face.** ("The
+      coach cooldown text is pretty much unreadable in some themes — until the
+      bar fills anyways", which names the mechanism exactly. `_CooldownMask`
+      lays 68% black over the part of the face the clock has not given back, and
+      the ink above it was measured against the BRIGHT face.)
+
+- [x] **The music stops spiking between beds.** ("In between transitions the
+      music briefly hits 100% volume then respects the volume switch again." It
+      did: the outgoing bed was faded out from `musicBaseVolume` rather than
+      from the volume it was playing at, so at a 30% setting the first step of
+      the fade threw it to more than three times what had been asked for.)
+
+- [x] **A win gets paper.** (The only genuinely new thing in this batch. Seeded
+      on the fixture so one match is one fall, in the club's own colours because
+      a hardcoded palette is a bug here, and a ONE-SHOT — a looping animation
+      would hang every `pumpAndSettle` that reaches a won match.)
+
+### Found on the way, not built
+
+- [ ] **The rest of the squad badge set.** `squad.badge.ageing`,
+      `declining`, `last_season` and `seasons_inj` ship in ten languages with no
+      caller — the injured badge was one of eight. The other four are a feature
+      rather than the report, so they are here rather than in the diff.
+
+- [ ] **Four more injury hints with no caller**: `hint.injured_one`,
+      `hint.injured_multiple`, `hint.injured_income`, `hint.injured_on_grid`.
+      The last one is now TRUE again — it sends the player to the Squad tab for
+      a recovery time that exists — but nothing prints it.
+
+- [ ] **`signBlockedCopy` in `add_player_button.dart` has no caller** in `lib/`
+      or in the suite, and misuses `grid.player_count` (a "{count} / {max}
+      players" readout) as a refusal message. Nothing prints it, so it is not a
+      player-facing bug; giving a dead function a surface is a feature.
+
+- [ ] **`playFirework` has no caller either.** A sound with no visual, in a
+      game that now has a confetti painter.
+
+- [ ] **A single caution is about a rating point, and sometimes none.**
+      `computeSquadRatings` returns whole numbers — the JS's own rounding, held
+      there by the parity harness — so ten per cent of one man is about 0.9% of
+      eleven. That is the right size for a booking and it means the number on
+      the board will not always visibly move for one yellow. Stated rather than
+      inflated; if it should be bigger, that is a balance decision.
 
 ---
 

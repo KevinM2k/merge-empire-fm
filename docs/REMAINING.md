@@ -11,6 +11,43 @@ rough sense of size, not a target.
 **The live queue for this session is `docs/PLAYTHROUGH3.md`**, which is where
 the couch's reports are ticked off one at a time. What follows is the summary.
 
+## Playtest, 3 Sep 2026 — the cup week, and a screen that was playing the game
+
+Sixteen reports in one sitting. **Most of the work was already in the repo**:
+four were shipped copy with no caller, one was a shipped AdMob unit with no
+button, and the worst of them was a provider calling a SIMULATION where it
+wanted a lookup. See `docs/PLAYTHROUGH3.md` for the row-by-row.
+
+**The one to read first.** `nextMatchProvider` and `coachTipsProvider` named the
+due cup opponent by calling `prepareCupRound`, which does not commit a round and
+is not therefore read-only: it SIMULATES the tie, rolls injuries and applies
+them, and spends the Lucky Boot. Both are `savePick`s, so injuring somebody
+bumped the save revision, re-ran the provider, and injured somebody else. Three
+separate reports — a whole squad injured after one cup week, players
+"disappearing and going injured again" while the manager sat still on the Squad
+page, and team ratings reading 0 — were that one loop. A comment of mine
+asserting the call was read-only is what kept it alive; the assertion, not the
+call, is the thing worth being suspicious of.
+
+**Two harnesses had something to say and both were right, again.** The parity
+test refused the live ratings when they were stamped onto the result object —
+a field the JS has never heard of cannot live on the object it compares field
+for field — so they are handed out to the screen instead, which is this repo's
+own rule about where a divergence goes. And the placeholder sweep that found
+`{opp}` printing in a match summary found a second one on the squad screen.
+
+**Still open from this session:**
+
+- [ ] **A single caution is about a rating point, and sometimes none.**
+      `computeSquadRatings` returns whole numbers — the JS's rounding, held
+      there by the harness — so ten per cent of one man is ~0.9% of eleven.
+      That is the right size for a booking and it means the board will not
+      always visibly move for one yellow. A balance call, not a bug.
+
+- [ ] **Four squad badges and four injury hints still have no caller**, and
+      `playFirework` is a sound with no visual in a game that now has a confetti
+      painter. Listed in `PLAYTHROUGH3.md`.
+
 ## Playtest, 2 Sep 2026 — the referee, the write-up, and a phone on a cable
 
 The longest single session on this queue, and the first one profiled on a real
