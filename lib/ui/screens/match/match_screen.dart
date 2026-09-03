@@ -803,10 +803,12 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
       if (event.minute != minute) continue;
       // The clip will play this one's shot when it takes it.
       if (event == _clippedEvent) continue;
-      // `home` is US on an event, whichever ground we are on — see
-      // `MatchFrame`. Reading it through `isHome` played the crowd's
-      // disappointment for our own goals in every away fixture.
-      final ours = event.team != 'away';
+      // **WHOSE IT WAS — and a chance and a goal do not answer that the same
+      // way.** See [eventIsOurs]: the engine lists goals ours-first and ROLLS
+      // chances and corners venue-first, so reading `home` as us for both was
+      // right at home and inverted away. The crowd groaned for the opposition's
+      // near misses and cheered ours at every away fixture.
+      final ours = eventIsOurs(event, isHome: widget.result['isHome'] == true);
       switch (event.type) {
         case 'goal':
           // The kick is what makes a goal an event rather than a chime: the ball
@@ -973,7 +975,9 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
   void _clipVerdict(CutawayOutcome outcome) {
     final event = _clippedEvent;
     if (event == null || !mounted) return;
-    final ours = event.team != 'away';
+    // The clip's own side, by the same rule the clip was built with — see
+    // [eventIsOurs]. A chance is venue-tagged and a goal is not.
+    final ours = eventIsOurs(event, isHome: widget.result['isHome'] == true);
     final sound = ref.read(soundServiceProvider);
     switch (outcome) {
       case CutawayOutcome.goal:
@@ -1032,10 +1036,18 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
   void _cutIfWorthWatching() {
     for (final event in _timeline) {
       if (event.minute != _minute || event.minute == _clippedMinute) continue;
-      // `home` is US on an event, whichever ground we are on — see
-      // `MatchFrame`. Reading it through `isHome` played the crowd's
-      // disappointment for our own goals in every away fixture.
-      final ours = event.team != 'away';
+      // **WHOSE CHANCE THE PITCH IS ABOUT TO RETELL.** See [eventIsOurs]: a
+      // goal's `home` is us and a chance's `home` is the home CLUB, because
+      // one is listed off `homeGoals` and the other is rolled off
+      // `chanceWeights`, which `buildMatchResult` writes venue-first.
+      //
+      // Read as us for both, an away fixture played the OPPOSITION's chances
+      // as our attack — green shirts, our own eleven's names on them, running
+      // at the other end — and ours as theirs. Reported from the couch as the
+      // 2D pitch coming on with the player's own team scoring at the wrong
+      // end. Goals were never affected, which is why the scoreboard went on
+      // making sense underneath it.
+      final ours = eventIsOurs(event, isHome: widget.result['isHome'] == true);
       final clip = clipFor(
         event,
         // **AT HOME WE ATTACK RIGHT, AWAY WE ATTACK LEFT.** It was pinned to
@@ -2897,7 +2909,9 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
     if (_clip != null) return;
     final event = _retold.where((e) => e.minute == minute).firstOrNull;
     if (event == null) return;
-    final ours = event.team != 'away';
+    // The same rule the live cut used, or the replay is a different passage —
+    // see [eventIsOurs].
+    final ours = eventIsOurs(event, isHome: widget.result['isHome'] == true);
     final clip = clipFor(
       event,
       ourSideLeft: widget.result['isHome'] == true,

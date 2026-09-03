@@ -66,6 +66,48 @@ typedef TimelineEvent = ({
   String? playerId,
 });
 
+/// **WHICH CLUB A FEED EVENT BELONGS TO, and the engine means two different
+/// things by `home`.**
+///
+/// A GOAL is OURS-positive. `generateMatchEvents` fills its goal list straight
+/// from `homeGoals`/`awayGoals`, and those are the player's goals and the
+/// opponent's whichever ground the fixture is on — the orchestration says so in
+/// its own words — and the scorer is drawn from OUR squad on `home`.
+///
+/// A CHANCE and a CORNER are VENUE-positive. They are not listed, they are
+/// ROLLED, out of `chanceWeights` — and `buildMatchResult` writes that pair as
+/// `isHome ? (home: ours, away: theirs) : (home: theirs, away: ours)`, with
+/// `reSimulateRemainder` doing the same. So the string `home` is attached to
+/// whichever club is AT HOME, which is us only when we are. Commentary rides
+/// the same roll.
+///
+/// **The two are the same thing at home and opposite numbers away**, which is
+/// why this has only ever been reported from an away fixture. Every screen read
+/// `home` as us for all of them, so away from home the 2D pitch played the
+/// opposition's chances as OUR attack — green shirts, our names, our crowd —
+/// the feed named the wrong club, and the statboard's shots, on-target, big
+/// chances and corners were swapped with the opposition's while the goals
+/// beside them were right.
+///
+/// **The engine cannot be made consistent from this side.** That attribution is
+/// the JS's and `match_orchestration_parity_test` compares the event array
+/// against a node dump of it, so the flip stays; the screen is where the two
+/// meanings are reconciled, which is where this repo puts a divergence.
+///
+/// Anything the PORT mints is ours-positive by construction — a booking is
+/// written `home` on our own eleven's cards, so it takes the goal's rule.
+bool eventIsOurs(TimelineEvent e, {required bool isHome}) {
+  final team = e.team;
+  // An event with no side at all — half time, the whistle, an injury — belongs
+  // to nobody, and every caller has always read that as ours.
+  if (team == null) return true;
+  if (!venueTaggedEvents.contains(e.type)) return team != 'away';
+  return (team == 'home') == isHome;
+}
+
+/// The event types whose `team` names the HOME CLUB rather than us.
+const Set<String> venueTaggedEvents = {'chance', 'corner', 'commentary'};
+
 /// The name to force onto the shooter's dot for a clip, or null for no name.
 ///
 /// **LIVE, THEN THE NAME THE RESULT RECORDED — and the fallback was missing.**
@@ -633,18 +675,23 @@ List<FeedLine> feedOf(
           continue;
         }
         lastChance = e.minute;
-        // **THE ENGINE'S `home` MEANS US, whatever the venue** — the goal case
-        // twenty lines up reads it that way (`ourGoal = e.team == 'home'`), and
-        // so does `homeGoals`/`awayGoals` everywhere else. This line folded
-        // [isHome] back in on top of that, which is the identity XORed with the
-        // venue: right at home, and inverted at every away fixture. Reported
-        // from the couch three times in one match — "Iron Stars hit the
-        // woodwork" when the player IS Iron Stars, playing away, and the clip
-        // that ran was the opposition's.
+        // **A CHANCE IS VENUE-TAGGED AND A GOAL IS NOT** — see [eventIsOurs],
+        // which is the one place that rule lives now.
         //
-        // [isHome] is for ORDERING a scoreline, not for deciding whose chance
-        // it was; the goal branch already uses it that way and only that way.
-        final mine = e.team == 'home';
+        // This line has been wrong in both directions. It first folded [isHome]
+        // in on top of a reading of `home` as US, which was the identity XORed
+        // with the venue and reported from the couch three times in one match —
+        // "Iron Stars hit the woodwork" when the player IS Iron Stars, playing
+        // away, and the clip that ran was the opposition's. The answer then was
+        // to drop the venue entirely and read `home` as us, which made the feed
+        // AGREE WITH THE CLIP and left both of them wrong away from home,
+        // because the clip reads the same field the same way.
+        //
+        // The half neither pass checked is what the ENGINE puts in the field:
+        // `chanceWeights` is written venue-first, so on a chance `home` is the
+        // home club. The goal branch twenty lines up is right to read it as us
+        // and this one is not; they are genuinely different questions.
+        final mine = eventIsOurs(e, isHome: isHome);
         out.add((
           minute: e.minute,
           type: e.type,

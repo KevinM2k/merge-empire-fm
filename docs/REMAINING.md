@@ -11,6 +11,78 @@ rough sense of size, not a target.
 **The live queue for this session is `docs/PLAYTHROUGH3.md`**, which is where
 the couch's reports are ticked off one at a time. What follows is the summary.
 
+## Playtest, 3 Sep 2026 (third sitting) — two follow-ups, one of them big
+
+**The cup fixtures vanishing is fixed** and confirmed as the cup rows only —
+the league list was never touched. `commitCupRound` nulls `cups.active` and
+files the run in `cups.history`; `ourCupTiesProvider` read `active` alone, so
+going out erased every tie including the rounds already won. Same defeat as the
+"it said I won" report, seen from the other side. See `seasonCupRunRow`.
+
+### The one to read: `team` on an event means two different things
+
+**`buildMatchResult` writes `chanceWeights` VENUE-FIRST** —
+`isHome ? (home: ours, away: theirs) : (home: theirs, away: ours)` — and
+`generateMatchEvents` rolls the literal string `home` out of `wHome`. So on a
+CHANCE, a CORNER and a commentary line, `home` is the home CLUB. A GOAL is not
+rolled: its list is `homeGoals` copies of `home`, and those are always the
+player's goals. The engine is inconsistent about its own field, deliberately —
+the attribution is the JS's and `match_orchestration_parity_test` compares the
+event array against a node dump, so it cannot be made consistent from this side.
+
+The whole screen layer read `home` as us for everything. The two are the same
+thing at home and opposite numbers away, which is why this has only ever been
+reported from an away fixture — this time as the 2D pitch coming on with the
+player's own team attacking at the wrong end. Away from home the pitch played
+the OPPOSITION's chances as our attack (green shirts, our own eleven's names on
+them), the feed named the wrong club, the crowd reacted for the wrong side, and
+the statboard's shots, on-target, big chances and corners were swapped while the
+goals beside them were right.
+
+`eventIsOurs` in `match_clock.dart` is now the one place that rule lives, and
+the feed, the crowd, the 2D pitch, the replay and the statboard all go through
+it.
+
+**This overturns two earlier fixes and the two test files that pinned them**, so
+it is written down rather than slipped in:
+
+- `match_clock.dart`'s chance line had `isHome` folded in on top of a reading of
+  `home` as us — the venue XORed twice. Dropping BOTH flips made the feed agree
+  with the CLIP, which reads the same field the same way, and left the pair of
+  them wrong together away from home with nothing to say so. One flip, on the
+  rolled types only, is the answer.
+- `statboard_sides_test.dart` hand-wrote `team: 'away'` for the opposition at
+  BOTH grounds and then asserted the board agreed — the question begged rather
+  than answered. Its fixtures are tagged the way the engine would tag them now.
+
+**AND IT IS NOT CONFIRMED ON A REAL AWAY MATCH.** The engine-side fact is
+verifiable by reading and is not in doubt; what is not verified is that this
+cures the report on a live save, and one thing does not fit: the second pass
+above was shipped as a cure for a 2-0 away defeat showing more shots, and on
+this analysis it should not have cured it. Either it was never re-checked
+against a real away fixture, or something here is still missing. The spec repo
+is absent from a cloud container, so the JS's own screens could not be consulted
+either. **Play an away match and read the board before believing this.**
+
+### Still open — the red card seen twice
+
+The substitute turned out to be a DUPLICATE of the sent-off player — same
+definition, same portrait, near-identical name (`createInstance` seeds the
+nickname off the instance id, so duplicates differ by a surname and nothing
+else). Every data path has now been read and none of them can produce a second
+dismissal: bookings are keyed by instance id and rolled once off the fixture key
+before kick-off, `applySuspensions` and `recordBookings` are instance-keyed, the
+pitch slots carry no per-card widget keys, and `restoreKickoffLineup` refuses the
+banned man by id.
+
+What CAN happen is legibility: at the whistle `restoreKickoffLineup` leaves the
+banned man's slot empty and `refillLineupFromBench` fills it best-for-position —
+which, with his duplicate on the bench, puts a card that looks exactly like him
+in the position he was sent off from, while he sits nearby wearing the
+suspension's red. Two adjacent defects found on the way were real and are fixed
+(see the previous session). **Still needs:** which screen showed the second card,
+and whether the two men were separate cards on the grid or one card seen twice.
+
 ## Playtest, 3 Sep 2026 (second sitting) — the cup week, the referee and the bench
 
 Eight reports. Six are fixed with tests; one is fixed in part; one could not be
