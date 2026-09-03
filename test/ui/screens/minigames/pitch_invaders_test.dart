@@ -473,6 +473,79 @@ void main() {
     await closeGame(tester);
   });
 
+  testWidgets('AND YOU CANNOT SEE HIM THROUGH THE GRASS EITHER SIDE OF IT', (
+    tester,
+  ) async {
+    // **Reported from the couch: "they go through the hole ok but you see them
+    // under the hole."** The clip took ONE bite below the ground plane — the
+    // mouth's lower half-ellipse — and left the rest of that band alone: the
+    // two lunes inside the mouth's box either side of the arc, and the strips
+    // of plain turf outside it. All of that is ground in FRONT of the hole, so
+    // a figure ducking slid down through it in full view.
+    //
+    // The rule is one sentence and this is it: below the waist, the only thing
+    // visible is what is inside the mouth.
+    await pumpGame(tester);
+    await advance(tester, Whack.leadInMs + 100);
+    final s = stateOf(tester);
+    var up = -1;
+    for (var i = 0; i < 60 && up < 0; i++) {
+      up = s.holes.indexWhere((h) => h != null);
+      if (up < 0) await advance(tester, 100);
+    }
+    expect(up, greaterThanOrEqualTo(0), reason: 'nothing ever came up');
+    await advance(tester, 200);
+
+    final hole = find.byKey(ValueKey('pi-hole-$up'));
+    final clipPath = tester.widget<ClipPath>(
+      find.descendant(of: hole, matching: find.byType(ClipPath)),
+    );
+    final tile = tester.getRect(hole);
+    final size = tile.size;
+    final path = clipPath.clipper!.getClip(size);
+    Offset at(double fx, double fy) =>
+        Offset(size.width * fx, size.height * fy);
+
+    // The ground plane: the mouth's widest line.
+    const waist = 1 - mouthBottom - mouthHeight / 2;
+
+    expect(
+      path.contains(at(0.5, waist - 0.1)),
+      isTrue,
+      reason: 'he is cut off above the ground, standing in a trench',
+    );
+    // Down the middle of the mouth, below the waist — you are looking INTO the
+    // hole, so he is visible there and the cut follows the arc.
+    expect(
+      path.contains(at(0.5, waist + 0.05)),
+      isTrue,
+      reason: 'the cut is a straight chord across the mouth, not the rim',
+    );
+    // Plain turf beside the hole, at the same height. This was always right.
+    expect(
+      path.contains(at(0.02, waist + 0.05)),
+      isFalse,
+      reason: 'he is showing on the grass beside the hole',
+    );
+    // **THE LUNE**, which is the one that was reported: inside the mouth's own
+    // box, below the waist, outside the ellipse. At this depth the arc has
+    // narrowed to about the middle two fifths of the tile, so a fifth in from
+    // the left is turf.
+    expect(
+      path.contains(at(0.20, 1 - mouthBottom - 0.03)),
+      isFalse,
+      reason: 'he is showing under the hole, either side of the near rim',
+    );
+    expect(
+      path.contains(at(0.80, 1 - mouthBottom - 0.03)),
+      isFalse,
+      reason: 'he is showing under the hole, either side of the near rim',
+    );
+    // And nothing below the mouth at all, so a duck takes him out of sight.
+    expect(path.contains(at(0.5, 0.99)), isFalse);
+    await closeGame(tester);
+  });
+
   testWidgets('AND A TILE IS MOST OF THE WIDTH IT CAN BE', (tester) async {
     // A tile is a target you have seven hundred milliseconds to hit, and the
     // board was sharing what the instructions, the score row and the timer left

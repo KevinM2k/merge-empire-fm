@@ -87,11 +87,14 @@ LiveStats liveStatsFor({
     // The swing below looked wrong and was not: `ours == isHome` XORed a
     // second time and cancelled it, so momentum was right while the figures
     // beside it were inverted. Both are stated plainly now.
-    final ours = e.team == 'home'
-        ? true
-        : e.team == 'away'
-        ? false
-        : null;
+    // **AND A CHANCE IS NOT A GOAL ABOUT THIS.** See [eventIsOurs]: the engine
+    // lists goals ours-first and ROLLS chances and corners venue-first, so the
+    // fix below only ever got the goal counter right. Away from home the
+    // shots, the on-target count, the big chances missed and the corners were
+    // still swapped with the opposition's — which is the same 2-0 away defeat
+    // showing more shots that the note above is about, in the half of it that
+    // survived.
+    final ours = e.team == null ? null : eventIsOurs(e, isHome: isHome);
     switch (e.type) {
       case 'goal':
         if (ours ?? true) {

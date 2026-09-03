@@ -11,12 +11,20 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:merge_empire_fc/data/club_assets.dart';
+import 'package:merge_empire_fc/data/cups.dart';
+import 'package:merge_empire_fc/data/divisions.dart';
+import 'package:merge_empire_fc/engine/cup_engine.dart' show cupForDivision;
+import 'package:merge_empire_fc/engine/fixture_preview.dart';
+import 'package:merge_empire_fc/engine/match_tactics.dart' show opponentsPerSeason;
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
+import 'package:merge_empire_fc/state/game_state.dart' show saveDebounceMs;
 import 'package:merge_empire_fc/state/save_slots.dart';
 import 'package:merge_empire_fc/state/save_store.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
 import 'package:merge_empire_fc/ui/screens/home/next_match_card.dart';
+import 'package:merge_empire_fc/ui/screens/match/cup_launcher.dart';
 import 'package:merge_empire_fc/ui/theme/glass.dart' show GlassPanel;
 import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
@@ -74,7 +82,109 @@ Future<ProviderContainer> pumpCard(
   return container;
 }
 
+/// A save on a cup week: a division that has a cup, a bracket drawn, and a
+/// fixture index far enough in for the round to be due.
+///
+/// The Fan Zone is bought so the LEAGUE fixture genuinely carries a home
+/// advantage — a modifier that is zero either way proves nothing about a card
+/// that is supposed to drop it.
+void _cupWeek(Map<String, dynamic> s, {required bool active}) {
+  final prog = s['progression'] as Map<String, dynamic>;
+  prog['currentDivision'] = divisions[cups.first.unlocksAtDivisionIdx].id;
+  (s['clubAssets'] as Map<String, dynamic>)[AssetCategory.fanzone] = {
+    'owned': true,
+    'tier': 3,
+  };
+  // The first index at or after a round's due mark that is also a HOME
+  // fixture, so `ourHomeAdv` is non-zero on the league side of the comparison.
+  final season = (prog['seasonCount'] as num?)?.toInt() ?? 1;
+  var played = cupDueAfterMatches.first;
+  while (!fixtureIsHome(season, played % opponentsPerSeason, played)) {
+    played++;
+  }
+  prog['seasonMatchesPlayed'] = played;
+  final round = cupDueAfterMatches.lastIndexWhere((m) => played >= m);
+  final cup = cupForDivision(s);
+  prog['cups'] = <String, dynamic>{
+    'availableThisSeason': false,
+    'active': (!active || cup == null)
+        ? null
+        : <String, dynamic>{
+            'cupId': cup.id,
+            'round': round < 0 ? 0 : round,
+            'opponents': [for (final name in cup.rounds) 'Rival $name'],
+            'opponentMeta': [
+              for (final _ in cup.rounds)
+                <String, dynamic>{
+                  'divId': prog['currentDivision'],
+                  'rating': 50,
+                  'attackRatio': 0.5,
+                },
+            ],
+            'contexts': <dynamic>[],
+            'results': <dynamic>[],
+            'startedAt': 0,
+            'startedSeason': season,
+          },
+    'history': <dynamic>[],
+  };
+}
+
 void main() {
+  group('A CUP TIE CARRIES NONE OF THE LEAGUE\'S MODIFIERS', () {
+    // Reported from the couch: "I got a boost for fighting relegation, but it
+    // was a cup game." The opposition's list was emptied for a cup week when
+    // the card learned to name the tie's own opponent; ours was not, so the
+    // card went on hanging a house and a bolt under OUR figure — and folding
+    // both into it — for a fixture that has neither. `prepareCupRound` plays a
+    // tie on neutral ground and `cup_engine` has never heard of the relegation
+    // lift.
+    testWidgets('the league fixture is the control, and it HAS one', (
+      tester,
+    ) async {
+      final container = await pumpCard(
+        tester,
+        mutate: (s) => _cupWeek(s, active: false),
+      );
+      final preview = previewFixture(container.read(gameProvider).state)!;
+      expect(
+        preview.isHome && preview.ourHomeAdv > 0,
+        isTrue,
+        reason: 'the control fixture carries no modifier to drop',
+      );
+      final card = container.read(nextMatchProvider)!;
+      final us = card.left.ours ? card.left : card.right;
+      expect(us.mods, isNotEmpty);
+      expect(us.rating, greaterThan(preview.squadRating));
+      await tester.pump(const Duration(milliseconds: saveDebounceMs + 100));
+    });
+
+    testWidgets('and the cup week drops them, chips and figure alike', (
+      tester,
+    ) async {
+      final container = await pumpCard(
+        tester,
+        mutate: (s) => _cupWeek(s, active: true),
+      );
+      final state = container.read(gameProvider).state;
+      expect(cupDue(state), isTrue, reason: 'no tie was due at all');
+      final preview = previewFixture(state)!;
+      final card = container.read(nextMatchProvider)!;
+      final us = card.left.ours ? card.left : card.right;
+      expect(
+        us.mods,
+        isEmpty,
+        reason: 'a cup tie advertised a league fixture\'s modifiers',
+      );
+      expect(
+        us.rating,
+        preview.squadRating,
+        reason: 'the figure still carried the modifiers the chips lost',
+      );
+      await tester.pump(const Duration(milliseconds: saveDebounceMs + 100));
+    });
+  });
+
   group('what the card ANSWERS', () {
     testWidgets('THE POSITION CHIP OPENS THE TABLE', (tester) async {
       // A position is a claim about a table, and the only route to the table was

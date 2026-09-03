@@ -227,6 +227,15 @@ class SubsPanelState extends ConsumerState<SubsPanel> {
     String onId,
   ) async {
     if (left <= 0) return false;
+    // **NOBODY FILLS A SENT-OFF MAN'S SQUARE, and the tap was not the only way
+    // in.** [_pick] refuses his slot and [_SubSlot] draws him back into it
+    // greyed out, but the INJURY path arrives through `openOn` and never goes
+    // near either: it is handed a slot id and opens the bench on it directly.
+    // A red card empties his row too — that is what makes the engine field ten
+    // — so a hole the panel opened onto could be his, and answering it put a
+    // twelfth man on the pitch and quietly undid the dismissal. The rule
+    // belongs on the WRITE, which is the one thing every path goes through.
+    if (widget.sentOffSlots.containsKey(slotId)) return false;
     // The write path enforces availability too, not just the list: a panel
     // rendered before a deal went through must never put a player who is at
     // another club onto the pitch.

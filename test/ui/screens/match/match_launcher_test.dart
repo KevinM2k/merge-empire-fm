@@ -218,6 +218,57 @@ void main() {
       expect(active.length, matchQuestCount);
     });
   });
+
+  group('WHO IS ON THE TEAM SHEET AND SHOULD NOT BE', () {
+    // Asked for from the couch: "if I try to start with an injured player I
+    // should be warned when I press play match by a big Coach Colin popup with
+    // a continue or go back button." The warning is on the screen — see
+    // `play_button.dart` — and this is the question it asks.
+    test('a fit eleven has nothing to say', () {
+      expect(unfitStarters(readyState()), isEmpty);
+    });
+
+    test('an injured man in the XI is NAMED', () {
+      final s = readyState();
+      for (final raw in (s['grid'] as Map<String, dynamic>)['cells'] as List) {
+        if (raw is Map<String, dynamic> && raw['instanceId'] == 'c3') {
+          raw['injured'] = true;
+          raw['injuredAt'] = 0;
+          raw['injuryDurationMs'] = 60 * 60 * 1000;
+        }
+      }
+      final unfit = unfitStarters(s);
+      expect(unfit, hasLength(1), reason: 'the one man unfit was not named');
+      expect(unfit.single, isNotEmpty);
+    });
+
+    test('and a man on the BENCH is not the manager\'s problem', () {
+      // He is not being fielded, so there is nothing to warn about — a card
+      // that fires for a squad injury would fire on nearly every fixture.
+      final s = readyState(squad: 12);
+      for (final raw in (s['grid'] as Map<String, dynamic>)['cells'] as List) {
+        if (raw is Map<String, dynamic> && raw['instanceId'] == 'c11') {
+          raw['injured'] = true;
+          raw['injuredAt'] = 0;
+          raw['injuryDurationMs'] = 60 * 60 * 1000;
+        }
+      }
+      expect(unfitStarters(s), isEmpty);
+    });
+
+    test('AND A HOLE IS NOT A NAME EITHER', () {
+      // The ordinary shape of an injury: the sim vacates the square as he goes
+      // down. There is nobody to sub out, so there is nothing to say.
+      final s = readyState();
+      final lineup = (s['squad'] as Map<String, dynamic>)['lineup'] as List;
+      (lineup.first as Map<String, dynamic>)['cardInstanceId'] = null;
+      expect(unfitStarters(s), isEmpty);
+    });
+
+    test('a null save is not a squad in trouble', () {
+      expect(unfitStarters(null), isEmpty);
+    });
+  });
 }
 
 int coinsOf(Map<String, dynamic> s) =>

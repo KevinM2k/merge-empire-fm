@@ -158,8 +158,14 @@ int _divIdx(Map<String, dynamic>? state) {
 ///
 /// Every arm is the payout function's own arithmetic at its maximum, so a
 /// preview cannot promise what a session will not pay — including the two
-/// bonuses, because a perfect board earns both. **Keepy Uppys answers null**:
-/// taps are unbounded, so there is no honest number to quote.
+/// bonuses, because a perfect board earns both.
+///
+/// **KEEPY UPPYS ANSWERS A FIGURE NOW, and the old note here was wrong about
+/// why it did not.** It said taps are unbounded; they are not. The run ends
+/// the moment the full-run target is reached — the ball stops where it is and
+/// the session banks — so a perfect one is exactly
+/// [KeepyUppys.maxBankedTaps] weighted taps and quotes like every other drill.
+/// It was the one row on the tab with no money on it. Reported from the couch.
 int? miniGameBestPayout(Map<String, dynamic>? state, String kind) {
   final base = miniGameRewardBase(state);
   final divIdx = _divIdx(state);
@@ -185,6 +191,11 @@ int? miniGameBestPayout(Map<String, dynamic>? state, String kind) {
             base * BootRoom.rewardPerTileMult * bootRoomDifficulty(divIdx).target,
           ) *
           BootRoom.targetBonusMult,
+    ),
+    // The full-run bonus is already inside the tap count — see
+    // [KeepyUppys.maxBankedTaps] — so it is not applied a second time here.
+    MiniGameKind.keepyUppys => roundCoins(
+      base * KeepyUppys.rewardPerTapMult * KeepyUppys.maxBankedTaps,
     ),
     _ => null,
   };

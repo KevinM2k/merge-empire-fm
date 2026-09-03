@@ -360,7 +360,9 @@ class _GameRow extends ConsumerWidget {
         // figure a player deciding whether to spend three minutes on a drill
         // wants, and `miniGameRewardBase`'s own doc says it exists for exactly
         // this preview. A perfect run, so it is a ceiling rather than a
-        // promise; null for Keepy Uppys, whose taps have no ceiling to quote.
+        // promise. **Keepy Uppys carries one too now** — the run ends at the
+        // full-run target rather than going on for ever, so it has a perfect
+        // score like the rest of them and was the one row quoting nothing.
         //
         // A COIN AND A NUMBER, no copy: there is no catalogue key for "up to",
         // and none can be added from this repo.

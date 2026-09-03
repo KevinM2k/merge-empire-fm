@@ -18,7 +18,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:merge_empire_fc/data/divisions.dart';
+import 'package:merge_empire_fc/data/club_assets.dart';
+import 'package:merge_empire_fc/engine/fixture_preview.dart';
 import 'package:merge_empire_fc/engine/league_table.dart';
+import 'package:merge_empire_fc/engine/match_tactics.dart' show opponentsPerSeason;
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/state/save_slots.dart';
@@ -426,6 +429,61 @@ void main() {
       expect(tips, contains(t('table.was_promoted')));
       expect(tips, contains(t('table.was_relegated')));
       expect(tips, contains(t('table.was_champion')));
+    });
+  });
+
+  group('THE RATING COLUMN TAKES NO MODIFIERS, on any row', () {
+    // Reported from the couch: "my team is 88 with +4 home modifier but when I
+    // look in the table it's saying my team is 92. The table should not be
+    // taking any modifiers into account, for me nor AI teams."
+    //
+    // It was measuring two different things in one column. Every AI row is the
+    // club's stored figure out of `seasonOpponentRatings` with nothing added;
+    // the player's row was `effectiveSquadRating`, which is what the side walks
+    // out at in the NEXT FIXTURE — home advantage, the stagnation buff and the
+    // relegation lift all folded in. A standing does not change because the
+    // next game happens to be at home.
+    test('the player\'s row is the base rating, not the next fixture\'s', () {
+      final container = ProviderContainer(
+        overrides: [
+          saveStoreProvider.overrideWithValue(
+            MemorySaveStore({saveKeyPrimary: jsonEncode(createDefaultState())}),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      final save = container.read(gameProvider).load();
+      save['clubName'] = 'Testville';
+      // A crowd, so the next fixture actually carries something to leak.
+      (save['clubAssets'] as Map<String, dynamic>)[AssetCategory.fanzone] = {
+        'owned': true,
+        'tier': 3,
+      };
+      final prog = save['progression'] as Map<String, dynamic>;
+      final season = (prog['seasonCount'] as num?)?.toInt() ?? 1;
+      var played = 0;
+      while (!fixtureIsHome(season, played % opponentsPerSeason, played)) {
+        played++;
+      }
+      prog['seasonMatchesPlayed'] = played;
+
+      final preview = previewFixture(save)!;
+      expect(
+        preview.isHome && preview.ourHomeAdv > 0,
+        isTrue,
+        reason: 'nothing was being added, so nothing could leak',
+      );
+      expect(
+        preview.effectiveSquadRating.round(),
+        greaterThan(preview.squadRating),
+        reason: 'the two figures are the same, so the test proves nothing',
+      );
+
+      expect(
+        container.read(leagueRatingsProvider)['Testville'],
+        preview.squadRating,
+        reason: 'the table is quoting the next fixture rather than the squad',
+      );
     });
   });
 }

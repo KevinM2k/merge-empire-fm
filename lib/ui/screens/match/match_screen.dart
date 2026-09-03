@@ -57,6 +57,8 @@ import 'package:merge_empire_fc/ui/screens/match/match_clock.dart';
 import 'package:merge_empire_fc/ui/screens/match/momentum_arrow.dart';
 import 'package:merge_empire_fc/ui/widgets/card_glyph.dart';
 import 'package:merge_empire_fc/ui/screens/match/match_report_card.dart';
+import 'package:merge_empire_fc/ui/screens/match/shootout_row.dart'
+    show shootoutFrom;
 import 'package:merge_empire_fc/ui/screens/match/subs_panel.dart';
 export 'package:merge_empire_fc/ui/widgets/card_glyph.dart'
     show CardGlyph, cardYellowInk, cardRedInk, cardInk;
@@ -801,10 +803,12 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
       if (event.minute != minute) continue;
       // The clip will play this one's shot when it takes it.
       if (event == _clippedEvent) continue;
-      // `home` is US on an event, whichever ground we are on — see
-      // `MatchFrame`. Reading it through `isHome` played the crowd's
-      // disappointment for our own goals in every away fixture.
-      final ours = event.team != 'away';
+      // **WHOSE IT WAS — and a chance and a goal do not answer that the same
+      // way.** See [eventIsOurs]: the engine lists goals ours-first and ROLLS
+      // chances and corners venue-first, so reading `home` as us for both was
+      // right at home and inverted away. The crowd groaned for the opposition's
+      // near misses and cheered ours at every away fixture.
+      final ours = eventIsOurs(event, isHome: widget.result['isHome'] == true);
       switch (event.type) {
         case 'goal':
           // The kick is what makes a goal an event rather than a chime: the ball
@@ -842,7 +846,10 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
           // no hole in OUR side to cover.
           if (ours) {
             WidgetsBinding.instance.addPostFrameCallback(
-              (_) => _onInjuryShown(),
+              // **THE CASUALTY'S NAME TRAVELS WITH IT.** The event carries it
+              // and nothing read it, so the announcement had nobody to name —
+              // see [_onInjuryShown].
+              (_) => unawaited(_onInjuryShown(event.player)),
             );
           }
         // **A SENDING-OFF PUTS YOU IN FRONT OF THE BENCH, and you cannot fix
@@ -968,7 +975,9 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
   void _clipVerdict(CutawayOutcome outcome) {
     final event = _clippedEvent;
     if (event == null || !mounted) return;
-    final ours = event.team != 'away';
+    // The clip's own side, by the same rule the clip was built with — see
+    // [eventIsOurs]. A chance is venue-tagged and a goal is not.
+    final ours = eventIsOurs(event, isHome: widget.result['isHome'] == true);
     final sound = ref.read(soundServiceProvider);
     switch (outcome) {
       case CutawayOutcome.goal:
@@ -1027,10 +1036,18 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
   void _cutIfWorthWatching() {
     for (final event in _timeline) {
       if (event.minute != _minute || event.minute == _clippedMinute) continue;
-      // `home` is US on an event, whichever ground we are on — see
-      // `MatchFrame`. Reading it through `isHome` played the crowd's
-      // disappointment for our own goals in every away fixture.
-      final ours = event.team != 'away';
+      // **WHOSE CHANCE THE PITCH IS ABOUT TO RETELL.** See [eventIsOurs]: a
+      // goal's `home` is us and a chance's `home` is the home CLUB, because
+      // one is listed off `homeGoals` and the other is rolled off
+      // `chanceWeights`, which `buildMatchResult` writes venue-first.
+      //
+      // Read as us for both, an away fixture played the OPPOSITION's chances
+      // as our attack — green shirts, our own eleven's names on them, running
+      // at the other end — and ours as theirs. Reported from the couch as the
+      // 2D pitch coming on with the player's own team scoring at the wrong
+      // end. Goals were never affected, which is why the scoreboard went on
+      // making sense underneath it.
+      final ours = eventIsOurs(event, isHome: widget.result['isHome'] == true);
       final clip = clipFor(
         event,
         // **AT HOME WE ATTACK RIGHT, AWAY WE ATTACK LEFT.** It was pinned to
@@ -1447,6 +1464,16 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
     // played the defeat sting for an away WIN.
     final ours = f.ourGoals;
     final theirs = f.theirGoals;
+    // **A CUP TIE CANNOT END LEVEL, so it never plays the draw sting.** The
+    // feed carries the ninety minutes only — the shootout's winning goal is
+    // taken back out of it, see `cup_launcher` — so a tie settled on penalties
+    // reached this line as a draw and the whistle chimed for one, seconds
+    // before the summary declared the club through or out. Reported from the
+    // couch as a level cup scoreline followed by the victory screen with
+    // nothing in between to explain it. The shootout is the only thing that
+    // knows, so it is what is asked.
+    final penalties = shootoutFrom(widget.result);
+    final wonOnPens = penalties?.won;
     _cue(
       const Duration(milliseconds: 450),
       () => unawaited(
@@ -1454,7 +1481,11 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
           ours > theirs
               ? 'victory'
               : ours == theirs
-              ? 'draw'
+              ? (wonOnPens == null
+                    ? 'draw'
+                    : wonOnPens
+                    ? 'victory'
+                    : 'defeat')
               : 'defeat',
         ),
       ),
@@ -1600,15 +1631,86 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
   /// the screen opens. One hole is the ordinary case and it is preselected;
   /// with two the manager chooses, which is the honest answer rather than a
   /// guess.
-  void _onInjuryShown() {
-    if (_paused || frame.finished) return;
-    if (_subsUsed >= PlayerEnergy.maxSubs) return;
+  ///
+  /// **AND IT SAYS SO OUT LOUD FIRST, which is the half that was missing.**
+  /// Every one of the four guards below used to be a silent `return`, so an
+  /// injury that arrived while another card was up, or with the changes spent,
+  /// or with nobody fit on the bench, was a line in a scrolling feed and
+  /// nothing else — the manager finished a man light having never been told.
+  /// Reported from the couch: a player got injured during a game and there was
+  /// no notification of it at all.
+  ///
+  /// So the card comes first and the bench comes after it, and each refusal
+  /// says which one it is. `match.subs.injury_head_any`,
+  /// `match.subs.injury_tip`, `match.subs.injury_tip_none` and
+  /// `match.subs.injury_tip_full` are four shipped strings in ten languages
+  /// with no caller in `lib/` — the whole of this announcement was already
+  /// written and nothing could print a word of it.
+  ///
+  /// **A SENT-OFF MAN'S SQUARE IS NOT AN INJURY HOLE.** `_playerSentOff`
+  /// empties his row too — that is what makes the engine field ten — so after
+  /// a red card this counted his square among the holes: two holes made the
+  /// panel open with nothing preselected, and one hole (his) opened the bench
+  /// straight onto the square nobody may fill. See [_sentOffSlots].
+  Future<void> _onInjuryShown([String? player]) async {
+    if (frame.finished) return;
     final holes = [
       for (final slot in ref.read(pitchSlotsProvider))
-        if (slot.cardInstanceId == null) slot.slotId,
+        if (slot.cardInstanceId == null)
+          if (!_sentOffSlots.containsKey(slot.slotId)) slot.slotId,
     ];
     if (holes.isEmpty) return;
-    unawaited(openSubs(openOn: holes.length == 1 ? holes.first : null));
+
+    // Who is left to bring on, at the hole's own position when there is only
+    // one — the same list the bench sheet will offer.
+    final cover = holes.length == 1
+        ? ref
+              .read(
+                slotCandidatesProvider(
+                  ref
+                          .read(pitchSlotsProvider)
+                          .where((s) => s.slotId == holes.first)
+                          .firstOrNull
+                          ?.slotPosition ??
+                      'MID',
+                ),
+              )
+              .where((SlotCandidate c) => !_withdrawn.contains(c.instanceId))
+              .firstOrNull
+        : null;
+    final spent = _subsUsed >= PlayerEnergy.maxSubs;
+    final nobody = holes.length == 1 && cover == null;
+
+    // **HELD, so the card is not read over a match still running.** A
+    // substitution is the manager's answer to this and `openSubs` holds it
+    // anyway; the difference is that the question now holds it too.
+    if (_paused) return;
+    setState(() => _paused = true);
+    await showCoachCard<void>(
+      context,
+      titleKey: 'match.subs',
+      bodyKey: 'match.subs.injury_head_any',
+      bodyParams: {'name': player ?? t('common.player')},
+      extraTexts: [
+        if (spent)
+          t('match.subs.injury_tip_full')
+        else if (nobody)
+          t('match.subs.injury_tip_none')
+        else if (cover != null)
+          t('match.subs.injury_tip', {'name': cover.card.name}),
+      ],
+      actions: [
+        CoachAction(
+          labelKey: spent || nobody ? 'common.ok' : 'match.subs',
+          onTap: () {},
+        ),
+      ],
+    );
+    if (!mounted) return;
+    setState(() => _paused = false);
+    if (spent || nobody) return;
+    if (frame.finished) return;
+    await openSubs(openOn: holes.length == 1 ? holes.first : null);
   }
 
   /// **THE CARD IS EXPLAINED, then the bench is opened.**
@@ -2807,7 +2909,9 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
     if (_clip != null) return;
     final event = _retold.where((e) => e.minute == minute).firstOrNull;
     if (event == null) return;
-    final ours = event.team != 'away';
+    // The same rule the live cut used, or the replay is a different passage —
+    // see [eventIsOurs].
+    final ours = eventIsOurs(event, isHome: widget.result['isHome'] == true);
     final clip = clipFor(
       event,
       ourSideLeft: widget.result['isHome'] == true,

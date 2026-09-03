@@ -751,15 +751,26 @@ class _Hole extends StatelessWidget {
 }
 
 
-/// Everything on a tile that is NOT behind the near wall of the hole.
+/// Everything on a tile that is NOT behind the ground in front of the hole.
 ///
 /// The figure is clipped to this instead of having the hole painted back over
-/// him — see the note on the stack in [_Hole]. Two bites out of the tile:
+/// him — see the note on the stack in [_Hole]. The rule is one sentence: below
+/// the mouth's WAIST — its widest line, which is the ground plane — the only
+/// thing you can see is what is inside the mouth. Everything else down there
+/// is turf, and turf is in front of a man standing in a hole.
 ///
-/// - the mouth's NEAR half, an arc, which is what a man standing in a hole is
-///   cut off by;
-/// - the strip of turf below the mouth entirely, so the duck takes him out of
-///   sight rather than sliding him down the grass either side of the rim.
+/// **IT USED TO SUBTRACT THE MOUTH'S LOWER HALF AND LEAVE THE REST OF THAT
+/// BAND ALONE**, which is the two faults reported from the couch as one: the
+/// bite it took was a half-ellipse whose top edge is a STRAIGHT CHORD, so the
+/// figure was cut off along a horizontal line rather than along the rim; and
+/// the turf either side of that half-ellipse — the two lunes inside the
+/// mouth's box, and the strips of grass outside it — was still in the clip, so
+/// a figure ducking slid down through it in full view. "They go through the
+/// hole ok but you see them under the hole."
+///
+/// Subtracting the whole band and punching the mouth's lower half back OUT of
+/// it fixes both at once: he is cut along the arc, and there is nothing left
+/// beside the arc for him to show through.
 ///
 /// The size comes from the tile's own `LayoutBuilder` rather than from the clip
 /// call, so the two cannot disagree about where the mouth is.
@@ -778,7 +789,9 @@ class _AboveTheMouth extends CustomClipper<Path> {
   @override
   Path getClip(Size _) {
     final mouth = _mouth;
-    final near = Path.combine(
+    // The near half of the mouth: the opening you can still see down into,
+    // bounded below by the rim the figure sinks past.
+    final opening = Path.combine(
       PathOperation.intersect,
       Path()..addOval(mouth),
       Path()
@@ -786,14 +799,17 @@ class _AboveTheMouth extends CustomClipper<Path> {
           Rect.fromLTRB(mouth.left, mouth.center.dy, mouth.right, mouth.bottom),
         ),
     );
-    final below = Path()
+    // Everything at or below the ground plane, full width — the grass either
+    // side of the hole as well as the strip in front of it.
+    final ground = Path()
       ..addRect(
-        Rect.fromLTRB(0, mouth.bottom, size.width, size.height),
+        Rect.fromLTRB(0, mouth.center.dy, size.width, size.height),
       );
+    final occluder = Path.combine(PathOperation.difference, ground, opening);
     return Path.combine(
       PathOperation.difference,
       Path()..addRect(Offset.zero & size),
-      Path.combine(PathOperation.union, near, below),
+      occluder,
     );
   }
 

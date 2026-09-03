@@ -1247,6 +1247,83 @@ void main() {
       expect(find.byType(CardGlyph), findsOneWidget);
     });
 
+    testWidgets('AND HIS SQUARE CANNOT BE FILLED THROUGH THE INJURY DOOR', (
+      tester,
+    ) async {
+      // **The tap was not the only way in.** `_pick` refuses his slot and the
+      // token is drawn greyed out over it — but the INJURY path arrives
+      // through `openOn` and goes near neither: it is handed a slot id and
+      // opens the bench on it directly. A red card empties his lineup row too
+      // — that is what makes the engine field ten — so a hole the panel opened
+      // onto could be his, and answering it would put a twelfth man on the
+      // pitch and quietly undo the dismissal.
+      //
+      // So the rule sits on the WRITE, which is the one thing every path goes
+      // through.
+      tester.view.physicalSize = const Size(420 * 3, 2000 * 3);
+      tester.view.devicePixelRatio = 3;
+      addTearDown(tester.view.reset);
+      final container = await pumpMatch(
+        tester,
+        matchResult(),
+        save: squadSave(),
+      );
+      final off = container
+          .read(pitchSlotsProvider)
+          .firstWhere((s) => s.cardInstanceId != null);
+      await tester.pump(minuteDurationFor(5));
+      // The referee's own mutation: his row is emptied, and the panel is told
+      // where he was standing.
+      container.read(gameProvider).update((s) {
+        for (final row in (s['squad'] as Map<String, dynamic>)['lineup']
+            as List) {
+          if (row is Map<String, dynamic> && row['slotId'] == off.slotId) {
+            row['cardInstanceId'] = null;
+          }
+        }
+      });
+      final bench = container.read(benchProvider).first.instanceId;
+      var subbed = 0;
+      // The scope goes OUTSIDE the app: the bench is a route, and a route
+      // pushed from a scope nested inside `home` is built above it.
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: buildAppTheme(kitId: 'classic', light: false),
+            home: Scaffold(
+              body: SubsPanel(
+                used: 0,
+                withdrawn: const {},
+                onSub: (_) => subbed++,
+                // Straight to the bench, the way an injury arrives.
+                openOn: off.slotId,
+                sentOff: {off.cardInstanceId!},
+                sentOffSlots: {off.slotId: off},
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(ValueKey('sub-bench-$bench')));
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey('subs-confirm')),
+        findsNothing,
+        reason: 'the panel offered to fill a sent-off man\'s square',
+      );
+      expect(subbed, 0);
+      expect(
+        container.read(pitchSlotsProvider).map((s) => s.cardInstanceId),
+        isNot(contains(bench)),
+        reason: 'a red card was undone by a substitution',
+      );
+      await tester.tapAt(const Offset(8, 8));
+      await tester.pumpAndSettle();
+      await settleSave(tester);
+    });
+
     testWidgets('a SECOND yellow is drawn as two cards, not one', (
       tester,
     ) async {
@@ -2623,6 +2700,20 @@ void main() {
       await tester.pump();
 
       await tester.pump(minuteDurationFor(11));
+      await tester.pumpAndSettle();
+      // **HE IS TOLD FIRST, and told WHO.** Every refusal on this path used to
+      // be a silent return, so an injury that arrived with another card up, or
+      // with the changes spent, or with nobody fit on the bench, was a line in
+      // a scrolling feed and nothing else. Reported from the couch: a player
+      // got injured and there was no notification of it at all.
+      expect(
+        find.byKey(const ValueKey('coach-card')),
+        findsOneWidget,
+        reason: 'an injury opened the bench without a word about it',
+      );
+      expect(find.textContaining('Ada'), findsWidgets);
+      expect(stateOf(tester).paused, isTrue);
+      await tester.tap(find.byKey(const ValueKey('coach-action-match.subs')));
       await tester.pumpAndSettle();
       expect(
         find.byKey(const ValueKey('subs-panel')),

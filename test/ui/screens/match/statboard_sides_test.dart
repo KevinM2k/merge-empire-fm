@@ -1,21 +1,32 @@
-/// **THE STATBOARD WAS MIRRORED AT AWAY FIXTURES.**
+/// **THE STATBOARD WAS MIRRORED AT AWAY FIXTURES**, and it took two passes.
 ///
-/// Two faults in `liveStatsFor`, both about the same confusion, and together
-/// they explain a 2-0 away defeat that showed 67% possession and more shots:
+/// The report was a 2-0 away defeat that showed 67% possession and more shots.
+/// Two faults in `liveStatsFor`, about the same confusion:
 ///
-/// - **the counters.** The engine's `team: 'home'` means US, whatever the
-///   ground — that is what `homeGoals`/`awayGoals` mean everywhere else, and
-///   what the commentary's goal line has always read. This read it as the
-///   VENUE and folded `isHome` in, so shots, shots on target, big chances,
-///   big chances missed and corners were all swapped with the opposition's
-///   away from home.
 /// - **the swing.** `swing` is counted up about US; `resting`, `possHome` and
 ///   `dangerHome` are all stated about the HOME side. Away those are opposite
 ///   numbers and nothing converted between them, so the possession bar and the
-///   momentum arrow leaned toward whichever side was being beaten.
+///   momentum arrow leaned toward whichever side was being beaten. Fixed, and
+///   still fixed.
+/// - **the counters.** The first pass read `team` as the VENUE and folded
+///   `isHome` in on top of that — the venue XORed twice, which is the identity
+///   — so shots, on target, big chances and corners were swapped away from
+///   home. The second pass took BOTH flips out and read `home` as us, which is
+///   one step past the answer: `homeGoals`/`awayGoals` mean us, and a GOAL is
+///   listed straight off them, but a CHANCE and a CORNER are ROLLED out of
+///   `chanceWeights`, which `buildMatchResult` writes venue-first. So on those
+///   the engine's `home` is the home CLUB.
+///
+/// One flip, on the rolled types only — see [eventIsOurs], which is where the
+/// rule lives for the board, the feed and the 2D pitch together.
+///
+/// **THE FIXTURES BELOW ARE TAGGED THE WAY THE ENGINE WOULD TAG THEM**, which
+/// is the half the earlier version of this file assumed away: it hand-wrote
+/// `team: 'away'` for the opposition at BOTH grounds and then asserted the
+/// board agreed, which is the question begged rather than answered.
 ///
 /// The full-time write-up was right all along — it reads the SCORE — which is
-/// what made the pair of them so confusing to look at.
+/// what made this so confusing to look at.
 library;
 
 import 'package:flutter_test/flutter_test.dart';
@@ -39,19 +50,26 @@ void main() {
     playerId: null,
   );
 
+  /// How the engine tags a ROLLED event — a chance or a corner — for each side
+  /// at this venue. A goal is not rolled and is always ours-first.
+  String theirs(bool isHome) => isHome ? 'away' : 'home';
+  String ourTag(bool isHome) => isHome ? 'home' : 'away';
+
   /// A match THEY dominated: two goals and a chance to our one chance.
   ///
   /// Shaped after the fixture that was reported — a two-goal defeat in which
-  /// the board claimed the beaten side had the better of it.
+  /// the board claimed the beaten side had the better of it. The chances and
+  /// the corner carry the tag the ENGINE would have given them at this ground;
+  /// the goals carry theirs, which does not move.
   LiveStats theyDominated({required bool isHome}) => liveStatsFor(
     frame: (
       minute: 90,
       shown: [
         ev('goal', team: 'away', minute: 20),
         ev('goal', team: 'away', minute: 55),
-        ev('chance', team: 'away', minute: 40),
-        ev('chance', team: 'home', minute: 30),
-        ev('corner', team: 'away', minute: 50),
+        ev('chance', team: theirs(isHome), minute: 40),
+        ev('chance', team: ourTag(isHome), minute: 30),
+        ev('corner', team: theirs(isHome), minute: 50),
       ],
       ourGoals: 0,
       theirGoals: 2,

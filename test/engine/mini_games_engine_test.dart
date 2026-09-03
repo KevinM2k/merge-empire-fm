@@ -17,6 +17,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:merge_empire_fc/data/club_assets.dart';
 import 'package:merge_empire_fc/data/config.dart';
+import 'package:merge_empire_fc/data/mini_games.dart';
 import 'package:merge_empire_fc/engine/mini_games_engine.dart';
 import 'package:merge_empire_fc/util/time.dart';
 
@@ -639,4 +640,41 @@ void main() {
     });
   });
 
+  group('what a drill is WORTH, for the launcher', () {
+    test('KEEPY UPPYS QUOTES A CEILING like every other drill', () {
+      // It answered null, on the reasoning that taps are unbounded. They are
+      // not: the run ends at the full-run target, so a perfect session is a
+      // fixed number of weighted taps and the tab can print what it pays. It
+      // was the one row on the Training list with no money on it, and it was
+      // reported as such.
+      final s = _state(division: 'sunday_league');
+      final best = miniGameBestPayout(s, MiniGameKind.keepyUppys);
+      expect(best, isNotNull, reason: 'the one drill that quoted nothing');
+      expect(best, greaterThan(0));
+    });
+
+    test('AND IT IS A CEILING, not a promise: a real run cannot beat it', () {
+      // The whole point of the preview: no session may pay more than the
+      // figure the tab put on the row. A full run is the most there is, so it
+      // is the most the drill can pay.
+      final best = miniGameBestPayout(
+        _state(division: 'regional_league'),
+        MiniGameKind.keepyUppys,
+      )!;
+      final perfect = recordKeepyUppysResult(
+        _state(division: 'regional_league'),
+        taps: KeepyUppys.maxBankedTaps,
+      );
+      expect(perfect, best);
+      // And a run that fell short pays less, which is what makes it a ceiling
+      // rather than a flat fee.
+      expect(
+        recordKeepyUppysResult(
+          _state(division: 'regional_league'),
+          taps: KeepyUppys.maxBankedTaps ~/ 2,
+        ),
+        lessThan(best),
+      );
+    });
+  });
 }

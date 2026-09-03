@@ -301,14 +301,30 @@ void main() {
     List<FeedLine> feed(List<TimelineEvent> events, {bool isHome = true}) =>
         feedOf(events, ourName: 'Us', theirName: 'Them', isHome: isHome);
 
-    group('WHOSE CHANCE IT WAS DOES NOT DEPEND ON THE VENUE', () {
-      // **The engine's `home` means US, whatever the ground.** `homeGoals` and
-      // `awayGoals` mean that everywhere, and the goal branch of `feedOf` reads
-      // it that way. The chance branch folded `isHome` back in on top of it —
-      // the identity XORed with the venue — so it was right at home and
-      // inverted at every away fixture. Reported from the couch three times in
-      // one match: "Iron Stars hit the woodwork" when the player IS Iron Stars,
-      // away, with the opposition's clip on screen.
+    group('A CHANCE IS VENUE-TAGGED AND A GOAL IS NOT', () {
+      // **This group used to assert the opposite, and the reasoning behind it
+      // was half right.** The chance branch had folded `isHome` in on top of a
+      // reading of `home` as US — the identity XORed with the venue — and that
+      // was reported from the couch three times in one match: "Iron Stars hit
+      // the woodwork" when the player IS Iron Stars, away, with the
+      // opposition's clip on screen. The fix dropped the venue, which made the
+      // feed AGREE WITH THE CLIP; the clip reads the same field the same way,
+      // so both were then wrong together away from home and nothing said so.
+      //
+      // What neither pass checked is what the ENGINE puts in the field.
+      // `buildMatchResult` writes
+      //   `chanceWeights = isHome ? (home: ours, away: theirs)`
+      //                          `: (home: theirs, away: ours)`
+      // and `generateMatchEvents` rolls the string `home` out of `wHome`. So on
+      // a CHANCE, `home` is whichever club is at home. A GOAL is not rolled at
+      // all — its list is `homeGoals` copies of `home`, and those are always
+      // the player's goals — so the goal branch reading `home` as us was right
+      // the whole time. They are genuinely different questions about the same
+      // field, and [eventIsOurs] is where the difference lives.
+      //
+      // The engine cannot be made consistent from this side: that attribution
+      // is the JS's and `match_orchestration_parity_test` compares the feed
+      // against a node dump of it.
       TimelineEvent chance(String team) => ev(
         'chance',
         minute: 30,
@@ -317,28 +333,84 @@ void main() {
         big: true,
       );
 
-      for (final isHome in [true, false]) {
-        test('our chance names us, ${isHome ? 'at home' : 'away'}', () {
-          final line = feed([chance('home')], isHome: isHome).single;
-          expect(line.params['who'], 'Us');
-        });
+      test('at home, the home tag is ours', () {
+        expect(feed([chance('home')], isHome: true).single.params['who'], 'Us');
+        expect(
+          feed([chance('away')], isHome: true).single.params['who'],
+          'Them',
+        );
+      });
 
-        test('their chance names them, ${isHome ? 'at home' : 'away'}', () {
-          final line = feed([chance('away')], isHome: isHome).single;
-          expect(line.params['who'], 'Them');
-        });
-      }
+      test('AWAY, IT IS THEIRS — which is the whole of the bug', () {
+        // The opposition are the home club at an away fixture, and the engine
+        // rolled this chance out of THEIR rating.
+        expect(
+          feed([chance('home')], isHome: false).single.params['who'],
+          'Them',
+          reason: 'an away fixture credited us with the home side\'s chances',
+        );
+        expect(
+          feed([chance('away')], isHome: false).single.params['who'],
+          'Us',
+        );
+      });
 
-      test('and it agrees with the GOAL branch, which was always right', () {
-        // The two read the same field and must not disagree about it.
+      test('a GOAL is ours-tagged at both ends of the country', () {
         for (final isHome in [true, false]) {
-          final goalLine = feed([
+          final line = feed([
             ev('goal', minute: 10, team: 'home', scorer: 'Bobby'),
           ], isHome: isHome).single;
-          final chanceLine = feed([chance('home')], isHome: isHome).single;
-          expect(goalLine.params['us'], 'Us');
-          expect(chanceLine.params['who'], goalLine.params['us']);
+          expect(
+            line.params['us'],
+            'Us',
+            reason: 'the goal branch was right and must not move with this',
+          );
         }
+      });
+    });
+
+    group('eventIsOurs', () {
+      TimelineEvent of(String type, String? team) => ev(type, team: team ?? '');
+
+      test('a goal, a booking and an injury are ours-positive', () {
+        for (final type in ['goal', 'booking', 'injury']) {
+          expect(eventIsOurs(of(type, 'home'), isHome: true), isTrue);
+          expect(eventIsOurs(of(type, 'home'), isHome: false), isTrue);
+          expect(eventIsOurs(of(type, 'away'), isHome: true), isFalse);
+          expect(eventIsOurs(of(type, 'away'), isHome: false), isFalse);
+        }
+      });
+
+      test('a chance, a corner and a commentary line are venue-positive', () {
+        for (final type in venueTaggedEvents) {
+          expect(eventIsOurs(of(type, 'home'), isHome: true), isTrue);
+          expect(eventIsOurs(of(type, 'home'), isHome: false), isFalse);
+          expect(eventIsOurs(of(type, 'away'), isHome: true), isFalse);
+          expect(eventIsOurs(of(type, 'away'), isHome: false), isTrue);
+        }
+      });
+
+      test('and an event with no side at all belongs to nobody, so to us', () {
+        // Half time, the whistle, an injury row with no team on it. Every
+        // caller has always read that as ours and the switch it feeds does not
+        // care.
+        final whistle = (
+          minute: 45,
+          type: 'halftime',
+          team: null,
+          scorer: null,
+          scorerId: null,
+          textKey: null,
+          shotResult: null,
+          big: false,
+          xg: 0.0,
+          player: null,
+          params: const <String, Object?>{},
+          card: null,
+          playerId: null,
+        );
+        expect(eventIsOurs(whistle, isHome: true), isTrue);
+        expect(eventIsOurs(whistle, isHome: false), isTrue);
       });
     });
 

@@ -384,6 +384,64 @@ void main() {
       expect(_map(_cupResults(s).single)!['won'], prepared);
     });
 
+    test('AND THE CARD AFTERWARDS READS THE SAME ANSWER', () {
+      // **Reported from the couch: a cup tie that finished level and produced
+      // the victory screen anyway.** `_sayHowItWent` in `play_button.dart`
+      // asked `tie.prepared.won` — the simulation from BEFORE the tie was
+      // played — while the bracket was written from the settled result. A
+      // substitution, a booking or a tactic change re-simulates the remainder,
+      // and a remainder that ends level re-rolls the shootout with it, so the
+      // two disagree exactly when it matters: the run was over and the card
+      // said "through to the next round".
+      //
+      // So the settled answer goes back onto the result, which is what every
+      // screen after this one reads.
+      final s = cupState();
+      final tie = beginCupRound(s)!;
+      tie.result['homeGoals'] = 1;
+      tie.result['awayGoals'] = 1;
+      // Whatever the screen last thought, before the level check runs.
+      tie.result['won'] = true;
+      tie.result['drawn'] = true;
+      tie.result['penaltyShootout'] = <String, dynamic>{
+        'playerWins': false,
+        'homeScore': 3,
+        'awayScore': 4,
+        'kicks': <dynamic>[],
+      };
+      settleCupRound(s, tie);
+
+      expect(
+        tie.result['won'],
+        isFalse,
+        reason: 'the card would have celebrated an elimination',
+      );
+      expect(tie.result['drawn'], isFalse, reason: 'a cup tie cannot end level');
+      expect(_map(_cupResults(s).single)!['won'], tie.result['won']);
+      expect(
+        _map(_map(_map(s['progression'])?['cups'])?['active']),
+        isNull,
+        reason: 'losing on penalties should have ended the run',
+      );
+    });
+
+    test('and it agrees with the bracket on a win, too', () {
+      final s = cupState();
+      final tie = beginCupRound(s)!;
+      tie.result['homeGoals'] = 2;
+      tie.result['awayGoals'] = 2;
+      tie.result['won'] = false;
+      tie.result['penaltyShootout'] = <String, dynamic>{
+        'playerWins': true,
+        'homeScore': 5,
+        'awayScore': 4,
+        'kicks': <dynamic>[],
+      };
+      settleCupRound(s, tie);
+      expect(tie.result['won'], isTrue);
+      expect(_map(_cupResults(s).single)!['won'], isTrue);
+    });
+
     test('an untouched result still commits the prepared score', () {
       // The overwhelming case: nobody changed anything.
       final s = cupState();

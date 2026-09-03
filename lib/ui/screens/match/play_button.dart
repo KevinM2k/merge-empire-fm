@@ -26,6 +26,8 @@ import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/data/cups.dart';
 import 'package:merge_empire_fc/ui/screens/match/cup_launcher.dart';
 import 'package:merge_empire_fc/ui/screens/match/cup_result_cards.dart';
+import 'package:merge_empire_fc/ui/popups/coach_card.dart'
+    show CoachAction, CoachTone, showCoachCard;
 import 'package:merge_empire_fc/ui/screens/match/match_launcher.dart';
 import 'package:merge_empire_fc/ui/screens/settings_controls.dart'
     show settingPick;
@@ -272,8 +274,64 @@ class PlayMatchButton extends ConsumerWidget {
     }
   }
 
+  /// **IF THE TEAM SHEET HAS SOMEBODY ON IT WHO CANNOT PLAY, SAY SO FIRST.**
+  ///
+  /// Asked for from the couch alongside the in-match announcement: "if I try to
+  /// start with an injured player I should be warned when I press play match by
+  /// a big Coach Colin popup with a continue or go back button." Both halves
+  /// are here — continue plays the fixture as picked, going back leaves the
+  /// save untouched with the Squad tab a tap away.
+  ///
+  /// **A WARNING, NOT A REFUSAL.** [matchStartBlocked] is where refusals live
+  /// and this is deliberately not one: a manager with nobody fit on the bench
+  /// is entitled to play the eleven they have, and a button that simply refused
+  /// would strand them. It is asked BEFORE the cup branch, because a cup tie is
+  /// a match like any other and is the one you least want to walk into short.
+  ///
+  /// `coach.hard.injured_starter` — "🩹 {name} is carrying an injury — sub them
+  /// out before kickoff." — is a shipped string in ten languages with no caller
+  /// in `lib/`, which is this repo's loudest tell that a feature was dropped
+  /// rather than never specified. Returns whether to go on.
+  Future<bool> _confirmUnfitXI(BuildContext context, WidgetRef ref) async {
+    final unfit = unfitStarters(ref.read(gameProvider).state);
+    if (unfit.isEmpty) return true;
+    final answer = await showCoachCard<bool>(
+      context,
+      titleKey: 'coachtip.injury.title',
+      // One name in the line the copy was written for; more than one and the
+      // treatment-room line is the one that fits, because a sentence about
+      // subbing "them" out reads as one man however many are named.
+      bodyKey: unfit.length == 1
+          ? 'coach.hard.injured_starter'
+          : 'manager.injured_out',
+      bodyParams: unfit.length == 1
+          ? {'name': unfit.first}
+          : {'names': unfit.join(', ')},
+      barrierDismissible: false,
+      actions: [
+        CoachAction(
+          labelKey: 'common.continue',
+          tone: CoachTone.confirm,
+          onTap: () {},
+          result: true,
+        ),
+        CoachAction(
+          labelKey: 'common.cancel',
+          tone: CoachTone.decline,
+          onTap: () {},
+          result: false,
+        ),
+      ],
+    );
+    return answer == true;
+  }
+
   Future<void> _playFixture(BuildContext context, WidgetRef ref) async {
     final game = ref.read(gameProvider);
+    // The team sheet is checked before anything is spent — see
+    // [_confirmUnfitXI]. Nothing below this line has touched the save yet.
+    if (!await _confirmUnfitXI(context, ref)) return;
+    if (!context.mounted) return;
     // A cup tie takes precedence when one is due. Cups sit BETWEEN league games,
     // so this does not cost the league a fixture — it inserts a match.
     if (ref.read(cupRoundProvider) != null) {
@@ -463,7 +521,19 @@ class PlayMatchButton extends ConsumerWidget {
     final roundName = round < cup.rounds.length
         ? cup.rounds[round]
         : t('cup.tip.generic_round');
-    if (!tie.prepared.won) {
+    // **WHAT THE TIE SETTLED AT, not what was simulated before it opened.**
+    // This read `tie.prepared.won`, which is the pre-screen simulation: a
+    // substitution, a booking or a tactic change re-simulates the remainder,
+    // and a remainder that ends level re-rolls the shootout with it. So a tie
+    // the player lost on penalties could still produce "Through to the next
+    // round" while `settleCupRound` had already put the elimination in the
+    // bracket — a victory card over a result that was not one. Reported from
+    // the couch as drawing a cup tie 1-1 and getting the victory screen.
+    // `settleCupRound` stamps the settled answer back onto the result for
+    // exactly this read; the prepared record is the fallback for a tie the
+    // screen somehow never settled.
+    final won = tie.result['won'] as bool? ?? tie.prepared.won;
+    if (!won) {
       return showCupKnockedOut(
         context,
         cupName: t('cup.${cup.id}') == 'cup.${cup.id}'
