@@ -11,10 +11,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:merge_empire_fc/data/manager_looks.dart';
 import 'package:merge_empire_fc/data/manager_mood.dart';
 import 'package:merge_empire_fc/data/quests.dart';
-import 'package:merge_empire_fc/i18n/catalogs.g.dart';
+import 'package:merge_empire_fc/i18n/i18n.dart';
 
 void main() {
-  final en = catalogs['en']!;
+  // The MERGED English — `lib/i18n/en_copy.dart` is a source of keys too.
+  final en = englishCatalog;
 
   List<File> dartFiles() => Directory('lib')
       .listSync(recursive: true)

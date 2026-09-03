@@ -633,7 +633,18 @@ List<FeedLine> feedOf(
           continue;
         }
         lastChance = e.minute;
-        final mine = (e.team == 'home') == isHome;
+        // **THE ENGINE'S `home` MEANS US, whatever the venue** — the goal case
+        // twenty lines up reads it that way (`ourGoal = e.team == 'home'`), and
+        // so does `homeGoals`/`awayGoals` everywhere else. This line folded
+        // [isHome] back in on top of that, which is the identity XORed with the
+        // venue: right at home, and inverted at every away fixture. Reported
+        // from the couch three times in one match — "Iron Stars hit the
+        // woodwork" when the player IS Iron Stars, playing away, and the clip
+        // that ran was the opposition's.
+        //
+        // [isHome] is for ORDERING a scoreline, not for deciding whose chance
+        // it was; the goal branch already uses it that way and only that way.
+        final mine = e.team == 'home';
         out.add((
           minute: e.minute,
           type: e.type,

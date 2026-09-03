@@ -50,6 +50,19 @@ List<dynamic>? _list(Object? v) => v is List ? v : null;
 /// that a player who kills the app straight after a match keeps it.
 const int saveDebounceMs = 2000;
 
+/// **THE CEILING ON THAT WAIT**, and the reason a debounce alone was not enough.
+///
+/// The game loop calls `scheduleSave` once a SECOND for idle income, and the
+/// debounce above is two — so a restart-on-every-call debounce was cancelled and
+/// re-armed forever and an idle session never reached disk at all. Nothing said
+/// so: passive income recomputes from `lastSeen` on load, which hid it, but
+/// anything else banked while idling died with the process, and the durable
+/// mirror behind it never updated either.
+///
+/// So the debounce still restarts — a spree is still one write — but never past
+/// this from the first change waiting, which the tick cannot starve.
+const int saveMaxWaitMs = 10000;
+
 /// The durable native mirror is written at most this often, so the frequent
 /// debounced idle saves do not churn a platform store. The forced flush on
 /// app-hide is what guarantees it is fresh in the window where eviction happens.
@@ -115,6 +128,9 @@ class GameState {
   Map<String, dynamic>? _state;
   Timer? _saveTimer;
 
+  /// The un-restartable half of the debounce — see [saveMaxWaitMs].
+  Timer? _saveCeiling;
+
   /// Fires after every change that went through [update], and after a reset or
   /// a cloud restore replaced the contents.
   ///
@@ -152,7 +168,7 @@ class GameState {
   bool get frozen => _frozen;
 
   /// A save is waiting on the debounce.
-  bool get savePending => _saveTimer != null;
+  bool get savePending => _saveTimer != null || _saveCeiling != null;
 
   // ── Boot ──────────────────────────────────────────────────────────────────
 
@@ -256,6 +272,8 @@ class GameState {
   void saveNow() {
     _saveTimer?.cancel();
     _saveTimer = null;
+    _saveCeiling?.cancel();
+    _saveCeiling = null;
     if (_state == null || _frozen) return;
     _state!['lastSeen'] = now();
     _writeSave();
@@ -269,22 +287,37 @@ class GameState {
   ///
   /// The flag is STICKY: once a real event has asked for a sync, a later passive
   /// save resetting the shared timer must not cancel it.
+  /// **THE DEBOUNCE RESTARTS; THE CEILING DOES NOT** — see [saveMaxWaitMs]. A
+  /// spree is still one write, but the once-a-second tick can no longer hold the
+  /// write off forever by re-arming the window under it.
   void scheduleSave({bool syncCloud = true}) {
     if (syncCloud) _cloudDirty = true;
     _saveTimer?.cancel();
-    _saveTimer = Timer(const Duration(milliseconds: saveDebounceMs), () {
-      _saveTimer = null;
-      saveNow();
-      _mirrorNative();
-      final upload = _uploadCloudSave;
-      final signedIn = _map(_state?['leaderboard'])?['authUid'] != null;
-      if (_cloudDirty && signedIn && upload != null) {
-        _cloudDirty = false;
-        // Fire and forget: a failed upload must never surface as an unhandled
-        // rejection, and the next real event will try again.
-        upload(_state!).catchError((_) {});
-      }
-    });
+    _saveTimer = Timer(
+      const Duration(milliseconds: saveDebounceMs),
+      _flushScheduledSave,
+    );
+    _saveCeiling ??= Timer(
+      const Duration(milliseconds: saveMaxWaitMs),
+      _flushScheduledSave,
+    );
+  }
+
+  void _flushScheduledSave() {
+    _saveTimer?.cancel();
+    _saveTimer = null;
+    _saveCeiling?.cancel();
+    _saveCeiling = null;
+    saveNow();
+    _mirrorNative();
+    final upload = _uploadCloudSave;
+    final signedIn = _map(_state?['leaderboard'])?['authUid'] != null;
+    if (_cloudDirty && signedIn && upload != null) {
+      _cloudDirty = false;
+      // Fire and forget: a failed upload must never surface as an unhandled
+      // rejection, and the next real event will try again.
+      upload(_state!).catchError((_) {});
+    }
   }
 
   /// Run [mutator] against the save and schedule a write.
@@ -318,7 +351,7 @@ class GameState {
   /// would otherwise outlive the object that armed it and fire into a disposed
   /// state, and the bytes it holds are a real change somebody made.
   void dispose() {
-    if (_saveTimer != null) saveNow();
+    if (savePending) saveNow();
     _changes.close();
   }
 
@@ -328,6 +361,8 @@ class GameState {
     _frozen = true;
     _saveTimer?.cancel();
     _saveTimer = null;
+    _saveCeiling?.cancel();
+    _saveCeiling = null;
     if (_state == null) return;
     _state!['lastSeen'] = now();
     _writeSave();
@@ -758,6 +793,8 @@ class GameState {
     _frozen = true;
     _saveTimer?.cancel();
     _saveTimer = null;
+    _saveCeiling?.cancel();
+    _saveCeiling = null;
     _store.remove(saveKeyPrimary);
     // The mirror goes too, so a recovery cannot undo the reset by pulling the
     // pre-reset state back out of it.

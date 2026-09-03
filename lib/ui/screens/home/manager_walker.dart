@@ -1326,6 +1326,23 @@ class _ManagerWalkerState extends State<ManagerWalker>
         // reach the ends of the step, so the figure's rise and its stride are
         // one calculation and cannot drift apart.
         final rise = standing ? 0.0 : walkerHipRise(t);
+        // **EVERYTHING THE BODY DOES THAT THE GROUND DOES NOT.** The hip bob,
+        // the shoulder sway and the cold shiver are all one translate on the
+        // figure, and the ground shadow is deliberately outside it — see the
+        // note there. The stray BALL was not: it is a child of the same
+        // translate, so it rode his hips up and down twice a stride and swayed
+        // with his shoulders. Reported from the couch as the ball bobbing as
+        // the scene moves, which is exactly what it was doing — the bob is on
+        // the walk's clock, not the ball's.
+        //
+        // Hoisted so the ball can be given the inverse. See `ballLayer`.
+        final bodyOffset =
+            (Offset(
+                  standing ? 0 : math.sin(t * 2 * math.pi) * _sway,
+                  _sink - rise + (pose?.bodyLift ?? 0),
+                ) +
+                _shiver(context, t)) *
+            unit;
         final span = standing ? _standSpan : _footSpan(t);
         // A planted man's hair moves less than a walking one's, and a figure
         // that is not moving at all — the customiser's chips, which pass
@@ -1410,7 +1427,13 @@ class _ManagerWalkerState extends State<ManagerWalker>
                     (span.width + _shadowPad * 2) / walkerWidth -
                     rise / walkerHeight,
                 heightFactor: _shadowBand,
-                child: const _GroundShadow(),
+                // **A CORE ON HIS TOO.** The ball's shadow got one first and
+                // it read better than the man's, which was reported straight
+                // back. A pure radial falloff is solid only at its exact
+                // centre, so his contact patch faded out under his own boots;
+                // holding the ink across the middle is what makes it read as
+                // ground he is standing ON. See [GroundShadow.core].
+                child: const GroundShadow(core: 0.4),
               ),
             ),
             // The body's own fold, about the HIP rather than the boots — a bow
@@ -1423,13 +1446,7 @@ class _ManagerWalkerState extends State<ManagerWalker>
                 // Art units × [unit]. See the note on the `LayoutBuilder`:
                 // these are the offsets that were pixels while the shadow was
                 // fractions, which is what put him above it.
-                offset:
-                    (Offset(
-                          standing ? 0 : math.sin(t * 2 * math.pi) * _sway,
-                          _sink - rise + (pose?.bodyLift ?? 0),
-                        ) +
-                        _shiver(context, t)) *
-                    unit,
+                offset: bodyOffset,
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
@@ -1610,7 +1627,33 @@ class _ManagerWalkerState extends State<ManagerWalker>
                     // it too, and right: at his boot it belongs in front of the
                     // near leg, and in his hands the cradle is in front of his
                     // chest.
-                    ?widget.ballLayer,
+                    //
+                    // **But NOT bobbing with him.** It has to be drawn here for
+                    // that z-order and it is lying on the grass, so it takes
+                    // the inverse of [bodyOffset] and stays where the ground
+                    // is while the body rises and sways over it. A carried ball
+                    // is the one case that WOULD move with him — and it already
+                    // does, because the sim drives it to his hands frame by
+                    // frame rather than being parented to them.
+                    //
+                    // The inner `Stack` is not decoration: the caller hands a
+                    // `Positioned.fill`, and a `Positioned` has to have a
+                    // `Stack` for a parent — wrapping it in the transform
+                    // directly throws `Incorrect use of ParentDataWidget`.
+                    if (widget.ballLayer != null)
+                      Positioned.fill(
+                        // Named because PAINT ORDER is asserted against it:
+                        // the carry arm has to be drawn after the ball, and
+                        // the ball is a level deeper than it used to be.
+                        key: const ValueKey('manager-walker-ball-layer'),
+                        child: Transform.translate(
+                          offset: -bodyOffset,
+                          child: Stack(
+                            fit: StackFit.expand,
+                            children: [widget.ballLayer!],
+                          ),
+                        ),
+                      ),
                     // **AND THE NEAR ARM ONE MORE TIME, over the ball, while he
                     // is carrying it.** This is the JS's `.ps-hold-arm`, and its
                     // own comment says exactly what its absence looks like: the
@@ -2153,7 +2196,58 @@ typedef ManagerParts = ({
 /// Pure, and public, because the layering is the part worth pinning in a test:
 /// hair behind the skull, the skull, PAINT ON THE SKIN, hair in front of it,
 /// then beard, glasses and hat over the lot.
+/// The last few dressed managers, keyed by everything that dresses one.
+///
+/// **The wardrobe is REBUILT, not redrawn**, and it was being rebuilt every
+/// frame: [_managerPartsFor] regex-recolours every layer of the look, so a
+/// dressed gaffer cost tens of pattern matches and ~50KB of string garbage a
+/// frame — and each fresh string was then the key into the SVG parse memo, so
+/// the parse cache hit cost an O(n) hash and an O(n) compare on top. All of it
+/// for a result that changes when the player edits their look, which is to say
+/// almost never.
+///
+/// Bounded because the customiser previews a new look on every tap.
+final Map<String, ManagerParts> _partsMemo = {};
+const int _partsMemoMax = 24;
+
 ManagerParts managerPartsFor(
+  ManagerLook look, {
+  required Color kit,
+  required Color skin,
+  required Color hair,
+  Mood mood = Mood.neutral,
+}) {
+  final key = StringBuffer()
+    ..write(kit.toARGB32())
+    ..write(':')
+    ..write(skin.toARGB32())
+    ..write(':')
+    ..write(hair.toARGB32())
+    ..write(':')
+    ..write(mood.name);
+  for (final entry in look.entries) {
+    key
+      ..write(':')
+      ..write(entry.key)
+      ..write('=')
+      ..write(entry.value);
+  }
+  final id = key.toString();
+  final hit = _partsMemo[id];
+  if (hit != null) return hit;
+  if (_partsMemo.length >= _partsMemoMax) {
+    _partsMemo.remove(_partsMemo.keys.first);
+  }
+  return _partsMemo[id] = _managerPartsFor(
+    look,
+    kit: kit,
+    skin: skin,
+    hair: hair,
+    mood: mood,
+  );
+}
+
+ManagerParts _managerPartsFor(
   ManagerLook look, {
   required Color kit,
   required Color skin,
@@ -2257,23 +2351,47 @@ Color? _colourOf(String hex) {
   return parsed == null ? null : Color(0xFF000000 | parsed);
 }
 
-/// The ground he walks on.
+/// The ground he walks on — and, at a heavier [alpha], the ball's.
 ///
 /// Painted rather than a `RadialGradient` in a `BoxDecoration`, and that is not
 /// a preference: a radial gradient sizes its radius off the box's SHORTEST side,
 /// and this box is 50 wide by 8 tall. The gradient came out an 8px disc lost in
 /// the middle of it — a full stop under his boots rather than a shadow. Scaling
 /// a circular shader into an ellipse is the only way to get one that is wide.
-class _GroundShadow extends StatelessWidget {
-  const _GroundShadow();
+///
+/// **Which is exactly what the stray ball's shadow had.** It was a
+/// `BoxShape.circle` in a 21×6 box, so it drew a 6-wide disc a third of the
+/// ball's width — the JS says `radial-gradient(ellipse, …)` across the whole
+/// box, and the ball read as having no shadow at all.
+class GroundShadow extends StatelessWidget {
+  const GroundShadow({this.alpha = 0.34, this.core = 0, super.key});
+
+  /// The ink at the centre of the ellipse. The walker's own is 0.34.
+  final double alpha;
+
+  /// How much of the radius holds FULL ink before the fade starts, 0..1.
+  ///
+  /// **Zero is a shadow whose only solid part is its centre**, which is right
+  /// under a pair of boots and wrong under a ball. A linear falloff from the
+  /// middle means the ink is already half gone at half the radius — and the
+  /// ball covers the middle, so every part of the shadow anyone could actually
+  /// see was the faint tail. Measured off a render: 3% darkening at the widest
+  /// row, which is why it kept being reported as no shadow at all.
+  ///
+  /// A core holds the ink out to where the ball's edge is and fades from there,
+  /// which is what a contact shadow does.
+  final double core;
 
   @override
   Widget build(BuildContext context) =>
-      const CustomPaint(size: Size.infinite, painter: _ShadowPainter());
+      CustomPaint(size: Size.infinite, painter: _ShadowPainter(alpha, core));
 }
 
 class _ShadowPainter extends CustomPainter {
-  const _ShadowPainter();
+  const _ShadowPainter(this.alpha, this.core);
+
+  final double alpha;
+  final double core;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -2288,16 +2406,19 @@ class _ShadowPainter extends CustomPainter {
       Paint()
         ..shader = RadialGradient(
           colors: [
-            Colors.black.withValues(alpha: 0.34),
+            Colors.black.withValues(alpha: alpha),
+            Colors.black.withValues(alpha: alpha),
             Colors.black.withValues(alpha: 0),
           ],
+          stops: [0, core.clamp(0.0, 0.95), 1],
         ).createShader(Rect.fromCircle(center: Offset.zero, radius: r)),
     );
     canvas.restore();
   }
 
   @override
-  bool shouldRepaint(_ShadowPainter old) => false;
+  bool shouldRepaint(_ShadowPainter old) =>
+      old.alpha != alpha || old.core != core;
 }
 
 /// The head: the skull the two hair layers are drawn either side of, and the

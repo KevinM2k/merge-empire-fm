@@ -435,14 +435,19 @@ void main() {
       const mood = Mood.neutral;
       final ground = groundSpeedPxPerSec(mood);
       // The fan is solved at his row, so that is the reference.
-      final contactDepth = 0.58 * turfHeight + contact;
+      // **[mowApex], not a copy of its value.** This test is about the layers
+      // agreeing with the fan, and it used to hardcode the apex in three
+      // places — so tightening the perspective failed a test whose subject was
+      // still true.
+      final apex = mowApex.abs();
+      final contactDepth = apex * turfHeight + contact;
 
       double speedOf(Duration d, double segment) =>
           segment / (d.inMicroseconds / 1e6);
 
       for (var band = 0; band < 3; band++) {
         final fraction = tuftBandFraction(band);
-        final rowDepth = 0.58 * turfHeight + (1 - fraction) * turfHeight;
+        final rowDepth = apex * turfHeight + (1 - fraction) * turfHeight;
         final fanSpeed = ground * rowDepth / contactDepth;
         final tuftSpeed = speedOf(
           turfScroll(
@@ -462,7 +467,7 @@ void main() {
       }
 
       // And the boards, which are planted on the horizon.
-      final boardDepth = 0.58 * turfHeight;
+      final boardDepth = apex * turfHeight;
       final boardSpeed = speedOf(
         turfScroll(
           segmentWidth: hoardingSegmentWidth,

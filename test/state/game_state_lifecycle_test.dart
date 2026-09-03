@@ -245,6 +245,27 @@ void main() {
       });
     });
 
+    test('AND A ONCE-A-SECOND CALLER CANNOT STARVE IT', () {
+      // The game loop calls `scheduleSave` every tick for idle income, and the
+      // tick is one second against a two-second window — so a debounce that
+      // restarted on every call was cancelled and re-armed forever and an idle
+      // session never reached disk at all. Nothing reported it, because passive
+      // income recomputes from `lastSeen` on load.
+      fakeAsync((async) {
+        final store = MemorySaveStore();
+        final game = _game(store)..load();
+        for (var i = 0; i < saveMaxWaitMs ~/ 1000; i++) {
+          game.update((s) => s['clubName'] = 'tick $i');
+          async.elapse(const Duration(seconds: 1));
+        }
+        expect(
+          store.values.containsKey(saveKeyPrimary),
+          isTrue,
+          reason: 'the ceiling has to fire even while the debounce is re-armed',
+        );
+      });
+    });
+
     test('the cloud flag is sticky across passive saves', () {
       // Idle income resets the shared timer with `syncCloud: false`, and it must
       // not cancel an upload a real event already asked for.

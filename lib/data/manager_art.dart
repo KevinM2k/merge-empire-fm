@@ -32,6 +32,18 @@ const Map<String, String> managerArtDefaults = {
 String hexOf(int argb) =>
     '#${(argb & 0xFFFFFF).toRadixString(16).padLeft(6, '0')}';
 
+/// One compiled pattern per slot, because there are six of them and they are
+/// built from constants.
+///
+/// It was a `RegExp(...)` constructed inside the swap, so a dressed manager
+/// compiled up to six patterns per LAYER and the rig re-ran the whole recolour
+/// on every frame — tens of compilations a frame at 120Hz, for a result that
+/// only changes when the player edits their look.
+final Map<String, RegExp> _slotPatterns = {};
+
+RegExp _slotPattern(String slot, String from) =>
+    _slotPatterns[slot] ??= RegExp(from, caseSensitive: false);
+
 /// Repaint [svg]'s slots.
 ///
 /// Every argument is optional: a part with no hair in it is unaffected by a hair
@@ -53,7 +65,7 @@ String recolourManagerArt(
     if (from.toLowerCase() == to.toLowerCase()) return;
     // Case-insensitively, because a look's colour may arrive upper case and the
     // artwork writes both — `#3A2A1C` and `#3a2a1c` are the same slot.
-    out = out.replaceAll(RegExp(from, caseSensitive: false), to);
+    out = out.replaceAll(_slotPattern(slot, from), to);
   }
 
   // Skin BEFORE hair is deliberate and the pair is the reason: nothing else

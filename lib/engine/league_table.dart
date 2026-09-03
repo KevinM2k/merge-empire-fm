@@ -60,6 +60,50 @@ class LeagueRow {
 
   /// Positive means climbed — a smaller position number is a better one.
   int? posDelta;
+
+  /// Value equality so a table rebuilt on a tick that did not move anybody hands
+  /// `savePick` back the SAME rows and nothing redraws. `listEquals` would want
+  /// Flutter, which this half of the tree may not import.
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+    if (other is! LeagueRow) return false;
+    if (form.length != other.form.length) return false;
+    for (var i = 0; i < form.length; i++) {
+      if (form[i] != other.form[i]) return false;
+    }
+    return name == other.name &&
+        isPlayer == other.isPlayer &&
+        played == other.played &&
+        won == other.won &&
+        drawn == other.drawn &&
+        lost == other.lost &&
+        pts == other.pts &&
+        gd == other.gd &&
+        rating == other.rating &&
+        formation == other.formation &&
+        attackRatio == other.attackRatio &&
+        prevPos == other.prevPos &&
+        posDelta == other.posDelta;
+  }
+
+  @override
+  int get hashCode => Object.hash(
+    name,
+    isPlayer,
+    played,
+    won,
+    drawn,
+    lost,
+    pts,
+    gd,
+    rating,
+    formation,
+    attackRatio,
+    prevPos,
+    posDelta,
+    Object.hashAll(form),
+  );
 }
 
 /// League order: points, then goal difference, then wins — then NAME, which is

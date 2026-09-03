@@ -18,6 +18,7 @@
 /// with a reason is the same screen and a legible one.
 library;
 
+import 'package:flutter/foundation.dart' show listEquals, mapEquals, setEquals;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/data/achievements.dart';
@@ -61,14 +62,52 @@ num? _num(Object? v) => v is num ? v : null;
 typedef TrophyView = ({bool isCup, String division, int season, int position});
 
 /// Everything the room draws, resolved in one pass over the save.
-typedef TrophyRoomView = ({
-  List<TrophyView> league,
-  List<TrophyView> cups,
-  Set<String> unlockedIds,
-  Map<String, int> unlockCounts,
-  Map<String, int> unlockedAt,
-  String equippedBadgeId,
-});
+///
+/// A class rather than a record because five of the six fields are COLLECTIONS:
+/// a record's `==` compares its fields with `==`, so a freshly built list is
+/// never equal to the last one and `savePick` reported a change every tick.
+class TrophyRoomView {
+  const TrophyRoomView({
+    required this.league,
+    required this.cups,
+    required this.unlockedIds,
+    required this.unlockCounts,
+    required this.unlockedAt,
+    required this.equippedBadgeId,
+  });
+
+  final List<TrophyView> league;
+  final List<TrophyView> cups;
+  final Set<String> unlockedIds;
+  final Map<String, int> unlockCounts;
+  final Map<String, int> unlockedAt;
+  final String equippedBadgeId;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is TrophyRoomView &&
+          equippedBadgeId == other.equippedBadgeId &&
+          listEquals(league, other.league) &&
+          listEquals(cups, other.cups) &&
+          setEquals(unlockedIds, other.unlockedIds) &&
+          mapEquals(unlockCounts, other.unlockCounts) &&
+          mapEquals(unlockedAt, other.unlockedAt);
+
+  @override
+  int get hashCode => Object.hash(
+    equippedBadgeId,
+    Object.hashAll(league),
+    Object.hashAll(cups),
+    Object.hashAllUnordered(unlockedIds),
+    Object.hashAllUnordered(
+      unlockCounts.entries.map((e) => Object.hash(e.key, e.value)),
+    ),
+    Object.hashAllUnordered(
+      unlockedAt.entries.map((e) => Object.hash(e.key, e.value)),
+    ),
+  );
+}
 
 TrophyView _trophyFrom(Map<String, dynamic> raw) => (
   isCup: raw['cup'] == true,
@@ -110,7 +149,7 @@ final trophyRoomProvider = savePick<TrophyRoomView>((s) {
     if (stamp != null) at[id] = stamp;
   }
 
-  return (
+  return TrophyRoomView(
     league: league,
     cups: cups,
     unlockedIds: getUnlockedIds(s),

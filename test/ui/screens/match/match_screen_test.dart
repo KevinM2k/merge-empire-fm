@@ -217,6 +217,44 @@ String scoreOn(WidgetTester tester) {
   return '${at('match-score-left')} – ${at('match-score-right')}';
 }
 
+/// A pooled line, as ANY ONE of its variants.
+///
+/// **`t()` on a pool returns the whole pool**, pipe-joined, so an assertion
+/// written as `find.text(t(key))` only holds while that key has exactly one
+/// line in it — and these are copy pools that grow. What the row promises is
+/// that it printed a line FROM the pool with its parameters filled in, which is
+/// what this asks.
+Finder findPooled(String key, [Map<String, Object?> params = const {}]) {
+  final lines = t(key, params).split('|');
+  return find.byWidgetPredicate(
+    (w) => w is Text && lines.contains(w.data),
+    description: 'a line of $key',
+  );
+}
+
+/// Full time, with Colin's word said and put away.
+///
+/// **THE WHISTLE IS NOT THE LAST THING THAT HAPPENS.** `_sayFullTimeWord` is
+/// cued 1.1s after it, and his `CoachCorner` lights the stage and dims the feed
+/// under a scrim for eleven seconds — so a test that read the feed straight
+/// after `pumpAndSettle` was reading it inside a gap, one that closed the
+/// moment the pitch gained a 900ms tween at the whistle and `pumpAndSettle`
+/// pumped through it. Six tests failed on a drag his scrim swallowed. Let him
+/// speak, then dismiss him the way a player does; the scoreline has to be one
+/// that earns a word, and the assertion says so rather than an `if`.
+Future<void> whistleAndWord(WidgetTester tester) async {
+  await tester.pumpAndSettle();
+  await tester.pump(const Duration(milliseconds: 1200));
+  await tester.pumpAndSettle();
+  expect(
+    find.byKey(const ValueKey('match-coach-line')),
+    findsOneWidget,
+    reason: 'the scoreline earns him a word at the whistle',
+  );
+  await tester.tapAt(const Offset(20, 20));
+  await tester.pumpAndSettle();
+}
+
 /// Bring a feed row into view.
 ///
 /// **THE FEED IS LONGER THAN IT WAS, and the goal is at the bottom of it.**
@@ -705,8 +743,8 @@ void main() {
     );
     await tester.tap(find.byKey(const ValueKey('match-skip')));
     await tester.pumpAndSettle();
-    await reachFeed(tester, find.text(t('commentary.halftime_level')));
-    expect(find.text(t('commentary.halftime_level')), findsOneWidget);
+    await reachFeed(tester, findPooled('commentary.halftime_level'));
+    expect(findPooled('commentary.halftime_level'), findsOneWidget);
     expect(find.text('commentary.halftime_level'), findsNothing);
   });
 
@@ -753,8 +791,8 @@ void main() {
     await tester.pumpAndSettle();
     await reachFeed(tester, find.text(t('match.half_time').toUpperCase()));
     expect(find.text(t('match.half_time').toUpperCase()), findsOneWidget);
-    await reachFeed(tester, find.text(t('commentary.halftime_level')));
-    expect(find.text(t('commentary.halftime_level')), findsOneWidget);
+    await reachFeed(tester, findPooled('commentary.halftime_level'));
+    expect(findPooled('commentary.halftime_level'), findsOneWidget);
     expect(
       find.text(t('match.half_time')),
       findsNothing,
@@ -773,13 +811,13 @@ void main() {
       ),
     );
     await tester.tap(find.byKey(const ValueKey('match-skip')));
-    await tester.pumpAndSettle();
+    await whistleAndWord(tester);
     await reachFeed(
       tester,
-      find.text(t('commentary.halftime_ahead', {'us': 'Testville'})),
+      findPooled('commentary.halftime_ahead', {'us': 'Testville'}),
     );
     expect(
-      find.text(t('commentary.halftime_ahead', {'us': 'Testville'})),
+      findPooled('commentary.halftime_ahead', {'us': 'Testville'}),
       findsOneWidget,
     );
   });
@@ -834,11 +872,11 @@ void main() {
     );
     stateOf(tester).skipToEnd();
     await tester.pumpAndSettle();
-    final snub = t('commentary.snub', {'opp': 'Ayton'});
-    await reachFeed(tester, find.text(snub));
-    expect(find.text(snub), findsOneWidget);
+    final snub = findPooled('commentary.snub', {'opp': 'Ayton'});
+    await reachFeed(tester, snub);
+    expect(snub, findsOneWidget);
     expect(
-      find.text(t('commentary.flow.open.1')),
+      findPooled('commentary.flow.open.1'),
       findsOneWidget,
       reason: 'the second line printed the first line\'s text',
     );
@@ -1267,7 +1305,7 @@ void main() {
     await reachFeed(tester, find.text(t('match.subs').toUpperCase()));
     expect(find.text(t('match.subs').toUpperCase()), findsOneWidget);
     expect(
-      find.text(t('commentary.opp_sub', {'opp': 'Ayton'})),
+      findPooled('commentary.opp_sub', {'opp': 'Ayton'}),
       findsOneWidget,
       reason: 'their changes never reached the feed at all',
     );
@@ -1294,8 +1332,8 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('match-skip')));
     await tester.pumpAndSettle();
     expect(find.textContaining('{opp}'), findsNothing);
-    await reachFeed(tester, find.text(t('commentary.snub', {'opp': 'Ayton'})));
-    expect(find.text(t('commentary.snub', {'opp': 'Ayton'})), findsOneWidget);
+    await reachFeed(tester, findPooled('commentary.snub', {'opp': 'Ayton'}));
+    expect(findPooled('commentary.snub', {'opp': 'Ayton'}), findsOneWidget);
   });
 
   testWidgets('a match with no events still finishes', (tester) async {
@@ -1543,7 +1581,7 @@ void main() {
         ),
       );
       stateOf(tester).skipToEnd();
-      await tester.pumpAndSettle();
+      await whistleAndWord(tester);
 
       expect(find.byIcon(Icons.replay), findsNothing);
       expect(find.text(t('match.replay')), findsNothing);
@@ -1576,7 +1614,7 @@ void main() {
         save: squadSave(),
       );
       stateOf(tester).skipToEnd();
-      await tester.pumpAndSettle();
+      await whistleAndWord(tester);
       await reachFeed(tester, find.byType(PlayerFace));
       expect(
         find.descendant(
@@ -1615,7 +1653,7 @@ void main() {
         save: save,
       );
       stateOf(tester).skipToEnd();
-      await tester.pumpAndSettle();
+      await whistleAndWord(tester);
       await reachFeed(tester, find.text(t('match.goal_card.title')));
 
       final feed = find.byKey(const ValueKey('match-feed'));
@@ -1707,7 +1745,7 @@ void main() {
         save: squadSave(),
       );
       stateOf(tester).skipToEnd();
-      await tester.pumpAndSettle();
+      await whistleAndWord(tester);
       // The ball is the goal card's own mark, and it is the only one on that
       // row for a scorer the save no longer holds.
       await reachFeed(tester, find.byIcon(Icons.sports_soccer));
@@ -2928,9 +2966,11 @@ void main() {
       await tester.pump();
       expect(find.byKey(const ValueKey('match-coach-line')), findsOneWidget);
       expect(
-        find.text(
-          t('commentary.demolition', {'us': 4, 'them': 0, 'opp': 'Ayton'}),
-        ),
+        findPooled('commentary.demolition', {
+          'us': 4,
+          'them': 0,
+          'opp': 'Ayton',
+        }),
         findsOneWidget,
       );
       await tester.tapAt(const Offset(20, 20));
@@ -3036,7 +3076,7 @@ void main() {
     expect(state.clipPlaying, isTrue, reason: 'the goal drew no clip');
     await endClip(tester);
     state.skipToEnd();
-    await tester.pumpAndSettle();
+    await whistleAndWord(tester);
 
     expect(state.retoldMinutes, isNotEmpty, reason: 'the pitch told nothing');
 

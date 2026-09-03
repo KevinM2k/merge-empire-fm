@@ -94,6 +94,14 @@ Future<ProviderContainer> pumpHome(
 /// Table, fixtures and training are quick-nav destinations now rather than
 /// sub-tabs, so a test reaches them the way a player does: through the burger.
 Future<void> openFromMenu(WidgetTester tester, String labelKey) async {
+  // The dock button is a handset now, because that is what it opens.
+  expect(
+    find.descendant(
+      of: find.byKey(const ValueKey('dock-menu')),
+      matching: find.byIcon(Icons.smartphone),
+    ),
+    findsOneWidget,
+  );
   await tester.tap(find.byKey(const ValueKey('dock-menu')));
   await tester.pumpAndSettle();
   await tester.tap(find.byKey(ValueKey('quick-nav-$labelKey')));

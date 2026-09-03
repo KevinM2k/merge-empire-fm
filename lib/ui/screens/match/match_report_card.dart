@@ -10,6 +10,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/engine/booking_engine.dart';
+import 'package:merge_empire_fc/engine/match_tactics.dart' show defaultStrategy;
 import 'package:merge_empire_fc/engine/fixture_preview.dart';
 import 'package:merge_empire_fc/engine/league_table.dart' show LeagueRow;
 import 'package:merge_empire_fc/engine/match_report.dart';
@@ -19,6 +20,10 @@ import 'package:merge_empire_fc/ui/screens/home/league_providers.dart'
     show leagueTableProvider;
 import 'package:merge_empire_fc/ui/screens/match/cutaway/cutaway_stage.dart'
     show cardDisplayName;
+import 'package:merge_empire_fc/ui/screens/match/match_clock.dart'
+    show MatchFrame, frameAt, fullTime;
+import 'package:merge_empire_fc/ui/screens/match/match_statboard.dart'
+    show liveStatsFor;
 import 'package:merge_empire_fc/ui/screens/match/match_summary.dart'
     show regulationScore;
 import 'package:merge_empire_fc/ui/screens/match/match_screen.dart'
@@ -40,18 +45,35 @@ Map<String, dynamic>? _map(Object? v) => v is Map<String, dynamic> ? v : null;
 /// three, and a report that rewrote itself each time the screen rebuilt would
 /// be a different match every rebuild.
 ///
-/// **A summary, not a broadcast.** The beats are joined into a single paragraph
+/// **A summary, not a broadcast.** The beats are joined into sentence runs
 /// rather than a list of lines: six bullet points is a scorecard, and a
-/// scorecard is what the panels above it already are.
+/// scorecard is what the panels above it already are. They do break into
+/// PARAGRAPHS, though — see `ReportBeat.para`, which groups them the way a
+/// person writing this up would.
 class MatchReportCard extends ConsumerWidget {
-  const MatchReportCard({required this.result, super.key});
+  const MatchReportCard({required this.result, this.frame, super.key});
 
   final Map<String, dynamic> result;
+
+  /// **THE MATCH AS THE SCREEN TOLD IT.** The board, the feed and the
+  /// statistics all read the match screen's frame; the write-up read
+  /// `result['events']`, and twice in one sitting the two disagreed — a 0-6
+  /// written up as a draw, then a 0-1 written up as a three-goal win with
+  /// scorers and minutes the player never saw. When the screen hands its frame
+  /// over, the write-up reads that and nothing else, so it cannot say a
+  /// different match from the one above it. Null reads the result, for a
+  /// caller with no screen behind it.
+  final MatchFrame? frame;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final save = ref.watch(gameProvider).state;
-    final facts = reportFactsFor(result, save, ref.watch(leagueTableProvider));
+    final facts = reportFactsFor(
+      result,
+      save,
+      ref.watch(leagueTableProvider),
+      frame: frame,
+    );
     if (facts == null) return const SizedBox.shrink();
     final beats = buildMatchReport(facts);
     if (beats.isEmpty) return const SizedBox.shrink();
@@ -60,9 +82,34 @@ class MatchReportCard extends ConsumerWidget {
     // independently on every rebuild. The fixture key is the match's own name.
     final seed = '${result['fixtureKey'] ?? ''}'
         '-${facts.ours}-${facts.theirs}-${facts.opponentName}';
-    final prose = [
-      for (final beat in beats) tPoolStable(beat.key, seed, beat.params),
-    ].join(' ');
+    // **AND THE BEAT'S OWN KEY IN IT, or every sentence is the same variant.**
+    // [stableIndex] hashes the seed and takes it modulo the pool's length, so
+    // one seed across pools that are all the same length picks the SAME index
+    // in each — the whole write-up was variant 0, or variant 1, all the way
+    // down. Six sentences drawn from six pools of five have 15,625 shapes; the
+    // shared seed was giving five. Folding the key in keeps the report stable
+    // per fixture, which is the point of seeding it at all, and lets the beats
+    // differ from each other.
+    //
+    // **PARAGRAPHS, and they come from the engine rather than from here.** This
+    // was one block on the reasoning that six bullet points is a scorecard —
+    // still true of bullets, and never true of paragraphs. A person writing
+    // this up breaks after the result, again after the performances, and again
+    // before what it means for the table, and asked for from the couch in
+    // those terms. `ReportBeat.para` says which is which; consecutive beats
+    // sharing one are joined into a sentence run.
+    final paragraphs = <String>[];
+    var current = <String>[];
+    int? para;
+    for (final beat in beats) {
+      if (para != null && beat.para != para) {
+        paragraphs.add(current.join(' '));
+        current = [];
+      }
+      para = beat.para;
+      current.add(tPoolStable(beat.key, '$seed-${beat.key}', beat.params));
+    }
+    if (current.isNotEmpty) paragraphs.add(current.join(' '));
 
     // **THE SAME CARD AS THE ROWS UNDER IT.** It arrived as a `GlassPanel` —
     // blurred, rimmed, a component borrowed from the report screen — sitting on
@@ -110,14 +157,21 @@ class MatchReportCard extends ConsumerWidget {
             ],
           ),
           const SizedBox(height: 6),
-          Text(
-            prose,
-            style: TextStyle(
-              fontSize: 12.5,
-              height: 1.45,
-              color: glassInk(context),
+          for (var i = 0; i < paragraphs.length; i++) ...[
+            // A visible blank line, not a nudge — asked for from the couch.
+            // The type runs at 12.5/1.45, so a line box is a shade over 18 and
+            // this is most of one: the break reads as a paragraph rather than
+            // as loose leading.
+            if (i > 0) const SizedBox(height: 13),
+            Text(
+              paragraphs[i],
+              style: TextStyle(
+                fontSize: 12.5,
+                height: 1.45,
+                color: glassInk(context),
+              ),
             ),
-          ),
+          ],
         ],
         ),
       ),
@@ -135,57 +189,159 @@ class MatchReportCard extends ConsumerWidget {
 ReportFacts? reportFactsFor(
   Map<String, dynamic> result,
   Map<String, dynamic>? save,
-  List<LeagueRow> table,
-) {
-  final events = result['events'];
+  List<LeagueRow> table, {
+  MatchFrame? frame,
+}) {
+  // The screen's frame when there is one — see [MatchReportCard.frame] — else
+  // the result's own events.
+  final events = frame != null
+      ? [
+          for (final e in frame.shown)
+            <String, dynamic>{
+              'minute': e.minute,
+              'type': e.type,
+              'team': e.team,
+              'scorer': e.scorer,
+              'scorerInstanceId': e.scorerId,
+            },
+        ]
+      : result['events'];
   if (events is! List) return null;
 
   final goals = <Map<String, dynamic>>[];
   final scorers = <String>[];
+  final timeline = <ReportGoal>[];
+  var theirSubs = 0;
   for (final entry in events) {
     final e = _map(entry);
-    if (e == null || e['type'] != 'goal') continue;
+    if (e == null) continue;
+    // The AI's rotation, one event per change — see `match_clock.dart`.
+    if (e['type'] == 'opp_sub') theirSubs++;
+    if (e['type'] != 'goal') continue;
     goals.add(e);
-    if (e['team'] != 'home') continue;
+    final minute = (e['minute'] as num?)?.toInt() ?? 0;
+    if (e['team'] != 'home') {
+      // The sim does not name their scorers; a name, if one ever arrives,
+      // is used.
+      final theirs = '${e['scorer'] ?? ''}';
+      timeline.add((
+        minute: minute,
+        ours: false,
+        scorer: theirs.isEmpty ? null : theirs,
+      ));
+      continue;
+    }
     // By the card if he is still on the grid, else the name the result
     // recorded — a scorer who has since been sold still scored.
     final name =
         cardDisplayName(save, '${e['scorerInstanceId'] ?? ''}') ??
         '${e['scorer'] ?? ''}';
     if (name.isNotEmpty) scorers.add(name);
+    timeline.add((
+      minute: minute,
+      ours: true,
+      scorer: name.isEmpty ? null : name,
+    ));
   }
 
-  // The cards, counted from the rows the match screen wrote onto the result.
-  var ourYellows = 0;
-  var ourReds = 0;
-  var theirYellows = 0;
-  var theirReds = 0;
-  final cards = result['bookings'];
-  if (cards is List) {
-    for (final entry in cards) {
+  final isHome = result['isHome'] == true;
+
+  // The cards, from the rows the match screen wrote onto the result. A
+  // second yellow is one row and it sends off; the first yellow is its own.
+  final cards = <ReportCard>[];
+  final bookings = result['bookings'];
+  if (bookings is List) {
+    for (final entry in bookings) {
       final b = _map(entry);
       if (b == null) continue;
       final card = '${b['card'] ?? cardYellow}';
-      final ours = b['team'] != 'away';
-      if (card == cardYellow || card == cardSecondYellow) {
-        if (ours) {
-          ourYellows++;
-        } else {
-          theirYellows++;
-        }
-      }
-      if (cardSendsOff(card)) {
-        if (ours) {
-          ourReds++;
-        } else {
-          theirReds++;
-        }
-      }
+      final player = '${b['player'] ?? ''}';
+      cards.add((
+        minute: (b['minute'] as num?)?.toInt() ?? 0,
+        ours: b['team'] != 'away',
+        player: player.isEmpty ? null : player,
+        red: cardSendsOff(card),
+      ));
     }
   }
 
+  // Our substitutions, as `_onSub` records them.
+  final subs = <ReportSub>[];
+  final subRows = result['subs'];
+  if (subRows is List) {
+    for (final entry in subRows) {
+      final row = _map(entry);
+      if (row == null) continue;
+      final off = '${row['off'] ?? ''}';
+      subs.add((
+        minute: (row['minute'] as num?)?.toInt() ?? 0,
+        on: '${row['on'] ?? ''}',
+        off: off.isEmpty ? null : off,
+      ));
+    }
+  }
+
+  // Every change of tactic, in the order they were made — see `applyStrategy`.
+  final switches = <ReportSwitch>[];
+  final log = result['strategyLog'];
+  if (log is List) {
+    for (final raw in log) {
+      final row = _map(raw);
+      if (row == null) continue;
+      final id = '${row['id'] ?? ''}';
+      if (id.isEmpty) continue;
+      switches.add((minute: (row['minute'] as num?)?.toInt() ?? 0, tactic: id));
+    }
+  }
+  final kickoff = result['kickoffStrategy'];
+  final startTactic = kickoff is String && kickoff.isNotEmpty ? kickoff : null;
+
+  // The board at the whistle, counted the way the statistics tab counts it —
+  // same function, so the two cannot disagree. The possession figure leans on
+  // the tactic the side FINISHED with, which is what the tab showed last.
+  final finished = result['finalStrategy'];
+  final live = liveStatsFor(
+    frame:
+        frame ??
+        frameAt(result, fullTime((result['addedTime'] as num?)?.toInt() ?? 0)),
+    result: result,
+    isHome: isHome,
+    strategyId: finished is String && finished.isNotEmpty
+        ? finished
+        : startTactic ?? defaultStrategy,
+  );
+  int ourRow(String key) {
+    final row = live.rows.firstWhere((r) => r.key == key);
+    return isHome ? row.home : row.away;
+  }
+  int theirRow(String key) {
+    final row = live.rows.firstWhere((r) => r.key == key);
+    return isHome ? row.away : row.home;
+  }
+  final ReportStats stats = (
+    possession: isHome ? live.possHome : live.possAway,
+    shots: ourRow('shots'),
+    theirShots: theirRow('shots'),
+    onTarget: ourRow('sot'),
+    theirOnTarget: theirRow('sot'),
+    corners: ourRow('corners'),
+    theirCorners: theirRow('corners'),
+  );
+
   final (:wasBehind, :wasAhead) = leadSwings(goals);
-  final (ours, theirs) = regulationScore(result);
+  // **THE SCORE IS COUNTED OFF THE EVENTS, like the scoreboard's.** It read the
+  // engine's `homeGoals`/`awayGoals`, and a 0-6 away win was written up as "a
+  // draw, 1 apiece" while the board above it said 0-6 and the feed had all six
+  // goals — the fields and the events can part company on this screen, and the
+  // feed and the board only ever read the events. So does this now; the fields
+  // are the fallback for a result with no events on it (a shootout's goals are
+  // in neither, so the two agree on a cup tie too).
+  final (ours, theirs) = timeline.isEmpty
+      ? regulationScore(result)
+      : (
+          timeline.where((g) => g.ours).length,
+          timeline.where((g) => !g.ours).length,
+        );
 
   // Where the table leaves us. A cup tie has no table to move in, and a save
   // whose season has not begun has no row — both come through as nulls rather
@@ -201,20 +357,22 @@ ReportFacts? reportFactsFor(
     theirs: theirs,
     clubName: '${result['clubName'] ?? ''}',
     opponentName: '${result['opponentName'] ?? ''}',
-    isHome: result['isHome'] == true,
+    isHome: isHome,
     isCup: result['isCup'] == true,
     scorers: scorers,
     wasBehind: wasBehind,
     wasAhead: wasAhead,
-    ourYellows: ourYellows,
-    ourReds: ourReds,
-    theirYellows: theirYellows,
-    theirReds: theirReds,
+    goals: timeline,
+    cards: cards,
+    subs: subs,
+    theirSubs: theirSubs,
+    startTactic: startTactic,
+    switches: switches,
+    stats: stats,
     position: row == null ? null : at + 1,
     points: row?.pts,
     // Positive is a CLIMB, and a climb is a smaller position number.
     posDelta: was == null || row == null ? null : was - (at + 1),
-    lateSwitch: _lateSwitchIn(result),
     nextOpponent: preview?.opponentName,
     nextIsHome: preview?.isHome ?? true,
     oppNextOpponent: _nextFor(save, '${result['opponentName'] ?? ''}'),
@@ -256,31 +414,3 @@ String? _nextFor(Map<String, dynamic>? save, String club) {
   }
   return best?.opponent;
 }
-
-/// The last tactical change, when it came late enough to be about seeing the
-/// match out rather than about how to start it.
-///
-/// **Sixty minutes is the line**, and it is a judgement rather than a
-/// measurement: a switch on the hour is a manager reacting to what is in front
-/// of him, and one in the twentieth is still the plan. The log is written by
-/// the match screen — see `applyStrategy` — because the engine's own result
-/// records WHAT was played and never WHEN it changed.
-({int minute, String tactic})? _lateSwitchIn(Map<String, dynamic> result) {
-  final log = result['strategyLog'];
-  if (log is! List) return null;
-  ({int minute, String tactic})? best;
-  for (final raw in log) {
-    final row = _map(raw);
-    if (row == null) continue;
-    final minute = (row['minute'] as num?)?.toInt() ?? 0;
-    final id = '${row['id'] ?? ''}';
-    if (minute < lateSwitchFrom || id.isEmpty) continue;
-    if (best == null || minute > best.minute) {
-      best = (minute: minute, tactic: id);
-    }
-  }
-  return best;
-}
-
-/// When a tactical change stops being the plan and starts being a response.
-const int lateSwitchFrom = 60;

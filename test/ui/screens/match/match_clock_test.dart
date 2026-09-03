@@ -301,6 +301,47 @@ void main() {
     List<FeedLine> feed(List<TimelineEvent> events, {bool isHome = true}) =>
         feedOf(events, ourName: 'Us', theirName: 'Them', isHome: isHome);
 
+    group('WHOSE CHANCE IT WAS DOES NOT DEPEND ON THE VENUE', () {
+      // **The engine's `home` means US, whatever the ground.** `homeGoals` and
+      // `awayGoals` mean that everywhere, and the goal branch of `feedOf` reads
+      // it that way. The chance branch folded `isHome` back in on top of it —
+      // the identity XORed with the venue — so it was right at home and
+      // inverted at every away fixture. Reported from the couch three times in
+      // one match: "Iron Stars hit the woodwork" when the player IS Iron Stars,
+      // away, with the opposition's clip on screen.
+      TimelineEvent chance(String team) => ev(
+        'chance',
+        minute: 30,
+        team: team,
+        shotResult: 'on_target',
+        big: true,
+      );
+
+      for (final isHome in [true, false]) {
+        test('our chance names us, ${isHome ? 'at home' : 'away'}', () {
+          final line = feed([chance('home')], isHome: isHome).single;
+          expect(line.params['who'], 'Us');
+        });
+
+        test('their chance names them, ${isHome ? 'at home' : 'away'}', () {
+          final line = feed([chance('away')], isHome: isHome).single;
+          expect(line.params['who'], 'Them');
+        });
+      }
+
+      test('and it agrees with the GOAL branch, which was always right', () {
+        // The two read the same field and must not disagree about it.
+        for (final isHome in [true, false]) {
+          final goalLine = feed([
+            ev('goal', minute: 10, team: 'home', scorer: 'Bobby'),
+          ], isHome: isHome).single;
+          final chanceLine = feed([chance('home')], isHome: isHome).single;
+          expect(goalLine.params['us'], 'Us');
+          expect(chanceLine.params['who'], goalLine.params['us']);
+        }
+      });
+    });
+
     test('and the timeline is what carries them off the result', () {
       // The record had no field for `textParams`, so the engine wrote them and
       // nothing read them.
@@ -670,14 +711,19 @@ void main() {
     });
 
     test('THE SIDE IS NAMED FROM THE PLAYER\'S POINT OF VIEW', () {
-      final away = feed([
-        ev('chance', team: 'away', big: true, shotResult: 'on_target'),
-      ], isHome: true);
-      expect(away.single.params['who'], 'Them');
-      final ours = feed([
-        ev('chance', team: 'away', big: true, shotResult: 'on_target'),
-      ], isHome: false);
-      expect(ours.single.params['who'], 'Us');
+      // **This test used to assert the bug.** It read `team: 'away'` with
+      // `isHome: false` as OUR chance — the venue XOR — and it contradicted
+      // the goal test directly below it, which has always read `team: 'home'`
+      // as ours whatever the ground. The goal one matches the engine and
+      // matches the game; this one matched the code it was written against.
+      //
+      // `away` is the opposition at both grounds. See the group above.
+      for (final isHome in [true, false]) {
+        final theirs = feed([
+          ev('chance', team: 'away', big: true, shotResult: 'on_target'),
+        ], isHome: isHome);
+        expect(theirs.single.params['who'], 'Them');
+      }
     });
 
     test('A GOAL IS DESCRIBED BY WHAT IT DID TO THE SCORE', () {

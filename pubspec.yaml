@@ -125,6 +125,8 @@ flutter:
     - assets/bg/kenney/
     - assets/trophies/
     - assets/penalty/
+    # The hand round the quick-nav phone — see lib/ui/popups/quick_nav_menu.dart.
+    - assets/phone/
     - assets/whack/
     - assets/ui/
     - assets/audio/

@@ -42,7 +42,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:merge_empire_fc/data/manager_mood.dart';
 import 'package:merge_empire_fc/ui/screens/home/manager_walker.dart'
-    show walkerFootOffset, walkerThighAngle, walkerWidth;
+    show GroundShadow, walkerFootOffset, walkerThighAngle, walkerWidth;
 import 'package:merge_empire_fc/ui/screens/home/pitch_scene.dart'
     show groundHalfStrideArtUnits, walkDurationFor, walkerScale;
 import 'package:merge_empire_fc/ui/screens/home/walk_ramp.dart';
@@ -90,6 +90,14 @@ const double ballHomeX = 68;
 
 /// It sits a shade INTO the grass rather than balanced on top of it.
 const double ballSink = 2;
+
+/// How far the shadow reaches PAST the ball on each side, and how tall its own
+/// box is, in the figure's units.
+///
+/// The spread is what makes it visible at all: a shadow no wider than the ball
+/// is a shadow the ball is standing on top of. See the note in `build`.
+const double _shadowSpread = 3.5;
+const double _shadowHeight = 7;
 
 /// Effective rolling radius, and the degrees of roll one unit of travel is
 /// worth.
@@ -789,12 +797,19 @@ class _PitchBallState extends State<PitchBall>
     final moved = world - _lastWorld;
     _lastWorld = world;
     if (dt <= 0) return;
-    setState(() {
-      _sim.wind = widget.wind;
-      _sim.halted = widget.frozen;
-      _sim.step(dt, walkSpeed: moved / dt, nominalWalkSpeed: _nominalWalkSpeed);
-      _watchStrike(dt);
-    });
+    // **THE SIM ALWAYS STEPS; THE WIDGET DOES NOT ALWAYS REBUILD.** The stray
+    // ball is on the grass for a small fraction of the time and `build` returns
+    // an empty box for the rest of it — but the step has to keep running, since
+    // it is what decides when the ball next appears. Stepping outside
+    // `setState` and rebuilding only while something is drawn takes a
+    // whole-subtree rebuild per frame off the home screen for most of its life.
+    // The frame the ball VANISHES on still rebuilds, or it would stay painted.
+    final wasVisible = _sim.visible;
+    _sim.wind = widget.wind;
+    _sim.halted = widget.frozen;
+    _sim.step(dt, walkSpeed: moved / dt, nominalWalkSpeed: _nominalWalkSpeed);
+    _watchStrike(dt);
+    if (_sim.visible || wasVisible) setState(() {});
   }
 
   /// His average pace, in the ball's units. What a strike is solved against.
@@ -852,25 +867,46 @@ class _PitchBallState extends State<PitchBall>
         // The grounded shadow stays on the pitch, shrinking and fading as the
         // ball leaves it. It is the whole of the depth in a ball that is only
         // ever drawn as a circle.
+        //
+        // **IT WAS DRAWN ENTIRELY INSIDE THE BALL, which is why there was no
+        // shadow to see.** Two separate faults, and the arithmetic is worth
+        // keeping because both are invisible in a widget tree and obvious in
+        // numbers. The box was `ballSize` wide with a `BoxShape.circle` in it,
+        // and a circular decoration sizes itself off the box's SHORTEST side —
+        // so a 21-wide ball got a 6-wide dot. And the box sat at
+        // `bottom: ballShadowLine`, spanning [18.1, 24.1] while the ball spans
+        // [16.1, 37.1]: the shadow STARTED two units above the bottom of the
+        // ball and its widest row was 5.5 units up inside the silhouette, where
+        // the disc is 8.9 wide against the ellipse's 10.5. Nothing reached open
+        // grass in either axis. Reported from the couch twice.
+        //
+        // So it is seated and spread instead:
+        //
+        // - **the ground line runs through the MIDDLE of it**, not along its
+        //   bottom edge — the lesson `_sink` in `manager_walker.dart` already
+        //   learned for his boots. At the contact line the ball is only 6.2
+        //   wide, so an ellipse centred there clears the silhouette.
+        // - **it is wider than the ball** by [_shadowSpread] each side, which
+        //   is what makes it read as a ring around the contact point rather
+        //   than as something hiding under the ball.
+        // - **it shrinks toward its own centre**, not its bottom. The JS's
+        //   `transform-origin: center bottom` was right for a shadow sitting
+        //   ABOVE the line; one that straddles the line has to stay on it.
         Positioned(
-          left: ballHomeX + _sim.x,
-          bottom: ballShadowLine,
-          width: ballSize,
-          height: 6,
+          left: ballHomeX + _sim.x - _shadowSpread,
+          bottom: ballShadowLine - _shadowHeight / 2,
+          width: ballSize + _shadowSpread * 2,
+          height: _shadowHeight,
           child: Opacity(
-            opacity: (0.32 * (1 - height * 0.6)).clamp(0.0, 1.0),
+            // **0.48 rather than the JS's 0.32.** Its number was for a shadow
+            // that showed its own middle; this one is read at its RIM, where a
+            // radial fade has already given most of its ink away, so the same
+            // figure measured out at 3% darkening on a render of the real
+            // widget. See [GroundShadow.core], which is the other half of it.
+            opacity: (0.48 * (1 - height * 0.6)).clamp(0.0, 1.0),
             child: Transform.scale(
               scale: 1 - height * 0.55,
-              alignment: Alignment.bottomCenter,
-              child: const DecoratedBox(
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  gradient: RadialGradient(
-                    colors: [Color(0x80000000), Color(0x00000000)],
-                    stops: [0, 0.7],
-                  ),
-                ),
-              ),
+              child: const GroundShadow(alpha: 0.55, core: 0.5),
             ),
           ),
         ),
@@ -879,17 +915,45 @@ class _PitchBallState extends State<PitchBall>
           bottom: ballGroundLine + _sim.y + _hop,
           width: ballSize,
           height: ballSize,
-          // **THE PANELS TURN; THE LIGHT DOES NOT.** The art has its shading
-          // baked in — a pale crescent top-left, a grey one bottom-right — so
-          // rotating the file rotated the lighting with it, and a light source
-          // that orbits a ball is what a TUMBLING ball looks like. Reported as
-          // the spin being on the wrong axis, moving slightly up and down: the
+          // **THE PANELS TURN; THE LIGHT DOES NOT.** The art had its shading
+          // baked in — a grey crescent down the right-hand side — so rotating
+          // the file rotated the lighting with it, and a light source that
+          // orbits a ball is what a TUMBLING ball looks like. Reported as the
+          // spin being on the wrong axis, moving slightly up and down: the
           // ball's own dark mass was swinging over the top and back under.
           //
-          // Nothing here changes the rotation, which was always a clean turn
-          // about the centre. A fixed highlight and a fixed shade are laid over
-          // the spinning panels instead, so the sun stays where the rest of the
-          // scene's is and only the ball moves.
+          // **The overlay below was the first answer and it was only half of
+          // one.** A fixed highlight laid over the top cannot cancel a feature
+          // underneath it that covers an eighth of the ball, so the crescent
+          // went on orbiting under a stationary gloss and it was reported
+          // again. The shading is off the ASSET now: `assets/penalty/ball.png`
+          // was two flat colours over its base pair — (181,188,198) over the
+          // light panels and (32,45,54) over the dark ones, 13% of the ball
+          // between them — and both were remapped back to the panel colours
+          // they were tinting. What is left is line art that means the same
+          // thing at every angle. Git has the shaded original; nothing else in
+          // `lib/` loads this file.
+          //
+          // **AND THE BALL WAS NOT ROUND, which is the other half of it.**
+          // `Transform.rotate` turns about the box's centre and always did, so
+          // the pivot was never the fault — but the art it was turning was.
+          // Measured off the file: the outer edge ran from r=224.2 to r=228.9
+          // about its own best-fit centre, 1.8% out of round, and that centre
+          // sat (+0.47, +0.82) px away from the canvas centre the rotation
+          // uses. An out-of-round silhouette swinging about a point it is not
+          // concentric with is a bob once per revolution — reported exactly
+          // that way, twice.
+          //
+          // So the asset is trued: re-centred on the fitted centre, masked to a
+          // real circle at a radius the art fills the whole way round, and
+          // resampled to 160×160. The size matters too — it was 453px drawn at
+          // about 84 device px, a 5× reduction whose mipmap selection shifts
+          // under a rotating transform, which is its own shimmer on top of the
+          // wobble. 160 leaves headroom over the drawn size without it.
+          //
+          // So the rotation is untouched, and the fixed highlight and shade
+          // below now do all of the lighting: the sun stays where the rest of
+          // the scene's is and only the panels move.
           child: Stack(
             fit: StackFit.expand,
             children: [

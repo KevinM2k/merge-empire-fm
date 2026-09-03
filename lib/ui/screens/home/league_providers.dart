@@ -305,8 +305,10 @@ final nextMatchNumberProvider = savePick<int>((s) {
 final managerLookProvider = savePick<ManagerLook?>((s) {
   final club = s['club'];
   final look = club is Map ? club['managerAvatar'] : null;
-  // A COPY, because `savePick` compares with `==` and the save's own map is one
-  // mutable instance — a look edited in place would never look changed.
+  // A COPY, because the save's own map is one mutable instance — a look edited
+  // in place would never look changed. `savePick` compares the copy by VALUE
+  // and hands back the previous one when it matches, so the copy is free: this
+  // used to report a change every tick and rebuild the whole diorama with it.
   return look is Map<String, dynamic> ? <String, dynamic>{...look} : null;
 });
 

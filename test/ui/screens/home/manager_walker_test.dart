@@ -993,7 +993,13 @@ void main() {
             find.ancestor(of: arm, matching: find.byType(Stack)).first,
           )
           .children;
-      final ballAt = children.indexWhere((c) => c.key == const ValueKey('the-ball'));
+      // **The ball's own LAYER, not the ball.** It sits inside a counter
+      // translate now — it is on the grass and must not ride his hip bob, see
+      // `bodyOffset` — so what the stack holds is the layer that carries it.
+      // The ball itself is asserted on screen by the test below.
+      final ballAt = children.indexWhere(
+        (c) => c.key == const ValueKey('manager-walker-ball-layer'),
+      );
       final armAt = children.indexWhere(
         (c) => c.key == const ValueKey('manager-walker-carry-arm'),
       );

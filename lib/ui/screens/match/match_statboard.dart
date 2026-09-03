@@ -76,10 +76,21 @@ LiveStats liveStatsFor({
   var swing = 0.0;
 
   for (final e in frame.shown) {
+    // **THE ENGINE'S `home` MEANS US, whatever the venue.** This read it as
+    // the VENUE and folded [isHome] in, so every counter on this board —
+    // shots, on target, big chances missed, corners, goals — was swapped with
+    // the opposition's at every away fixture. Found alongside the same mistake
+    // in the commentary's chance line (`match_clock.dart`), which was reported
+    // from the couch; this one says nothing out loud and just reports the
+    // wrong numbers.
+    //
+    // The swing below looked wrong and was not: `ours == isHome` XORed a
+    // second time and cancelled it, so momentum was right while the figures
+    // beside it were inverted. Both are stated plainly now.
     final ours = e.team == 'home'
-        ? isHome
+        ? true
         : e.team == 'away'
-        ? !isHome
+        ? false
         : null;
     switch (e.type) {
       case 'goal':
@@ -88,7 +99,7 @@ LiveStats liveStatsFor({
         } else {
           goalsThem++;
         }
-        swing = swing * 0.7 + ((ours ?? true) == isHome ? 0.3 : -0.3);
+        swing = swing * 0.7 + ((ours ?? true) ? 0.3 : -0.3);
       case 'chance':
         if (ours ?? true) {
           shotsUs++;
@@ -107,7 +118,7 @@ LiveStats liveStatsFor({
           }
           bigThem++;
         }
-        swing = swing * 0.85 + ((ours ?? true) == isHome ? 0.15 : -0.15);
+        swing = swing * 0.85 + ((ours ?? true) ? 0.15 : -0.15);
       case 'corner':
         if (ours ?? true) {
           cornersUs++;
@@ -138,7 +149,19 @@ LiveStats liveStatsFor({
     ratingDiffHome: ratingDiffHome.toDouble(),
     possessionBiasHome: stratBiasHome,
   );
-  final homePct = resting + swing * 22;
+  // **[swing] IS OUR-POSITIVE AND EVERYTHING BELOW IS HOME-POSITIVE.**
+  // `resting`, `possHome` and `dangerHome` are all stated about the HOME side —
+  // they come off `ratingDiffHome` and `stratBiasHome` — and the swing counted
+  // up from the events is about US. Those are the same thing at home and
+  // opposite numbers away, and the conversion was missing: away from home the
+  // swing was added with the wrong sign, so a side being battered saw the
+  // possession bar and the momentum arrow both leaning ITS way.
+  //
+  // That is the other half of the venue mix-up in the loop above, and the pair
+  // of them is why a 2-0 away defeat could show 67% possession and more shots.
+  // Reported from the couch as exactly that scoreline.
+  final swingHome = isHome ? swing : -swing;
+  final homePct = resting + swingHome * 22;
 
   // **THE ARROW'S OWN FIGURE, off the same ratings the chances are.** Plus the
   // counter exception, which is what stops it reading as a foregone
@@ -174,10 +197,8 @@ LiveStats liveStatsFor({
   // the possession picture without the swing, so the run of play is still
   // counted once.
   final chanceShare = danger.home / (danger.home + danger.away) * 100;
-  final dangerHome = (chanceShare * 0.68 + resting * 0.32 + swing * 14).clamp(
-    20.0,
-    80.0,
-  );
+  final dangerHome =
+      (chanceShare * 0.68 + resting * 0.32 + swingHome * 14).clamp(20.0, 80.0);
   // Clamped hard: a 72/28 split is already a rout, and the numbers stop reading
   // as football past it.
   final possHome = homePct.clamp(28.0, 72.0).round();

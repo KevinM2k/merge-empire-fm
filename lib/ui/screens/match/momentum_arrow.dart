@@ -63,10 +63,26 @@ class MomentumArrow extends StatelessWidget {
     required this.theirs,
     this.leftEnd,
     this.rightEnd,
+    this.arrow = true,
     super.key,
   });
 
+  /// Whether to paint the ARROW. The end names are painted either way.
+  ///
+  /// **The two were one widget and the whistle dropped both.** Which way the
+  /// run of play is heading is a question nobody asks once the match is over,
+  /// so the screen stopped passing this whole widget at full time — and took
+  /// HOME and AWAY off the grass with it, on the one screen where the
+  /// statistics panel most needs them to say which column is which. Reported
+  /// from the couch: the arrow going was right, the labels going was not.
+  ///
+  /// A flag rather than a second widget, because the labels' size, colour and
+  /// rotation are the ones [_ArrowPainter._endName] already solved against the
+  /// goalmouth — see the note there — and two of those would drift.
+  final bool arrow;
+
   /// From [momentumBias]. Positive is US on top, whichever way we are kicking.
+  /// Ignored when [arrow] is false.
   final double bias;
 
   /// Which way OUR goals go. **At home we attack right and away we attack
@@ -113,6 +129,7 @@ class MomentumArrow extends StatelessWidget {
         key: const ValueKey('match-momentum'),
         size: Size.infinite,
         painter: _ArrowPainter(
+          arrow: arrow,
           bias: t,
           // Whose move it is, which is NOT which way it is going: away from
           // home, our best spell points left.
@@ -128,6 +145,7 @@ class MomentumArrow extends StatelessWidget {
 
 class _ArrowPainter extends CustomPainter {
   const _ArrowPainter({
+    required this.arrow,
     required this.bias,
     required this.ours,
     required this.theirs,
@@ -135,6 +153,7 @@ class _ArrowPainter extends CustomPainter {
     this.rightEnd,
   });
 
+  final bool arrow;
   final double bias;
   final Color ours;
   final Color theirs;
@@ -154,6 +173,21 @@ class _ArrowPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
+    if (arrow) _paintArrow(canvas, size);
+
+    // **AND WHOSE END IS WHICH.** See [MomentumArrow.leftEnd]: the arrow was
+    // right and unreadable, because a pitch's markings are symmetric. Outside
+    // the guard above, because at full time the names are the whole point —
+    // see [MomentumArrow.arrow].
+    if (leftEnd case final name? when name.isNotEmpty) {
+      _endName(canvas, size, name, left: true);
+    }
+    if (rightEnd case final name? when name.isNotEmpty) {
+      _endName(canvas, size, name, left: false);
+    }
+  }
+
+  void _paintArrow(Canvas canvas, Size size) {
     final right = bias >= 0;
     final strength = bias.abs();
     // **OPAQUE, and ONE colour.** It was the kit at 30–75% alpha, so the mown
@@ -220,14 +254,6 @@ class _ArrowPainter extends CustomPainter {
         ),
     );
 
-    // **AND WHOSE END IS WHICH.** See [MomentumArrow.leftEnd]: the arrow was
-    // right and unreadable, because a pitch's markings are symmetric.
-    if (leftEnd case final name? when name.isNotEmpty) {
-      _endName(canvas, size, name, left: true);
-    }
-    if (rightEnd case final name? when name.isNotEmpty) {
-      _endName(canvas, size, name, left: false);
-    }
   }
 
   /// Which end this is, painted on the turf behind its own goal.
@@ -271,6 +297,7 @@ class _ArrowPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_ArrowPainter old) =>
+      old.arrow != arrow ||
       old.bias != bias ||
       old.ours != ours ||
       old.theirs != theirs ||

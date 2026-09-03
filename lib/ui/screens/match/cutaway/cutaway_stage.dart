@@ -184,6 +184,10 @@ CutawayClip? clipFor(
 /// attached in its place. The passage restarted from its first beat about once
 /// a second and reloaded its sprites doing it. That is the judder, and it is
 /// also most of the flashing.
+/// The pitch's corner radius, matching the cards it sits among. See
+/// [CutawayStage.radius].
+const double stageRadius = 12;
+
 class CutawayStage extends StatefulWidget {
   const CutawayStage({
     required this.clip,
@@ -196,6 +200,7 @@ class CutawayStage extends StatefulWidget {
     this.attackingRight = true,
     this.onGrass,
     this.fast = false,
+    this.radius = stageRadius,
     super.key,
   });
 
@@ -206,6 +211,16 @@ class CutawayStage extends StatefulWidget {
   /// as fast, so a chance that fitted its minute at 1x overran two of them.
   /// See [CutawayGame], which carries `HasTimeScale` for this.
   final bool fast;
+
+  /// The corner radius of the pitch itself.
+  ///
+  /// **It was 10 against a page of 12s.** The statistics plate that shares this
+  /// band is `circular(12)` and so are the goal cards in the feed below it, so
+  /// the one thing on the screen with a tighter corner was the pitch — read
+  /// from the couch as the pitch not having a radius to match the box it sits
+  /// in. A parameter rather than a constant because the goal replay and the
+  /// summary put it in different furniture.
+  final double radius;
 
   /// Drawn ON the pitch between chances — under the markings, in the pitch's
   /// own perspective. The momentum shading was a sibling of the stage in screen
@@ -406,7 +421,7 @@ class _CutawayStageState extends State<CutawayStage> {
     final game = _game;
     return SizedBox.expand(
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(widget.radius),
         child: ColoredBox(
           // **NOT the turf** — see [PitchBackdrop.surround]. Filling this with
           // the pitch's own green is what made the trapezoid invisible and the

@@ -390,7 +390,11 @@ void main() {
       // Tap the barrier above the sheet to dismiss it, then come back.
       await tester.tapAt(const Offset(10, 10));
       await tester.pumpAndSettle();
-      await openQuests(tester);
+      // The sheet closes on to the PHONE, which stays open under it now, so the
+      // second opening is the tile again rather than the dock.
+      await tester.tap(find.byKey(const ValueKey('quick-nav-quests.title')));
+      await tester.pumpAndSettle();
+      await settleSave(tester);
       expect(ids(), first);
     });
   });

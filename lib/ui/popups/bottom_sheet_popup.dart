@@ -33,7 +33,6 @@ Future<T?> showBottomSheetPopup<T>(
   required Widget child,
   double heightFraction = 0.75,
 }) {
-  final kit = Theme.of(context).extension<KitTheme>()!;
   // **THE SCREEN UNDERNEATH STOPS ANIMATING while this is up.** A modal bottom
   // sheet is a `PopupRoute` — it rises over the current route without pushing
   // it out — so nothing tells the tab body it has stopped being looked at, and
@@ -65,10 +64,20 @@ Future<T?> showBottomSheetPopup<T>(
     // See [_DragHandle]: the handle is the drag target, so this is what makes
     // the gesture reach the route at all.
     enableDrag: true,
-    builder: (_) => _Frame(
+    // **THE KIT IS READ IN HERE, not at the call.** A sheet opened on the boot
+    // frame is pushed before `MergeEmpireApp` has rebuilt on the loaded save:
+    // the theme still standing in the tree is the pre-load default, which is
+    // LIGHT for everyone. Read outside, that light surface froze — the daily
+    // reward came up as a white frame round dark contents for a dark-mode
+    // player. `BottomSheet` re-invokes this builder on every theme tick, so
+    // read here and the frame lerps to dark with what is inside it.
+    builder: (sheetContext) => _Frame(
       key: const ValueKey('bottom-sheet-popup'),
       heightFraction: heightFraction,
-      child: Container(
+      child: Builder(
+        builder: (context) {
+          final kit = Theme.of(context).extension<KitTheme>()!;
+          return Container(
         decoration: BoxDecoration(
           color: kit.surface,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
@@ -110,6 +119,8 @@ Future<T?> showBottomSheetPopup<T>(
             ],
           ),
         ),
+          );
+        },
       ),
     ),
   ).whenComplete(uncover);

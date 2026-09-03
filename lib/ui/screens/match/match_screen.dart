@@ -683,6 +683,12 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
   void initState() {
     super.initState();
     _gates = ref.read(tickGatesProvider.notifier);
+    // **THE RESULT IS THE RECORD.** Full match reports are the stated
+    // direction — AI-versus-AI ones too, with nothing but the result to read —
+    // so what the side set up as goes on it here, the way the bookings and
+    // the switches already do. `strategyId` is the engine's and a switch
+    // overwrites it. Nothing reads this yet; it is there so the report can.
+    widget.result['kickoffStrategy'] = _strategy;
     // Claim the screen before the first tick can land anything on top of it.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -1166,14 +1172,19 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
     final f = frame;
     final key = fullTimeReactionKey(ours: f.ourGoals, theirs: f.theirGoals);
     if (key == null) return;
+    final opponent = '${widget.result['opponentName'] ?? ''}';
+    // **THE OPPONENT IS IN THE SEED, not just the score.** `fullTimeReactionKey`
+    // already picks the pool off the scoreline, so seeding the LINE on the
+    // scoreline too meant every 2-1 he ever won said the same sentence. The
+    // club is what makes one 2-1 a different afternoon from the next.
     _say(
-      tPoolStable(key, 'ft-${f.ourGoals}-${f.theirGoals}', {
+      tPoolStable(key, 'ft-${f.ourGoals}-${f.theirGoals}-$opponent', {
         // `{us}`–`{them}` is the SCORELINE in our order, and `{opp}` is the
         // club. Not the venue ordering the scoreboard uses: "a 1-0 win over
         // Ayton" is his sentence whichever ground it was won on.
         'us': f.ourGoals,
         'them': f.theirGoals,
-        'opp': '${widget.result['opponentName'] ?? ''}',
+        'opp': opponent,
       }),
     );
   }
@@ -1766,6 +1777,20 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
     final onList = on is List ? on : <Object?>[];
     onList.add(sub.onId);
     widget.result['subbedOnIds'] = onList;
+    // Both names and the minute, for the full report that is coming: the list
+    // above is for the quests, and it knows neither who went off nor when.
+    final made = widget.result['subs'];
+    final madeList = made is List ? made : <Object?>[];
+    madeList.add({
+      'minute': _minute,
+      'onId': sub.onId,
+      'offId': sub.offId,
+      'on': cardById(ref.read(gameProvider).state, sub.onId)?.name() ?? '',
+      'off': sub.offId == null
+          ? ''
+          : cardById(ref.read(gameProvider).state, sub.offId!)?.name() ?? '',
+    });
+    widget.result['subs'] = madeList;
 
     // **AND THE REST OF THE MATCH IS PLAYED BY THE SIDE THAT IS ON IT.**
     //
@@ -2308,45 +2333,50 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
                                 // sibling in screen space lay flat across the
                                 // tilt and spilled over the surround. The stage
                                 // drops it while a clip runs.
-                                // **AND IT GOES AT THE WHISTLE.** Once the
-                                // numbers are on the grass, which way the run
-                                // of play was heading is a question nobody is
-                                // asking any more — two marks over one pitch,
-                                // one of them about a match that has finished.
-                                // Asked for from the couch.
-                                onGrass: f.finished
-                                    ? null
-                                    : MomentumArrow(
-                                        bias: momentumBias(
-                                          dangerHome: stats.dangerHome,
-                                          isHome: home,
-                                        ),
-                                        attackingRight: home,
-                                        // Shades of the TURF, not of the kit: a solid
-                                        // mark on the grass rather than a tint over it.
-                                        ours: momentumOurs,
-                                        theirs: momentumTheirs,
-                                        // **WHOSE END IS WHICH, painted on the
-                                        // grass.** The markings are symmetric, so
-                                        // "pointing right" carries no information
-                                        // unless you already know which end you are
-                                        // attacking — which is why the arrow was
-                                        // reported as pointing the wrong way when it
-                                        // was pointing the right way.
-                                        //
-                                        // **HOME and AWAY rather than the club
-                                        // names.** Two words that fit the goalmouth
-                                        // at any club, against a name that has to be
-                                        // shrunk or clipped — asked for from the
-                                        // couch. They are also the LOUDER answer:
-                                        // the board above reads home-side-left, so
-                                        // the two words say the same thing the board
-                                        // does in the same order, and `play.home` /
-                                        // `play.away` are already the words it uses
-                                        // for the venue.
-                                        leftEnd: t('play.home'),
-                                        rightEnd: t('play.away'),
-                                      ),
+                                // **THE ARROW GOES AT THE WHISTLE; THE END
+                                // NAMES STAY.** Once the numbers are on the
+                                // grass, which way the run of play was heading
+                                // is a question nobody is asking any more —
+                                // two marks over one pitch, one of them about a
+                                // match that has finished. Asked for from the
+                                // couch, and then dropping the whole widget
+                                // took HOME and AWAY off the turf with it, on
+                                // the one screen where a column of statistics
+                                // most needs them to say which side is which.
+                                // Reported from the couch in turn. See
+                                // `MomentumArrow.arrow`.
+                                onGrass: MomentumArrow(
+                                    arrow: !f.finished,
+                                    bias: momentumBias(
+                                      dangerHome: stats.dangerHome,
+                                      isHome: home,
+                                    ),
+                                    attackingRight: home,
+                                    // Shades of the TURF, not of the kit: a solid
+                                    // mark on the grass rather than a tint over it.
+                                    ours: momentumOurs,
+                                    theirs: momentumTheirs,
+                                    // **WHOSE END IS WHICH, painted on the
+                                    // grass.** The markings are symmetric, so
+                                    // "pointing right" carries no information
+                                    // unless you already know which end you are
+                                    // attacking — which is why the arrow was
+                                    // reported as pointing the wrong way when it
+                                    // was pointing the right way.
+                                    //
+                                    // **HOME and AWAY rather than the club
+                                    // names.** Two words that fit the goalmouth
+                                    // at any club, against a name that has to be
+                                    // shrunk or clipped — asked for from the
+                                    // couch. They are also the LOUDER answer:
+                                    // the board above reads home-side-left, so
+                                    // the two words say the same thing the board
+                                    // does in the same order, and `play.home` /
+                                    // `play.away` are already the words it uses
+                                    // for the venue.
+                                    leftEnd: t('play.home'),
+                                    rightEnd: t('play.away'),
+                                  ),
                                 onDone: (_) {
                                   if (!mounted) return;
                                   final told = _clippedMinute;
@@ -2468,6 +2498,9 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
                                             // once the tactic strip had gone.
                                             return MatchReportCard(
                                               result: widget.result,
+                                              // The match the SCREEN told —
+                                              // see the card's own note.
+                                              frame: f,
                                             );
                                           }
                                           i -= 1;

@@ -16,6 +16,7 @@ library;
 
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart' show setEquals;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/data/club_assets.dart';
 import 'package:merge_empire_fc/engine/club_asset_engine.dart';
@@ -92,17 +93,63 @@ class SaveRevision extends Notifier<int> {
   }
 }
 
+/// Whether two pick results are the same VALUE, not the same object.
+///
+/// **Dart compares `List`, `Map` and `Set` by IDENTITY**, so a pick that builds
+/// a fresh collection — and two dozen of them do — reported "changed" on every
+/// single tick, whatever was in it. Riverpod then marked every watcher dirty,
+/// and because the shell keeps all five tabs mounted in an `IndexedStack`
+/// (`app_shell.dart`), that rebuilt and re-laid-out FIVE SCREENS once a second
+/// whichever tab was on. Measured on a 120Hz Fold it was the whole of the
+/// budget overrun: one 25-42ms frame per second, on every screen, at idle.
+///
+/// Recursive, because the shallow helpers compare their elements with `==` and
+/// so fall straight back into the identity trap one level down — a
+/// `Map<String, List<String>>` is exactly the case that defeats `mapEquals`.
+bool samePickValue(Object? a, Object? b) {
+  if (identical(a, b)) return true;
+  if (a is List && b is List) {
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (!samePickValue(a[i], b[i])) return false;
+    }
+    return true;
+  }
+  if (a is Set && b is Set) return setEquals(a, b);
+  if (a is Map && b is Map) {
+    if (a.length != b.length) return false;
+    for (final key in a.keys) {
+      if (!b.containsKey(key) || !samePickValue(a[key], b[key])) return false;
+    }
+    return true;
+  }
+  return a == b;
+}
+
 /// Define a provider for one thing a widget cares about.
 ///
 /// [pick] runs on every change and its result is compared with the last one, so
-/// the widgets watching it rebuild only when THAT value moved. Keep the picks
-/// cheap and keep them returning values with a useful `==` — a fresh list or
-/// map every time defeats the whole arrangement.
+/// the widgets watching it rebuild only when THAT value moved.
+///
+/// **A pick that builds a fresh collection is FINE**, which it was not before:
+/// an equal result hands back the PREVIOUS instance, so Riverpod's own `!=`
+/// sees the same object and notifies nobody. Returning a value with a real `==`
+/// is still better — it makes the comparison O(1) instead of O(n) — but it is
+/// no longer the difference between a narrow rebuild and five screens.
 Provider<T> savePick<T>(T Function(Map<String, dynamic> save) pick) {
+  // Held across recomputes so an unchanged pick can return the same instance.
+  // Shared between containers, which is safe precisely because it is only ever
+  // reused when the new value compares EQUAL to it.
+  Object? last;
+  var seen = false;
   return Provider<T>((ref) {
     ref.watch(saveRevisionProvider);
     final state = ref.watch(gameProvider).state;
-    return pick(state ?? const <String, dynamic>{});
+    final next = pick(state ?? const <String, dynamic>{});
+    if (seen && samePickValue(last, next)) return last as T;
+    last = next;
+    seen = true;
+    return next;
   });
 }
 

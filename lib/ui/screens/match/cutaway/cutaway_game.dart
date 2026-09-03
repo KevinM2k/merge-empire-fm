@@ -416,6 +416,8 @@ class PitchBackdrop extends PositionComponent {
   /// The grass alone — split from the markings so the idle stage can lay the
   /// momentum shading between the two.
   void renderTurf(Canvas canvas) {
+    canvas.save();
+    canvas.clipRRect(_grass);
     canvas.drawRect(
       const Rect.fromLTWH(0, 0, pitchWidth, pitchHeight),
       Paint()..color = turf,
@@ -425,7 +427,28 @@ class PitchBackdrop extends PositionComponent {
     for (var i = 0; i < 10; i += 2) {
       canvas.drawRect(Rect.fromLTWH(i * 20, 0, 20, pitchHeight), stripe);
     }
+    canvas.restore();
   }
+
+  /// **THE GRASS HAS ROUNDED CORNERS, to sit in a rounded box.**
+  ///
+  /// The stage clips its band to `stageRadius`, so the surround outside the
+  /// touchlines is a rounded rectangle — and the pitch inside it was a hard
+  /// rectangle with a hard right angle at each corner, three points in. Two
+  /// corners of different shapes a few pixels apart, which is what was
+  /// reported from the couch with a screenshot of the top-left one.
+  ///
+  /// **In PITCH space, so the perspective skews it.** A radius applied on the
+  /// screen side would sit square against a quad that does not, which is the
+  /// same mistake in the other direction; taking the tilt is what makes it read
+  /// as a rounded pitch seen at an angle rather than as a rounded mask over
+  /// one.
+  static const double cornerRadius = 5;
+
+  static final RRect _grass = RRect.fromRectAndRadius(
+    const Rect.fromLTWH(0, 0, pitchWidth, pitchHeight),
+    const Radius.circular(cornerRadius),
+  );
 
   /// The markings alone.
   void renderLines(Canvas canvas) {
@@ -434,8 +457,13 @@ class PitchBackdrop extends PositionComponent {
       ..style = PaintingStyle.stroke
       ..strokeWidth = 0.6;
 
-    canvas.drawRect(
-      const Rect.fromLTWH(3, 3, pitchWidth - 6, pitchHeight - 6),
+    // The touchlines and the goal lines, rounded with the grass they are drawn
+    // on — see [cornerRadius]. Inset three, so the radius comes in with them.
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(
+        const Rect.fromLTWH(3, 3, pitchWidth - 6, pitchHeight - 6),
+        const Radius.circular(cornerRadius - 1.5),
+      ),
       line..strokeWidth = 0.7,
     );
     canvas.drawLine(

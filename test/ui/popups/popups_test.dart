@@ -171,7 +171,8 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      expect(find.text(t('quicknav.title')), findsOneWidget);
+      // The phone's app has a name of its own now; see `dugoutAppName`.
+      expect(find.text(dugoutAppName), findsOneWidget);
       expect(
         find.text(t('quicknav.group.league').toUpperCase()),
         findsOneWidget,

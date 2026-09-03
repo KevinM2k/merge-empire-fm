@@ -22,14 +22,18 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
+import 'package:merge_empire_fc/engine/energy_engine.dart' show getEnergyMax;
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/ui/popups/coach_card.dart'
     show CoachAlertBadge, CoachFace;
 import 'package:merge_empire_fc/ui/popups/prestige_card.dart';
 import 'package:merge_empire_fc/ui/popups/quick_nav_menu.dart';
 import 'package:merge_empire_fc/ui/screens/home/coach_bubble.dart';
+import 'package:merge_empire_fc/ui/screens/home/league_providers.dart'
+    show managerLookProvider;
 import 'package:merge_empire_fc/ui/screens/home/manager_customiser.dart';
 import 'package:merge_empire_fc/ui/shell/shell_quick_nav.dart';
+import 'package:merge_empire_fc/ui/theme/app_theme.dart' show cssColor;
 
 /// A dock orb: a 54px disc with its label riding up over the bottom edge.
 class DockButton extends StatelessWidget {
@@ -237,9 +241,24 @@ class MenuDock extends ConsumerWidget {
       dotKey: const ValueKey('quick-nav-badge'),
       label: t('scene.dock.menu'),
       dot: ref.watch(quickNavNeedsAttentionProvider),
-      onTap: () =>
-          showQuickNavMenu(context, groups: quickNavGroups(context, ref)),
-      child: const Icon(Icons.menu, size: 24),
+      onTap: () {
+        // The battery is the game's energy.
+        final state = ref.read(gameProvider).state;
+        final max = getEnergyMax(state);
+        // The hand holding it is the manager's: his skin off his look.
+        final look = ref.read(managerLookProvider) ?? const {};
+        final skin = '${look['skin'] ?? ''}';
+        showQuickNavMenu(
+          context,
+          groups: quickNavGroups(context, ref),
+          battery: max <= 0 ? 1 : ref.read(energyProvider) / max,
+          clubName: '${state?['clubName'] ?? ''}',
+          skin: skin.isEmpty ? null : cssColor(skin),
+        );
+      },
+      // A handset, because that is what the button opens now — see
+      // `quick_nav_menu.dart`. The label stays "Menu": it says what it is FOR.
+      child: const Icon(Icons.smartphone, size: 24),
     );
   }
 }

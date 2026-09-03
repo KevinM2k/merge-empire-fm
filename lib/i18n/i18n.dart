@@ -13,9 +13,36 @@ import 'dart:math' as math;
 
 import 'package:merge_empire_fc/i18n/catalogs.g.dart';
 import 'package:merge_empire_fc/i18n/detect.dart';
+import 'package:merge_empire_fc/i18n/en_copy.dart';
 import 'package:merge_empire_fc/util/format.dart';
 
-final Map<String, String> _fallbackCatalog = catalogs[fallbackLocale]!;
+/// **ENGLISH, WITH THIS REPO'S OWN COPY LAID OVER IT.**
+///
+/// The ten catalogues are generated out of a JS repo that is being retired, so
+/// `lib/i18n/en_copy.dart` is where English copy is written from now on — see
+/// its header. It is merged once, here, rather than at every lookup: `t()` is
+/// called from build methods and cannot afford a second map probe per string.
+///
+/// [enMore] appends to a pool that already exists; [enCopy] replaces a key or
+/// adds a new one. Public because the catalogue tests and the call-site scan
+/// have to ask what English actually says, which is this and not the generated
+/// map on its own.
+final Map<String, String> englishCatalog = () {
+  final out = Map<String, String>.from(catalogs[fallbackLocale]!);
+  enCopy.forEach((key, value) => out[key] = value);
+  enMore.forEach((key, extra) {
+    final base = out[key];
+    out[key] = base == null || base.isEmpty ? extra : '$base|$extra';
+  });
+  return Map<String, String>.unmodifiable(out);
+}();
+
+final Map<String, String> _fallbackCatalog = englishCatalog;
+
+/// The catalogue for [id] as the app actually reads it — English through the
+/// overlay, every other locale exactly as generated.
+Map<String, String> catalogFor(String id) =>
+    id == fallbackLocale ? englishCatalog : catalogs[id]!;
 
 String _locale = fallbackLocale;
 Map<String, String> _catalog = _fallbackCatalog;
@@ -30,7 +57,7 @@ void setLocale(String? id) {
       ? id
       : fallbackLocale;
   _locale = resolved;
-  _catalog = catalogs[resolved]!;
+  _catalog = catalogFor(resolved);
   setFormatLocale(resolved);
 }
 

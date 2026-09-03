@@ -85,12 +85,12 @@ double tuftBandFraction(int band) =>
 /// box sits, in pixels. A ray's speed is proportional to this, which is the whole
 /// of the perspective.
 double _rowDepth(double fraction, double turfHeight) =>
-    _mowApex.abs() * turfHeight + (1 - fraction) * turfHeight;
+    mowApex.abs() * turfHeight + (1 - fraction) * turfHeight;
 
 /// The depth of the row HIS BOOTS are on — the one row whose speed is pinned. See
 /// [groundSpeedPxPerSec].
 double _contactDepth(double turfHeight, double contactBelowHorizon) =>
-    _mowApex.abs() * turfHeight + contactBelowHorizon;
+    mowApex.abs() * turfHeight + contactBelowHorizon;
 
 /// How long a [segmentWidth] strip takes to cross a row [fraction] up the pitch
 /// box, at the speed the mowing fan sweeps THAT row.
@@ -128,6 +128,14 @@ Duration turfScroll({
 const double groundSegmentWidth = 420;
 const double farSegmentWidth = 480;
 
+/// How much slower the PYLONS run than the stand they light.
+///
+/// They are genuinely further away — the towers stand behind the terrace — so
+/// they are the one layer that should lag it. A factor rather than a period,
+/// because the stand's own speed is solved from the viewport now and a second
+/// fixed number would drift from it the moment the first one moved.
+const double pylonDepth = 1.35;
+
 /// How far above his boots the horizon sits, in walker heights.
 ///
 /// **DERIVED FROM HIM rather than from a percentage of the page**, which is what
@@ -145,7 +153,7 @@ const double farSegmentWidth = 480;
 /// **It costs nothing in scale.** His size is [walkerScale] about his own contact
 /// line, so where the horizon sits cannot change how big he is; what it changes is
 /// how much turf there is between him and the boards. That shorter run is paid for
-/// by [_mowApex], which recedes harder to match.
+/// by [mowApex], which recedes harder to match.
 const double _horizonAboveBoots = 0.55;
 
 /// The ad boards on the horizon.
@@ -193,7 +201,32 @@ const double _mowStretch = 2.941;
 /// against it, and [turfScroll] solves every strip on the turf against it. Those
 /// used to be a constant each, with a comment asking whoever changed one to check
 /// the others.
-const double _mowApex = -0.58;
+///
+/// **-0.48, and the reason is the SIZE OF THE MANAGER.** Asked for from the
+/// couch: a bit more perspective, so the crowd and the stand read as further
+/// away without anything being moved. He is drawn at [walkerScale] and that is
+/// the yardstick the eye uses for the whole diorama — a stand that is only a
+/// little way behind a man that big is a small stand, however far up the frame
+/// it sits. Recession is the cue, not position.
+///
+/// Two things move together when this tightens, and both push the same way.
+/// The near grass is PINNED at his contact line — [groundSpeedPxPerSec] — so
+/// the far rows slow instead: the stand and the boards drop from 47.9 px/s to
+/// 44.2 on a 400-point scene, while the turf at his boots stays at 79. That
+/// takes the near-to-far ratio from 1.65 to 1.79. And the mown lanes converge
+/// harder, which is the same statement made in the geometry.
+///
+/// **It does not undo the far strip's speed-up**, which is worth stating
+/// because the two arrived one after the other: the stand was on a fixed
+/// 16.5s and 29.1 px/s before [farPeriod] solved it against the ground, so it
+/// is still half again quicker than it was, just no longer running at the
+/// speed of grass that is nearer than it.
+/// **Public because the TESTS have to solve against it, not against a copy of
+/// it.** `pitch_scene_test` had `0.58` written out three times, so moving the
+/// apex broke a test whose subject is the invariant that every layer on the
+/// turf travels at the fan's speed for its own row — which was still true. A
+/// duplicated constant turns a scene decision into a test failure.
+const double mowApex = -0.48;
 
 /// One lane pair, in radians. The sweep must travel exactly one full period or
 /// the loop jumps.
@@ -539,7 +572,7 @@ Duration mowDuration({
   required double contactBelowHorizon,
   required Mood mood,
 }) {
-  final depth = _mowApex.abs() * turfHeight + contactBelowHorizon;
+  final depth = mowApex.abs() * turfHeight + contactBelowHorizon;
   final travel = _mowStretch * _mowPeriod * depth;
   final seconds = travel / groundSpeedPxPerSec(mood);
   return Duration(microseconds: (seconds * 1e6).round());
@@ -725,6 +758,31 @@ class PitchScene extends StatelessWidget {
         final horizon = (feet - walkerHeight * walkerScale * _horizonAboveBoots)
             .clamp(h * 0.16, h * 0.68);
 
+        // **THE FAR STRIP WAS THE LAST THING STILL RUNNING ON A FIXED CLOCK,
+        // and it was the slowest thing on the screen by a factor of two.** The
+        // stand and the pylons were pinned at the JS's 16.5s against a 480px
+        // segment — 29.1 px/s, whatever the viewport — while the ad boards
+        // PLANTED AT THE STAND'S FEET are solved against the grass and run at
+        // 48 to 57. The stand's foot is the back of the board, so those two are
+        // at the same depth and were moving at half each other's speed;
+        // reported from the couch as the background not keeping pace with the
+        // ground at tiers 1 and 2, which is where the stand and the park
+        // backdrop live.
+        //
+        // Fixed number to fixed number would only move the argument, so this is
+        // the same solve the boards already use — [turfScroll] at the horizon's
+        // own row — and the two can now only ever agree. It also tracks the
+        // viewport, which the fixed period never did: at h=320 the boards run
+        // 18% quicker than at h=400 and the stand behind them did not move at
+        // all.
+        final farPeriod = turfScroll(
+          segmentWidth: farSegmentWidth,
+          fraction: 1,
+          turfHeight: h - horizon,
+          contactBelowHorizon: feet - horizon,
+          mood: mood,
+        );
+
         return ClipRect(
           // **ONE clock for the man and for the ground he is walking on**, so a
           // gesture that plants his feet eases both down together — see
@@ -776,7 +834,7 @@ class PitchScene extends StatelessWidget {
                         offsetPx: parallaxOffset(
                           worldX,
                           segmentWidth: farSegmentWidth,
-                          period: const Duration(milliseconds: 16500),
+                          period: farPeriod * pylonDepth,
                           mood: mood,
                         ),
                         segmentWidth: farSegmentWidth,
@@ -784,8 +842,8 @@ class PitchScene extends StatelessWidget {
                       ),
                     ),
                   ),
-                // The far strip: the stand and its crowd, at 16.5s — slow, because
-                // distance is speed on a parallax scene. Its height is the TERRACE's
+                // The far strip: the stand and its crowd, at the speed of the
+                // ground it is planted in — see [farPeriod]. Its height is the TERRACE's
                 // own, not a fraction of the page: at `h * 0.24` it was a 200px bank
                 // of seats with a hundred 1px dots in it, which is the shape of a
                 // crowd without being one.
@@ -823,7 +881,7 @@ class PitchScene extends StatelessWidget {
                         offsetPx: parallaxOffset(
                           worldX,
                           segmentWidth: farSegmentWidth,
-                          period: const Duration(milliseconds: 16500),
+                          period: farPeriod,
                           mood: mood,
                         ),
                         segmentWidth: farSegmentWidth,
@@ -2275,6 +2333,23 @@ class _MowFan extends StatelessWidget {
   }
 }
 
+/// The mow lanes at rest, and the size they were cut for.
+class _MowLanes {
+  const _MowLanes({
+    required this.apexY,
+    required this.half,
+    required this.reach,
+    required this.light,
+    required this.dark,
+  });
+
+  final double apexY;
+  final double half;
+  final double reach;
+  final Path light;
+  final Path dark;
+}
+
 class _MowPainter extends CustomPainter {
   const _MowPainter({required this.phase});
 
@@ -2293,7 +2368,7 @@ class _MowPainter extends CustomPainter {
     canvas.translate(size.width / 2, 0);
     canvas.scale(_mowStretch, 1);
 
-    final apexY = _mowApex * h;
+    final apexY = mowApex * h;
     // Enough of the fan to cover the box's far corners, plus a lane either side
     // so the sweep never uncovers an edge.
     final half = math.atan2(inner / 2, -apexY) + _mowPeriod * 2;
@@ -2301,33 +2376,66 @@ class _MowPainter extends CustomPainter {
     final light = Paint()..color = const Color(0x0EFFFFFF);
     final dark = Paint()..color = const Color(0x0D000000);
 
+    // **THE FAN IS BUILT ONCE AND TURNED**, not rebuilt every frame. The lanes
+    // are identical and the pattern repeats every [_mowPeriod], so the sweep is
+    // a rotation about the apex rather than two dozen fresh `Path`s a frame —
+    // which is what it was, at 120Hz, for geometry that only moves when the
+    // pitch is resized.
+    //
     // MINUS the phase: increasing the angle sweeps a ray to the right, and the
-    // world has to move right-to-left past a man walking on the spot.
-    final first = -(half / _mowPeriod).ceil() * _mowPeriod - phase * _mowPeriod;
-    for (var a = first; a < half; a += _mowPeriod) {
-      _wedge(canvas, apexY, a, a + _mowPeriod / 2, reach, light);
-      _wedge(canvas, apexY, a + _mowPeriod / 2, a + _mowPeriod, reach, dark);
-    }
+    // world has to move right-to-left past a man walking on the spot. A canvas
+    // turned by +θ renders a lane BUILT at `a` at `a - θ`, so the turn is the
+    // phase itself.
+    final fan = _fanFor(apexY, half, reach);
+    canvas.translate(0, apexY);
+    canvas.rotate(phase * _mowPeriod);
+    canvas.translate(0, -apexY);
+    canvas.drawPath(fan.light, light);
+    canvas.drawPath(fan.dark, dark);
     canvas.restore();
   }
 
+  /// The last fan built, kept while the pitch keeps its size.
+  static _MowLanes? _fan;
+
+  static _MowLanes _fanFor(double apexY, double half, double reach) {
+    final held = _fan;
+    if (held != null &&
+        held.apexY == apexY &&
+        held.half == half &&
+        held.reach == reach) {
+      return held;
+    }
+    final light = Path();
+    final dark = Path();
+    // A lane past each end, so a turn of up to one period never uncovers one.
+    final first = -(half / _mowPeriod).ceil() * _mowPeriod - _mowPeriod;
+    for (var a = first; a < half + _mowPeriod; a += _mowPeriod) {
+      _wedge(light, apexY, a, a + _mowPeriod / 2, reach);
+      _wedge(dark, apexY, a + _mowPeriod / 2, a + _mowPeriod, reach);
+    }
+    return _fan = _MowLanes(
+      apexY: apexY,
+      half: half,
+      reach: reach,
+      light: light,
+      dark: dark,
+    );
+  }
+
   /// One lane, as the wedge between two rays out of the apex.
-  void _wedge(
-    Canvas canvas,
+  static void _wedge(
+    Path path,
     double apexY,
     double from,
     double to,
     double reach,
-    Paint paint,
   ) {
-    canvas.drawPath(
-      Path()
-        ..moveTo(0, apexY)
-        ..lineTo(reach * math.sin(from), apexY + reach * math.cos(from))
-        ..lineTo(reach * math.sin(to), apexY + reach * math.cos(to))
-        ..close(),
-      paint,
-    );
+    path
+      ..moveTo(0, apexY)
+      ..lineTo(reach * math.sin(from), apexY + reach * math.cos(from))
+      ..lineTo(reach * math.sin(to), apexY + reach * math.cos(to))
+      ..close();
   }
 
   @override

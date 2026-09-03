@@ -27,6 +27,7 @@
 /// so the card cannot promise a fixture the sim then disagrees with.
 library;
 
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/engine/cup_engine.dart'
@@ -54,21 +55,79 @@ import 'package:merge_empire_fc/util/format.dart';
 import 'package:merge_empire_fc/util/stat_display.dart';
 
 /// One club's half of the card.
-typedef MatchSide = ({
-  String name,
-  bool ours,
-  int? rating,
-  StatSide split,
-  List<StatMod> mods,
+///
+/// A class rather than a record because of [mods]: a record's `==` compares its
+/// fields with `==`, so a freshly built list is never equal to the last one and
+/// `savePick` reported a change every tick — on the HOME screen, once a second.
+class MatchSide {
+  const MatchSide({
+    required this.name,
+    required this.ours,
+    required this.rating,
+    required this.split,
+    required this.mods,
+    required this.position,
+    required this.posDelta,
+  });
+
+  final String name;
+  final bool ours;
+  final int? rating;
+  final StatSide split;
+  final List<StatMod> mods;
 
   /// Where they sit, and where they came from on the round just played. 3rd
   /// having climbed and 3rd having fallen are opposite stories.
-  int? position,
-  int? posDelta,
-});
+  final int? position;
+  final int? posDelta;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is MatchSide &&
+          name == other.name &&
+          ours == other.ours &&
+          rating == other.rating &&
+          split == other.split &&
+          position == other.position &&
+          posDelta == other.posDelta &&
+          listEquals(mods, other.mods);
+
+  @override
+  int get hashCode => Object.hash(
+    name,
+    ours,
+    rating,
+    split,
+    position,
+    posDelta,
+    Object.hashAll(mods),
+  );
+}
 
 /// Everything the card draws, already in COLUMN order — home on the left.
-typedef NextMatch = ({MatchSide left, MatchSide right, String? bonusNote});
+class NextMatch {
+  const NextMatch({
+    required this.left,
+    required this.right,
+    required this.bonusNote,
+  });
+
+  final MatchSide left;
+  final MatchSide right;
+  final String? bonusNote;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is NextMatch &&
+          left == other.left &&
+          right == other.right &&
+          bonusNote == other.bonusNote;
+
+  @override
+  int get hashCode => Object.hash(left, right, bonusNote);
+}
 
 /// The relegation lift the chip prints, read from the engine every time.
 ///
@@ -208,7 +267,7 @@ final nextMatchProvider = savePick<NextMatch?>((s) {
       ),
   ];
 
-  final usSide = (
+  final usSide = MatchSide(
     name: clubName,
     ours: true,
     rating: preview.effectiveSquadRating.round(),
@@ -221,7 +280,7 @@ final nextMatchProvider = savePick<NextMatch?>((s) {
   // not in the league table, so it carries no position and no movement arrow,
   // which is correct rather than missing: there is no table for it to be in.
   final theirName = cupTie?.opponentName ?? preview.opponentName;
-  final themSide = (
+  final themSide = MatchSide(
     name: theirName,
     ours: false,
     rating:
@@ -243,7 +302,7 @@ final nextMatchProvider = savePick<NextMatch?>((s) {
       CardInstance.from(raw),
   ], fatigue: _map(s['settings'])?['hardMode'] == true);
 
-  return (
+  return NextMatch(
     left: preview.isHome ? usSide : themSide,
     right: preview.isHome ? themSide : usSide,
     bonusNote: breakdown.matchBonus > 0

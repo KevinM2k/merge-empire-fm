@@ -15,6 +15,7 @@
 /// re-fill.
 library;
 
+import 'package:flutter/foundation.dart' show mapEquals, setEquals;
 import 'package:flutter/material.dart';
 import 'package:merge_empire_fc/ui/popups/sheet_header.dart';
 import 'package:merge_empire_fc/ui/widgets/match_stat_rows.dart'
@@ -97,7 +98,31 @@ String indexCardName(IndexEntry entry) => pickDisplayName(
 );
 
 /// What the index knows about the player's collection.
-typedef IndexProgress = ({Set<String> discovered, Map<String, int> counts});
+///
+/// A class rather than a record because both fields are COLLECTIONS: a record's
+/// `==` compares its fields with `==`, so a freshly built set and map are never
+/// equal to the last pair and `savePick` reported a change every tick.
+class IndexProgress {
+  const IndexProgress({required this.discovered, required this.counts});
+
+  final Set<String> discovered;
+  final Map<String, int> counts;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is IndexProgress &&
+          setEquals(discovered, other.discovered) &&
+          mapEquals(counts, other.counts);
+
+  @override
+  int get hashCode => Object.hash(
+    Object.hashAllUnordered(discovered),
+    Object.hashAllUnordered(
+      counts.entries.map((e) => Object.hash(e.key, e.value)),
+    ),
+  );
+}
 
 final playerIndexProgressProvider = savePick<IndexProgress>((s) {
   final prog = s['progression'];
@@ -107,7 +132,7 @@ final playerIndexProgressProvider = savePick<IndexProgress>((s) {
   final rawCounts = prog is Map<String, dynamic>
       ? prog['playerFoundCounts']
       : null;
-  return (
+  return IndexProgress(
     discovered: {
       for (final k in rawDiscovered is List ? rawDiscovered : const [])
         if (k is String) k,
