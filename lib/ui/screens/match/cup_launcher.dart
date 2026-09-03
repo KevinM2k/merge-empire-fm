@@ -124,6 +124,28 @@ CupTie? beginCupRound(Map<String, dynamic> state) {
     'drawn': false,
     'squadRating': prepared.squadRating,
     'opponentRating': prepared.opponentRating,
+    // **THE SAME PAIR UNDER THE NAMES EVERY SCREEN ACTUALLY READS.** A league
+    // result carries `effectiveSquadRating`/`effectiveOppRating` — the ratings
+    // the two sides walked out at, after home advantage, the relegation lift
+    // and the stagnation buff — and a cup tie carried NEITHER, so the big
+    // figure flanking the ATK/DEF block on the match board read 0 for both
+    // clubs, `match_statboard` fell back on 50-50 for the possession model, and
+    // `quest_match`'s underdog win compared 0 against 0 and could never fire in
+    // a cup.
+    //
+    // Reported from the couch as the half of it that moves: a sending-off
+    // re-simulates, which fills OUR figure in from the live squad — so the
+    // player's own rating snapped from 0 to its real value while the
+    // opposition's stayed at 0, and the card read as though a red card had
+    // wiped their side out.
+    //
+    // The values are the base pair because a tie is played on NEUTRAL GROUND —
+    // `prepareCupRound` says so in those words and gives neither side a home
+    // bonus — so for a cup the effective rating IS the rating. Written out
+    // rather than left to a fallback at each of the three read sites: they are
+    // facts about this fixture, and the fixture is what knows them.
+    'effectiveSquadRating': prepared.squadRating,
+    'effectiveOppRating': prepared.opponentRating,
     'ourAttackRating': prepared.ourAttackRating,
     'ourDefenceRating': prepared.ourDefenceRating,
     'effOppAttackRating': prepared.effOppAttackRating,
