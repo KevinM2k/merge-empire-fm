@@ -6,14 +6,12 @@ because that is the part worth keeping.
 
 ## Where this queue stands
 
-**84 done, 6 open, and one feature parked.** One of the open rows is a fault
-and it is small and named — the phone's battery is frozen while the phone is
-open, the same freeze the red dot had. The rest are not: one is a feature that
-was built, tried and turned down; one is a balance question rather than work;
-one is a survey to run before building; and one is **blocked on the spec repo**,
-which is the row to read if the queue looks short — richer commentary and report
-copy cannot be written from a cloud container without the next generator run
-throwing it away in ten languages at once.
+**85 done, 5 open, and one feature parked.** None of the open rows is a fault.
+One is a feature that was built, tried and turned down; one is a balance
+question rather than work; one is a survey to run before building; and one is
+**blocked on the spec repo**, which is the row to read if the queue looks short
+— richer commentary and report copy cannot be written from a cloud container
+without the next generator run throwing it away in ten languages at once.
 
 The FIRST batch's pattern is worth naming: **almost every "the game said X"
 report was a claim the game itself contradicted.** Copy that asserted "ten
@@ -765,7 +763,7 @@ a screen speaking in a voice that is not its own.
       opposition down to a flat zero the first time anything re-simulated. Same
       chain for all three now.
 
-## Seventh batch — a dot the phone could not put out
+## Seventh batch — a phone that stopped reading the save when it opened
 
 - [x] **"I finished all training, went back to the phone and red dot was still
       on it... it was only when I changed tabs and came back that it went."**
@@ -795,19 +793,31 @@ a screen speaking in a voice that is not its own.
       that asymmetry — a live badge beside a frozen dot on the same tile — is
       the tell that was there to be read.
 
-      Pinned twice: `test/ui/shell/quick_nav_dots_test.dart` plays a drill
+      Pinned twice: `test/ui/shell/quick_nav_live_test.dart` plays a drill
       against a real save with the phone open and watches the Training dot go
       out, and `quick_nav_menu_test` pins the contract itself. Both fail
       against the snapshot.
 
-- [ ] **The battery on the phone is frozen the same way**, and was left alone.
-      It is passed in as a `double` from the dock, so energy spent or regained
-      while the phone is open does not move it. Not what was reported and not
-      the same fix — the dots are picks the menu can watch, the battery is
-      arithmetic the caller does — but it is the same freeze and it is on the
-      same screen.
+- [x] **The battery on the phone was frozen by the same snapshot.** Raised
+      here rather than from the couch, and then asked for: "may as well". It
+      was worked out in the dock's `onTap` — `energy / getEnergyMax(state)` —
+      and handed over as a `double`, so a pip spent behind the phone left the
+      phone charged. `battery` is a `QuickNavBatteryBuilder` now, read from the
+      route beside the tiles.
 
----
+      **A pip is ten minutes** (`Energy.regenMs`, 7.5 upgraded), so this is not
+      the per-second rebuild the same trick would be for coins: the phone
+      redraws when the player spends energy and otherwise about as often as a
+      kettle boils. The cap comes off `energyMaxProvider`, which the HUD's bolt
+      already reads, rather than a second call to `getEnergyMax` — the dock had
+      the only other one.
+
+      `clubName` and `skin` stay plain values, and the parameter list says why:
+      the club is renamed in Settings and the manager is dressed from his own
+      pill on the dock, and both of those close the phone to get there. Pinned
+      in `test/ui/shell/quick_nav_live_test.dart`, which spends eight of ten
+      pips with the phone open and watches it go 100% → 20%; it fails against
+      the snapshot.
 
 ---
 

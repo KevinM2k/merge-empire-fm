@@ -94,10 +94,18 @@ bool get phoneHandOverGlass => phoneThumbZone.left < 0.9 || phoneFingerReach > 0
 /// out the moment the save says it should.
 typedef QuickNavGroupsBuilder = List<QuickNavGroup> Function(WidgetRef ref);
 
+/// The charge on the phone's battery, 0..1, asked for the same way and for the
+/// same reason: a pip spent or regained while the phone is open is a phone
+/// showing a battery that is not the player's. Null reads full.
+typedef QuickNavBatteryBuilder = double? Function(WidgetRef ref);
+
 Future<void> showQuickNavMenu(
   BuildContext context, {
   required QuickNavGroupsBuilder groups,
-  double? battery,
+  QuickNavBatteryBuilder? battery,
+  // **The two that CANNOT move while the phone is up** stay plain values. The
+  // club is renamed in Settings and the manager is dressed from his own pill on
+  // the dock, and both of those close the phone to get there.
   String? clubName,
   Color? skin,
 }) {
@@ -127,13 +135,16 @@ Future<void> showQuickNavMenu(
   );
 }
 
-/// The one live thing on the route: it re-reads [groups] and hands the phone
-/// below it a fresh menu.
+/// The one live thing on the route: it re-reads [groups] and [battery] and
+/// hands the phone below it a fresh menu.
 ///
 /// It sits ABOVE the handset rather than inside it so the case, the hand and
-/// the raise are untouched by a dot going out — and the picks behind the dots
+/// the raise are untouched by a dot going out — and what the two builders watch
 /// are `savePick`s, which notify only when their own value moves, so this
-/// rebuilds when a tile changes and not once a tick.
+/// rebuilds when a tile changes and not once a tick. A pip is ten minutes of
+/// regeneration (`Energy.regenMs`), so the battery is not the exception it
+/// might look like: it moves when the player spends one, and otherwise about as
+/// often as a kettle boils.
 class _QuickNavScreen extends ConsumerWidget {
   const _QuickNavScreen({
     required this.groups,
@@ -143,14 +154,14 @@ class _QuickNavScreen extends ConsumerWidget {
   });
 
   final QuickNavGroupsBuilder groups;
-  final double? battery;
+  final QuickNavBatteryBuilder? battery;
   final String? clubName;
   final Color? skin;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) => _QuickNavMenu(
     groups: groups(ref),
-    battery: battery,
+    battery: battery?.call(ref),
     clubName: clubName,
     skin: skin,
   );

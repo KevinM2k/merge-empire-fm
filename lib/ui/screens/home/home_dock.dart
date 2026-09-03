@@ -22,8 +22,8 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
-import 'package:merge_empire_fc/engine/energy_engine.dart' show getEnergyMax;
 import 'package:merge_empire_fc/providers/game_providers.dart';
+import 'package:merge_empire_fc/ui/hud/hud.dart' show energyMaxProvider;
 import 'package:merge_empire_fc/ui/popups/coach_card.dart'
     show CoachAlertBadge, CoachFace;
 import 'package:merge_empire_fc/ui/popups/prestige_card.dart';
@@ -242,9 +242,7 @@ class MenuDock extends ConsumerWidget {
       label: t('scene.dock.menu'),
       dot: ref.watch(quickNavNeedsAttentionProvider),
       onTap: () {
-        // The battery is the game's energy.
         final state = ref.read(gameProvider).state;
-        final max = getEnergyMax(state);
         // The hand holding it is the manager's: his skin off his look.
         final look = ref.read(managerLookProvider) ?? const {};
         final skin = '${look['skin'] ?? ''}';
@@ -256,7 +254,14 @@ class MenuDock extends ConsumerWidget {
           // still there when they close. `context` stays this one: the doors
           // are opened from the screen the phone was opened from.
           groups: (menuRef) => quickNavGroups(context, menuRef),
-          battery: max <= 0 ? 1 : ref.read(energyProvider) / max,
+          // **The battery is the game's energy**, and read from the route for
+          // the same reason the tiles are: a pip spent behind the phone left
+          // it charged. `energyMaxProvider` rather than a second call to
+          // `getEnergyMax` — the HUD's bolt reads the cap from that one.
+          battery: (menuRef) {
+            final max = menuRef.watch(energyMaxProvider);
+            return max <= 0 ? 1 : menuRef.watch(energyProvider) / max;
+          },
           clubName: '${state?['clubName'] ?? ''}',
           skin: skin.isEmpty ? null : cssColor(skin),
         );

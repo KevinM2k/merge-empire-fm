@@ -37,7 +37,7 @@ void main() {
                   onPressed: () => showQuickNavMenu(
                     context,
                     groups: (_) => groups,
-                    battery: battery,
+                    battery: (_) => battery,
                   ),
                   child: const Text('open'),
                 ),
