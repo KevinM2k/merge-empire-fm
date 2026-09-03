@@ -73,6 +73,25 @@ String _save({bool progressed = false}) {
     prog['achievements'] = [
       {'id': 'first_merge', 'count': 1, 'unlockedAt': 1699999999000},
     ];
+    // Injured players, so `subTabTip` reaches the one line that BUILDS a params
+    // map — `{'n': injured}` — instead of the const empty one every other line
+    // uses. A default save's grid cells are all EMPTY, so they have to be
+    // filled: without this the pick is only ever compared on a shape whose
+    // equality cannot fail, and the test passes over a real bug.
+    final cells = (s['grid'] as Map<String, dynamic>)['cells'] as List;
+    for (var i = 0; i < 3; i++) {
+      cells[i] = <String, dynamic>{
+        'instanceId': 'inj$i',
+        'definitionId': 'player_t5_mid',
+        // **A NAME, because the migration ROLLS one for a card without it.**
+        // A real card carries a rolled name from the moment it is created, so
+        // omitting it here made two loads of the same save disagree — which
+        // reads exactly like churn and is not: it is two rolls, not two ticks.
+        'displayName': 'Fixed Name $i',
+        'variant': 0,
+        'injured': true,
+      };
+    }
   }
   return jsonEncode(s);
 }

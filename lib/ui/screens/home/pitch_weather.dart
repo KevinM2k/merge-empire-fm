@@ -613,6 +613,15 @@ List<_Cloud> _buildClouds() {
   ];
 }
 
+/// One cloud's oval and its shader, built at the ORIGIN so the drift is a canvas
+/// translate rather than a fresh gradient a frame.
+class _CloudArt {
+  const _CloudArt({required this.rect, required this.paint});
+
+  final Rect rect;
+  final Paint paint;
+}
+
 class _CloudPainter extends CustomPainter {
   const _CloudPainter({required this.seconds, required this.condition});
 
@@ -635,44 +644,69 @@ class _CloudPainter extends CustomPainter {
     _ => null,
   };
 
+  /// No override, as a cache key — the seeded spread is per cloud, not one
+  /// number.
+  static const double _seededAlpha = -1;
+
   @override
   void paint(Canvas canvas, Size size) {
+    final art = _artFor(_forcedOpacity ?? _seededAlpha);
     canvas.save();
     canvas.clipRect(Rect.fromLTWH(0, 0, size.width, size.height * _cloudBand));
-    for (final c in _clouds) {
+    for (var i = 0; i < _clouds.length; i++) {
+      final c = _clouds[i];
       final dur = _forcedSeconds ?? c.seconds;
       final phase = (c.phase + seconds / dur) % 1;
       // 108% of the scene to -60% of it: on screen for most of the run and
       // fully clear of both edges at the ends.
       final x = size.width * (1.08 - phase * 1.68);
+      if (x + c.width < 0 || x > size.width) continue;
+      canvas.save();
+      canvas.translate(x, size.height * c.top);
+      canvas.drawOval(art[i].rect, art[i].paint);
+      canvas.restore();
+    }
+    canvas.restore();
+  }
+
+  /// The clouds as last built, and the opacity they were built at.
+  static List<_CloudArt>? _art;
+  static double _artAlpha = double.nan;
+
+  static List<_CloudArt> _artFor(double alpha) {
+    final held = _art;
+    if (held != null && _artAlpha == alpha) return held;
+    final built = <_CloudArt>[];
+    for (final c in _clouds) {
       final w = c.width;
       final h = w * 0.4;
-      final rect = Rect.fromLTWH(x, size.height * c.top, w, h);
-      if (rect.right < 0 || rect.left > size.width) continue;
-      final a = _forcedOpacity ?? c.opacity;
+      final a = alpha == _seededAlpha ? c.opacity : alpha;
       // A cloud is wider than it is tall, so the gradient's radius is the wide
       // axis and the vertical is squashed about the centre it is measured from —
       // squashing about the origin instead would slide every cloud toward the
       // top of the sky as it drifted.
-      final centre = rect.topLeft + Offset(w * 0.5, h * 0.58);
-      canvas.drawOval(
-        rect,
-        Paint()
-          ..shader = ui.Gradient.radial(
-            centre,
-            w * 0.5,
-            [
-              Color.fromRGBO(255, 255, 255, 0.98 * a),
-              Color.fromRGBO(255, 255, 255, 0.6 * a),
-              const Color(0x00FFFFFF),
-            ],
-            const [0, 0.44, 0.74],
-            TileMode.clamp,
-            _squash(centre, h / w),
-          ),
+      final centre = Offset(w * 0.5, h * 0.58);
+      built.add(
+        _CloudArt(
+          rect: Rect.fromLTWH(0, 0, w, h),
+          paint: Paint()
+            ..shader = ui.Gradient.radial(
+              centre,
+              w * 0.5,
+              [
+                Color.fromRGBO(255, 255, 255, 0.98 * a),
+                Color.fromRGBO(255, 255, 255, 0.6 * a),
+                const Color(0x00FFFFFF),
+              ],
+              const [0, 0.44, 0.74],
+              TileMode.clamp,
+              _squash(centre, h / w),
+            ),
+        ),
       );
     }
-    canvas.restore();
+    _artAlpha = alpha;
+    return _art = built;
   }
 
   @override
@@ -1275,21 +1309,61 @@ class _SunPainter extends CustomPainter {
 
   /// One shared centre for the disc, the bloom and the rays, so the three cannot
   /// drift apart. The CSS's `84% - 22px` / `9% + 22px`.
-  Offset _centre(Size size) =>
+  static Offset _centre(Size size) =>
       Offset(size.width * 0.84 - 22, size.height * 0.09 + 22);
 
   @override
   void paint(Canvas canvas, Size size) {
-    final c = _centre(size);
+    final art = _artFor(size);
 
-    // **The bloom is what makes the sky read as hot; the disc alone reads as a
-    // sticker.** Painted across the WHOLE scene rather than into a box around
-    // the sun: 240px of soft gradient in a box its own size has straight edges
-    // running through the middle of the sky, and a gradient still faintly warm
-    // where it meets one draws that edge as a visible rectangle.
-    canvas.drawRect(
-      Offset.zero & size,
-      Paint()
+    canvas.drawRect(Offset.zero & size, art.bloom);
+
+    // Only the rays move: a 3°/sec turn about the shared centre.
+    canvas.save();
+    canvas.translate(art.centre.dx, art.centre.dy);
+    canvas.rotate(seconds / 120 * 2 * math.pi);
+    canvas.drawPath(art.fan, art.rays);
+    canvas.restore();
+
+    canvas.drawCircle(art.centre, 27, art.halo);
+    canvas.drawCircle(art.centre, 22, art.disc);
+  }
+
+  /// The sun as last built, and the scene size it was built for.
+  static _SunArt? _art;
+
+  /// **THE SUN IS STILL; ONLY THE RAYS TURN.** Three gradients, a blur and
+  /// twelve wedges were rebuilt every frame at 120Hz to drive that one rotation
+  /// — the same bargain `_MowPainter._fanFor` makes with the mown lanes.
+  static _SunArt _artFor(Size size) {
+    final held = _art;
+    if (held != null && held.size == size) return held;
+    final c = _centre(size);
+    const rayRadius = 59.0;
+    // The twelve wedges as ONE path: they never overlap, so a single fill is
+    // the same picture in a twelfth of the draw calls.
+    final fan = Path();
+    for (var i = 0; i < 12; i++) {
+      fan
+        ..moveTo(0, 0)
+        ..arcTo(
+          Rect.fromCircle(center: Offset.zero, radius: rayRadius),
+          i * 30 * math.pi / 180,
+          3.5 * math.pi / 180,
+          false,
+        )
+        ..close();
+    }
+    return _art = _SunArt(
+      size: size,
+      centre: c,
+      // **The bloom is what makes the sky read as hot; the disc alone reads as
+      // a sticker.** Painted across the WHOLE scene rather than into a box
+      // around the sun: 240px of soft gradient in a box its own size has
+      // straight edges running through the middle of the sky, and a gradient
+      // still faintly warm where it meets one draws that edge as a visible
+      // rectangle.
+      bloom: Paint()
         ..shader = ui.Gradient.radial(
           c,
           240,
@@ -1305,56 +1379,27 @@ class _SunPainter extends CustomPainter {
           ],
           const [0, 0.2, 0.36, 0.52, 0.66, 0.8, 0.9, 1],
         ),
-    );
-
-    // Rays: one repeating conic, rotating very slowly, faded out radially before
-    // its own edge or they end in a hard circle. Behind the disc, so the disc's
-    // rim stays crisp.
-    const rayRadius = 59.0;
-    canvas.save();
-    canvas.translate(c.dx, c.dy);
-    canvas.rotate(seconds / 120 * 2 * math.pi);
-    final rayPaint = Paint()
-      ..shader = ui.Gradient.radial(
-        Offset.zero,
-        rayRadius,
-        const [
-          Color(0x6BFFE8A8),
-          Color(0x6BFFE8A8),
-          Color(0x25FFE8A8),
-          Color(0x00FFE8A8),
-        ],
-        const [0, 0.16, 0.46, 0.94],
-      );
-    for (var i = 0; i < 12; i++) {
-      final from = i * 30 * math.pi / 180;
-      canvas.drawPath(
-        Path()
-          ..moveTo(0, 0)
-          ..arcTo(
-            Rect.fromCircle(center: Offset.zero, radius: rayRadius),
-            from,
-            3.5 * math.pi / 180,
-            false,
-          )
-          ..close(),
-        rayPaint,
-      );
-    }
-    canvas.restore();
-
-    // The disc, and the halo it throws into the sky around it.
-    canvas.drawCircle(
-      c,
-      27,
-      Paint()
+      fan: fan,
+      // Rays: one repeating conic, faded out radially before its own edge or
+      // they end in a hard circle. Behind the disc, so the disc's rim stays
+      // crisp.
+      rays: Paint()
+        ..shader = ui.Gradient.radial(
+          Offset.zero,
+          rayRadius,
+          const [
+            Color(0x6BFFE8A8),
+            Color(0x6BFFE8A8),
+            Color(0x25FFE8A8),
+            Color(0x00FFE8A8),
+          ],
+          const [0, 0.16, 0.46, 0.94],
+        ),
+      // The halo the disc throws into the sky around it.
+      halo: Paint()
         ..color = const Color(0x8CFFD87E)
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8),
-    );
-    canvas.drawCircle(
-      c,
-      22,
-      Paint()
+      disc: Paint()
         ..shader = ui.Gradient.radial(
           c + const Offset(-3.5, -5.3),
           22,
@@ -1371,6 +1416,29 @@ class _SunPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_SunPainter old) => old.seconds != seconds;
+}
+
+/// The sun at rest, and the scene size it was built for.
+class _SunArt {
+  const _SunArt({
+    required this.size,
+    required this.centre,
+    required this.bloom,
+    required this.fan,
+    required this.rays,
+    required this.halo,
+    required this.disc,
+  });
+
+  final Size size;
+  final Offset centre;
+  final Paint bloom;
+
+  /// The twelve wedges, about the origin — the canvas turns, not these.
+  final Path fan;
+  final Paint rays;
+  final Paint halo;
+  final Paint disc;
 }
 
 // ── Moon ────────────────────────────────────────────────────────────────────

@@ -885,11 +885,23 @@ class PitchScene extends StatelessWidget {
                           mood: mood,
                         ),
                         segmentWidth: farSegmentWidth,
+                        liveChild: tier < firstStandTier
+                            ? null
+                            : _StandSegment(
+                                front: true,
+                                kitColor: kitColor,
+                                haze: haze,
+                                beat: beat,
+                                excitement: excitement,
+                                tier: tier,
+                              ),
+                        // The stand at rest, which is nearly all of it and
+                        // which never leaves the picture — see [_liveRows].
                         child: _StandSegment(
                           kitColor: kitColor,
                           haze: haze,
-                          beat: beat,
-                          excitement: excitement,
+                          beat: 0,
+                          excitement: 0,
                           tier: tier,
                         ),
                       ),
@@ -1508,6 +1520,18 @@ const List<Color> _fanSkins = [
   Color(0xFF5F3A22),
 ];
 
+/// **HOW MUCH OF THE CROWD KEEPS MOVING THROUGH A SURGE.**
+///
+/// The stand is one snapshot at rest, and a surge used to drop it: every fan in
+/// every deck redrawn each frame for the 2.4s a celebration lasts, and the idle
+/// gesture rota fires those with nobody touching the screen. So the strip splits
+/// at a row — everything behind these front rows holds its resting pose and
+/// stays inside the picture, and only these are drawn live over the top.
+///
+/// The front rows are the ones worth spending it on: they are the biggest, the
+/// least hazed and the nearest the eye.
+const int _liveRows = 2;
+
 class _StandSegment extends StatelessWidget {
   const _StandSegment({
     required this.kitColor,
@@ -1515,10 +1539,15 @@ class _StandSegment extends StatelessWidget {
     required this.beat,
     required this.excitement,
     required this.tier,
+    this.front = false,
   });
 
   final Color kitColor;
   final Color haze;
+
+  /// True for the LIVE layer — the front rows and the washes over them. See
+  /// [_liveRows].
+  final bool front;
 
   /// How grand the ground is — see [deckPlan]. Below [firstStandTier] this
   /// segment is a PARK and not a stand at all.
@@ -1562,6 +1591,7 @@ class _StandSegment extends StatelessWidget {
               beat: beat,
               excitement: excitement,
               tier: tier,
+              front: front,
             ),
           ),
   );
@@ -1728,11 +1758,17 @@ class _StandPainter extends CustomPainter {
     required this.beat,
     required this.excitement,
     required this.tier,
+    required this.front,
   });
 
   /// How grand the ground is: [deckPlan] turns it into rows and decks, and
   /// [fansPerRow] into how many are in each.
   final int tier;
+
+  /// Which half of the split this is drawing — see [_liveRows]. The two halves
+  /// walk the identical seeded stream and each skips what the other draws, so
+  /// the pair paints exactly the picture one painter did.
+  final bool front;
 
   /// **A CROWD IS NEVER COMPLETELY STILL.** Every fan was pinned to its seat,
   /// and a few hundred motionless heads read as a printed backdrop rather than
@@ -1763,19 +1799,25 @@ class _StandPainter extends CustomPainter {
     final deckTop = _roofHeight;
     final deckRect = Rect.fromLTRB(0, deckTop, size.width, size.height);
 
-    // The terrace: a dark bank, with the seat rows as hairlines in it.
-    canvas.drawRect(
-      deckRect,
-      Paint()
-        ..shader = const LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [Color(0xFF39424E), Color(0xFF262E38)],
-        ).createShader(deckRect),
-    );
-    final seatLine = Paint()..color = const Color(0x0FFFFFFF);
-    for (var y = deckTop; y < size.height; y += 7) {
-      canvas.drawRect(Rect.fromLTWH(0, y, size.width, 1), seatLine);
+    // The rows that keep moving: the front deck's frontmost, and never more of
+    // it than it has.
+    final liveFrom = plan.perDeck.last - math.min(_liveRows, plan.perDeck.last);
+
+    if (!front) {
+      // The terrace: a dark bank, with the seat rows as hairlines in it.
+      canvas.drawRect(
+        deckRect,
+        Paint()
+          ..shader = const LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFF39424E), Color(0xFF262E38)],
+          ).createShader(deckRect),
+      );
+      final seatLine = Paint()..color = const Color(0x0FFFFFFF);
+      for (var y = deckTop; y < size.height; y += 7) {
+        canvas.drawRect(Rect.fromLTWH(0, y, size.width, 1), seatLine);
+      }
     }
 
     // The people. Seeded, so a re-render reproduces the identical crowd — a
@@ -1803,16 +1845,18 @@ class _StandPainter extends CustomPainter {
       final deckPerRow = (perRow / depth).round();
       if (d > 0) {
         // The balcony wall between two decks.
-        final facade = Rect.fromLTWH(0, deckY, size.width, _facadeHeight);
-        canvas.drawRect(
-          facade,
-          Paint()
-            ..shader = const LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [Color(0xFF4A5462), Color(0xFF2B333D)],
-            ).createShader(facade),
-        );
+        if (!front) {
+          final facade = Rect.fromLTWH(0, deckY, size.width, _facadeHeight);
+          canvas.drawRect(
+            facade,
+            Paint()
+              ..shader = const LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Color(0xFF4A5462), Color(0xFF2B333D)],
+              ).createShader(facade),
+          );
+        }
         deckY += _facadeHeight;
       }
       for (var row = 0; row < rows; row++) {
@@ -1826,6 +1870,9 @@ class _StandPainter extends CustomPainter {
       final shoulder =
           (7 - math.min(2.5, (rows - 1 - row) * 0.5)) * _crowdScale * depth;
       if (y + shoulder > deckY - deckTop + deckH) continue;
+      // Whose row this is. The other layer walks it too — the stream has to
+      // reach the next fan with the same numbers either way.
+      final mine = (d == plan.decks - 1 && row >= liveFrom) == front;
       for (var i = 0; i < deckPerRow; i++) {
         final x =
             (i + 0.1 + rng.nextDouble() * 0.8) * (size.width / deckPerRow);
@@ -1849,14 +1896,17 @@ class _StandPainter extends CustomPainter {
                   // pop the back tier's heads out through the facade above it.
                   depth
             : 0.0;
-        _paintFan(
-          canvas,
-          x: x,
-          top: deckTop + y - lift,
-          shoulder: shoulder,
-          shirt: shirt,
-          skin: _fanSkins[rng.nextInt(_fanSkins.length)],
-        );
+        final skin = _fanSkins[rng.nextInt(_fanSkins.length)];
+        if (mine) {
+          _paintFan(
+            canvas,
+            x: x,
+            top: deckTop + y - lift,
+            shoulder: shoulder,
+            shirt: shirt,
+            skin: skin,
+          );
+        }
       }
       }
       // **AND THE AIR IN FRONT OF IT.** Size alone is a small stand rather than
@@ -1864,7 +1914,7 @@ class _StandPainter extends CustomPainter {
       // viewer and it. One pass per deck, over that deck's own band only, so
       // the three layers separate — the whole-terrace wash below is still there
       // and does a different job, which is sitting the BAND under the sky.
-      if (depth < 1) {
+      if (depth < 1 && !front) {
         canvas.drawRect(
           Rect.fromLTWH(0, deckY, size.width, deckH),
           Paint()..color = haze.withValues(alpha: (1 - depth) * 1.4),
@@ -1872,6 +1922,11 @@ class _StandPainter extends CustomPainter {
       }
       deckY += deckH;
     }
+
+    // The washes go OVER the live rows, so they belong to the layer that draws
+    // them — a front row painted on top of the haze reads brighter than the
+    // rest of the stand for as long as a surge lasts.
+    if (!front) return;
 
     // Aerial haze over the terrace, heaviest at the BACK. Eight replica-shirt
     // colours at full strength is a crowd the size of confetti and twice as
@@ -1963,6 +2018,7 @@ class _StandPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_StandPainter old) =>
+      old.front != front ||
       old.tier != tier ||
       old.kitColor != kitColor ||
       old.haze != haze ||
@@ -2647,6 +2703,7 @@ class _Scroller extends StatelessWidget {
     required this.segmentWidth,
     required this.child,
     this.live = false,
+    this.liveChild,
     this.stillKey,
   });
 
@@ -2655,6 +2712,11 @@ class _Scroller extends StatelessWidget {
 
   final double segmentWidth;
   final Widget child;
+
+  /// The part of the segment that is allowed to move, tiled over [child] at the
+  /// same offset. Only this one drops its picture while [live] — see
+  /// [_liveRows].
+  final Widget? liveChild;
 
   /// True while the segment itself is animating (a surging crowd), which is
   /// the one time it must be drawn rather than shown as a picture.
@@ -2670,35 +2732,52 @@ class _Scroller extends StatelessWidget {
       builder: (context, constraints) {
         // One spare segment so the leading edge is always covered.
         final count = (constraints.maxWidth / segmentWidth).ceil() + 2;
-        return Transform.translate(
-          // Right to left: the world moves past him, he walks in place.
-          offset: Offset(-(offsetPx % segmentWidth), 0),
-          child: OverflowBox(
-            alignment: Alignment.centerLeft,
-            maxWidth: count * segmentWidth,
-            // Its own layer. The translate above repaints every frame, and
-            // without this every tiled painter (five stands, five hoardings…)
-            // re-ran its paint each time — half the UI thread at idle.
-            child: _StillStrip(
-              key: ValueKey(stillKey),
-              live: live,
-              child: Row(
-              mainAxisSize: MainAxisSize.min,
-              // STRETCH, not the default centre. A centred child gets LOOSE
-              // height constraints, so a segment that does not name its own
-              // height collapses to nothing — which is exactly what happened
-              // to the turf. Every segment now names `double.infinity` as
-              // well, because this alignment being right was not enough on
-              // its own: the mown lanes had a `Row` of their own inside, and
-              // THAT one handed its `ColoredBox`es loose heights and
-              // collapsed them one level deeper than anyone was looking.
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [for (var i = 0; i < count; i++) child],
-              ),
-            ),
-          ),
+        final still = _tiled(count, child, animating: false, id: 'still');
+        final moving = liveChild;
+        if (moving == null) return still;
+        // One offset drives both, so the two halves cannot come apart.
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            still,
+            _tiled(count, moving, animating: live, id: 'live'),
+          ],
         );
       },
+    ),
+  );
+
+  Widget _tiled(
+    int count,
+    Widget segment, {
+    required bool animating,
+    required String id,
+  }) => Transform.translate(
+    // Right to left: the world moves past him, he walks in place.
+    offset: Offset(-(offsetPx % segmentWidth), 0),
+    child: OverflowBox(
+      alignment: Alignment.centerLeft,
+      maxWidth: count * segmentWidth,
+      // Its own layer. The translate above repaints every frame, and
+      // without this every tiled painter (five stands, five hoardings…)
+      // re-ran its paint each time — half the UI thread at idle.
+      child: _StillStrip(
+        key: ValueKey((id, stillKey)),
+        live: animating,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          // STRETCH, not the default centre. A centred child gets LOOSE
+          // height constraints, so a segment that does not name its own
+          // height collapses to nothing — which is exactly what happened
+          // to the turf. Every segment now names `double.infinity` as
+          // well, because this alignment being right was not enough on
+          // its own: the mown lanes had a `Row` of their own inside, and
+          // THAT one handed its `ColoredBox`es loose heights and
+          // collapsed them one level deeper than anyone was looking.
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [for (var i = 0; i < count; i++) segment],
+        ),
+      ),
     ),
   );
 }

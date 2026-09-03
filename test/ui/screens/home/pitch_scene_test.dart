@@ -116,6 +116,46 @@ void main() {
       expect(stand.height, closeTo(standHeightFor(4), 0.5));
       expect(stand.height, lessThan(120));
     });
+
+    /// The pictures the stand is drawn as, outermost first: the resting crowd,
+    /// then the rows that are allowed to move over it.
+    List<SnapshotWidget> standStrips(WidgetTester tester) => tester
+        .widgetList<SnapshotWidget>(
+          find.descendant(
+            of: find.byKey(const ValueKey('pitch-stand')),
+            matching: find.byType(SnapshotWidget),
+          ),
+        )
+        .toList();
+
+    testWidgets('and at rest the whole terrace is ONE PICTURE', (tester) async {
+      await pumpScene(tester, tier: 8);
+      final strips = standStrips(tester);
+      expect(strips.length, 2, reason: 'a still half and a live one');
+      for (final strip in strips) {
+        expect(strip.controller.allowSnapshotting, isTrue);
+      }
+    });
+
+    testWidgets('AND A SURGE ONLY DROPS THE FRONT ROWS', (tester) async {
+      // The idle gesture rota surges the crowd with nobody touching the screen,
+      // and dropping the whole picture for it redrew every fan in every deck at
+      // 120Hz for 2.4 seconds. Only the front rows leave the picture now.
+      await pumpScene(tester, tier: 8);
+      await tester.tap(find.byKey(const ValueKey('pitch-stand-tap')));
+      await tester.pump();
+      final strips = standStrips(tester);
+      expect(
+        strips.first.controller.allowSnapshotting,
+        isTrue,
+        reason: 'the resting crowd left the picture',
+      );
+      expect(
+        strips.last.controller.allowSnapshotting,
+        isFalse,
+        reason: 'nothing is moving at all',
+      );
+    });
   });
 
   group('THE GROUND IS TIERED, and the port had one ground', () {

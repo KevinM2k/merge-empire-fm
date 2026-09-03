@@ -32,12 +32,52 @@ num? _num(Object? v) => v is num ? v : null;
 /// [priority] marks the cup and energy lines, which jump whatever the sub-tab
 /// would otherwise have said — they are the two things a player has to act on
 /// before anything on the list matters.
-typedef SubTabTip = ({
-  String key,
-  String seed,
-  Map<String, Object?> params,
-  bool priority,
-});
+/// A class rather than a record because of [params]: a record compares its
+/// fields with `==`, two of the lines below build a fresh map literal, and an
+/// identical tip then reported a change on every tick.
+class SubTabTip {
+  const SubTabTip({
+    required this.key,
+    required this.seed,
+    required this.params,
+    required this.priority,
+  });
+
+  final String key;
+  final String seed;
+  final Map<String, Object?> params;
+  final bool priority;
+
+  // Hand-rolled: `lib/engine` may not import Flutter's `mapEquals`.
+  static bool _sameParams(Map<String, Object?> a, Map<String, Object?> b) {
+    if (a.length != b.length) return false;
+    for (final entry in a.entries) {
+      if (!b.containsKey(entry.key) || b[entry.key] != entry.value) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SubTabTip &&
+          other.key == key &&
+          other.seed == seed &&
+          other.priority == priority &&
+          _sameParams(other.params, params);
+
+  @override
+  int get hashCode => Object.hash(
+    key,
+    seed,
+    priority,
+    Object.hashAllUnordered([
+      for (final e in params.entries) Object.hash(e.key, e.value),
+    ]),
+  );
+}
 
 /// Which list is being looked at.
 enum SubTab { table, fixtures, minigames }
@@ -62,7 +102,7 @@ SubTabTip? _priority(
 }) {
   final name = tab.name;
   if (cupIsDue) {
-    return (
+    return SubTabTip(
       key: 'coach.cup_due.$name',
       seed: 'cup-$name',
       params: const {},
@@ -71,7 +111,7 @@ SubTabTip? _priority(
   }
   final energy = _num(_map(state?['energy'])?['current'])?.toInt() ?? 0;
   if (energy <= 2) {
-    return (
+    return SubTabTip(
       key: 'coach.low_energy.$name',
       seed: 'energy-$name',
       params: const {},
@@ -96,7 +136,8 @@ SubTabTip? leagueTableTip(
   final played = _num(prog['seasonAwardedPlayed'])?.toInt() ?? 0;
   final wins = _num(prog['seasonWins'])?.toInt() ?? 0;
 
-  SubTabTip tip(String key, [Map<String, Object?> params = const {}]) => (
+  SubTabTip tip(String key, [Map<String, Object?> params = const {}]) =>
+      SubTabTip(
     key: key,
     seed: 'table-$key-s$season',
     params: params,
@@ -157,7 +198,8 @@ SubTabTip? leagueFixturesTip(
   final squad = _squad(state);
   final injured = squad.where((c) => c.injured).length;
 
-  SubTabTip tip(String key, [Map<String, Object?> params = const {}]) => (
+  SubTabTip tip(String key, [Map<String, Object?> params = const {}]) =>
+      SubTabTip(
     key: key,
     seed: 'fix-$key-s$season-n$injured',
     params: params,
@@ -199,10 +241,10 @@ SubTabTip? leagueMinigamesTip(
   Map<String, dynamic>? state, {
   required bool cupIsDue,
 }) => cupIsDue
-    ? (
+    ? const SubTabTip(
         key: 'coach.cup_due.minigames',
         seed: 'cup-minigames',
-        params: const {},
+        params: {},
         priority: true,
       )
     : null;
