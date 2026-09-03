@@ -6,7 +6,7 @@ because that is the part worth keeping.
 
 ## Where this queue stands
 
-**80 done, 5 open, and one feature parked.** None of the open rows is a fault. One is a feature that was
+**82 done, 5 open, and one feature parked.** None of the open rows is a fault. One is a feature that was
 built, tried and turned down; one is a balance question rather than work; one is
 a survey to run before building; and one is **blocked on the spec repo**, which
 is the row to read if the queue looks short — richer commentary and report copy
@@ -723,6 +723,45 @@ a screen speaking in a voice that is not its own.
       are told only as reds, our substitutions are ONE sentence with both names
       and the minute each, the opposition's changes are not told, and the
       kick-off tactic is told only when it changed.
+
+---
+
+## Sixth batch — a cup tie with nobody in the other dugout
+
+- [x] **"I got a red card and my score correctly changed… however for some
+      reason, their rating went to 0."** Reported with a screenshot of a cup tie
+      at full time: our figure reading 78, theirs reading 0, and their ATK and
+      DEF beside it perfectly healthy at 85 and 87. The card is not what wiped
+      them out — **their rating had been 0 since kick-off, and the sending-off
+      is what made it visible**, because a re-simulation fills OUR half of the
+      board in from the live squad and nothing ever filled theirs.
+
+      A LEAGUE result carries `effectiveSquadRating` and `effectiveOppRating` —
+      what the two sides were worth walking out, after home advantage, the
+      relegation lift and the stagnation buff — and the board's two big figures
+      are those fields. A CUP tie carried neither: `cup_launcher.dart` builds
+      its own result map and stamped `squadRating`/`opponentRating` and the
+      ATK/DEF pair, which is why three of the four numbers on that card were
+      right. The values are simply the base pair, because `prepareCupRound`
+      plays a tie on neutral ground and gives neither side a home bonus, so for
+      a cup the effective rating IS the rating.
+
+      **Two other things were reading the same missing fields and saying
+      nothing about it.** `match_statboard` defaults a missing rating to 50, so
+      every cup tie modelled its possession and its chance weighting as an even
+      contest whatever the draw had produced; and `quest_match`'s underdog win
+      compares the two, so `0 > 0` meant "beat a stronger side" could never fire
+      in a cup — a quest a cup tie is judged against, since `settleCupRound`
+      resolves the match track exactly as a league game does. Both come right
+      with the fields.
+
+- [x] **And the re-simulation cannot zero an opposition it was handed
+      incompletely.** Caught on the way to the above. `reSimulateRemainder`
+      reads their ATK and DEF through `effectiveOppRating ?? opponentRating`,
+      and wrote the single figure the board prints from `effectiveOppRating`
+      alone — so any result reaching it without that field re-rolled the
+      opposition down to a flat zero the first time anything re-simulated. Same
+      chain for all three now.
 
 ---
 

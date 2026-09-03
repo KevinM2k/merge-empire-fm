@@ -569,6 +569,64 @@ void main() {
           reason: 'an unbooked opposition is the side that kicked off',
         );
       });
+
+      test('A RESULT WITH NO EFFECTIVE PAIR RE-ROLLS THEM, not zero', () {
+        // Their ATK and DEF have always fallen back on `opponentRating` — the
+        // figure their split was modelled from — and the single figure the
+        // board prints did not, so a result carrying only the base pair
+        // re-simulated its opposition down to a flat zero. That is a cup tie
+        // and it is what a sending-off made visible: the re-sim fills our half
+        // in from the live squad, so ours moved and theirs was wiped out.
+        seeded.setSeed(7);
+        final result = <String, dynamic>{
+          'isHome': true,
+          'squadRating': 78,
+          'opponentRating': 86,
+          'effOppAttackRating': 85,
+          'effOppDefenceRating': 87,
+          'addedTime': 3,
+          'events': <Object?>[],
+          'injuryLog': <Object?>[],
+        };
+        final out = <String, dynamic>{};
+        reSimulateRemainder(
+          result,
+          60,
+          'balanced',
+          1,
+          1,
+          _state(),
+          liveRatingsOut: out,
+        );
+        expect(out['liveOppRating'], 86);
+      });
+
+      test('and their referee still cuts a figure read that way', () {
+        seeded.setSeed(7);
+        final result = <String, dynamic>{
+          'isHome': true,
+          'squadRating': 78,
+          'opponentRating': 80,
+          'effOppAttackRating': 79,
+          'effOppDefenceRating': 81,
+          'addedTime': 0,
+          'events': <Object?>[],
+          'injuryLog': <Object?>[],
+        };
+        final out = <String, dynamic>{};
+        reSimulateRemainder(
+          result,
+          60,
+          'balanced',
+          0,
+          0,
+          _state(),
+          oppRatingMult: oppTeamRatingMult(0, 1),
+          liveRatingsOut: out,
+        );
+        expect(out['liveOppRating'] as num, lessThan(80));
+        expect(out['liveOppRating'] as num, greaterThan(0));
+      });
     });
 
     test('the remainder feed names exactly the remainder goals', () {
