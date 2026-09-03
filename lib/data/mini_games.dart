@@ -141,6 +141,21 @@ class KeepyUppys {
 
   static const int cooldownMs = 10 * 60 * 1000;
   static const double rewardPerTapMult = 0.06;
+
+  /// **WHAT A PERFECT RUN BANKS, so the launcher can quote a ceiling.**
+  ///
+  /// The drill was the one row on the Training tab with no figure beside it,
+  /// on the reasoning that taps are unbounded — and they are not: the run ENDS
+  /// at [keepyBonusTarget], which is 10 taps on the balloon, 15 on the
+  /// football and 20 on the cannonball. Weighted at ×1, ×1.5 and ×2.5 that is
+  /// 82.5, rounded to 83, and surviving all three doubles it. Reported from
+  /// the couch as wanting Keepy Uppys to say what it pays like the others do.
+  ///
+  /// **The stage table is in the UI** — `ui/screens/minigames/keepy_uppys_sim.dart`,
+  /// where the physics lives — and the bottom half of this repo may not import
+  /// it, so the number is written out here and `keepy_uppys_sim_test` holds
+  /// the two to each other rather than trusting the arithmetic in a comment.
+  static const int maxBankedTaps = 166;
 }
 
 /// Pairs — memory match. Difficulty means more pairs and a shorter peek, and

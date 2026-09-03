@@ -64,6 +64,38 @@ String? matchStartBlocked(Map<String, dynamic> state) {
   return null;
 }
 
+/// **WHO IS IN THE STARTING ELEVEN AND NOT FIT TO BE, by name.**
+///
+/// Empty is the ordinary answer: the sim vacates a casualty's square as he goes
+/// down and `restoreKickoffLineup` refuses to put him back, so an injured man
+/// normally leaves a HOLE rather than a name on the team sheet. He can still be
+/// in one — a lineup written before the injury, a save restored across the two,
+/// a listed or loaned-out card that the engine rates at zero exactly as it does
+/// an injured one — and every path there ends the same way: eleven names, ten
+/// footballers, and nothing on the way to kick-off that says so.
+///
+/// The engine's own gate cannot say it. [matchStartBlocked] answers a REFUSAL
+/// and this is not one: a manager is allowed to play a man short, and often has
+/// no other choice. So this is a question rather than a rule, and the screen is
+/// what asks it — see the coach card in `play_button.dart`.
+///
+/// `isSelectable` rather than `!injured`, which is the same filter the bench
+/// picker uses: the match engine scores a loaned-out or listed player zero too,
+/// and a side is just as short for one of those.
+List<String> unfitStarters(Map<String, dynamic>? state) {
+  final lineup = _map(state?['squad'])?['lineup'];
+  if (lineup is! List) return const [];
+  final byId = <String, CardInstance>{
+    for (final card in _cells(state).nonNulls) card.instanceId: card,
+  };
+  return [
+    for (final slot in lineup)
+      if (_map(slot)?['cardInstanceId'] case final String id)
+        if (byId[id] case final card?)
+          if (!card.isSelectable) card.name('A player'),
+  ];
+}
+
 /// Whether a pip is available without spending one.
 bool canSpendEnergy(Map<String, dynamic>? state, int amount) {
   final energy = _map(state?['energy']);

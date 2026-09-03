@@ -1237,6 +1237,16 @@ class CutawayGame extends FlameGame with HasTimeScale {
     final along = attackingRight
         ? ballAt.x / pitchWidth
         : 1 - ballAt.x / pitchWidth;
+    // **AND ACROSS IT, IN THE SAME SPACE.** [toPitch] mirrors BOTH axes for a
+    // side shooting left — a script's inside-right channel has to stay the
+    // same side of the attacking player's view either way — so a q handed
+    // straight back to `_at` has to be a q. The squeeze below read the ball's
+    // raw pitch y as though it were one, so at every away fixture the whole
+    // back four shifted to the OPPOSITE flank from the ball and the block
+    // opened up on the side the move was actually on.
+    final across = attackingRight
+        ? ballAt.y / pitchHeight
+        : 1 - ballAt.y / pitchHeight;
 
     var nearest = 0;
     var nearestDistance = double.infinity;
@@ -1258,7 +1268,7 @@ class CutawayGame extends FlameGame with HasTimeScale {
       final lane = defensiveLanes[i];
       // The line sits just behind the ball and squeezes toward its side.
       final lineP = (along + 0.16).clamp(0.30, 0.99);
-      final squeezed = lane + (ballAt.y / pitchHeight - lane) * 0.28;
+      final squeezed = lane + (across - lane) * 0.28;
       defenders[i].target = _at((p: lineP, q: squeezed));
     }
 

@@ -8,6 +8,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:merge_empire_fc/data/mini_games.dart';
 import 'package:merge_empire_fc/ui/screens/minigames/keepy_uppys_sim.dart';
 
 Map<String, dynamic> loadFixture() =>
@@ -154,6 +155,39 @@ void main() {
     expect(sim.bankedTaps, 83, reason: 'the bonus paid without being earned');
     sim.bonus = true;
     expect(sim.bankedTaps, 166);
+  });
+
+  test('AND THE LAUNCHER QUOTES EXACTLY THAT, from the other half of the tree', () {
+    // The Training tab prints a ceiling for every drill and Keepy Uppys was
+    // the one row with nothing on it — "taps are unbounded", which they are
+    // not: the run ENDS the moment the full-run target is reached. So the
+    // engine quotes a figure like the rest of them.
+    //
+    // The stage table is up here in the UI, where the physics is, and
+    // `lib/engine` may not import it — see `architecture_test.dart` — so the
+    // engine carries the number as a constant and this is what stops the two
+    // drifting apart. A stage weight moved without the constant moving fails
+    // HERE rather than on a launcher that quietly over-promises.
+    final perfect = KeepyUppysSim(arenaW: 320, arenaH: 280, random: () => 0.5)
+      ..tapsByStage.setAll(0, [
+        for (var i = 0; i < keepyStages.length; i++)
+          (i + 1 < keepyStages.length
+              ? keepyStages[i + 1].minTaps
+              : keepyBonusTarget) -
+              keepyStages[i].minTaps,
+      ])
+      ..bonus = true;
+    expect(
+      perfect.bankedTaps,
+      KeepyUppys.maxBankedTaps,
+      reason: 'the launcher is quoting a figure a perfect run cannot bank',
+    );
+    // And the stage table really does add up to the target it is measured
+    // against, or the run above is not a full one.
+    expect(
+      perfect.tapsByStage.fold<int>(0, (a, b) => a + b),
+      keepyBonusTarget,
+    );
   });
 
   test('a ball out at the bottom ENDS it, and nothing moves after', () {

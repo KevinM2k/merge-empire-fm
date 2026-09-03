@@ -11,6 +11,94 @@ rough sense of size, not a target.
 **The live queue for this session is `docs/PLAYTHROUGH3.md`**, which is where
 the couch's reports are ticked off one at a time. What follows is the summary.
 
+## Playtest, 3 Sep 2026 (second sitting) — the cup week, the referee and the bench
+
+Eight reports. Six are fixed with tests; one is fixed in part; one could not be
+reproduced from the report and is written down rather than guessed at.
+
+**Fixed.**
+
+- **A relegation boost in a cup game.** `nextMatchProvider` emptied the
+  OPPOSITION's modifier list for a cup week and left OURS alone, so the card
+  hung a house and a bolt under our figure — and folded both into it and into
+  the ATK/DEF split — for a fixture that has neither. `prepareCupRound` plays a
+  tie on neutral ground in its own words and `cup_engine` has never heard of the
+  relegation lift.
+- **The league table was quoting the next fixture.** Every AI row is the club's
+  stored `seasonOpponentRatings` figure with nothing added; the player's row was
+  `effectiveSquadRating` — home advantage, stagnation and the relegation lift
+  all in — so an 88 side with +4 at home read 92 beside eight clubs measured
+  another way. The base rating now, on every row.
+- **Keepy Uppys quoted no money.** The launcher prints a ceiling for every
+  drill and this one answered null, on the reasoning that taps are unbounded.
+  They are not: the run ENDS at the full-run target, so a perfect session is
+  exactly `KeepyUppys.maxBankedTaps` weighted taps. The stage table is in the UI
+  with the physics and `lib/engine` may not import it, so the constant lives in
+  `data/` and `keepy_uppys_sim_test` holds the two together.
+- **Pitch Invaders showed the figure under the hole.** The clip took one bite
+  below the ground plane — the mouth's lower half-ellipse — and left the rest of
+  that band alone, so the two lunes either side of the near rim and the turf
+  outside the mouth were still visible, and the bite's own top edge is a
+  straight chord rather than the rim. Subtracting the whole band and punching
+  the mouth back out of it fixes the cut and the leak at once.
+- **A cup tie that finished level produced the victory card.** `_sayHowItWent`
+  asked `tie.prepared.won` — the simulation from BEFORE the tie was played —
+  while the bracket was written from the settled result. A substitution, a
+  booking or a tactic change re-simulates the remainder, and a remainder that
+  ends level re-rolls the shootout with it, so the two disagree exactly when it
+  matters. `settleCupRound` stamps the settled answer back onto the result and
+  every screen after it reads that. The full-time sting was the same fault in
+  sound: a tie decided on penalties reached it as a draw and chimed for one.
+- **An injury said nothing at all.** `_onInjuryShown` had four silent returns —
+  another card up, the changes spent, nobody fit, no hole — so an injury that
+  hit any of them was a line in a scrolling feed and the manager finished a man
+  light having never been told. It announces itself now, names the casualty and
+  names the best cover, and then opens the bench.
+  `match.subs.injury_head_any`, `match.subs.injury_tip`, `injury_tip_none` and
+  `injury_tip_full` were four shipped strings in ten languages with no caller in
+  `lib/`: the whole announcement was already written.
+- **And the second half of that report**, a warning before kick-off: pressing
+  Play with somebody unfit on the team sheet now asks first, with Continue and
+  Cancel. `coach.hard.injured_starter` was the fifth unreachable string in the
+  same bank.
+
+**Fixed in part — the red card that appeared twice.** Reported as a sending-off
+plus an injury, and the substitute wearing a red card too, the player's own
+reading being that the two cards were duplicates of one player. No path was
+found that puts a second dismissal on the feed or a card on a substitute; the
+bookings are keyed by instance id throughout and the roll is `late final` off
+the fixture key, so a substitution cannot add one. Two REAL defects in that
+exact corner were found and fixed:
+
+- `_onInjuryShown` counted a sent-off man's vacated square among the injury
+  holes — `_playerSentOff` empties his row too, which is what makes the engine
+  field ten — so an injury after a red card either offered the wrong square or,
+  when his was the only hole, opened the bench straight onto it.
+- `SubsPanelState._confirmAndApply` did not refuse a slot in `sentOffSlots`.
+  `_pick` refuses it and the token is drawn greyed out, but the injury path
+  arrives through `openOn` and goes near neither, so answering that hole put a
+  twelfth man on and undid the dismissal.
+
+**What would pin the rest of it down:** which screen showed the second card (the
+feed, the subs panel, the summary's scorer list, or the player's own card), and
+whether the two men were separate cards on the grid or one card seen twice.
+
+**Not reproduced — the 2D pitch attacking the wrong goal.** "My team had the
+ball, ran to my own goal and scored for them." The direction chain was read end
+to end and agrees with itself at both venues: `ourSideLeft = isHome`,
+`attackingRight = ours ? ourSideLeft : !ourSideLeft`, the momentum arrow takes
+the same flag, the goalmouth labels read home-side-left like the scoreboard, and
+the kit follows the club rather than the direction of play. One genuine
+mirroring bug WAS found in the same file and is fixed: the defensive line's
+squeeze read the ball's raw pitch y as though it were an attack-space q, so at
+every away fixture the back four shifted to the opposite flank from the ball.
+That is not an own goal, and it is not being claimed as one.
+
+**Also noticed, not acted on.** `CutawaySequence.steal` is five entries of data
+with no implementation in `cutaway_game.dart` — the turnover openings play as
+ordinary attacks, so "which side a clip is going to favour is no longer obvious
+from the opening frame" is a comment describing something the port does not do.
+
 ## Asked for, 3 Sep 2026 — more variation
 
 Three systems in one request, and it splits into what a cloud container can do

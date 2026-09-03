@@ -192,9 +192,15 @@ final nextMatchProvider = savePick<NextMatch?>((s) {
       strategies[strategyId is String ? strategyId : defaultStrategy] ??
       strategies[defaultStrategy]!;
   final mult = tacticMultipliers(strat, preview.oppAttackRatio);
+  // **THE PAIR UNDERNEATH IS THE SAME FIXTURE'S**, so it is the BASE split on a
+  // cup week — see [ourMods]. `effAttack`/`effDefence` carry home advantage,
+  // the stagnation buff and the relegation lift, none of which a cup tie
+  // applies; `prepareCupRound` builds its own ATK and DEF straight off
+  // `computeSquadRatings` and hands the tactic the result. The tactic itself
+  // stays on both paths — that one is ours whatever the competition.
   final ours = fifaSplitTactic(
-    preview.effAttack,
-    preview.effDefence,
+    cupTie == null ? preview.effAttack : preview.ourAttackRating.toDouble(),
+    cupTie == null ? preview.effDefence : preview.ourDefenceRating.toDouble(),
     mult.atk,
     mult.def,
   );
@@ -213,15 +219,27 @@ final nextMatchProvider = savePick<NextMatch?>((s) {
   // every one of them is green — the away side's home advantage included. It
   // used to be red there, which said "bad for us" on a number that means
   // exactly what our own `+4` means. See [StatTone].
+  //
+  // **AND A CUP TIE HAS NONE OF THEM, on OUR side as well as theirs.** The
+  // opposition's list was already emptied for a cup week and ours was not, so
+  // the card hung a house and a bolt under our figure for a fixture that has
+  // neither: `prepareCupRound` says in its own words that a tie is played on
+  // NEUTRAL GROUND and gives neither side a home bonus, and nothing in
+  // `cup_engine` has ever heard of the relegation lift — the scrap is a league
+  // table's business and a cup is not in it. Reported from the couch: a boost
+  // for fighting relegation, in a cup game.
+  //
+  // The RATING goes with them — see [usSide]. A modifier the tie does not
+  // apply cannot be inside the number the tie is played at.
   final ourMods = <StatMod>[
-    if (preview.isHome && preview.ourHomeAdv > 0)
+    if (cupTie == null && preview.isHome && preview.ourHomeAdv > 0)
       (
         icon: 'home',
         amount: preview.ourHomeAdv,
         tone: StatTone.delta,
         tip: t('play.mod.home_ours'),
       ),
-    if (preview.playerInRelegationZone)
+    if (cupTie == null && preview.playerInRelegationZone)
       (
         icon: 'bolt',
         amount: _relegationLift(),
@@ -270,7 +288,13 @@ final nextMatchProvider = savePick<NextMatch?>((s) {
   final usSide = MatchSide(
     name: clubName,
     ours: true,
-    rating: preview.effectiveSquadRating.round(),
+    // The base squad rating for a cup tie, and the effective one for a league
+    // fixture — see [ourMods]. A tie is neutral ground with no scrap behind
+    // it, so for a cup the effective rating IS the rating, which is the same
+    // answer `cup_launcher` writes onto the result for the match board.
+    rating: cupTie != null
+        ? preview.squadRating
+        : preview.effectiveSquadRating.round(),
     split: ours,
     mods: ourMods,
     position: posOf(clubName, ours: true),

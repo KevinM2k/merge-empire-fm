@@ -258,6 +258,22 @@ CupSponsorDrop? settleCupRound(Map<String, dynamic> state, CupTie tie) {
         : tie.prepared.won;
   }
 
+  // **AND THE SETTLED ANSWER GOES BACK ON THE RESULT.** The screen that comes
+  // after this one asks "did we go through" — see `_sayHowItWent` in
+  // `play_button.dart` — and it was asking `prepared.won`, which is the
+  // simulation from BEFORE the tie was played. A substitution, a booking or a
+  // tactic change re-simulates the remainder and can flip the outcome, and the
+  // shootout is re-rolled with it, so the two disagree exactly when it matters
+  // most: the bracket recorded an elimination while the card said "through to
+  // the next round". Reported from the couch as a cup tie that finished level
+  // and produced the victory screen anyway.
+  //
+  // Written here rather than read at the call site so there is one answer:
+  // this is the function that settles the tie, and every screen after it reads
+  // what it settled.
+  tie.result['won'] = won;
+  tie.result['drawn'] = false;
+
   final drop = commitCupRound(
     state,
     won,

@@ -434,9 +434,21 @@ final leagueFormProvider = savePick<Map<String, List<String>>>((s) {
 /// The opponents' figures are the ones the sim itself uses —
 /// `seasonOpponentRatings`, keyed `s<season>_o<index>` against the season's own
 /// opponent list, which is exactly how `previewFixture` finds the one it is
-/// about to play. The player's own club is its effective squad rating, so the
-/// row a manager cares about is measured the same way the fixture card measures
-/// it.
+/// about to play.
+///
+/// **AND THE PLAYER'S OWN ROW IS THE BASE RATING, not the effective one.** It
+/// was `effectiveSquadRating`, which is what the side walks out at in the NEXT
+/// FIXTURE — home advantage, the stagnation buff and the relegation lift all
+/// folded in — while every AI row beside it is the club's own stored figure
+/// with nothing added. So an 88 side with +4 at home read 92 in the table and
+/// the whole column was measuring two different things. Reported from the
+/// couch in those terms: the table should take no modifiers into account, for
+/// me nor the AI teams.
+///
+/// The fixture card is where a modifier belongs, and it already names each one
+/// under the figure it moved — see `next_match_card.dart`. A league table is a
+/// standing, and a standing does not change because the next game happens to
+/// be at home.
 final leagueRatingsProvider = savePick<Map<String, int>>((s) {
   final prog = s['progression'];
   if (prog is! Map<String, dynamic>) return const {};
@@ -455,7 +467,7 @@ final leagueRatingsProvider = savePick<Map<String, int>>((s) {
   }
   final clubName = s['clubName'];
   if (clubName is String && clubName.isNotEmpty) {
-    out[clubName] = previewFixture(s)?.effectiveSquadRating.round() ?? 0;
+    out[clubName] = previewFixture(s)?.squadRating ?? 0;
   }
   return out;
 });
