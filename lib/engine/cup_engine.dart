@@ -1108,16 +1108,22 @@ List<dynamic> cupHistory(Map<String, dynamic>? state) {
   return history is List ? history : const [];
 }
 
-/// This season's finished cup run, or null when there was not one.
+/// This season's finished cup run, in full — the bracket it was drawn against
+/// and every result it produced.
 ///
 /// **The HISTORY, not the active run.** A run still open has not finished
 /// telling its story and one that ended is already filed — the JS's own
 /// reasoning, and the reason the season-end page can print a cup line at all.
 /// The last matching entry wins: a season can only hold one run, but a save
 /// that has been through a migration can hold two rows for it.
-({String cupId, String outcome, int roundReached})? seasonCupRun(
-  Map<String, dynamic>? state,
-) {
+///
+/// **AND THE WHOLE ROW, because an elimination is not an erasure.** `active` is
+/// nulled the moment a run ends and the run is moved here intact — so anything
+/// that reads only `activeCup` loses every tie the player actually PLAYED the
+/// instant they go out. That is what emptied the cup section of the fixture
+/// list, rounds already won included; see `ourCupTiesProvider`. [seasonCupRun]
+/// is the same lookup asking a smaller question.
+Map<String, dynamic>? seasonCupRunRow(Map<String, dynamic>? state) {
   if (state == null) return null;
   final cup = cupForDivision(state);
   if (cup == null) return null;
@@ -1131,6 +1137,14 @@ List<dynamic> cupHistory(Map<String, dynamic>? state) {
     if (h == null) continue;
     if (h['season'] == season && h['cupId'] == cup.id) found = h;
   }
+  return found;
+}
+
+/// This season's finished cup run, or null when there was not one.
+({String cupId, String outcome, int roundReached})? seasonCupRun(
+  Map<String, dynamic>? state,
+) {
+  final found = seasonCupRunRow(state);
   if (found == null) return null;
   return (
     cupId: '${found['cupId']}',

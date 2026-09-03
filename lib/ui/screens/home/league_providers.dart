@@ -95,16 +95,39 @@ typedef CupTie = ({
 /// **Empty when there is no cup for this division**, which is most of the
 /// pyramid: a fixture list with a phantom tie in it would be worse than one
 /// with none.
+///
+/// **AND A RUN THAT ENDED IS STILL A RUN THAT WAS PLAYED.** This read
+/// `activeCup` alone, and `commitCupRound` nulls `active` the moment the player
+/// goes out — the whole run, bracket and results, is moved into `cups.history`
+/// intact. So going out of the cup deleted every tie from the fixture list
+/// including the rounds already WON, which is not what going out means.
+/// Reported from the couch in exactly that shape: "the fixtures are now all
+/// gone from my list, even the one I apparently won."
+///
+/// A finished run shows only the rounds it actually played: the ones past the
+/// exit are fixtures that will never happen now, and listing them would say the
+/// run is still alive. A cup that was LIFTED played all of them, so nothing is
+/// lost there.
 final ourCupTiesProvider = savePick<List<CupTie>>((s) {
-  final run = activeCup(s);
   final cup = cupForDivision(s);
-  if (run == null || cup == null) return const [];
-  final at = _int(run['round']);
+  if (cup == null) return const [];
+  final live = activeCup(s);
+  // Only when there is no live run: an active bracket is the truth about this
+  // season, and a stale history row from a migration must never shadow it.
+  final over = live == null ? seasonCupRunRow(s) : null;
+  final run = live ?? over;
+  if (run == null) return const [];
+  // Nothing in a finished run is next, whatever round it stopped at.
+  final at = live == null ? -1 : _int(live['round']);
   final played = _int(_map(s['progression'])?['seasonMatchesPlayed']);
   final results = run['results'];
+  final rounds = live != null
+      ? cup.rounds.length
+      // The exit is the last round with a result on it.
+      : math.min(cup.rounds.length, results is List ? results.length : 0);
 
   return [
-    for (var round = 0; round < cup.rounds.length; round++)
+    for (var round = 0; round < rounds; round++)
       () {
         final result = results is List && round < results.length
             ? _map(results[round])

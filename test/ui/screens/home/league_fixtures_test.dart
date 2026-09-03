@@ -14,17 +14,21 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:merge_empire_fc/data/cups.dart';
 import 'package:merge_empire_fc/data/divisions.dart';
+import 'package:merge_empire_fc/engine/cup_engine.dart'
+    show activeCup, commitCupRound, prepareCupRound;
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/state/save_slots.dart';
 import 'package:merge_empire_fc/state/save_store.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
+import 'package:merge_empire_fc/ui/screens/home/league_providers.dart'
+    show ourCupTiesProvider;
 import 'package:merge_empire_fc/ui/screens/home/league_sheets.dart';
 import 'package:merge_empire_fc/ui/screens/match/cup_launcher.dart'
     show cupDueAfterMatches;
 import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
 
-Future<void> pumpFixtures(
+Future<ProviderContainer> pumpFixtures(
   WidgetTester tester, {
   bool dropOpponentRatings = false,
   void Function(Map<String, dynamic> save)? mutate,
@@ -61,6 +65,7 @@ Future<void> pumpFixtures(
     ),
   );
   await tester.pump();
+  return container;
 }
 
 /// Every fixture row's rating number, paired with the sentence it carries.
@@ -147,6 +152,79 @@ void main() {
       'history': <dynamic>[],
     };
   }
+
+  /// The same bracket, played through the engine: round one won, round two
+  /// lost. `commitCupRound` is what nulls `active` and files the run, so the
+  /// save this leaves behind is the engine's own shape rather than a hand-built
+  /// guess at it.
+  void cupRunOver(Map<String, dynamic> save) {
+    cupDueNext(save);
+    final prog = save['progression'] as Map<String, dynamic>;
+    final first = prepareCupRound(save)!;
+    commitCupRound(save, true, first, homeGoals: 3, awayGoals: 1);
+    prog['seasonMatchesPlayed'] = cupDueAfterMatches[1];
+    final second = prepareCupRound(save)!;
+    commitCupRound(save, false, second, homeGoals: 0, awayGoals: 2);
+  }
+
+  testWidgets('GOING OUT DOES NOT DELETE THE TIES ALREADY PLAYED', (
+    tester,
+  ) async {
+    // **Reported from the couch: "the fixtures are now all gone from my list,
+    // even the one I apparently won."** `commitCupRound` nulls
+    // `progression.cups.active` the moment a run ends and moves the whole run
+    // — bracket and results — into `cups.history`; this provider read `active`
+    // alone, so an elimination erased every tie from the fixture list,
+    // including the rounds that were WON. Going out of a cup is not the cup
+    // never having happened.
+    final container = await pumpFixtures(tester, mutate: cupRunOver);
+    final save = container.read(gameProvider).state!;
+    expect(
+      activeCup(save),
+      isNull,
+      reason: 'the run did not actually end, so nothing is being tested',
+    );
+
+    final ties = container.read(ourCupTiesProvider);
+    expect(
+      ties,
+      hasLength(2),
+      reason: 'the played ties went with the bracket',
+    );
+    expect(ties.every((t) => t.played), isTrue);
+    expect(ties.first.won, isTrue);
+    expect(ties.last.won, isFalse);
+    // And nothing in a finished run is still to come.
+    expect(ties.any((t) => t.isNext), isFalse);
+    // The rounds AFTER the exit are fixtures that will never happen; listing
+    // them would say the run is still alive.
+    expect(ties.length, lessThan(cups.first.rounds.length));
+
+    // On the sheet, not just in the provider: the won tie's score is there to
+    // be read.
+    expect(find.textContaining('Everton'), findsWidgets);
+    expect(
+      find.byKey(ValueKey('fixture-cup-score-${cupDueAfterMatches.first - 1}')),
+      findsOneWidget,
+      reason: 'the tie that was won has no score on the sheet',
+    );
+  });
+
+  testWidgets('and a LIVE run still comes off the live bracket', (
+    tester,
+  ) async {
+    // The stale-history guard: a save that has been through a migration can
+    // carry a history row for a season whose run is still open, and the open
+    // one is the truth about it.
+    final container = await pumpFixtures(tester, mutate: (save) {
+      cupRunOver(save);
+      cupDueNext(save);
+    });
+    final ties = container.read(ourCupTiesProvider);
+    expect(ties, hasLength(cups.first.rounds.length));
+    expect(ties.first.played, isFalse);
+    expect(ties.first.isNext, isTrue);
+  });
 
   testWidgets('A DUE TIE NAMES THE CLUB, and it is the one marked next', (
     tester,
