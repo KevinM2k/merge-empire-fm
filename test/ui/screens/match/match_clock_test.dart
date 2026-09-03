@@ -599,12 +599,77 @@ void main() {
       expect(lines.single.params['scorer'], 'Gone Away');
     });
 
-    test('A CORNER SAYS NOTHING, and neither does full time', () {
+    test('A CORNER SAYS NOTHING', () {
       // The port fell through to printing `event.type`, so a corner read as the
-      // word "corner" and full time as "fulltime" — raw, untranslated strings
-      // from the engine on the one screen a player watches for ninety minutes.
-      // A corner is a momentum nudge; it is not news.
-      expect(feed([ev('corner'), ev('fulltime', minute: 90)]), isEmpty);
+      // word "corner" — a raw, untranslated string from the engine on the one
+      // screen a player watches for ninety minutes. A corner is a momentum
+      // nudge; it is not news.
+      expect(feed([ev('corner')]), isEmpty);
+    });
+
+    group('BUT FULL TIME IS HIS WORD ON IT', () {
+      // **This used to be half of the corner's test**, on the same reasoning:
+      // the row printed the raw word "fulltime", so it was dropped. Dropping it
+      // was right and stopping there was not — nine `commentary.*` strings
+      // written for exactly that moment sat translated in ten catalogues with
+      // nothing able to reach one of them, so the feed simply ended.
+      /// **Only the WHISTLE's row.** The goals that set the score are feed
+      /// lines of their own, so the unfiltered list is never one entry — which
+      /// the first draft of this found out with "Bad state: Too many elements".
+      List<FeedLine> atFullTime(List<TimelineEvent> goals) => [
+        for (final line in feed([...goals, ev('fulltime', minute: 90)]))
+          if (line.type == 'fulltime') line,
+      ];
+
+      /// [n] goals for us and [m] for them, all before the whistle.
+      List<TimelineEvent> score(int n, int m) => [
+        for (var i = 0; i < n; i++) ev('goal', minute: 10 + i),
+        for (var i = 0; i < m; i++) ev('goal', minute: 30 + i, team: 'away'),
+      ];
+
+      test('a goalless afternoon gets the goalless line', () {
+        final out = atFullTime(score(0, 0));
+        expect(out, hasLength(1));
+        expect(out.single.key, 'commentary.nil_nil');
+        expect(out.single.params['opp'], 'Them');
+      });
+
+      test('and the scoreline is in OUR order, whatever the venue', () {
+        // He is talking to us about our own team — "a 1-0 win over Ayton" is
+        // his sentence whichever ground it was won on.
+        final out = atFullTime(score(1, 0));
+        expect(out.single.key, 'commentary.nervy_one_nil');
+        expect(out.single.params['us'], 1);
+        expect(out.single.params['them'], 0);
+      });
+
+      test('THREE CLEAR IS A HIDING EITHER WAY', () {
+        expect(atFullTime(score(4, 0)).single.key, 'commentary.demolition');
+        expect(atFullTime(score(0, 4)).single.key, 'commentary.drubbing');
+      });
+
+      test('and a close, high-scoring one is a thriller', () {
+        expect(atFullTime(score(3, 2)).single.key, 'commentary.thriller_win');
+        expect(atFullTime(score(2, 3)).single.key, 'commentary.thriller_loss');
+        expect(atFullTime(score(3, 3)).single.key, 'commentary.thriller_draw');
+      });
+
+      test('HE IS QUIET AFTER AN ORDINARY ONE, which is most of them', () {
+        // A line on every full time is a line nobody reads — the rule
+        // `squadStateHint` follows when it stays quiet.
+        expect(atFullTime(score(1, 1)), isEmpty);
+        expect(atFullTime(score(2, 0)), isEmpty);
+        expect(atFullTime(score(0, 2)), isEmpty);
+      });
+
+      test('AND HE COUNTS THE GOALS ON SCREEN, not the ones in the result', () {
+        // The same rule `frameAt` follows: the number in his sentence can never
+        // run ahead of the goals that explain it. `feed` hands him the shown
+        // events, so a whistle reached with two goals drawn is a 2-0 to him
+        // even if the result map says otherwise.
+        final out = atFullTime(score(1, 0));
+        expect(out.single.params['us'], 1);
+      });
     });
 
     test('and a chance only earns a line if it was BIG and ON TARGET', () {

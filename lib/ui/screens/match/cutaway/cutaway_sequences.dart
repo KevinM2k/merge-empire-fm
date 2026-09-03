@@ -549,6 +549,196 @@ const List<CutawaySequence> cutawaySequences = [
       Finish('volley', firstTime: true),
     ],
   ),
+  // ── Twelve more, asked for from the couch: "more variation in the 2D pitch
+  //    scenarios." ─────────────────────────────────────────────────────────
+  //
+  // **SPECIFIC SHAPES existed on one hand only**, which is a narrower claim
+  // than "the set is right-handed" and is the one that survives being measured:
+  // by mean q the thirty-five split 8 left, 10 right and 17 central, which is
+  // near enough even. What was NOT even is that a named move had one version —
+  // `cutback_right` with no left, `cut_in_curler` off one touchline, one corner
+  // taken from one flag — so the same passage came round again as itself rather
+  // than as its opposite number. Three of these twelve are that missing
+  // version; the other nine are shapes the set had none of: a flick-on from a
+  // long throw, a ball driven flat across the six-yard box, a knock-down hit
+  // first time from the edge, a header BACK across goal from open play, a steal
+  // off the keeper's feet, a carry and a lay-off where the shooter comes from
+  // behind the ball, a diagonal met on the volley, a one-two on the D, and an
+  // early cross off a left-side overlap.
+  //
+  // **NOT MIRRORED BY FORMULA.** Reflecting q to 1-q gives a passage that is
+  // recognisably the same clip flipped, which is a fifth of a new shape at
+  // best. Each of these is written on its own line, with its own run distances,
+  // so the two hands of the pitch look like two different moves.
+  //
+  // **And this batch is PORT-SIDE ONLY.** The set above was added to
+  // `SEQUENCES` in `ChanceCutaway.js` in the same commit, because the JS is the
+  // spec and a passage on one side only is drift. That repo is not in a cloud
+  // container and could not be consulted, let alone written to — so these
+  // twelve are a divergence until somebody mirrors them into it. Nothing here
+  // is compared by a fixture (the sequence table is not dumped), so the suite
+  // will not catch the gap; this note is the record of it.
+
+  // The left-side cutback the set never had. Deeper overlap than the right's,
+  // and the ball is pulled back to the penalty spot rather than across it.
+  CutawaySequence(
+    id: 'cutback_left',
+    weight: 1.5,
+    play: [
+      Start((p: 0.48, q: 0.40)),
+      Pass((p: 0.68, q: 0.16), run: (p: 0.52, q: 0.10)),
+      Dribble((p: 0.99, q: 0.09)),
+      Pass((p: 0.93, q: 0.46), kind: 'cutback', run: (p: 0.72, q: 0.52)),
+      Finish('placed', firstTime: true),
+    ],
+  ),
+  // A corner from the other flag, flicked on at the front post and headed in
+  // beyond it. `corner_back_post` hangs one to the far post and heads it BACK;
+  // this one travels the same way twice.
+  CutawaySequence(
+    id: 'corner_near_flick',
+    weight: 1.2,
+    play: [
+      Start((p: 1.02, q: 0.02)),
+      Pass((p: 0.96, q: 0.30), kind: 'cross', run: (p: 0.88, q: 0.24)),
+      Pass((p: 0.955, q: 0.60), kind: 'lofted', run: (p: 0.90, q: 0.54),
+          firstTime: true),
+      Finish('header', firstTime: true),
+    ],
+  ),
+  // A long throw from the touchline, nodded on across the six-yard box. The
+  // only passage in the set that starts with the ball out of play and not at a
+  // corner flag.
+  CutawaySequence(
+    id: 'throw_long_flick',
+    weight: 1.0,
+    play: [
+      Start((p: 0.86, q: 0.99)),
+      Pass((p: 0.94, q: 0.66), kind: 'lofted', run: (p: 0.82, q: 0.70)),
+      Pass((p: 0.95, q: 0.42), run: (p: 0.86, q: 0.48), firstTime: true),
+      Finish('placed', firstTime: true),
+    ],
+  ),
+  // Driven flat and hard along the face of goal rather than hung up — the ball
+  // nobody has to jump for, turned in at the back stick.
+  CutawaySequence(
+    id: 'low_drive_far_tap',
+    weight: 1.3,
+    play: [
+      Start((p: 0.56, q: 0.26)),
+      Dribble((p: 0.84, q: 0.16), beats: true),
+      Pass((p: 0.97, q: 0.62), kind: 'cutback', run: (p: 0.80, q: 0.66)),
+      Finish('placed', firstTime: true),
+    ],
+  ),
+  // Half-cleared with a header and met on the drop from the edge. The set has
+  // a lofted second ball (`edge_scissor_volley`); this is the one that comes
+  // DOWN to a man running on to it.
+  CutawaySequence(
+    id: 'knockdown_edge_drive',
+    weight: 1.1,
+    play: [
+      Start((p: 0.90, q: 0.62)),
+      Pass((p: 0.70, q: 0.44), kind: 'lofted', run: (p: 0.58, q: 0.40)),
+      Finish('longshot', firstTime: true),
+    ],
+  ),
+  // The overlap down the left, and an early ball in before the fullback can
+  // get across. `cross_right_header` is its opposite number.
+  CutawaySequence(
+    id: 'overlap_left_cross',
+    weight: 1.6,
+    play: [
+      Start((p: 0.46, q: 0.30)),
+      Pass((p: 0.66, q: 0.12), run: (p: 0.50, q: 0.18)),
+      Dribble((p: 0.82, q: 0.06)),
+      Pass((p: 0.945, q: 0.54), kind: 'cross', run: (p: 0.70, q: 0.48)),
+      Finish('header'),
+    ],
+  ),
+  // Off the left touchline, inside on to the right foot, bent from distance.
+  // `cut_in_curler` does it from the other side.
+  CutawaySequence(
+    id: 'cut_in_curler_left',
+    weight: 1.2,
+    play: [
+      Start((p: 0.50, q: 0.10)),
+      Dribble((p: 0.70, q: 0.30), beats: true),
+      Dribble((p: 0.80, q: 0.40)),
+      Finish('longshot'),
+    ],
+  ),
+  // Robbed on the edge of his own six-yard box while he waits for somebody to
+  // show. The highest steal in the set — the others are cut out in midfield or
+  // on the edge of their box.
+  CutawaySequence(
+    id: 'press_keeper_panic',
+    weight: 0.9,
+    steal: (
+      from: (p: 0.96, q: 0.50),
+      to: (p: 0.88, q: 0.24),
+      kind: 'pass',
+      cut: 0.6,
+      push: 0,
+    ),
+    play: [
+      Start((p: 0.90, q: 0.32)),
+      Pass((p: 0.94, q: 0.56), run: (p: 0.84, q: 0.60)),
+      Finish('placed', firstTime: true),
+    ],
+  ),
+  // Carried out of midfield and rolled square for a man arriving late, which is
+  // a different picture from the through ball the set is full of: the shooter
+  // comes from BEHIND the ball rather than running on to it.
+  CutawaySequence(
+    id: 'carry_and_layoff',
+    weight: 1.2,
+    play: [
+      Start((p: 0.24, q: 0.58)),
+      Dribble((p: 0.50, q: 0.54)),
+      Dribble((p: 0.72, q: 0.50), beats: true),
+      Pass((p: 0.76, q: 0.36), run: (p: 0.60, q: 0.32), firstTime: true),
+      Finish('placed', firstTime: true),
+    ],
+  ),
+  // A raking diagonal from one half to the other, met without a settling touch.
+  // `switch_cross` lands its switch and crosses; this one shoots off it.
+  CutawaySequence(
+    id: 'diagonal_first_time',
+    weight: 1.0,
+    play: [
+      Start((p: 0.38, q: 0.86)),
+      Pass((p: 0.82, q: 0.34), kind: 'lofted', run: (p: 0.62, q: 0.28)),
+      Finish('volley', firstTime: true),
+    ],
+  ),
+  // A one-two played on the D itself, and the return is struck rather than
+  // slid through. `one_two` and `wing_one_two` both end in a pass.
+  CutawaySequence(
+    id: 'wall_pass_edge',
+    weight: 1.1,
+    play: [
+      Start((p: 0.60, q: 0.52)),
+      Pass((p: 0.72, q: 0.66)),
+      Pass((p: 0.74, q: 0.44), who: 0, firstTime: true),
+      Finish('longshot', firstTime: true),
+    ],
+  ),
+  // Hung up to the far post and nodded BACK across the face of goal for a man
+  // arriving at the other one. The mirror of the corner's second header, from
+  // open play and with the ball travelling the other way.
+  CutawaySequence(
+    id: 'far_post_nod_back',
+    weight: 1.1,
+    play: [
+      Start((p: 0.52, q: 0.74)),
+      Pass((p: 0.94, q: 0.24), kind: 'cross', run: (p: 0.72, q: 0.30)),
+      Pass((p: 0.96, q: 0.56), kind: 'lofted', run: (p: 0.88, q: 0.50),
+          firstTime: true),
+      Finish('header', firstTime: true),
+    ],
+  ),
+
   // A centre-half walks it out of his own half because nobody will go to him,
   // and hits it from thirty. The one passage that starts behind the halfway
   // line with the ball at somebody's feet.

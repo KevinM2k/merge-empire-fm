@@ -6,10 +6,12 @@ because that is the part worth keeping.
 
 ## Where this queue stands
 
-**65 done, 3 open.** Two of the open rows are features rather than faults, and
-one of those is a feature that was built, tried and turned down — written up
-where it happened rather than quietly dropped. The third is a balance question,
-not work.
+**67 done, 4 open.** None of the open rows is a fault. One is a feature that was
+built, tried and turned down; one is a balance question rather than work; one is
+a survey to run before building; and one is **blocked on the spec repo**, which
+is the row to read if the queue looks short — richer commentary and report copy
+cannot be written from a cloud container without the next generator run throwing
+it away in ten languages at once.
 
 The FIRST batch's pattern is worth naming: **almost every "the game said X"
 report was a claim the game itself contradicted.** Copy that asserted "ten
@@ -445,6 +447,71 @@ Reported in one sitting, newest first in the report and oldest first here.
       and `no_candidate` returns NULL rather than `settings.comingSoon`: there
       is no honest sentence for an empty scout pool and the catalogues are
       generated, so silence beats claiming a feature is unbuilt.
+
+## Third batch — "more variation in commentary and summary and even 2d pitch scenarios"
+
+Asked for directly, and it splits cleanly into what this container can do and
+what it cannot. Both halves are worth stating, because the blocked half looks
+like the easy one.
+
+- [x] **He has a word at the final whistle.** The engine emits a `fulltime`
+      event and `feedOf` dropped it — while NINE `commentary.*` strings written
+      for exactly that moment sat translated in ten catalogues with nothing able
+      to reach one of them: `thriller_win/draw/loss`, `demolition`, `drubbing`,
+      `high_scoring_win/loss`, `nervy_one_nil`, `nil_nil`. `match_coach.dart`
+      had a read for every scoreline in progress and none for a RESULT, so the
+      one moment those nine were for was the one moment he had nothing to say.
+      `fullTimeReactionKey` is the ladder; a test walks 0-8 by 0-8 and asserts
+      all nine are reachable and resolve in every language.
+      **He is quiet after an ordinary afternoon** — a 1-1 gets nothing, because
+      a line at every full time is a line nobody reads.
+
+- [x] **Twelve more passages on the 2D pitch**, taking the set from 35 to 47.
+      The claim worth being careful about: the set was NOT meaningfully
+      right-handed — measured by mean q it ran 8 left, 10 right, 17 central.
+      What it lacked was the OPPOSITE NUMBER of a named move: a cutback off one
+      side only, a cut-in off one touchline, a corner from one flag, so a
+      passage came round again as itself. Three of the twelve are that missing
+      version and nine are shapes the set had none of — a long-throw flick-on, a
+      ball driven flat across the six, a knock-down struck first time, a header
+      back across goal from open play, a steal off the keeper's feet, a carry
+      and a lay-off with the shooter arriving from behind the ball, a diagonal
+      met on the volley, a one-two on the D, and an early cross off a left
+      overlap.
+
+      The table's existing guards did the checking — every sequence is driven
+      through the game for two outcomes and asserted to keep the ball on the
+      pitch and every kick on a boot — and all twelve passed first time. A new
+      guard pins the WIDTH rather than the count, because the count is not the
+      thing: forty passages all down the right would satisfy "there are lots".
+
+      **This batch is port-side only.** The previous set was added to
+      `SEQUENCES` in `ChanceCutaway.js` in the same commit, because the JS is
+      the spec; that repo is not in a cloud container, so these twelve are a
+      divergence until somebody mirrors them. No fixture dumps the sequence
+      table, so the suite will not catch the gap — the note in the file is the
+      record of it.
+
+- [ ] **MORE COMMENTARY AND REPORT LINES IS BLOCKED, and not by effort.**
+      `commentary.*` is 64 keys and 120 lines; `report.*` is 37 keys and 111
+      lines. Both are generated into `lib/i18n/locales/*.g.dart` by
+      `tool/gen_i18n.mjs` from `../merge-empire-fc/src/i18n/locales/`, which is
+      not in a cloud container — so a new line written here would be reverted by
+      the next generator run, in ten languages at once, silently.
+
+      **And there is precedent for exactly that going wrong.** Twenty story
+      lines were added straight to the catalogues earlier in this queue and all
+      twenty were removed again — not because of the generator, but because a
+      line picked by bucket and minute cannot know what the cutaway is about to
+      draw, so each was a coin flip against the picture. The lesson recorded
+      then still stands and is the way in: **pick the line from the PASSAGE.**
+      With 47 sequences falling into about six shapes, a pool per shape would
+      let the words describe what is actually on screen — and that needs new
+      keys in `en.js`, which is the same block.
+
+      So the honest order is: write the shape pools in the spec repo first, then
+      port them. Adding lines to the existing pools from here would be work that
+      gets thrown away by a generator run nobody would notice.
 
 ### Found on the way, not built
 

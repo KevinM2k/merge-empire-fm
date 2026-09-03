@@ -11,6 +11,36 @@ rough sense of size, not a target.
 **The live queue for this session is `docs/PLAYTHROUGH3.md`**, which is where
 the couch's reports are ticked off one at a time. What follows is the summary.
 
+## Asked for, 3 Sep 2026 — more variation
+
+Three systems in one request, and it splits into what a cloud container can do
+and what it cannot.
+
+**Done.** Colin now has a word at the FINAL whistle — nine `commentary.*`
+strings written for that moment (`thriller_*`, `demolition`, `drubbing`,
+`high_scoring_*`, `nervy_one_nil`, `nil_nil`) shipped in ten languages with
+nothing able to reach one of them, because `match_coach.dart` had a read for
+every scoreline in progress and none for a RESULT. And the 2D pitch went from 35
+scripted passages to 47: three supply the missing opposite number of a named
+move, nine are shapes the set had none of. The table's own guards drive every
+sequence through the game and check the ball stays on the pitch and every kick
+comes off a boot; all twelve passed first time.
+
+**Blocked, and this is the row that matters.** More commentary and report LINES
+cannot be written here. `commentary.*` is 64 keys / 120 lines and `report.*` is
+37 keys / 111 lines, and both are generated into `lib/i18n/locales/*.g.dart` from
+`../merge-empire-fc/src/i18n/locales/` — absent in a cloud container — so a line
+added here is reverted by the next `gen_i18n.mjs` run, in ten languages, with
+nothing to notice it went.
+
+There is precedent for getting this wrong in a second way: twenty story lines
+were added straight to the catalogues earlier in this queue and all twenty were
+removed again, because a line picked by bucket and minute cannot know what the
+cutaway is about to draw. **The way in is to pick the line from the PASSAGE** —
+47 sequences fall into about six shapes, and a pool per shape would let the words
+describe what is on screen. That needs new keys in `en.js`, which is the same
+block. So the order is: write the shape pools in the spec repo, then port them.
+
 ## Playtest, 3 Sep 2026 — the cup week, and a screen that was playing the game
 
 Sixteen reports in one sitting. **Most of the work was already in the repo**:
