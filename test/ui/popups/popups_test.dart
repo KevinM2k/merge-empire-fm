@@ -156,7 +156,7 @@ void main() {
       unawaitedShow(
         showQuickNavMenu(
           hostContext,
-          groups: [
+          groups: (_) => [
             QuickNavGroup(
               titleKey: 'quicknav.group.league',
               items: [

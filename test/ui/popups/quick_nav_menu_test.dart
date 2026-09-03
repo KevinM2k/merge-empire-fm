@@ -5,10 +5,15 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/ui/popups/quick_nav_menu.dart';
 import 'package:merge_empire_fc/ui/theme/app_theme.dart';
+
+/// Stands in for whatever a tile is nagging about — the real ones are
+/// `savePick`s off the save; see `ui/shell/shell_quick_nav.dart`.
+final _nagging = StateProvider<bool>((ref) => true);
 
 void main() {
   tearDown(resetLocale);
@@ -19,19 +24,23 @@ void main() {
     double? battery,
   }) async {
     await tester.pumpWidget(
-      MaterialApp(
-        theme: buildAppTheme(kitId: '#4caf50', light: false),
-        home: Scaffold(
-          body: Builder(
-            builder: (context) => Center(
-              child: ElevatedButton(
-                key: const ValueKey('open'),
-                onPressed: () => showQuickNavMenu(
-                  context,
-                  groups: groups,
-                  battery: battery,
+      // The phone re-reads its tiles from the route, so it wants a scope over
+      // it — see `QuickNavGroupsBuilder`.
+      ProviderScope(
+        child: MaterialApp(
+          theme: buildAppTheme(kitId: '#4caf50', light: false),
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => Center(
+                child: ElevatedButton(
+                  key: const ValueKey('open'),
+                  onPressed: () => showQuickNavMenu(
+                    context,
+                    groups: (_) => groups,
+                    battery: (_) => battery,
+                  ),
+                  child: const Text('open'),
                 ),
-                child: const Text('open'),
               ),
             ),
           ),
@@ -140,15 +149,18 @@ void main() {
 
   testWidgets('it is raised straight up from the bottom', (tester) async {
     await tester.pumpWidget(
-      MaterialApp(
-        theme: buildAppTheme(kitId: '#4caf50', light: false),
-        home: Scaffold(
-          body: Builder(
-            builder: (context) => Center(
-              child: ElevatedButton(
-                key: const ValueKey('open'),
-                onPressed: () => showQuickNavMenu(context, groups: groups()),
-                child: const Text('open'),
+      ProviderScope(
+        child: MaterialApp(
+          theme: buildAppTheme(kitId: '#4caf50', light: false),
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => Center(
+                child: ElevatedButton(
+                  key: const ValueKey('open'),
+                  onPressed: () =>
+                      showQuickNavMenu(context, groups: (_) => groups()),
+                  child: const Text('open'),
+                ),
               ),
             ),
           ),
@@ -169,19 +181,21 @@ void main() {
 
   testWidgets('the app bar names the club signed in', (tester) async {
     await tester.pumpWidget(
-      MaterialApp(
-        theme: buildAppTheme(kitId: '#4caf50', light: false),
-        home: Scaffold(
-          body: Builder(
-            builder: (context) => Center(
-              child: ElevatedButton(
-                key: const ValueKey('open'),
-                onPressed: () => showQuickNavMenu(
-                  context,
-                  groups: groups(),
-                  clubName: 'Iron Stars',
+      ProviderScope(
+        child: MaterialApp(
+          theme: buildAppTheme(kitId: '#4caf50', light: false),
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => Center(
+                child: ElevatedButton(
+                  key: const ValueKey('open'),
+                  onPressed: () => showQuickNavMenu(
+                    context,
+                    groups: (_) => groups(),
+                    clubName: 'Iron Stars',
+                  ),
+                  child: const Text('open'),
                 ),
-                child: const Text('open'),
               ),
             ),
           ),
@@ -213,6 +227,66 @@ void main() {
     await tester.pumpAndSettle();
     expect(opened, 'table');
     expect(find.byKey(const ValueKey('quick-nav-phone')), findsOneWidget);
+  });
+
+  testWidgets('THE TILES ARE READ FROM THE ROUTE, not frozen at open', (
+    tester,
+  ) async {
+    // The doors on this phone open OVER it and closing one lands the player
+    // back here, so a menu built once at open time goes on nagging about
+    // something dealt with behind it — which is exactly what a finished drill
+    // did. See `QuickNavGroupsBuilder`.
+    await tester.pumpWidget(
+      ProviderScope(
+        child: MaterialApp(
+          theme: buildAppTheme(kitId: '#4caf50', light: false),
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => Center(
+                child: ElevatedButton(
+                  key: const ValueKey('open'),
+                  onPressed: () => showQuickNavMenu(
+                    context,
+                    groups: (ref) => [
+                      QuickNavGroup(
+                        titleKey: 'quicknav.group.activity',
+                        items: [
+                          QuickNavItem(
+                            labelKey: 'subnav.training',
+                            icon: Icons.fitness_center,
+                            dot: ref.watch(_nagging),
+                            onTap: () {},
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  child: const Text('open'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.byKey(const ValueKey('open')));
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('quick-nav-dot-subnav.training')),
+      findsOneWidget,
+    );
+
+    final container = ProviderScope.containerOf(
+      tester.element(find.byKey(const ValueKey('open'))),
+    );
+    container.read(_nagging.notifier).state = false;
+    await tester.pump();
+
+    expect(find.byKey(const ValueKey('quick-nav-phone')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('quick-nav-dot-subnav.training')),
+      findsNothing,
+    );
   });
 
   testWidgets('and tapping off the phone lowers it the way it came', (
