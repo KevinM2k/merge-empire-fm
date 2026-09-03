@@ -2078,7 +2078,8 @@ void main() {
     /// [spent] is who has already been withdrawn: they are on the bench now,
     /// and the panel will not let them back on — so a test that keeps picking
     /// the first bench row would silently stop making changes.
-    Future<({String off, String on})> makeSub(
+    Future<({String off, String on, String offName, String onName})>
+    makeSub(
       WidgetTester tester,
       ProviderContainer container, {
       Set<String> spent = const {},
@@ -2105,7 +2106,12 @@ void main() {
       await tester.tap(find.byKey(ValueKey('sub-bench-${bench.instanceId}')));
       await tester.pumpAndSettle();
       await confirmSub(tester);
-      return (off: slot.cardInstanceId!, on: bench.instanceId);
+      return (
+        off: slot.cardInstanceId!,
+        on: bench.instanceId,
+        offName: slot.card?.name ?? '',
+        onName: bench.card.name,
+      );
     }
 
     testWidgets('THE CONFIRMATION SHOWS THE SWAP, not just a heading', (
@@ -2290,12 +2296,46 @@ void main() {
       );
       await tester.pump(minuteDurationFor(5));
       await openSubs(tester);
-      await makeSub(tester, container);
+      final swap = await makeSub(tester, container);
       await tester.tap(find.byKey(const ValueKey('subs-done')));
       await tester.pumpAndSettle();
-      // One of the two lines, depending on whether anyone came off — here
-      // somebody did.
-      expect(find.textContaining(RegExp(r'off,.*on\.')), findsOneWidget);
+      // **AND IT SHOWS THE SWAP RATHER THAN NARRATING IT.** The row used to be
+      // "{off} off, {on} on." under a single face, which reads as an arrival
+      // with a footnote — every commentary feed a player has seen gives a
+      // change a block of its own with both men and an arrow each. Asked for
+      // from the couch against a screenshot of one. So the sentence goes and
+      // the two rows carry the names; printing it as well would be the same
+      // information twice.
+      final feed = find.byKey(const ValueKey('match-feed'));
+      expect(
+        find.descendant(of: feed, matching: find.text(swap.onName)),
+        findsOneWidget,
+        reason: 'the man coming on is not on the row',
+      );
+      expect(
+        find.descendant(of: feed, matching: find.text(swap.offName)),
+        findsOneWidget,
+        reason: 'the man going off is not on the row',
+      );
+      expect(
+        find.descendant(
+          of: feed,
+          matching: find.byIcon(Icons.arrow_upward_rounded),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.descendant(
+          of: feed,
+          matching: find.byIcon(Icons.arrow_downward_rounded),
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining(RegExp(r'off,.*on\.')),
+        findsNothing,
+        reason: 'the sentence is the same names a second time',
+      );
       stateOf(tester).skipToEnd();
       await tester.pumpAndSettle();
       await settleSave(tester);
@@ -2590,11 +2630,28 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(ValueKey('sub-bench-${bench.instanceId}')));
       await tester.pumpAndSettle();
-      // Nobody comes off — there is nobody there — so the card says only who
-      // comes on.
+      // **AND THE CARD NAMES THE MAN BEING REPLACED.** It said only "{on}
+      // comes on." — the head SUBS over a single player — because the sim
+      // empties the casualty's square before the panel opens and this path
+      // arrives with the hole ALREADY PICKED, so it never went through `_pick`
+      // and never resolved `vacatedById`. Reported from the couch: the one
+      // change the game makes you make was the one whose card could not say
+      // who it was for, while an ordinary swap two minutes earlier showed
+      // both.
+      final hurt = container
+          .read(pitchSlotsProvider)
+          .firstWhere((sl) => sl.slotId == slot.slotId)
+          .vacatedBy!;
       expect(
-        find.text(t('match.subs.feed_on', {'on': bench.card.name})),
+        find.text(
+          t('match.subs.feed', {'off': hurt.name, 'on': bench.card.name}),
+        ),
         findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('subs-confirm-off')),
+        findsOneWidget,
+        reason: 'and his card, the same as any other substitution',
       );
       await confirmSub(tester);
       expect(
@@ -2837,6 +2894,100 @@ void main() {
       await tester.tapAt(stage.center);
       await tester.pump();
       expect(find.byKey(const ValueKey('match-coach-line')), findsNothing);
+    });
+
+    testWidgets('AND THE WHISTLE IS HIS, because the feed cannot say "we"', (
+      tester,
+    ) async {
+      // **Reported from the couch against a 4-1: the feed printed "4-1 - what
+      // a performance! We took West Ham apart."** Nine `commentary.*` result
+      // lines were routed through the commentary for a round, and every one is
+      // written in the first person — while that feed is an independent
+      // commentator describing two clubs. "In commentary it's independent
+      // commentary so it can't be we." They are the manager's line about his
+      // own team, so they are Colin's.
+      await pumpMatch(
+        tester,
+        matchResult(
+          addedTime: 0,
+          events: [
+            for (var i = 0; i < 4; i++) {'minute': 10 + i, 'type': 'goal'},
+          ],
+        ),
+        save: squadSave(),
+      );
+      stateOf(tester).skipToEnd();
+      await tester.pump();
+      expect(
+        find.byKey(const ValueKey('match-coach-line')),
+        findsNothing,
+        reason: 'he does not talk over the whistle',
+      );
+      // After the result sting, not under it.
+      await tester.pump(const Duration(milliseconds: 1200));
+      await tester.pump();
+      expect(find.byKey(const ValueKey('match-coach-line')), findsOneWidget);
+      expect(
+        find.text(
+          t('commentary.demolition', {'us': 4, 'them': 0, 'opp': 'Ayton'}),
+        ),
+        findsOneWidget,
+      );
+      await tester.tapAt(const Offset(20, 20));
+      await tester.pumpAndSettle();
+      await settleSave(tester);
+    });
+
+    testWidgets('but HE IS QUIET AFTER AN ORDINARY ONE, which is most of them', (
+      tester,
+    ) async {
+      // A line at every full time is a line nobody reads — `fullTimeReactionKey`
+      // describes nine results worth a sentence and a 1-1 is not one of them.
+      await pumpMatch(
+        tester,
+        matchResult(
+          addedTime: 0,
+          events: [
+            {'minute': 10, 'type': 'goal'},
+            {'minute': 20, 'type': 'goal', 'team': 'away'},
+          ],
+        ),
+        save: squadSave(),
+      );
+      stateOf(tester).skipToEnd();
+      await tester.pump(const Duration(milliseconds: 1200));
+      await tester.pump();
+      expect(find.byKey(const ValueKey('match-coach-line')), findsNothing);
+      await tester.pumpAndSettle();
+      await settleSave(tester);
+    });
+
+    testWidgets('AND PRO MODE STILL GETS IT: no tips is not no manager', (
+      tester,
+    ) async {
+      // The bargain Pro mode strikes is the ADVICE — a read of the game with a
+      // tactic switch attached — and this is a remark about a result that has
+      // already happened. Gating it here would delete nine translated strings
+      // for half the players in the name of a trade they did not make.
+      final save = squadSave();
+      (save['settings'] as Map<String, dynamic>)['hardMode'] = true;
+      await pumpMatch(
+        tester,
+        matchResult(
+          addedTime: 0,
+          events: [
+            for (var i = 0; i < 4; i++) {'minute': 10 + i, 'type': 'goal'},
+          ],
+        ),
+        save: save,
+      );
+      stateOf(tester).skipToEnd();
+      await tester.pump(const Duration(milliseconds: 1200));
+      await tester.pump();
+      expect(find.byKey(const ValueKey('match-coach-line')), findsOneWidget);
+      await tester.tapAt(const Offset(20, 20));
+      await tester.pumpAndSettle();
+      await settleSave(tester);
     });
 
     testWidgets('and PRO MODE buys the numbers and gives up the advice', (

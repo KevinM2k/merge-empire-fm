@@ -156,7 +156,21 @@ class SubsPanelState extends ConsumerState<SubsPanel> {
     // hole. Deferred a frame: there is no route to push a sheet onto until this
     // one is on screen.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) _openBench(open, null);
+      if (!mounted) return;
+      // **AND THE HOLE STILL BELONGS TO SOMEBODY, on this path too.** [_pick]
+      // has resolved an empty square to `vacatedById` since the confirmation
+      // card grew two faces — but the INJURY never goes through [_pick]. It
+      // arrives here preselected, precisely because the manager has already
+      // been told who went down, and this handed the bench a null: so the one
+      // substitution the game makes you make was the one whose card could not
+      // say who it was for. It read "Subs" over "{on} comes on." with a single
+      // player on it, while an ordinary swap two minutes earlier had shown
+      // both. Reported from the couch in exactly those terms.
+      final slot = ref
+          .read(pitchSlotsProvider)
+          .where((s) => s.slotId == open)
+          .firstOrNull;
+      _openBench(open, slot?.cardInstanceId ?? slot?.vacatedById);
     });
   }
 

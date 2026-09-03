@@ -6,7 +6,7 @@ because that is the part worth keeping.
 
 ## Where this queue stands
 
-**67 done, 4 open.** None of the open rows is a fault. One is a feature that was
+**70 done, 4 open.** None of the open rows is a fault. One is a feature that was
 built, tried and turned down; one is a balance question rather than work; one is
 a survey to run before building; and one is **blocked on the spec repo**, which
 is the row to read if the queue looks short — richer commentary and report copy
@@ -454,17 +454,19 @@ Asked for directly, and it splits cleanly into what this container can do and
 what it cannot. Both halves are worth stating, because the blocked half looks
 like the easy one.
 
-- [x] **He has a word at the final whistle.** The engine emits a `fulltime`
-      event and `feedOf` dropped it — while NINE `commentary.*` strings written
-      for exactly that moment sat translated in ten catalogues with nothing able
-      to reach one of them: `thriller_win/draw/loss`, `demolition`, `drubbing`,
-      `high_scoring_win/loss`, `nervy_one_nil`, `nil_nil`. `match_coach.dart`
-      had a read for every scoreline in progress and none for a RESULT, so the
-      one moment those nine were for was the one moment he had nothing to say.
-      `fullTimeReactionKey` is the ladder; a test walks 0-8 by 0-8 and asserts
-      all nine are reachable and resolve in every language.
+- [x] **He has a word at the final whistle.** NINE `commentary.*` strings
+      written for exactly that moment sat translated in ten catalogues with
+      nothing able to reach one of them: `thriller_win/draw/loss`,
+      `demolition`, `drubbing`, `high_scoring_win/loss`, `nervy_one_nil`,
+      `nil_nil`. `match_coach.dart` had a read for every scoreline in progress
+      and none for a RESULT, so the one moment those nine were for was the one
+      moment he had nothing to say. `fullTimeReactionKey` is the ladder; a test
+      walks 0-8 by 0-8 and asserts all nine are reachable and resolve in every
+      language.
       **He is quiet after an ordinary afternoon** — a 1-1 gets nothing, because
       a line at every full time is a line nobody reads.
+      **And they are HIS, not the feed's — corrected in the fourth batch after
+      one reached a player.** See that row.
 
 - [x] **Twelve more passages on the 2D pitch**, taking the set from 35 to 47.
       The claim worth being careful about: the set was NOT meaningfully
@@ -531,6 +533,51 @@ like the easy one.
       eleven. That is the right size for a booking and it means the number on
       the board will not always visibly move for one yellow. Stated rather than
       inflated; if it should be bigger, that is a balance decision.
+
+## Fourth batch — the commentator does not play for us
+
+Two reports, one sentence apart in the same match, and both are the same shape:
+a screen speaking in a voice that is not its own.
+
+- [x] **The commentary cannot say "we".** A 4-1 printed `FULL TIME` in the feed
+      and under it "4-1 - what a performance! We took West Ham apart." The nine
+      result lines above were routed through `feedOf` for a round, on the
+      reasoning that the final whistle is the last row of the commentary — and
+      every one of them is written in the FIRST PERSON, while that feed is an
+      independent commentator describing two clubs. Reported in exactly those
+      terms: "in commentary it's independent commentary so it can't be we."
+      **The prefix is where a generated catalogue puts a key, not who says the
+      line.** They are the manager talking to you about your own team, so they
+      are Colin's: `_sayFullTimeWord` puts the reaction in his bubble at the
+      bottom-left, a beat after the sting, the shape the rest of his match talk
+      already takes. The third-party write-up of the same result is
+      `match_report.dart`, still at the head of the feed — two voices on one
+      afternoon, each saying the thing only it can say.
+      **Not gated on Pro mode**, which is where this parts company with the rest
+      of his match talk: that bargain gives up the ADVICE, and this is a remark
+      about a result. Gating it would delete nine translated strings for half
+      the players in the name of a trade they did not make.
+
+- [x] **A substitution is two players, and the feed drew one.** The row was the
+      sentence "{off} off, {on} on." under a single face — the man coming ON —
+      so a change read as an arrival with a footnote. Asked for against a
+      screenshot of a real commentary feed, which gives a substitution a block
+      of its own: both men, a face each, an arrow each. `FeedLine.offId` is what
+      was missing; the arrows are glyphs because no new key can be minted here
+      and every feed this was modelled on uses them anyway. The sentence goes
+      when both faces are drawn — it is the same names a second time — and
+      stays as the fallback when one of them cannot be.
+
+- [x] **And an INJURY names the man being replaced.** Reported as the coach
+      popup saying "subs" and only the new player, where a standard swap shows
+      both. Two paths reach the confirmation and only one of them was right:
+      `_pick` had resolved an empty square to the hole's `vacatedById` since
+      that card grew two faces, but an injury never goes through `_pick` — it
+      arrives with the hole ALREADY preselected, precisely because the manager
+      has just been told who went down, and that path handed the bench a null.
+      So the one substitution the game makes you make was the one whose card
+      could not say who it was for. One line in `initState`, and the feed row
+      then names them both as well, because it reads the same field.
 
 ---
 

@@ -782,6 +782,21 @@ void main() {
       await tester.pumpAndSettle();
       await tester.pump(const Duration(milliseconds: 1500));
       await tester.pumpAndSettle();
+      // **AND COLIN HAS THE FLOOR FIRST.** He reacts at the whistle to a result
+      // worth a sentence — `fullTimeReactionKey` — and his bubble is the shape
+      // every coach line takes: the page dimmed behind it and a tap anywhere
+      // done with it. So the tap that would have pressed CONTINUE clears him
+      // instead, and the one after it leaves.
+      //
+      // **Guarded, and this is the one place a guard is honest**: nine results
+      // earn a line and most afternoons do not, and the scoreline here is
+      // simulated. The assertion inside is what keeps it from going silent.
+      final colin = find.byKey(const ValueKey('match-coach-line'));
+      if (colin.evaluate().isNotEmpty) {
+        await tester.tapAt(const Offset(20, 20));
+        await tester.pumpAndSettle();
+        expect(colin, findsNothing, reason: 'his bubble would eat CONTINUE');
+      }
       final go = find.byKey(const ValueKey('match-continue'));
       if (go.evaluate().isNotEmpty) {
         await tester.tap(go);
@@ -1221,6 +1236,21 @@ void main() {
       // own 1.4s after the sting; it holds now so the commentary can be read
       // back, and the row of controls becomes one CONTINUE. Asserted rather
       // than guarded, for the reason the note above gives.
+      // **AND COLIN HAS THE FLOOR FIRST.** He reacts at the whistle to a result
+      // worth a sentence — `fullTimeReactionKey` — and his bubble is the shape
+      // every coach line takes: the page dimmed behind it and a tap anywhere
+      // done with it. So the tap that would have pressed CONTINUE clears him
+      // instead, and the one after it leaves.
+      //
+      // **Guarded, and this is the one place a guard is honest**: nine results
+      // earn a line and most afternoons do not, and the scoreline here is
+      // simulated. The assertion inside is what keeps it from going silent.
+      final colin = find.byKey(const ValueKey('match-coach-line'));
+      if (colin.evaluate().isNotEmpty) {
+        await tester.tapAt(const Offset(20, 20));
+        await tester.pumpAndSettle();
+        expect(colin, findsNothing, reason: 'his bubble would eat CONTINUE');
+      }
       final go = find.byKey(const ValueKey('match-continue'));
       expect(go, findsOneWidget, reason: 'full time offered no way out');
       await tester.tap(go);

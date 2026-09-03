@@ -18,7 +18,8 @@ import 'package:flutter/material.dart';
 import 'package:merge_empire_fc/ui/popups/bottom_sheet_popup.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/data/config.dart' show PlayerEnergy;
-import 'package:merge_empire_fc/data/players.dart' show getPlayerDef;
+import 'package:merge_empire_fc/data/players.dart'
+    show PlayerDef, getPlayerDef;
 import 'package:merge_empire_fc/engine/match_coach.dart';
 import 'package:merge_empire_fc/ui/screens/grid/grid_providers.dart'
     show isProMode;
@@ -1138,6 +1139,45 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
     );
   }
 
+  /// **HIS WORD AT THE WHISTLE, and it is HIS rather than the feed's.**
+  ///
+  /// The nine `commentary.*` result lines — `thriller_*`, `demolition`,
+  /// `drubbing`, `high_scoring_*`, `nervy_one_nil`, `nil_nil` — spent a round
+  /// being printed as the last row of the commentary, and they cannot be: every
+  /// one is written in the first person, and the feed is an independent
+  /// commentator describing two clubs. "We took West Ham apart" went out to a
+  /// player in a commentary feed and was reported straight back. See
+  /// `fullTimeReactionKey`, which still picks which one and is still silent
+  /// after an ordinary afternoon.
+  ///
+  /// **NOT gated on Pro mode, which is the one place this parts company with
+  /// [_maybeCoach].** That gate buys the numbers by giving up the ADVICE — a
+  /// read of the game with a tactic switch attached to it — and this is a
+  /// remark about a result that has already happened. Gating it would delete
+  /// nine translated strings for half the players in the name of a bargain
+  /// they did not make; the pro manager gets no tips, not no manager.
+  ///
+  /// **The goals are the ones ON SCREEN.** `frame` counts them off the shown
+  /// events, which is the rule the feed followed here before it: the number in
+  /// his sentence can never run ahead of the goals that explain it, and a
+  /// skipped match is the case that proves it.
+  void _sayFullTimeWord() {
+    if (!mounted) return;
+    final f = frame;
+    final key = fullTimeReactionKey(ours: f.ourGoals, theirs: f.theirGoals);
+    if (key == null) return;
+    _say(
+      tPoolStable(key, 'ft-${f.ourGoals}-${f.theirGoals}', {
+        // `{us}`–`{them}` is the SCORELINE in our order, and `{opp}` is the
+        // club. Not the venue ordering the scoreboard uses: "a 1-0 win over
+        // Ayton" is his sentence whichever ground it was won on.
+        'us': f.ourGoals,
+        'them': f.theirGoals,
+        'opp': '${widget.result['opponentName'] ?? ''}',
+      }),
+    );
+  }
+
   /// Bodies who could actually take the field.
   int _healthyCards(Map<String, dynamic> state) {
     final cells = (state['grid'] as Map<String, dynamic>?)?['cells'];
@@ -1409,6 +1449,8 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
       ),
     );
     widget.onFinished?.call(widget.result);
+    // And Colin's word on the afternoon, after the sting rather than under it.
+    _cue(const Duration(milliseconds: 1100), _sayFullTimeWord);
     // **AND THEN IT WAITS.** It used to leave on a 1,400ms timer, on the
     // reasoning that full time here is a screen with nothing left to say: the
     // tactic strip has gone, the clock has stopped and the payoff is on the
@@ -1713,7 +1755,11 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
   /// quests that could not advance.
   void _onSub(SubMade sub) {
     _subsUsed++;
-    // Filling a hole withdraws nobody, so there is nothing to remember.
+    // **And an injured man counts as withdrawn**, which he now is: the panel
+    // resolves an empty square to whoever the hole belongs to, so `offId` is
+    // the casualty rather than null. He must not come back on either, and this
+    // is the set that stops it. Still null for a slot that started empty —
+    // there is genuinely nobody to remember.
     if (sub.offId != null) _withdrawn.add(sub.offId!);
     widget.result['subsUsed'] = _subsUsed;
     final on = widget.result['subbedOnIds'];
@@ -1740,6 +1786,16 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
 
     final state = ref.read(gameProvider).state;
     final onName = cardById(state, sub.onId)?.name() ?? '';
+    // **A HOLE HAS A NAME, and the panel is the one that knows it.**
+    //
+    // `SubMade.offId` is who came off, and it used to be null for an INJURY —
+    // which is not "nobody" at all: the sim vacated that square before the
+    // screen opened, so somebody walked off it. So the row read
+    // `match.subs.feed_on` — "{on} comes on." — under the head SUBS, and the
+    // one change a manager did not choose to make was the one nothing would
+    // explain. `SubsPanelState` fills it from the hole's `vacatedById` on both
+    // its paths now, so this reads one field and there is no second answer
+    // here to disagree with it.
     final offName = sub.offId == null
         ? null
         : cardById(state, sub.offId!)?.name();
@@ -1747,18 +1803,19 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
       _notes.add((
         minute: _minute,
         type: 'subs',
-        // Filling a hole — an injury, or a slot that started the match empty —
-        // has no outgoing player, so the line cannot name one.
+        // Only a slot that started the match EMPTY has nobody to name now.
         key: offName == null || offName.isEmpty
             ? 'match.subs.feed_on'
             : 'match.subs.feed',
         params: {'on': onName, 'off': offName ?? ''},
         seed: 'sub-$_minute-${sub.onId}',
         goal: null,
-        // The man coming ON is who the line is about, and the row can draw him.
+        // **BOTH MEN, because a substitution is two of them.** The row used to
+        // carry only the arrival — see [FeedLine.offId].
         aboutId: sub.onId,
         card: null,
         playerId: null,
+        offId: offName == null || offName.isEmpty ? null : sub.offId,
       ));
       _timeline = timelineOf(widget.result, bookings: _bookings);
     });
@@ -2011,6 +2068,7 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
         aboutId: null,
         card: null,
         playerId: null,
+        offId: null,
       ));
       _tacticCooldown = true;
     });
@@ -3410,6 +3468,40 @@ class _FeedLine extends StatelessWidget {
             ring: isGoal ? glassAccent(context, kit.accentBright) : kit.border,
           );
 
+    // **A SUBSTITUTION IS TWO PLAYERS, and the row was drawing one.**
+    //
+    // The sentence named both — `match.subs.feed` is "{off} off, {on} on." —
+    // but it sat under a single face and the head SUBS, so a change read as an
+    // arrival with a footnote. Every commentary feed a player has ever seen
+    // gives a substitution a block of its own with the man coming on above the
+    // man going off and an arrow on each; that is what was asked for from the
+    // couch, against a screenshot of one. The faces and the ids were already
+    // here — what was missing was the row knowing about the SECOND man, which
+    // is [FeedLine.offId].
+    //
+    // **Only when BOTH can be drawn.** A card the save has never heard of — a
+    // man sold since, or one of theirs, whose players this port never names —
+    // falls back to the sentence, which names them in words. Half a swap drawn
+    // is worse than a sentence that has them both.
+    final offCard = line.offId == null ? null : cardById(state, line.offId!);
+    final offDef = getPlayerDef(offCard?.definitionId);
+    final swap =
+        line.type != 'subs' ||
+            about == null ||
+            def == null ||
+            offCard == null ||
+            offDef == null
+        ? null
+        : Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // On above off, which is the order the reference feed uses and
+              // the order the change reads in: who is arriving is the news.
+              _SwapRow(card: about, def: def, on: true),
+              _SwapRow(card: offCard, def: offDef, on: false),
+            ],
+          );
+
     // **THE HEAD ROW, and what it is allowed to say.**
     //
     // A minute, and the KIND of thing that happened when there is a word for
@@ -3503,29 +3595,36 @@ class _FeedLine extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 5),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            // The face stands IN FOR the ball glyph rather than beside it: two
-            // marks in front of one sentence is a row with two subjects. A GOAL
-            // never reaches here — it is its own card, and its head carries
-            // both.
-            if (face != null)
-              Padding(padding: const EdgeInsets.only(right: 8), child: face),
-            Expanded(
-              child: Text(
-                text,
-                style: TextStyle(
-                  fontSize: 13,
-                  color: isGoal ? glassAccent(context, kit.accentBright) : null,
+        // **AND THE SWAP REPLACES THE SENTENCE, rather than sitting over it.**
+        // Both names are in the two rows; printing "{off} off, {on} on."
+        // underneath them is the same information a second time, which is what
+        // makes a card read as a paragraph.
+        if (swap case final rows?)
+          rows
+        else
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              // The face stands IN FOR the ball glyph rather than beside it: two
+              // marks in front of one sentence is a row with two subjects. A GOAL
+              // never reaches here — it is its own card, and its head carries
+              // both.
+              if (face != null)
+                Padding(padding: const EdgeInsets.only(right: 8), child: face),
+              Expanded(
+                child: Text(
+                  text,
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: isGoal ? glassAccent(context, kit.accentBright) : null,
+                  ),
                 ),
               ),
-            ),
-            // A chance the pitch retold is worth seeing again too — see
-            // [MatchScreenState._feedLine].
-            if (onReplay case final replay?) _ReplayChip(onTap: replay),
-          ],
-        ),
+              // A chance the pitch retold is worth seeing again too — see
+              // [MatchScreenState._feedLine].
+              if (onReplay case final replay?) _ReplayChip(onTap: replay),
+            ],
+          ),
       ],
     );
 
@@ -3693,6 +3792,85 @@ class _FeedLine extends StatelessWidget {
           ),
         ),
         child: card,
+      ),
+    );
+  }
+}
+
+/// One man in a substitution: his face, which way he is going, and his name.
+///
+/// **The direction is a GLYPH, not a word.** The catalogues are generated from
+/// the spec's own `en.js` and have no copy for "on" or "off" as a label — and
+/// none can be added from here — so the arrow carries it, which is what every
+/// feed this was modelled on does anyway. Up and green for the man arriving,
+/// down and red for the man leaving.
+class _SwapRow extends StatelessWidget {
+  const _SwapRow({required this.card, required this.def, required this.on});
+
+  final CardInstance card;
+  final PlayerDef def;
+
+  /// Coming ON. The arrow, the ring and the weight all follow it.
+  final bool on;
+
+  @override
+  Widget build(BuildContext context) {
+    final kit = Theme.of(context).extension<KitTheme>()!;
+    // The feed's own two colours — `vsGreenOn` is the green every stat row uses
+    // for "this went well for us" and `conceded` is the red a goal against is
+    // drawn in. Not the kit's accent: a club playing in red would draw both
+    // halves of the swap in one colour, which is the fault the goal card
+    // already had and fixed.
+    final tint = on ? vsGreenOn(context) : conceded;
+    return Padding(
+      padding: const EdgeInsets.only(top: 5),
+      child: Row(
+        children: [
+          PlayerFace(
+            position: def.position,
+            tier: def.tier,
+            variant: card.variant,
+            size: 26,
+            ring: tint,
+          ),
+          const SizedBox(width: 8),
+          Icon(
+            on ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded,
+            size: 14,
+            color: tint,
+          ),
+          const SizedBox(width: 4),
+          Expanded(
+            child: Text(
+              card.name(def.name),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: on ? FontWeight.w800 : FontWeight.w600,
+              ),
+            ),
+          ),
+          // **AND WHY HE WENT OFF, when the match decided it and not the
+          // manager.** An injury is the case this whole row was reported
+          // against, and it is the one change a manager did not choose to
+          // make. `match.subs.injured` is the word the bench panel already
+          // writes over the same man's square.
+          if (!on && card.injured) ...[
+            const SizedBox(width: 6),
+            Text(
+              t('match.subs.injured').toUpperCase(),
+              // Twelve, not ten: `architecture_test` keeps a floor under every
+              // literal on the screen and it caught this one.
+              style: TextStyle(
+                fontSize: 12,
+                letterSpacing: 0.4,
+                fontWeight: FontWeight.w700,
+                color: kit.textMuted,
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }
