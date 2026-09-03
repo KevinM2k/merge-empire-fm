@@ -73,6 +73,62 @@ String coachReadKey({
   return late ? 'coach.match.lead_big_late' : 'coach.match.lead_big_early';
 }
 
+/// His word at the FINAL whistle, as a catalogue key — or null when the
+/// afternoon was not worth a remark.
+///
+/// **Nine more shipped strings with nothing able to reach one of them, and this
+/// file's own header is about the last twenty-four.** `commentary.thriller_*`,
+/// `demolition`, `drubbing`, `high_scoring_*`, `nervy_one_nil` and `nil_nil`
+/// are his read of a RESULT rather than of a scoreline in progress —
+/// "the players will be buzzing for days", "dust yourselves off" — and
+/// [coachReadKey] stops at the 89th minute, so the one moment they were written
+/// for was the one moment he had nothing to say.
+///
+/// **They are `commentary.*` rather than `coach.match.*`, and that is where
+/// they go**: the feed is the commentary, and the final whistle is the last row
+/// of it. The full-time write-up in the same place is a different voice on
+/// purpose — a third party reporting on two clubs, which is what
+/// `match_report.dart` was rewritten to be. This is the manager talking to you
+/// about your own team.
+///
+/// **Null for most matches, deliberately.** These nine describe results worth
+/// a sentence; a 1-1 is not one, and a line on every full time is a line
+/// nobody reads — the same rule `squadStateHint` follows when it stays quiet.
+///
+/// [ours] and [theirs] are goals in OUR order whatever the venue, which is what
+/// the engine's `homeGoals`/`awayGoals` already mean.
+String? fullTimeReactionKey({required int ours, required int theirs}) {
+  // The two exact scorelines the copy names outright. They come first because
+  // both are also "not many goals", and a general rule would swallow them.
+  if (ours == 0 && theirs == 0) return 'commentary.nil_nil';
+  if (ours == 1 && theirs == 0) return 'commentary.nervy_one_nil';
+
+  final margin = ours - theirs;
+  // Three clear is a hiding in either direction, however many were scored.
+  if (margin >= 3) return 'commentary.demolition';
+  if (margin <= -3) return 'commentary.drubbing';
+
+  final total = ours + theirs;
+  // **A THRILLER IS CLOSE FIRST AND HIGH-SCORING SECOND**, which is why it is
+  // tested before the high-scoring pair: 3-3 has six goals in it and "goals
+  // everywhere but we got the result" is not a thing to say about a draw.
+  if (total >= 3 && margin.abs() <= 1) {
+    return margin > 0
+        ? 'commentary.thriller_win'
+        : margin < 0
+        ? 'commentary.thriller_loss'
+        : 'commentary.thriller_draw';
+  }
+  // Only a two-goal margin can reach here — three was caught above — so this is
+  // the 4-2 shape rather than anything one-sided.
+  if (total >= 5) {
+    return margin > 0
+        ? 'commentary.high_scoring_win'
+        : 'commentary.high_scoring_loss';
+  }
+  return null;
+}
+
 /// What he would play, or null when there is nothing left to play for.
 ///
 /// **The base ratings, not the ones on the dial.** `suggestTactic` applies the

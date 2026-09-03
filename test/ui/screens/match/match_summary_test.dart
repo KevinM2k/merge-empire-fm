@@ -12,6 +12,9 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:merge_empire_fc/services/sound_service.dart';
+import 'package:merge_empire_fc/providers/sound_providers.dart';
+import 'package:merge_empire_fc/ui/widgets/victory_confetti.dart';
 import 'package:merge_empire_fc/engine/booking_engine.dart';
 import 'package:merge_empire_fc/ui/widgets/card_glyph.dart';
 import 'package:merge_empire_fc/data/dugout_cam_policy.dart';
@@ -97,10 +100,25 @@ Future<void> scrollReport(WidgetTester tester, Key target) async {
   await tester.pumpAndSettle();
 }
 
+/// A sound service that counts rather than plays.
+///
+/// The `noSuchMethod` pattern `sound_cues_test` already uses: everything the
+/// screen might reach for answers null, and the one method under test records.
+class _FireworkSpy implements SoundService {
+  int fireworks = 0;
+
+  @override
+  Future<void> playFirework() async => fireworks++;
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => null;
+}
+
 Future<MatchSummaryScreenState> pumpSummary(
   WidgetTester tester,
   Map<String, dynamic> res, {
   RewardedAds? ads,
+  SoundService? sound,
 
   /// Through the runner rather than a bare load — the schedule and the
   /// opponents are boot sweeps, and a save with no fixtures has no table for
@@ -113,6 +131,7 @@ Future<MatchSummaryScreenState> pumpSummary(
         MemorySaveStore({saveKeyPrimary: jsonEncode(createDefaultState())}),
       ),
       if (ads != null) rewardedAdsProvider.overrideWithValue(ads),
+      if (sound != null) soundServiceProvider.overrideWithValue(sound),
     ],
   );
   addTearDown(container.dispose);
@@ -1133,4 +1152,74 @@ group('a tie decided on penalties', () {
       findsNothing,
     );
   });
+
+  group('A WIN GETS PAPER', () {
+    // "On the end game screen, if it's victory we should probably have some
+    // confetti or something." There was nothing: the screen said VICTORY in the
+    // largest type in the game and then behaved exactly like the one that says
+    // DEFEAT.
+    testWidgets('confetti falls on a victory', (tester) async {
+      await pumpSummary(tester, result());
+      expect(find.byKey(const ValueKey('summary-confetti')), findsOneWidget);
+    });
+
+    testWidgets('and NOT on a defeat or a draw', (tester) async {
+      // A point is not a celebration, and paper for every result is paper that
+      // says nothing.
+      await pumpSummary(tester, result(won: false));
+      expect(find.byKey(const ValueKey('summary-confetti')), findsNothing);
+
+      await pumpSummary(tester, result(won: false, drawn: true));
+      expect(find.byKey(const ValueKey('summary-confetti')), findsNothing);
+    });
+
+    testWidgets('AND IT SETTLES, which is what stops it hanging the suite', (
+      tester,
+    ) async {
+      // A looping animation asks for a frame for ever: `pumpAndSettle` never
+      // returns, so every widget test that reaches a won match hangs — and a
+      // phone renders continuously to watch paper that has already landed. This
+      // assertion is the reason the fall is a one-shot.
+      await pumpSummary(tester, result());
+      await tester.pumpAndSettle(const Duration(milliseconds: 100));
+      expect(find.byKey(const ValueKey('summary-confetti')), findsOneWidget);
+    });
+
+    testWidgets('AND ITS BANG — the one recorded effect in the game', (
+      tester,
+    ) async {
+      // `playFirework` is why the audio backend has a second entry point at
+      // all: it is a recording rather than a synth. `assets/audio/firework.mp3`
+      // has shipped with nothing in `lib/` calling it — a sound with no visual,
+      // until there was paper to attach it to.
+      final sound = _FireworkSpy();
+      await pumpSummary(tester, result(), sound: sound);
+      await tester.pump();
+      expect(sound.fireworks, 1);
+    });
+
+    testWidgets('and a defeat is silent', (tester) async {
+      final sound = _FireworkSpy();
+      await pumpSummary(tester, result(won: false), sound: sound);
+      await tester.pump();
+      expect(sound.fireworks, 0);
+    });
+
+    test('the fall is DEALT, so one match falls one way', () {
+      // Seeded on the fixture: a rebuild must not re-throw the paper, and a
+      // screenshot of full time has to be reproducible.
+      final a = dealConfetti(11);
+      final b = dealConfetti(11);
+      expect(a.length, confettiPieces);
+      for (var i = 0; i < a.length; i++) {
+        expect(a[i].x, b[i].x);
+        expect(a[i].delay, b[i].delay);
+      }
+      expect(dealConfetti(12).first.x, isNot(a.first.x));
+      // Every piece appears within the fall rather than after it.
+      expect(a.every((p) => p.delay < 1), isTrue);
+    });
+  });
+
+
 }

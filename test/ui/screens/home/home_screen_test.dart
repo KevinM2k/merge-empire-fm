@@ -6,7 +6,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:merge_empire_fc/engine/cup_engine.dart' show prepareCupRound;
+import 'package:merge_empire_fc/engine/cup_engine.dart' show previewCupTie;
 import 'package:merge_empire_fc/ui/screens/home/next_match_card.dart'
     show nextMatchProvider;
 import 'package:merge_empire_fc/ui/popups/coach_card.dart' show coachAlert;
@@ -19,6 +19,8 @@ import 'package:merge_empire_fc/engine/match_tactics.dart'
 import 'package:merge_empire_fc/engine/quest_engine.dart'
     show ensureMatchQuests;
 import 'package:merge_empire_fc/i18n/i18n.dart';
+import 'package:merge_empire_fc/ui/screens/home/coach_bubble.dart'
+    show coachTipsProvider;
 import 'package:merge_empire_fc/ui/screens/home/fixture_caption.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/state/game_state.dart';
@@ -588,15 +590,18 @@ void main() {
         expect(first.won, isTrue);
       });
 
-      testWidgets('and one that has not been played names the COMPETITION', (
+      testWidgets('and one that has not been played STILL NAMES THE CLUB', (
         tester,
       ) async {
-        // Before it is played the opponent is not known; the interesting fact
-        // is which round it is and in what.
+        // This asserted `opponent` was null on an unplayed tie, on the premise
+        // that "before it is played the opponent is not known". The premise was
+        // the bug: the bracket is drawn when the run starts, so the club has
+        // been sitting in `opponents` the whole time — and the row a player
+        // opens the sheet to read named a competition and a round and nobody.
         final container = await pumpHome(tester, mutate: withCup);
         final second = container.read(ourCupTiesProvider)[1];
         expect(second.played, isFalse);
-        expect(second.opponent, isNull);
+        expect(second.opponent, 'Beeches', reason: 'round 1 of the bracket');
         expect(second.competition, isNotEmpty);
         expect(second.isNext, isTrue, reason: 'it is due now');
       });
@@ -836,7 +841,7 @@ void main() {
         container.read(nextMatchProvider)!.right.name,
         container.read(gameProvider).state == null
             ? anything
-            : prepareCupRound(container.read(gameProvider).state!)!.opponentName,
+            : previewCupTie(container.read(gameProvider).state!)!.opponentName,
       );
 
       await tester.tap(find.byKey(const ValueKey('play-match')));
@@ -862,6 +867,50 @@ void main() {
       // on its own 1.4s after the sting, so settling is what dismisses it.
       await tester.pumpAndSettle();
       await settleSave(tester);
+    });
+
+    testWidgets('LOOKING at a cup tie does not play it', (tester) async {
+      // The three worst reports of the session were one fault: "all my players
+      // got injured in that last game", "I can see my players disappearing and
+      // going injured again" while sitting still on the Squad page, and "ratings
+      // for teams is now showing 0". The home providers named the cup opponent
+      // by calling `prepareCupRound`, which SIMULATES the tie — it rolls
+      // injuries and applies them, vacating the man's slot. Both are
+      // `savePick`s, so injuring somebody bumped the save revision, which re-ran
+      // the provider, which injured somebody else. Eleven injured men rate 0,
+      // which is the third report.
+      final container = await pumpHome(tester, mutate: cupTieDue);
+
+      List<String> injured() => [
+        for (final cell
+            in (container.read(gameProvider).state!['grid']
+                    as Map<String, dynamic>)['cells']
+                as List)
+          if (cell is Map<String, dynamic> && cell['injured'] == true)
+            cell['instanceId'] as String,
+      ];
+
+      expect(injured(), isEmpty, reason: 'a fit squad before anyone looks');
+
+      // Twenty evaluations is what a few seconds of an idle Play tab costs.
+      for (var i = 0; i < 20; i++) {
+        container.refresh(nextMatchProvider);
+        container.refresh(coachTipsProvider);
+      }
+
+      expect(
+        injured(),
+        isEmpty,
+        reason: 'reading who we play next may not hurt anybody',
+      );
+      // And the Lucky Boot is still in the cupboard — `prepareCupRound` spends
+      // it, and a preview that spent it would hand the tie a full-strength
+      // opponent it had already been told was weakened.
+      expect(
+        (container.read(gameProvider).state!['shop']
+            as Map<String, dynamic>)['luckyBootReady'],
+        isNot(true),
+      );
     });
 
     testWidgets('a league fixture says Play Match, and quotes the pip', (

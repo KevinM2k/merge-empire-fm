@@ -30,7 +30,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/engine/cup_engine.dart'
-    show prepareCupRound;
+    show previewCupTie;
 import 'package:merge_empire_fc/ui/screens/match/cup_launcher.dart'
     show cupDue;
 import 'package:merge_empire_fc/engine/fixture_preview.dart';
@@ -99,9 +99,14 @@ final nextMatchProvider = savePick<NextMatch?>((s) {
   // playing; when the game started it was right, but that first screen was
   // wrong."
   //
-  // `prepareCupRound` is the same call the launcher makes, so the two cannot
-  // disagree about who is next. It is read-only — nothing here commits a round.
-  final cupTie = cupDue(s) ? prepareCupRound(s) : null;
+  // **`previewCupTie`, NOT `prepareCupRound`.** This line used to call the
+  // latter on the reasoning that it is "the same call the launcher makes, so
+  // the two cannot disagree" — which was true about the NAME and catastrophic
+  // about everything else. `prepareCupRound` PLAYS the tie: it rolls injuries
+  // and applies them, and this is a `savePick`, so injuring a man re-ran the
+  // provider that injured him. A squad went from fit to eleven injured while
+  // its manager sat on the Squad page. See `previewCupTie`.
+  final cupTie = cupDue(s) ? previewCupTie(s) : null;
 
   final clubName =
       s['clubName'] is String && (s['clubName'] as String).isNotEmpty

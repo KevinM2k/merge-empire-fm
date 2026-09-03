@@ -1,6 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:merge_empire_fc/data/formations.dart';
 import 'package:merge_empire_fc/engine/match_tactics.dart';
+import 'package:merge_empire_fc/engine/booking_engine.dart'
+    show yellowCardRatingMult;
 import 'package:merge_empire_fc/engine/squad_rating.dart';
 import 'package:merge_empire_fc/state/card_instance.dart';
 
@@ -255,6 +257,82 @@ void main() {
       final a = computeSquadRatings(healthy.grid, lineup: healthy.lineup);
       final b = computeSquadRatings(hurt.grid, lineup: hurt.lineup);
       expect(b.defence, lessThan(a.defence));
+    });
+
+    group('A BOOKING IS AN INPUT, not something this knows about', () {
+      // The port has a referee and the JS does not, so a card cannot be built
+      // into this function — it is compared field for field by the parity
+      // harness. It arrives as a multiplier map instead, defaulting to nothing.
+      test('and no map is the JS\'s own arithmetic, unchanged', () {
+        final s = _squad();
+        expect(
+          computeSquadRatings(
+            s.grid,
+            lineup: s.lineup,
+            ratingMultipliers: const {},
+          ),
+          computeSquadRatings(s.grid, lineup: s.lineup),
+        );
+      });
+
+      test('a cautioned striker takes the ATTACK down', () {
+        final s = _squad();
+        final clean = computeSquadRatings(s.grid, lineup: s.lineup);
+        // p8, p9, p10 are the front three.
+        final booked = computeSquadRatings(
+          s.grid,
+          lineup: s.lineup,
+          ratingMultipliers: const {'p8': yellowCardRatingMult},
+        );
+        expect(booked.attack, lessThan(clean.attack));
+      });
+
+      test('and a cautioned keeper takes the DEFENCE down', () {
+        final s = _squad();
+        final clean = computeSquadRatings(s.grid, lineup: s.lineup);
+        final booked = computeSquadRatings(
+          s.grid,
+          lineup: s.lineup,
+          ratingMultipliers: const {'p0': yellowCardRatingMult},
+        );
+        expect(booked.defence, lessThan(clean.defence));
+      });
+
+      test('IT COSTS LESS THAN LOSING HIM, which is the whole point', () {
+        // A yellow is a discount and a red is a hole. If a caution cost as much
+        // as a dismissal there would be no reason to leave a booked man on.
+        final s = _squad();
+        final booked = computeSquadRating(
+          s.grid,
+          lineup: s.lineup,
+          ratingMultipliers: const {'p0': yellowCardRatingMult},
+        );
+        final gone = computeSquadRating(
+          s.grid,
+          lineup: [
+            for (final slot in s.lineup)
+              if (slot['cardInstanceId'] == 'p0')
+                <String, dynamic>{...slot, 'cardInstanceId': null}
+              else
+                slot,
+          ],
+        );
+        final clean = computeSquadRating(s.grid, lineup: s.lineup);
+        expect(booked, lessThan(clean));
+        expect(gone, lessThan(booked));
+      });
+
+      test('and a name nobody knows changes nothing', () {
+        final s = _squad();
+        expect(
+          computeSquadRatings(
+            s.grid,
+            lineup: s.lineup,
+            ratingMultipliers: const {'not-in-this-squad': 0.1},
+          ),
+          computeSquadRatings(s.grid, lineup: s.lineup),
+        );
+      });
     });
 
     test('an unavailable player rates zero in his slot', () {

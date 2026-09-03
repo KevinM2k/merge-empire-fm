@@ -110,6 +110,74 @@ void main() {
     });
   });
 
+
+  group('the free heal', () {
+    /// Two hurt men in the grid.
+    Map<String, dynamic> withInjured() {
+      final s = createDefaultState();
+      final cells = (s['grid'] as Map<String, dynamic>)['cells'] as List;
+      for (var i = 0; i < 2; i++) {
+        cells[i] = <String, dynamic>{
+          'definitionId': 'p1',
+          'instanceId': 'inj$i',
+          'variant': 0,
+          'injured': true,
+          'injuredAt': _t0,
+          'injuryDurationMs': 30 * 60 * 1000,
+        };
+      }
+      return s;
+    }
+
+    /// How many cells still say injured.
+    int stillHurt(Map<String, dynamic> s) => [
+      for (final c in (s['grid'] as Map<String, dynamic>)['cells'] as List)
+        if (c is Map && c['injured'] == true) c,
+    ].length;
+
+    test('heals everybody, and spends one of three', () {
+      final s = withInjured();
+      expect(stillHurt(s), 2);
+      expect(grantHealAllAd(s), 2);
+      expect(stillHurt(s), 0);
+      expect(healAllAdsUsed(s), 1);
+    });
+
+    test('AND THE CAP IS CHECKED INSIDE THE GRANT', () {
+      // The button is painted from a build that has already happened; if the
+      // cap only lived in the widget, a tap racing the third video would heal
+      // a fourth time. The same rule the cooldown skip's caller spells out.
+      final s = withInjured();
+      for (var i = 0; i < healAllAdCapPerDay; i++) {
+        grantHealAllAd(s);
+      }
+      expect(healAllAdsUsed(s), healAllAdCapPerDay);
+
+      // Hurt again, past the cap: nothing.
+      final cells = (s['grid'] as Map<String, dynamic>)['cells'] as List;
+      (cells[0] as Map<String, dynamic>)['injured'] = true;
+      expect(grantHealAllAd(s), 0);
+      expect(stillHurt(s), 1, reason: 'the fourth video pays nothing');
+      expect(healAllAdsUsed(s), healAllAdCapPerDay);
+    });
+
+    test('and a new day is a fresh three', () {
+      final s = withInjured();
+      for (var i = 0; i < healAllAdCapPerDay; i++) {
+        grantHealAllAd(s);
+      }
+      final tomorrow = _t0 + Duration.millisecondsPerDay;
+      expect(healAllAdsUsed(s, tomorrow), 0);
+    });
+
+    test('and a save missing the blocks entirely grows them', () {
+      expect(healAllAdsUsed(null), 0);
+      final bare = <String, dynamic>{};
+      expect(grantHealAllAd(bare), 0, reason: 'nobody to heal');
+      expect(healAllAdsUsed(bare), 1, reason: 'the video was still spent');
+    });
+  });
+
   test('and a save missing the blocks entirely grows them', () {
     final bare = <String, dynamic>{};
     grantMatchCooldownAd(bare);

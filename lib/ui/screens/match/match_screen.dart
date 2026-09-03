@@ -360,6 +360,14 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
   /// suspension will be written from.
   List<Map<String, dynamic>> get bookings => _bookings;
 
+  /// What the opposition's own referee has cost them so far.
+  ///
+  /// Exposed for the test that holds watching and skipping to the same tally —
+  /// see [_oppCardsSeen]. `bookings` above is exposed for the same kind of
+  /// reason.
+  ({int yellows, int sendOffs}) get oppCards =>
+      (yellows: _oppYellows, sendOffs: _oppSendOffs);
+
   late List<TimelineEvent> _timeline = timelineOf(
     widget.result,
     bookings: _bookings,
@@ -430,12 +438,20 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
           'playerInstanceId': b.instanceId,
           'card': b.card,
         },
-      for (final b in theirs)
+      // **AN ID, EVEN THOUGH NOBODY IS NAMED.** Their eleven is synthetic and
+      // the copy is about the club, so there is no player for this to point at
+      // — it exists so a card can be counted ONCE. The live dispatch tallies
+      // their bookings as the clock reaches them and `_catchUpSendingsOff`
+      // tallies every booking at the whistle, so without something to key on, a
+      // fully WATCHED match double-counted every opposition card at full time
+      // and re-rolled the remainder against a side punished twice.
+      for (var i = 0; i < theirs.length; i++)
         {
-          'minute': b.minute,
+          'minute': theirs[i].minute,
           'type': 'booking',
           'team': 'away',
-          'card': b.card,
+          'playerInstanceId': 'oppcard-$i',
+          'card': theirs[i].card,
         },
     ];
   }
@@ -831,9 +847,36 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
         case 'booking':
           unawaited(sound.play('error'));
           final who = event.playerId;
-          // Their card is a line in the feed and nothing else — there is no
-          // bench of theirs to open and no ban of theirs to write.
-          if (event.team == 'away') break;
+          // **THEIR CARD IS NOT NOTHING ANY MORE.** There is still no bench of
+          // theirs to open and no ban of theirs to write — but it used to leave
+          // the maths untouched as well, so a sending-off for the opposition
+          // was a sentence in the feed and a side that went on playing at full
+          // strength. Reported from the couch. A second yellow is a sending-off
+          // and stops counting as a caution: he is off, not booked.
+          if (event.team == 'away') {
+            // Counted once — see the note where these ids are minted.
+            if (!_oppCardsSeen.add(who ?? '${event.minute}-${event.card}')) {
+              break;
+            }
+            if (cardSendsOff(event.card ?? cardYellow)) {
+              _oppSendOffs++;
+              if (event.card == cardSecondYellow && _oppYellows > 0) {
+                _oppYellows--;
+              }
+            } else {
+              _oppYellows++;
+            }
+            _resimulate(event.minute, _strategy, rerollInjuries: false);
+            if (mounted) {
+              setState(
+                () => _timeline = timelineOf(
+                  widget.result,
+                  bookings: _bookings,
+                ),
+              );
+            }
+            break;
+          }
           if (cardSendsOff(event.card ?? cardYellow)) {
             if (who != null) {
               _cautioned.remove(who);
@@ -851,6 +894,24 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
             );
           } else if (who != null) {
             _cautioned.add(who);
+            // **AND THE TEN PER CENT REACHES THE SCORELINE.** It used to come
+            // off the pitch token's number and off what the bench compared
+            // against, and stop there — so the rest of the match was rolled by
+            // a side nobody had booked. Asked for directly: "the new number
+            // should be what the SIM rerolls with."
+            //
+            // `rerollInjuries: false` for the same reason a substitution passes
+            // it: a caution is not a change of approach, so the injuries the
+            // match had coming still come.
+            _resimulate(event.minute, _strategy, rerollInjuries: false);
+            if (mounted) {
+              setState(
+                () => _timeline = timelineOf(
+                  widget.result,
+                  bookings: _bookings,
+                ),
+              );
+            }
             WidgetsBinding.instance.addPostFrameCallback(
               (_) => unawaited(_onBooked(who, event.player ?? '')),
             );
@@ -1513,6 +1574,30 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
   /// needs is the state at THIS minute — a card shown in the eightieth is not
   /// something the manager was living with at half time.
   final Set<String> _cautioned = <String>{};
+
+  /// **THEIR referee, counted rather than named.** The port never names an
+  /// opposition player — see the feed's own note on why their card reads about
+  /// the club — so there is no id to hang a multiplier on and no lineup to take
+  /// a man out of. What there is, is a tally, and
+  /// `booking_engine.oppTeamRatingMult` is what turns it into the same cut our
+  /// own side takes by construction.
+  int _oppYellows = 0;
+  int _oppSendOffs = 0;
+
+  /// Which of their cards have already been counted, so watching and skipping
+  /// cannot both count the same one. Ours are guarded by [_cautioned] and
+  /// [_sentOff] being sets; theirs had nothing until this, and a fully watched
+  /// match re-tallied every opposition card at the whistle.
+  final Set<String> _oppCardsSeen = <String>{};
+
+  /// **WHAT THE LAST RE-SIM ROLLED WITH, and why it is not on the result.**
+  ///
+  /// `reSimulateRemainder` fills this rather than stamping the result, because
+  /// the result is compared field for field against a node dump and bookings
+  /// are a mechanic the JS has never had. So the divergence lives on the
+  /// screen, which is where this repo's rule puts one. Empty until something
+  /// re-simulates, and the board falls back on the kickoff figures then.
+  final Map<String, dynamic> _liveRatings = <String, dynamic>{};
   final Set<String> _sentOff = <String>{};
 
   /// Colin has already spoken about a booking this match.
@@ -1783,13 +1868,51 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
   /// clock. The ban itself is written separately and was never affected — it
   /// comes off `_bookingRecords` at the whistle.
   void _catchUpSendingsOff() {
+    // **EVERY CARD, not only the ones that ended somebody's afternoon.** This
+    // caught up the sendings-off and nothing else, which was right while a
+    // dismissal was the only card that changed anything. It is not any more: a
+    // caution takes ten per cent off the man who got it and the opposition's
+    // own referee now cuts their rating too, so a skipped match that ignored
+    // both would go back to being decided by a scoreline nobody's cards had
+    // touched — the exact fault this method was written for.
+    //
+    // In MINUTE ORDER, each one re-simulating from its own minute, because that
+    // is what watching does. Composing them any other way would have an
+    // eightieth-minute booking retro-actively weakening a side for the twentieth
+    // minute of the same match.
     final missed = [
-      for (final b in _bookingRecords)
-        if (cardSendsOff(b.card) && !_sentOff.contains(b.instanceId)) b,
-    ]..sort((a, b) => a.minute.compareTo(b.minute));
+      for (final b in _bookings)
+        if (b['type'] == 'booking') b,
+    ]..sort((a, b) => ((a['minute'] as num?) ?? 0).compareTo((b['minute'] as num?) ?? 0));
+
     for (final b in missed) {
-      _sentOff.add(b.instanceId);
-      _playerSentOff(b.instanceId, b.minute);
+      final minute = ((b['minute'] as num?) ?? 0).toInt();
+      final card = '${b['card'] ?? cardYellow}';
+      final sendsOff = cardSendsOff(card);
+      if (b['team'] == 'away') {
+        final id = b['playerInstanceId'];
+        if (!_oppCardsSeen.add(id is String ? id : '$minute-$card')) continue;
+        if (sendsOff) {
+          _oppSendOffs++;
+          if (card == cardSecondYellow && _oppYellows > 0) _oppYellows--;
+        } else {
+          _oppYellows++;
+        }
+        _resimulate(minute, _strategy, rerollInjuries: false);
+        continue;
+      }
+      final who = b['playerInstanceId'];
+      if (who is! String) continue;
+      if (sendsOff) {
+        if (_sentOff.contains(who)) continue;
+        _cautioned.remove(who);
+        _sentOff.add(who);
+        // Vacates his slot and re-simulates from his minute.
+        _playerSentOff(who, minute);
+      } else {
+        if (!_cautioned.add(who)) continue;
+        _resimulate(minute, _strategy, rerollInjuries: false);
+      }
     }
   }
 
@@ -1826,6 +1949,17 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
       theirs,
       ref.read(gameProvider).state,
       rerollInjuries: rerollInjuries,
+      // **EVERY re-sim carries the cards, not just the one a card caused.** A
+      // tactic switch after a booking must not quietly un-book anybody, so the
+      // referee's state is read here rather than passed by the caller that
+      // happens to know about it. A man already sent off is not in `_cautioned`
+      // and is out of the lineup anyway; one already withdrawn is off the
+      // pitch, so his caution stops costing.
+      bookedMultipliers: bookedRatingMultipliers(
+        _cautioned.where((id) => !_withdrawn.contains(id)),
+      ),
+      oppRatingMult: oppTeamRatingMult(_oppYellows, _oppSendOffs),
+      liveRatingsOut: _liveRatings,
     );
     widget.result['events'] = [...kept, ...fresh];
   }
@@ -1996,6 +2130,7 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
                     leftGoals: home ? f.ourGoals : f.theirGoals,
                     rightGoals: home ? f.theirGoals : f.ourGoals,
                     result: widget.result,
+                    live: _liveRatings,
                     strategyId: _strategy,
                     isHome: home,
                     standings: _standings,
@@ -2927,6 +3062,7 @@ class _Scoreboard extends StatelessWidget {
     required this.leftGoals,
     required this.rightGoals,
     required this.result,
+    required this.live,
     required this.strategyId,
     required this.isHome,
     required this.standings,
@@ -2941,6 +3077,10 @@ class _Scoreboard extends StatelessWidget {
   final int leftGoals;
   final int rightGoals;
   final Map<String, dynamic> result;
+
+  /// The ratings the remainder was last re-rolled with, or empty when nothing
+  /// has re-simulated. See `MatchScreenState._liveRatings`.
+  final Map<String, dynamic> live;
 
   /// The tactic being played RIGHT NOW, so the split moves with the strip.
   final String strategyId;
@@ -2990,20 +3130,43 @@ class _Scoreboard extends StatelessWidget {
       strat,
       (result['oppAttackRatio'] as num?)?.toDouble(),
     );
+    // **THE LIVE FIGURES WHEN THERE ARE ANY, and the kickoff ones otherwise.**
+    //
+    // Reported from the couch twice over — once about our own caution ("that
+    // player's rating drop should also affect the team rating and ATK/DEF on
+    // the main card at the top of the match popup") and once about theirs
+    // ("opponent got a red card and I did not see that affect their team rating
+    // whilst I was in a game"). Both were right and both had the same cause:
+    // every number on this board came off the fields the result was stamped
+    // with at kickoff, and nothing ever wrote a second set.
+    //
+    // `reSimulateRemainder` writes the `live*` pair whenever it runs — a
+    // tactic switch, a substitution, a sending-off, a booking — and it is the
+    // side the remainder was actually rolled with. A match nobody was booked in
+    // never re-sims, carries no `live*` fields, and reads exactly as it did.
+    //
+    // On the SAME basis as the fields they stand in for, so the tactic is still
+    // applied here and applied once.
+    num liveOr(String liveKey, String kickoffKey) =>
+        asNum(live[liveKey] ?? result[kickoffKey]);
+
     final ourFifa = fifaSplitTactic(
-      asNum(result['ourAttackRating']),
-      asNum(result['ourDefenceRating']),
+      liveOr('liveAttackRating', 'ourAttackRating'),
+      liveOr('liveDefenceRating', 'ourDefenceRating'),
       mult.atk,
       mult.def,
     );
     final theirFifa = fifaSplit(
-      asNum(result['effOppAttackRating']),
-      asNum(result['effOppDefenceRating']),
+      liveOr('liveOppAttackRating', 'effOppAttackRating'),
+      liveOr('liveOppDefenceRating', 'effOppDefenceRating'),
     );
     final ourSplit = (atk: ourFifa.atk, def: ourFifa.def);
     final theirSplit = (atk: theirFifa.atk, def: theirFifa.def);
-    final ourRating = asNum(result['effectiveSquadRating']).round();
-    final theirRating = asNum(result['effectiveOppRating']).round();
+    final ourRating = liveOr(
+      'liveSquadRating',
+      'effectiveSquadRating',
+    ).round();
+    final theirRating = liveOr('liveOppRating', 'effectiveOppRating').round();
     // A cup tie or an older save may carry no split at all, and four zeroes
     // would be worse than nothing.
     final hasSplit = result['ourAttackRating'] != null;

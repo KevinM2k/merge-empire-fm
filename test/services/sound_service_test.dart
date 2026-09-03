@@ -422,4 +422,50 @@ void _sessionGroup() {
       expect(AudioPlayersBackend.sessionConfig.respectSilence, isFalse);
     });
   });
+
+  group('A BED FADES OUT FROM WHERE IT WAS', () {
+    // Reported from the couch: "in between transitions the music briefly hits
+    // 100% volume then respects the volume switch again." It did. The outgoing
+    // bed sits at `musicBaseVolume * <the player's setting>` and the fade's
+    // first step set it to `musicBaseVolume` times almost one — so with the
+    // slider at 30% it jumped to more than three times what had been asked for,
+    // held it for a fiftieth of the fade, and walked back down.
+    //
+    // Nothing else was ignoring the setting, which is why it "respected the
+    // switch again" immediately afterwards. One line was, on the one transition
+    // a player notices.
+    const steps = 20;
+
+    test('IT NEVER GOES ABOVE WHERE IT STARTED', () {
+      for (final setting in [1.0, 0.5, 0.3, 0.1, 0.0]) {
+        final from = musicBaseVolume * setting;
+        for (var i = 1; i <= steps; i++) {
+          expect(
+            musicFadeOutVolume(from, i, steps),
+            lessThanOrEqualTo(from),
+            reason: 'step $i of a fade from $from went up',
+          );
+        }
+      }
+    });
+
+    test('and it reaches silence exactly, rather than near it', () {
+      expect(musicFadeOutVolume(musicBaseVolume, steps, steps), 0);
+    });
+
+    test('AND THE OLD BEHAVIOUR WOULD HAVE SPIKED, which is the report', () {
+      // The line as it stood: `musicBaseVolume * (1 - i / steps)`, with no idea
+      // what the bed was actually playing at.
+      double old(int i) => musicBaseVolume * (1 - i / steps);
+      const quiet = musicBaseVolume * 0.3;
+      expect(
+        old(1),
+        greaterThan(quiet * 3),
+        reason: 'a bed at 30% was thrown to over three times its volume',
+      );
+      expect(musicFadeOutVolume(quiet, 1, steps), lessThan(quiet));
+    });
+  });
+
+
 }

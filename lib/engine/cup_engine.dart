@@ -553,6 +553,93 @@ typedef PreparedCupRound = ({
   String? injuredName,
 });
 
+/// Who the due cup tie is against, and how good they are — WITHOUT playing it.
+///
+/// **[prepareCupRound] is not a preview, and two home-screen providers were
+/// calling it as one.** Reported from the couch as three separate faults that
+/// turned out to be one: players going injured while the manager sat on the
+/// Squad page watching, an entire squad injured after a single cup week, and
+/// the team ratings then reading 0 — which is exactly what
+/// [computeSquadRatings] returns when all eleven are hurt.
+///
+/// `prepareCupRound` simulates the tie. It rolls injuries and APPLIES them
+/// (`_applyInjury` sets `injured` and vacates the man's slot), it spends the
+/// Lucky Boot, and it draws from the seeded stream. Both providers that named
+/// the cup opponent are `savePick`s, so every save mutation re-ran them and
+/// each run injured up to two more men — a feedback loop, because injuring
+/// somebody is itself a save mutation.
+///
+/// So the caption gets its own read of the bracket. Nothing here writes: the
+/// cup map is read rather than ensured, the Lucky Boot is applied to the number
+/// on show without clearing the flag (the same trick `previewFixture` uses for
+/// a league game), and the rating comes off `opponentMeta` — the club drawn
+/// into the bracket — rather than being re-drawn.
+///
+/// The one number this cannot promise is a legacy run with no `opponentMeta`:
+/// the tie jitters that rating by ±4 on a seeded draw, and a preview may not
+/// draw. It shows the unjittered midpoint, which is what the jitter is centred
+/// on.
+typedef CupTiePreview = ({
+  String cupId,
+  int round,
+  String roundName,
+  String opponentName,
+  num opponentRating,
+  double oppAttackRatio,
+});
+
+CupTiePreview? previewCupTie(Map<String, dynamic> state) {
+  final run = activeCup(state);
+  if (run == null) return null;
+  final cup = getCupById(run['cupId'] as String?);
+  final round = _num(run['round'])?.toInt() ?? 0;
+  if (cup == null || round >= cup.rounds.length) return null;
+
+  final opponentList = run['opponents'];
+  final opponentName = (opponentList is List && round < opponentList.length)
+      ? '${opponentList[round]}'
+      : 'Opponent';
+
+  final metaRaw = run['opponentMeta'];
+  final meta = (metaRaw is List && round < metaRaw.length)
+      ? _map(metaRaw[round])
+      : null;
+  final realRating = _num(meta?['rating']);
+  final bump = round < cup.opponentRatingBump.length
+      ? cup.opponentRatingBump[round]
+      : 10;
+
+  // The squad rating the tie would be pitched against, read exactly as
+  // `prepareCupRound` reads it — Pro mode plays at current fitness.
+  final fatigue = _map(state['settings'])?['hardMode'] == true;
+  final lineupRaw = _lineup(state);
+  final squadRating = computeSquadRating(
+    _cells(state),
+    lineup: lineupRaw.length == 11 ? lineupRaw : null,
+    definitionRatios: _map(state['definitionRatios']) ?? const {},
+    fatigue: fatigue,
+  );
+
+  var opponentRating = realRating != null
+      ? math.min(100, math.max(20, realRating))
+      : math.min(100, math.max(20, squadRating + bump));
+
+  // Applied, not spent — see the note above.
+  if (_map(state['shop'])?['luckyBootReady'] == true) {
+    opponentRating = applyLuckyBoot(opponentRating);
+  }
+
+  return (
+    cupId: cup.id,
+    round: round,
+    roundName: cup.rounds[round],
+    opponentName: opponentName,
+    opponentRating: opponentRating,
+    oppAttackRatio:
+        _num(meta?['attackRatio'])?.toDouble() ?? oppBaseAtkShare,
+  );
+}
+
 /// Simulate — but do not commit — the current cup round.
 ///
 /// The only side effect applied up front is spending the Lucky Boot, which is a

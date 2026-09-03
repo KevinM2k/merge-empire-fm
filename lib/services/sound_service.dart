@@ -35,6 +35,16 @@ import 'package:merge_empire_fc/data/sound_defs.dart';
 const double sfxBaseVolume = 0.72;
 const double musicBaseVolume = 0.15;
 
+/// One step of the outgoing bed's fade: where it started, walked to silence.
+///
+/// **A function so it can be asserted.** The fade itself lives in the
+/// `audioplayers` backend, which a test cannot run, and the bug it carried was
+/// pure arithmetic: it faded out from [musicBaseVolume] rather than from the
+/// volume the bed was actually playing at, so every transition spiked to full
+/// for one step before walking back down. See `_AudioPlayersBackend._rampOut`.
+double musicFadeOutVolume(double from, int step, int steps) =>
+    from * (1 - step / steps);
+
 /// The recorded sample is hot — keep it well back.
 const double fireworkVolume = 0.28;
 
@@ -495,7 +505,8 @@ class AudioPlayersBackend implements SoundBackend {
     await next.play(AssetSource(asset));
     if (old != null) {
       if (fade) {
-        _rampOut(old);
+        // **FROM WHERE IT WAS, not from full.** See [_rampOut].
+        _rampOut(old, volume);
       } else {
         await old.stop();
         await old.dispose();
@@ -518,7 +529,21 @@ class AudioPlayersBackend implements SoundBackend {
     });
   }
 
-  void _rampOut(AudioPlayer player) {
+  /// Fade the outgoing bed out, starting from [from].
+  ///
+  /// **[from], and it used to be [musicBaseVolume].** Reported from the couch:
+  /// "in between transitions the music briefly hits 100% volume then respects
+  /// the volume switch again." It did, and that is exactly what this was doing
+  /// — the outgoing player is sitting at `musicBaseVolume * _musicVolume`, and
+  /// the first step of the ramp set it to `musicBaseVolume` times almost one.
+  /// With the music slider at 30% that is a jump to more than three times what
+  /// the player had asked for, held for a fiftieth of the fade and then walked
+  /// back down. The louder the fade, the worse: at 10% it was a tenfold spike.
+  ///
+  /// The setting was never being ignored by [setMusicVolume] or by [setMusic],
+  /// which is why it "respected the switch again" straight after. It was
+  /// ignored by exactly one line, on exactly the transition a player notices.
+  void _rampOut(AudioPlayer player, double from) {
     const step = Duration(milliseconds: 50);
     final steps = musicFade.inMilliseconds ~/ step.inMilliseconds;
     var i = 0;
@@ -527,7 +552,7 @@ class AudioPlayersBackend implements SoundBackend {
     // charge of both.
     Timer.periodic(step, (timer) {
       i++;
-      unawaited(player.setVolume(musicBaseVolume * (1 - i / steps)));
+      unawaited(player.setVolume(musicFadeOutVolume(from, i, steps)));
       if (i >= steps) {
         timer.cancel();
         unawaited(player.stop().then((_) => player.dispose()));

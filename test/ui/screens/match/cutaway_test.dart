@@ -197,6 +197,84 @@ void main() {
       expect(ids.toSet().length, ids.length);
     });
 
+    group('THE MATCH IS PLAYED ACROSS THE WHOLE WIDTH', () {
+      // Asked for from the couch as more variation in the 2D pitch. The set was
+      // measured before the twelve that answered it: 8 left, 10 right, 17
+      // central by mean q — near enough even overall. What was NOT even was
+      // that named moves had one version each — a cutback off one side, a cut-in
+      // off one touchline, a corner from one flag — so a passage came round
+      // again as ITSELF rather than as its opposite number.
+      //
+      // This pins the width rather than the count, because the count is not the
+      // thing: forty passages all down the right would satisfy "there are lots"
+      // and still read as the camera having a favourite.
+
+      /// Which side of the pitch a passage spends its time on.
+      String sideOf(CutawaySequence seq) {
+        final qs = <double>[
+          for (final b in seq.play) ...[
+            if (b is Start) b.at.q,
+            if (b is Pass) b.to.q,
+            if (b is Dribble) b.to.q,
+          ],
+        ];
+        if (qs.isEmpty) return 'central';
+        final mean = qs.reduce((a, b) => a + b) / qs.length;
+        return mean < 0.42
+            ? 'left'
+            : mean > 0.58
+            ? 'right'
+            : 'central';
+      }
+
+      test('neither touchline is the favourite', () {
+        final sides = cutawaySequences.map(sideOf).toList();
+        final left = sides.where((s) => s == 'left').length;
+        final right = sides.where((s) => s == 'right').length;
+        expect(left, greaterThan(0));
+        expect(right, greaterThan(0));
+        // Within half again of each other. Loose enough that a single new
+        // passage never fails it and tight enough that a run of six down one
+        // wing does.
+        expect(
+          left / right,
+          inInclusiveRange(0.6, 1.0 / 0.6),
+          reason: 'the wings have drifted apart: $left left, $right right',
+        );
+      });
+
+      test('AND A NAMED MOVE HAS BOTH VERSIONS', () {
+        // The specific asymmetries the twelve were written for. Not a general
+        // rule — most passages have no mirror and want none — but these three
+        // pairs are the ones a player would notice repeating.
+        final ids = cutawaySequences.map((s) => s.id).toSet();
+        for (final pair in const [
+          ('cutback_right', 'cutback_left'),
+          ('cut_in_curler', 'cut_in_curler_left'),
+          ('corner_back_post', 'corner_near_flick'),
+        ]) {
+          expect(ids, contains(pair.$1));
+          expect(
+            ids,
+            contains(pair.$2),
+            reason: '${pair.$1} is back to having no opposite number',
+          );
+        }
+      });
+
+      test('and a passage still ends in a shot, or in the foul before one', () {
+        // Twelve hand-written entries is twelve chances to leave one dangling.
+        for (final seq in cutawaySequences) {
+          final last = seq.play.last;
+          expect(
+            last is Finish || (seq.freeKick && last is Dribble && last.fouled),
+            isTrue,
+            reason: '${seq.id} does not finish',
+          );
+        }
+      });
+    });
+
     test('a steal is played the other way, toward their own goal', () {
       // The whole point of a turnover: they carry it toward THEIR end, so `to`
       // must be a lower p than `from`. Reversed, the clip opens with the

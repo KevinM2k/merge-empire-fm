@@ -11,6 +11,86 @@ rough sense of size, not a target.
 **The live queue for this session is `docs/PLAYTHROUGH3.md`**, which is where
 the couch's reports are ticked off one at a time. What follows is the summary.
 
+## Asked for, 3 Sep 2026 — more variation
+
+Three systems in one request, and it splits into what a cloud container can do
+and what it cannot.
+
+**Done.** Colin now has a word at the FINAL whistle — nine `commentary.*`
+strings written for that moment (`thriller_*`, `demolition`, `drubbing`,
+`high_scoring_*`, `nervy_one_nil`, `nil_nil`) shipped in ten languages with
+nothing able to reach one of them, because `match_coach.dart` had a read for
+every scoreline in progress and none for a RESULT. And the 2D pitch went from 35
+scripted passages to 47: three supply the missing opposite number of a named
+move, nine are shapes the set had none of. The table's own guards drive every
+sequence through the game and check the ball stays on the pitch and every kick
+comes off a boot; all twelve passed first time.
+
+**Blocked, and this is the row that matters.** More commentary and report LINES
+cannot be written here. `commentary.*` is 64 keys / 120 lines and `report.*` is
+37 keys / 111 lines, and both are generated into `lib/i18n/locales/*.g.dart` from
+`../merge-empire-fc/src/i18n/locales/` — absent in a cloud container — so a line
+added here is reverted by the next `gen_i18n.mjs` run, in ten languages, with
+nothing to notice it went.
+
+There is precedent for getting this wrong in a second way: twenty story lines
+were added straight to the catalogues earlier in this queue and all twenty were
+removed again, because a line picked by bucket and minute cannot know what the
+cutaway is about to draw. **The way in is to pick the line from the PASSAGE** —
+47 sequences fall into about six shapes, and a pool per shape would let the words
+describe what is on screen. That needs new keys in `en.js`, which is the same
+block. So the order is: write the shape pools in the spec repo, then port them.
+
+## Playtest, 3 Sep 2026 — the cup week, and a screen that was playing the game
+
+Sixteen reports in one sitting. **Most of the work was already in the repo**:
+four were shipped copy with no caller, one was a shipped AdMob unit with no
+button, and the worst of them was a provider calling a SIMULATION where it
+wanted a lookup. See `docs/PLAYTHROUGH3.md` for the row-by-row.
+
+**The one to read first.** `nextMatchProvider` and `coachTipsProvider` named the
+due cup opponent by calling `prepareCupRound`, which does not commit a round and
+is not therefore read-only: it SIMULATES the tie, rolls injuries and applies
+them, and spends the Lucky Boot. Both are `savePick`s, so injuring somebody
+bumped the save revision, re-ran the provider, and injured somebody else. Three
+separate reports — a whole squad injured after one cup week, players
+"disappearing and going injured again" while the manager sat still on the Squad
+page, and team ratings reading 0 — were that one loop. A comment of mine
+asserting the call was read-only is what kept it alive; the assertion, not the
+call, is the thing worth being suspicious of.
+
+**Two harnesses had something to say and both were right, again.** The parity
+test refused the live ratings when they were stamped onto the result object —
+a field the JS has never heard of cannot live on the object it compares field
+for field — so they are handed out to the screen instead, which is this repo's
+own rule about where a divergence goes. And the placeholder sweep that found
+`{opp}` printing in a match summary found a second one on the squad screen.
+
+**Still open from this session:**
+
+- [ ] **A single caution is about a rating point, and sometimes none.**
+      `computeSquadRatings` returns whole numbers — the JS's rounding, held
+      there by the harness — so ten per cent of one man is ~0.9% of eleven.
+      That is the right size for a booking and it means the board will not
+      always visibly move for one yellow. A balance call, not a bug.
+
+- [ ] **`bash tool/unreached.sh` needs running over the `hint.*` bank.** Of 39
+      `hint.*` keys, 37 have no caller — the four injury ones this queue listed
+      were a sample, not the set. And the count is not a work queue: three of
+      those four turned out to be SUPERSEDED rather than missing, because
+      `coach.grid.injury` is pooled, reachable, and already says all three
+      things on the same screen. The rest of the bank wants the same read
+      before any of it is built.
+
+**And the tail of this session is worth one line on its own.** Five more fixes
+after the reports ran out, every one of them a shipped string, asset or function
+with nothing calling it — and TWO had to be corrected rather than merely
+connected. `signBlockedCopy` named `grid.player_count`, a readout, as its
+refusal message for a full roster. `coach.grid.injury` told the player to tap an
+injured card "to see the timer", and the sheet that tap opens had no timer on
+it. Unreachable code is not finished code; wiring either up without reading it
+would have shipped the fault it was carrying.
+
 ## Playtest, 2 Sep 2026 — the referee, the write-up, and a phone on a cable
 
 The longest single session on this queue, and the first one profiled on a real

@@ -192,6 +192,7 @@ class SubsPanelState extends ConsumerState<SubsPanel> {
       child: _BenchSheet(
         slotId: slotId,
         offId: offId,
+        cautioned: widget.cautioned,
         spent: widget.withdrawn,
         onChosen: (onId) => slotId == null
             ? Future.value(false)
@@ -480,6 +481,7 @@ class _BenchSheet extends ConsumerStatefulWidget {
   const _BenchSheet({
     required this.slotId,
     required this.offId,
+    required this.cautioned,
     required this.spent,
     required this.onChosen,
   });
@@ -491,6 +493,10 @@ class _BenchSheet extends ConsumerStatefulWidget {
   /// before you were shown the alternatives.
   final String? slotId;
   final String? offId;
+
+  /// Who is carrying a yellow. The comparison the bench draws is against what
+  /// the man coming off is worth NOW — see the note at [_BenchSheetState.build].
+  final Set<String> cautioned;
   final Set<String> spent;
 
   /// Resolves true once the change has gone through, which is when this closes.
@@ -547,12 +553,25 @@ class _BenchSheetState extends ConsumerState<_BenchSheet> {
     final off = widget.offId == null
         ? null
         : _cardById(state, widget.offId!);
+    // **AND HE IS COMPARED AT WHAT HE IS WORTH NOW.** Reported from the couch:
+    // "when a player has a yellow and ratings drop and we go to bench, it's
+    // still comparing the player's rating before the game vs the subs — it
+    // should use his rating now, which is the one after his yellow card."
+    //
+    // The ten per cent was coming off the token drawn on the pitch and off
+    // nothing else, so the tile that says "this man is better than the one
+    // coming off" was answering a question about a player who no longer
+    // existed — and answering it in the one place a manager acts on it.
+    final offBooked = widget.cautioned.contains(widget.offId);
     final offStats = off == null
         ? null
-        : getCardStats(
-            off,
-            slotPosition: slotPosition,
-            definitionRatios: _ratios(state),
+        : bookedStats(
+            getCardStats(
+              off,
+              slotPosition: slotPosition,
+              definitionRatios: _ratios(state),
+            ),
+            offBooked,
           );
 
     return Column(
@@ -672,6 +691,27 @@ class _BenchSheetState extends ConsumerState<_BenchSheet> {
     );
   }
 }
+
+/// The same man, carrying a caution.
+///
+/// `yellowCardRatingMult` on all three live figures. The BASE trio is left
+/// alone: those are what the card is worth, and a booking is a fact about this
+/// afternoon rather than about him.
+///
+/// Public because it is the whole of the fix and the only part worth pinning: a
+/// widget test can see that the bench draws the same values either way — the
+/// comparison lives in the CHIP's colour, not its number — so the assertion
+/// that means anything is about the basis, and this is the basis.
+CardStats bookedStats(CardStats stats, bool cautioned) => cautioned
+    ? CardStats(
+        attack: (stats.attack * yellowCardRatingMult).round(),
+        defence: (stats.defence * yellowCardRatingMult).round(),
+        rating: (stats.rating * yellowCardRatingMult).round(),
+        baseAttack: stats.baseAttack,
+        baseDefence: stats.baseDefence,
+        baseRating: stats.baseRating,
+      )
+    : stats;
 
 /// **THE POSITION SPLIT IS RATIOED**, and the ratios live in the save — a card
 /// asked for its ATK/DEF without them is asked a different question from the one

@@ -786,16 +786,30 @@ class PlayerCard extends StatelessWidget {
                 // `InjuryCross` is the token's own, so the eleven and the bench
                 // draw the same mark — the rule this file's own header records
                 // about there being one of each thing.
+                //
+                // **AND THE WASH IS SHARED WITH A BAN.** Asked for from the
+                // couch: "like the red overlay you put on injured players, put
+                // the same one on red carded players too." It is the same
+                // statement — this one cannot take the field — and it was the
+                // half a suspension did not get: the red card sat on unwashed
+                // artwork, so a hurt man read as out from across a bench and a
+                // banned one only read as out once you had looked at him.
+                //
+                // ONE wash for both, or a man carrying an injury and a ban gets
+                // it twice and goes almost black.
+                if (view.injured || view.suspended)
+                  const Positioned.fill(
+                    child: IgnorePointer(
+                      child: ColoredBox(color: Color(0x66640000)),
+                    ),
+                  ),
                 if (view.injured)
                   const Positioned.fill(
                     child: IgnorePointer(
-                      child: ColoredBox(
-                        color: Color(0x66640000),
-                        child: Center(
-                          child: InjuryCross(
-                            key: ValueKey('card-injury-cross'),
-                            size: 34,
-                          ),
+                      child: Center(
+                        child: InjuryCross(
+                          key: ValueKey('card-injury-cross'),
+                          size: 34,
                         ),
                       ),
                     ),

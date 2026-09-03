@@ -12,12 +12,16 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:merge_empire_fc/data/cups.dart';
+import 'package:merge_empire_fc/data/divisions.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/state/save_slots.dart';
 import 'package:merge_empire_fc/state/save_store.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
 import 'package:merge_empire_fc/ui/screens/home/coach_bubble.dart';
+import 'package:merge_empire_fc/ui/screens/match/cup_launcher.dart'
+    show cupDueAfterMatches;
 import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
 
 Map<String, dynamic>? _map(Object? v) => v is Map<String, dynamic> ? v : null;
@@ -94,6 +98,72 @@ void main() {
     // And it is pooled copy: one line, not four separated by pipes.
     expect(text, isNot(contains('|')));
     expect(text.trim(), isNotEmpty);
+  });
+
+
+  test('AND A DUE CUP TIE SILENCES THE LEAGUE READ', () {
+    // Reported from the couch: "coach tips are mentioning Everton as well as
+    // the Rangers game — the Rangers game shouldn't matter until this cup game
+    // is out of the way." The grudge and the rating comparison were already
+    // gated on there being no tie; the head-to-head was not, so he was reading
+    // out a record against the club sitting BEHIND the fixture in front of him.
+    final boot = bootWithFixtures(null);
+    final save = boot.c.read(gameProvider).state!;
+    final prog = save['progression'] as Map<String, dynamic>;
+    final results = (prog['fixtureResults'] ??= <String, dynamic>{})
+        as Map<String, dynamic>;
+    for (var i = 1; i <= 3; i++) {
+      results['s1_m$i'] = <String, dynamic>{
+        'homeGoals': 2,
+        'awayGoals': 0,
+        'won': true,
+        'drawn': false,
+        'isHome': true,
+        'opponentName': boot.opponent,
+      };
+    }
+    // He has a record to read out, and reads it, while the league game is next.
+    expect(
+      boot.c.refresh(coachTipsProvider).map((t) => t.id),
+      contains('head_to_head'),
+    );
+
+    // Now the tie is next.
+    final cup = cups.first;
+    prog['currentDivision'] = divisions[cup.unlocksAtDivisionIdx].id;
+    prog['seasonMatchesPlayed'] = cupDueAfterMatches.first;
+    prog['cups'] = <String, dynamic>{
+      'availableThisSeason': false,
+      'active': <String, dynamic>{
+        'cupId': cup.id,
+        'round': 0,
+        'opponents': [for (final r in cup.rounds) 'Everton $r'],
+        'opponentMeta': [
+          for (final _ in cup.rounds)
+            <String, dynamic>{
+              'divId': prog['currentDivision'],
+              'rating': 60,
+              'attackRatio': 0.5,
+            },
+        ],
+        'contexts': <dynamic>[],
+        'results': <dynamic>[],
+        'startedAt': 0,
+        'startedSeason': 1,
+      },
+      'history': <dynamic>[],
+    };
+
+    final tips = boot.c.refresh(coachTipsProvider);
+    expect(
+      tips.map((t) => t.id),
+      isNot(contains('head_to_head')),
+      reason: 'there is no head-to-head with a club drawn out of a bracket',
+    );
+    // And nothing he says names the league club he is not about to play.
+    for (final tip in tips) {
+      expect(tip.text, isNot(contains(boot.opponent)));
+    }
   });
 
   test('IT IS ONE SENTENCE, not the whole pool, and it HOLDS STILL', () {

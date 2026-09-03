@@ -309,4 +309,65 @@ void main() {
       expect(seen, hasLength(13));
     });
   });
+
+  group('WHERE HE IS ON THE AGE CURVE', () {
+    // Four more `squad.badge.*` keys shipped in ten languages with no caller —
+    // the injured badge was one of eight. The thresholds are not invented: they
+    // are the ladder `coach_tips.dart` already runs on, lifted so the badge on
+    // a card and the sentence out of Colin cannot disagree about one player.
+
+    test('most of a squad wears nothing', () {
+      // A badge on every card says nothing about any of them — the rule the
+      // form arrow already follows.
+      for (var s = 0; s < 7; s++) {
+        expect(ageBadgeKeyFor(s), isNull, reason: '$s seasons');
+      }
+    });
+
+    test('and the ladder climbs in the order it becomes urgent', () {
+      for (var s = 7; s < 10; s++) {
+        expect(ageBadgeKeyFor(s), 'squad.badge.ageing', reason: '$s');
+      }
+      for (var s = 10; s < 13; s++) {
+        expect(ageBadgeKeyFor(s), 'squad.badge.declining', reason: '$s');
+      }
+      expect(ageBadgeKeyFor(13), 'squad.badge.sell_now');
+      expect(ageBadgeKeyFor(14), 'squad.badge.last_season');
+    });
+
+    test('A MAN IN HIS LAST SEASON IS STILL IN IT AT FIFTEEN', () {
+      // `processAgeRegression` retires at fifteen, and it runs at the season
+      // END — so a save can hold a card at fifteen that has not been swept yet,
+      // and telling him he is merely "declining" would be the last thing the
+      // game said about him.
+      expect(ageBadgeKeyFor(retirementSeasons), 'squad.badge.last_season');
+      expect(ageBadgeKeyFor(40), 'squad.badge.last_season');
+    });
+
+    test('and only the two that mean ACT NOW are urgent', () {
+      expect(ageBadgeIsUrgent('squad.badge.last_season'), isTrue);
+      expect(ageBadgeIsUrgent('squad.badge.sell_now'), isTrue);
+      expect(ageBadgeIsUrgent('squad.badge.declining'), isFalse);
+      expect(ageBadgeIsUrgent('squad.badge.ageing'), isFalse);
+    });
+
+    test('IT AGREES WITH COLIN, which is the whole reason it lives here', () {
+      // His ladder: >=14 final season, ==13 sell now, 10..12 declining,
+      // 7..9 veteran. If one moves without the other, a card can say "Ageing"
+      // while he is calling the same man a sell-now.
+      String? colin(int s) {
+        if (s >= 14) return 'squad.badge.last_season';
+        if (s == 13) return 'squad.badge.sell_now';
+        if (s >= 10 && s < 13) return 'squad.badge.declining';
+        if (s >= 7 && s < 10) return 'squad.badge.ageing';
+        return null;
+      }
+
+      for (var s = 0; s <= 20; s++) {
+        expect(ageBadgeKeyFor(s), colin(s), reason: '$s seasons');
+      }
+    });
+  });
+
+
 }

@@ -16,6 +16,8 @@ library;
 // Dart, like this file: nothing here reaches for Flutter.
 import 'package:merge_empire_fc/engine/booking_engine.dart' show cardYellow;
 import 'package:merge_empire_fc/util/sorting.dart' show stableSorted;
+import 'package:merge_empire_fc/engine/match_coach.dart'
+    show fullTimeReactionKey;
 import 'package:merge_empire_fc/engine/match_events.dart' show commentaryPools;
 
 /// One thing that happened, ready to show.
@@ -687,7 +689,51 @@ List<FeedLine> feedOf(
           card: null,
           playerId: null,
         ));
-      // A corner is a momentum nudge and full time is the screen's own.
+      // **AND HE HAS A WORD AT THE WHISTLE.** The engine emits a `fulltime`
+      // event and this list dropped it, so the feed simply stopped — while nine
+      // `commentary.*` strings written for exactly that moment
+      // (`thriller_win`, `demolition`, `drubbing`, `high_scoring_*`,
+      // `nervy_one_nil`, `nil_nil`) sat translated in ten catalogues with
+      // nothing able to reach one of them. Asked for from the couch as more
+      // variation in the commentary; this is nine results' worth that were
+      // already written.
+      //
+      // **The goals are counted from the FEED, not read off the result.** The
+      // same rule `frameAt` follows and for the same reason: the number in his
+      // sentence can never run ahead of the goals that explain it. At the
+      // whistle they are the same figure, and on a re-sim that rewrote the
+      // scoreline they are the one the player actually watched.
+      //
+      // He is quiet after an ordinary afternoon — see `fullTimeReactionKey`.
+      case 'fulltime':
+        var ours = 0;
+        var theirs = 0;
+        for (final g in events) {
+          if (g.type != 'goal') continue;
+          if (g.team == 'away') {
+            theirs++;
+          } else {
+            ours++;
+          }
+        }
+        final reaction = fullTimeReactionKey(ours: ours, theirs: theirs);
+        if (reaction == null) continue;
+        out.add((
+          minute: e.minute,
+          type: e.type,
+          key: reaction,
+          // `{us}`–`{them}` is the SCORELINE in our order — he is talking to
+          // us about our own team — and `{opp}` is the club. Not the venue
+          // ordering the scoreboard uses: "a 1-0 win over Ayton" is his
+          // sentence whichever ground it was won on.
+          params: {'us': ours, 'them': theirs, 'opp': theirName},
+          seed: '${e.minute}-ft',
+          goal: null,
+          aboutId: null,
+          card: null,
+          playerId: null,
+        ));
+      // A corner is a momentum nudge.
       default:
         continue;
     }

@@ -75,7 +75,15 @@ typedef CupTie = ({
   /// The one due next, and only while it actually is.
   bool isNext,
 
-  /// Null until it has been played.
+  /// **Who, from the moment the bracket is drawn.** This was null until the
+  /// tie had been PLAYED, so the one row on the fixture list a player most
+  /// wanted to read — the cup tie that is next — named the competition and the
+  /// round and no club at all. Reported from the couch with a screenshot: "my
+  /// next match is a cup game vs Everton but if you look at fixtures, you can
+  /// see Everton nowhere."
+  ///
+  /// A played tie still prefers the name in its RESULT: that is who was
+  /// actually beaten, and the bracket ahead of it can be re-drawn.
   String? opponent,
   int? ourGoals,
   int? theirGoals,
@@ -101,6 +109,10 @@ final ourCupTiesProvider = savePick<List<CupTie>>((s) {
         final result = results is List && round < results.length
             ? _map(results[round])
             : null;
+        final names = run['opponents'];
+        final drawn = names is List && round < names.length
+            ? '${names[round]}'
+            : null;
         // `cupDueAfterMatches` is the count of league matches that must be
         // behind you; the tie itself sits after the LAST of them.
         final after = round < cupDueAfterMatches.length
@@ -115,7 +127,7 @@ final ourCupTiesProvider = savePick<List<CupTie>>((s) {
           played: result != null,
           // Due, and nothing before it still to play.
           isNext: result == null && round == at && played >= after + 1,
-          opponent: result?['opponentName'] as String?,
+          opponent: (result?['opponentName'] as String?) ?? drawn,
           ourGoals: result == null ? null : _int(result['homeGoals']),
           theirGoals: result == null ? null : _int(result['awayGoals']),
           won: result?['won'] == true,

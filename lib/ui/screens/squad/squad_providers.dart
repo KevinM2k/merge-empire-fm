@@ -13,6 +13,10 @@ import 'package:merge_empire_fc/data/formations.dart';
 import 'package:merge_empire_fc/engine/fixture_preview.dart';
 import 'package:merge_empire_fc/engine/lineup_engine.dart';
 import 'package:merge_empire_fc/engine/match_tactics.dart';
+import 'package:merge_empire_fc/engine/free_shelf_engine.dart'
+    show healAllAdsUsed;
+import 'package:merge_empire_fc/engine/shop_consumables_engine.dart'
+    show injuredCount;
 import 'package:merge_empire_fc/engine/squad_rating.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/state/card_instance.dart';
@@ -416,3 +420,14 @@ final slotCandidatesProvider = Provider.family<List<SlotCandidate>, String>((
   out.sort((a, b) => b.effRating - a.effRating);
   return out;
 });
+
+/// How many are hurt, and how much of the day's free heal is left.
+///
+/// Separate `savePick`s rather than one record: both are ints, so each compares
+/// with `==` and the button rebuilds only when its own half moved.
+final injuredCountProvider = savePick<int>(injuredCount);
+final healAllUsedProvider = savePick<int>(healAllAdsUsed);
+
+/// The rewarded placement for it. `ad_units.dart` has carried a real unit for
+/// both stores since the tables were ported; nothing had ever asked for one.
+const String healAllPlacement = 'heal_all';

@@ -212,4 +212,89 @@ void main() {
       expect(pick, isNotNull);
     });
   });
+
+  group('HIS WORD AT THE WHISTLE', () {
+    // Nine more shipped strings with no caller — `thriller_*`, `demolition`,
+    // `drubbing`, `high_scoring_*`, `nervy_one_nil`, `nil_nil`. They are his
+    // read of a RESULT, and `coachReadKey` stops at the 89th minute, so the one
+    // moment they were written for was the one moment he had nothing to say.
+
+    test('the two scorelines the copy names outright', () {
+      // Both are also "not many goals", so a general rule would swallow them —
+      // which is why they are tested first in the function too.
+      expect(fullTimeReactionKey(ours: 0, theirs: 0), 'commentary.nil_nil');
+      expect(
+        fullTimeReactionKey(ours: 1, theirs: 0),
+        'commentary.nervy_one_nil',
+      );
+      // And 0-1 is NOT the one-nil line from the other end: the copy is "three
+      // points is three points".
+      expect(fullTimeReactionKey(ours: 0, theirs: 1), isNull);
+    });
+
+    test('three clear is a hiding, however many were scored', () {
+      for (final (o, t) in const [(3, 0), (4, 1), (5, 2), (7, 0)]) {
+        expect(fullTimeReactionKey(ours: o, theirs: t), 'commentary.demolition',
+            reason: '$o-$t');
+      }
+      for (final (o, t) in const [(0, 3), (1, 4), (2, 5)]) {
+        expect(fullTimeReactionKey(ours: o, theirs: t), 'commentary.drubbing',
+            reason: '$o-$t');
+      }
+    });
+
+    test('A THRILLER IS CLOSE FIRST AND HIGH-SCORING SECOND', () {
+      // 3-3 has six goals in it, and "goals everywhere but we got the result"
+      // is not a thing to say about a draw — which is why the close test runs
+      // before the high-scoring one.
+      expect(fullTimeReactionKey(ours: 3, theirs: 3), 'commentary.thriller_draw');
+      expect(fullTimeReactionKey(ours: 2, theirs: 2), 'commentary.thriller_draw');
+      expect(fullTimeReactionKey(ours: 2, theirs: 1), 'commentary.thriller_win');
+      expect(fullTimeReactionKey(ours: 4, theirs: 3), 'commentary.thriller_win');
+      expect(fullTimeReactionKey(ours: 1, theirs: 2), 'commentary.thriller_loss');
+    });
+
+    test('and only a two-goal margin reaches the high-scoring pair', () {
+      expect(
+        fullTimeReactionKey(ours: 4, theirs: 2),
+        'commentary.high_scoring_win',
+      );
+      expect(
+        fullTimeReactionKey(ours: 2, theirs: 4),
+        'commentary.high_scoring_loss',
+      );
+    });
+
+    test('HE IS QUIET AFTER AN ORDINARY ONE, which is most of them', () {
+      // A line on every full time is a line nobody reads — the rule
+      // `squadStateHint` follows when it stays quiet.
+      for (final (o, t) in const [(1, 1), (2, 0), (0, 2), (0, 1)]) {
+        expect(fullTimeReactionKey(ours: o, theirs: t), isNull, reason: '$o-$t');
+      }
+    });
+
+    test('EVERY KEY IT CAN RETURN EXISTS, in every language', () {
+      // The whole point of this is reaching copy that already ships. A key that
+      // resolves to itself is a sentence nobody wrote.
+      final reached = <String>{};
+      for (var o = 0; o <= 8; o++) {
+        for (var t = 0; t <= 8; t++) {
+          final key = fullTimeReactionKey(ours: o, theirs: t);
+          if (key != null) reached.add(key);
+        }
+      }
+      expect(reached, hasLength(9), reason: 'one of the nine is unreachable');
+      for (final locale in localeIds) {
+        setLocale(locale);
+        addTearDown(resetLocale);
+        for (final key in reached) {
+          final line = t(key, const {'us': 1, 'them': 0, 'opp': 'Ayton'});
+          expect(line, isNot(key), reason: '$key missing in $locale');
+          expect(line, isNot(contains('{')), reason: '$key unfilled in $locale');
+        }
+      }
+    });
+  });
+
+
 }

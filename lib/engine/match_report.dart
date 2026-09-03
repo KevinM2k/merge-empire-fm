@@ -195,7 +195,16 @@ List<ReportBeat> buildMatchReport(ReportFacts f) {
   // A clean sheet is worth a line of its own, and only when it was actually
   // worked for — nil-nil already said it in the headline.
   if (f.theirs == 0 && f.ours > 0) {
-    beats.add((key: 'report.clean_sheet', params: {'club': f.clubName}));
+    // **`opp` TOO, and it was not being passed.** The second of the three
+    // variants opens "{opp} were kept out entirely" — so one write-up in three
+    // that kept a clean sheet printed a literal `{opp}` at the reader.
+    // Reported from the couch. A pool's variants do not all take the same
+    // placeholders, which is exactly why the parameters have to satisfy the
+    // WHOLE pool rather than the line that happened to be picked in testing.
+    beats.add((
+      key: 'report.clean_sheet',
+      params: {'club': f.clubName, 'opp': f.opponentName},
+    ));
   }
 
   // ── 4. The referee ───────────────────────────────────────────────────────
