@@ -17,6 +17,7 @@ import 'dart:math' show Random, max, min, pi;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/ui/theme/app_theme.dart' show minFontSize;
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
@@ -82,9 +83,20 @@ const double phoneFingerReach = 0;
 /// round it — see the bands in the menu.
 bool get phoneHandOverGlass => phoneThumbZone.left < 0.9 || phoneFingerReach > 0.04;
 
+/// What is on the phone's screen, asked for on every rebuild.
+///
+/// **A BUILDER, not a list**, and that is the whole of the red-dot bug. Every
+/// door on this phone opens a sheet OVER it and closing one lands the player
+/// back here — deliberately, see `_QuickNavTile` — so a menu built once at open
+/// time goes on showing what was true before the sheet. Finishing every drill
+/// left the Training tile still nagging until the phone was put away and opened
+/// again. Called from inside the route with its own `ref`, so a tile's dot goes
+/// out the moment the save says it should.
+typedef QuickNavGroupsBuilder = List<QuickNavGroup> Function(WidgetRef ref);
+
 Future<void> showQuickNavMenu(
   BuildContext context, {
-  required List<QuickNavGroup> groups,
+  required QuickNavGroupsBuilder groups,
   double? battery,
   String? clubName,
   Color? skin,
@@ -104,7 +116,7 @@ Future<void> showQuickNavMenu(
     barrierColor: Colors.black.withValues(alpha: 0.32),
     transitionDuration: still ? Duration.zero : _Raise.duration,
     pageBuilder: (dialogContext, animation, secondary) =>
-        _QuickNavMenu(
+        _QuickNavScreen(
           groups: groups,
           battery: battery,
           clubName: clubName,
@@ -112,6 +124,35 @@ Future<void> showQuickNavMenu(
         ),
     transitionBuilder: (dialogContext, animation, secondary, child) =>
         _Raise(animation: animation, child: child),
+  );
+}
+
+/// The one live thing on the route: it re-reads [groups] and hands the phone
+/// below it a fresh menu.
+///
+/// It sits ABOVE the handset rather than inside it so the case, the hand and
+/// the raise are untouched by a dot going out — and the picks behind the dots
+/// are `savePick`s, which notify only when their own value moves, so this
+/// rebuilds when a tile changes and not once a tick.
+class _QuickNavScreen extends ConsumerWidget {
+  const _QuickNavScreen({
+    required this.groups,
+    this.battery,
+    this.clubName,
+    this.skin,
+  });
+
+  final QuickNavGroupsBuilder groups;
+  final double? battery;
+  final String? clubName;
+  final Color? skin;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) => _QuickNavMenu(
+    groups: groups(ref),
+    battery: battery,
+    clubName: clubName,
+    skin: skin,
   );
 }
 

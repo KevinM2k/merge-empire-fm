@@ -6,12 +6,14 @@ because that is the part worth keeping.
 
 ## Where this queue stands
 
-**82 done, 5 open, and one feature parked.** None of the open rows is a fault. One is a feature that was
-built, tried and turned down; one is a balance question rather than work; one is
-a survey to run before building; and one is **blocked on the spec repo**, which
-is the row to read if the queue looks short — richer commentary and report copy
-cannot be written from a cloud container without the next generator run throwing
-it away in ten languages at once.
+**84 done, 6 open, and one feature parked.** One of the open rows is a fault
+and it is small and named — the phone's battery is frozen while the phone is
+open, the same freeze the red dot had. The rest are not: one is a feature that
+was built, tried and turned down; one is a balance question rather than work;
+one is a survey to run before building; and one is **blocked on the spec repo**,
+which is the row to read if the queue looks short — richer commentary and report
+copy cannot be written from a cloud container without the next generator run
+throwing it away in ten languages at once.
 
 The FIRST batch's pattern is worth naming: **almost every "the game said X"
 report was a claim the game itself contradicted.** Copy that asserted "ten
@@ -762,6 +764,50 @@ a screen speaking in a voice that is not its own.
       alone — so any result reaching it without that field re-rolled the
       opposition down to a flat zero the first time anything re-simulated. Same
       chain for all three now.
+
+## Seventh batch — a dot the phone could not put out
+
+- [x] **"I finished all training, went back to the phone and red dot was still
+      on it... it was only when I changed tabs and came back that it went."**
+      The dot was right about the save and wrong about the screen: nothing on
+      the phone was reading the save at all after it opened. `MenuDock` built
+      the whole menu in its `onTap` — `quickNavGroups(context, ref)`, evaluated
+      once — and handed `showQuickNavMenu` a `List<QuickNavGroup>` whose `dot`
+      is a plain `bool`. The route then drew that list for as long as the phone
+      was up.
+
+      **What makes it a bug rather than a stale frame is the phone's own best
+      feature**: every tile opens a sheet OVER the phone and closing one lands
+      the player back on the phone, deliberately — "when we close them, the
+      phone is still open". So the one screen a player reliably returns to
+      after dealing with something was the one screen that could not notice.
+      Changing tabs put the phone away; opening it again rebuilt the list, and
+      the dot was gone. Quests and Daily had it too — claim the daily reward
+      from the phone and its tile went on nagging in exactly the same way.
+
+      `groups` is a `QuickNavGroupsBuilder` now, called inside the route with
+      the route's own `ref`, so every tile is live. It is one class above the
+      handset rather than inside it, so the case, the hand and the raise are
+      untouched by a dot going out — and the picks behind the dots are
+      `savePick`s, which notify only when their own value moves, so the phone
+      rebuilds when a tile changes and not once a tick. The badges on the Table
+      and Daily tiles were already live `ConsumerWidget`s passed in as widgets;
+      that asymmetry — a live badge beside a frozen dot on the same tile — is
+      the tell that was there to be read.
+
+      Pinned twice: `test/ui/shell/quick_nav_dots_test.dart` plays a drill
+      against a real save with the phone open and watches the Training dot go
+      out, and `quick_nav_menu_test` pins the contract itself. Both fail
+      against the snapshot.
+
+- [ ] **The battery on the phone is frozen the same way**, and was left alone.
+      It is passed in as a `double` from the dock, so energy spent or regained
+      while the phone is open does not move it. Not what was reported and not
+      the same fix — the dots are picks the menu can watch, the battery is
+      arithmetic the caller does — but it is the same freeze and it is on the
+      same screen.
+
+---
 
 ---
 

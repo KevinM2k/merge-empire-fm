@@ -250,7 +250,12 @@ class MenuDock extends ConsumerWidget {
         final skin = '${look['skin'] ?? ''}';
         showQuickNavMenu(
           context,
-          groups: quickNavGroups(context, ref),
+          // **The MENU's own `ref`, not this one.** The tiles are rebuilt
+          // inside the route so a dot that goes out while the phone is open
+          // goes out on screen — the sheets open over it and the phone is
+          // still there when they close. `context` stays this one: the doors
+          // are opened from the screen the phone was opened from.
+          groups: (menuRef) => quickNavGroups(context, menuRef),
           battery: max <= 0 ? 1 : ref.read(energyProvider) / max,
           clubName: '${state?['clubName'] ?? ''}',
           skin: skin.isEmpty ? null : cssColor(skin),
