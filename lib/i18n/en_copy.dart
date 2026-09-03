@@ -263,7 +263,11 @@ const Map<String, String> enMore = <String, String>{
       '{player} scored a pair and could have had a third.',
   'report.scorers.hat_trick':
       '{player} took {n} of them home, and the match ball with it.|'
-      'A {n}-goal afternoon for {player}, which is what {club} will remember of this one.',
+      'A {n}-goal afternoon for {player}, which is what {club} will remember of this one.|'
+      // "they were untouchable today" — the couch's own words for what the
+      // write-up should be saying instead of listing the minutes.
+      '{player} was untouchable, and {n} goals is the least of what it looked '
+          'like from the stands.',
   'report.clean_sheet':
       'And nothing conceded — {club}\'s back line were not troubled for long.|'
       'A clean sheet for {club} to go with the result.',
@@ -526,57 +530,97 @@ const Map<String, String> enCopy = <String, String>{
       'Full time, and {club} have been taken apart — {theirs} conceded, and it '
           'could have been more.',
 
-  // Every goal, keyed by what it did to the match. Theirs carry the club,
-  // because the sim does not name their scorers.
-  'report.goal.ours.opener':
-      '{scorer} opened the scoring for {club} in the {minute} minute.|'
-      'The first goal came in the {minute} minute, {scorer} putting {club} '
-          'ahead.',
-  'report.goal.ours.leveller':
-      '{scorer} levelled it for {club} in the {minute} minute, {score}.|'
-      '{club} were back level in the {minute} minute through {scorer}.',
-  'report.goal.ours.lead':
-      '{scorer} put {club} in front in the {minute} minute, {score}.|'
-      'In the {minute} minute {scorer} scored to put {club} ahead at {score}.',
-  'report.goal.ours.extend':
-      '{scorer} made it {score} in the {minute} minute.|'
-      '{club} stretched it to {score} in the {minute} minute, {scorer} with '
-          'the goal.',
-  'report.goal.ours.pull_back':
-      '{scorer} pulled one back for {club} in the {minute} minute, {score}.|'
-      '{club} got one back in the {minute} minute through {scorer}, {score}.',
-  'report.goal.theirs.opener':
-      '{opp} opened the scoring in the {minute} minute.|'
-      'The first goal was {opp}\'s, in the {minute} minute.',
-  'report.goal.theirs.leveller':
-      '{opp} levelled in the {minute} minute, {score}.|'
-      '{opp} drew level in the {minute} minute.',
-  'report.goal.theirs.lead':
-      '{opp} went in front in the {minute} minute, {score}.|'
-      'In the {minute} minute {opp} scored to lead {score}.',
-  'report.goal.theirs.extend':
-      '{opp} made it {score} in the {minute} minute.|'
-      '{opp} added another in the {minute} minute, {score}.',
-  'report.goal.theirs.pull_back':
-      '{opp} pulled one back in the {minute} minute, {score}.|'
-      '{opp} got one back in the {minute} minute, {score}.',
+  // ── TALKING POINTS, NOT A TIMELINE ───────────────────────────────────────
+  //
+  // Reported from the couch: the write-up "spits out the stats a bit too much,
+  // like it says what minute every goal was scored in and exactly what tactic
+  // we used and when", with the shape it should have instead — "player a
+  // started us off and player b got a hat-trick, they were untouchable today,
+  // team a dropped to defend deep late in the game to defend the lead, team b
+  // tried throwing everything forward in the last part of the game but just
+  // couldn't find a breakthrough".
+  //
+  // So: ten `report.goal.*` sentences with a minute and a running score in
+  // each, the seven-number board, the team sheet of substitutions and the
+  // three tactics lines are all gone, and these are what stands in their
+  // place. **No digits anywhere in this section** — the scoreboard, the
+  // statistics panel and the commentary feed all print the numbers, and this
+  // is the paragraph that says what they came to.
 
-  // The board at the whistle, our side first.
-  'report.stats.board':
-      '{club} had {poss}% of the ball and {shots} shots to {opp}\'s {oppShots}, '
-          '{onTarget} of them on target.|'
-      'The numbers: {poss}% possession to {club}, {shots} shots against '
-          '{oppShots}, and {corners} corners to {oppCorners}.|'
-      '{club} finished with {shots} shots, {onTarget} on target, against '
-          '{oppShots} and {oppOnTarget} for {opp}.',
+  // Who got them going. Ours only and named only: the opposition's opener is
+  // the shape beat's story, and the sim never names their scorers. It stands
+  // aside when the same player is about to be named for a brace or a
+  // hat-trick.
+  'report.goals.opened':
+      '{player} got {club} going.|'
+      'It was {player} who started it for {club}.|'
+      '{player} opened the scoring, and {club} built the afternoon on it.|'
+      '{club} were off the mark through {player}.',
 
-  // The cards that matter: a red is a name and a minute; two or more bookings
-  // of ours are names. One booking is not mentioned — "so what?!" — and nor are
-  // theirs short of a red.
+  // A half that ran away from the other one, told as a half rather than as
+  // four minutes.
+  'report.goals.surge.ours':
+      'The second half was one-way traffic. {club} scored freely after the '
+          'break and {opp} had no answer to any of it.|'
+      '{club} came out for the second half a different side, and the goals '
+          'kept coming until {opp} stopped counting.|'
+      'Whatever was said at half time worked: {club} took the game away from '
+          '{opp} after it.',
+  'report.goals.surge.theirs':
+      '{opp} took the second half apart. {club} were still in it at the break '
+          'and nowhere near it by the end.|'
+      'The break changed everything for the worse: {opp} scored again and '
+          'again after it and {club} could not stem any of it.|'
+      '{club} came out for the second half and were overrun. {opp} were '
+          'relentless after the interval.',
+
+  // The board at the whistle, as a verdict rather than as seven numbers. The
+  // panel above the write-up already prints them.
+  // **These two may not claim the ball.** They fire on a single axis as well
+  // as on both — 55% of the possession and eight shots to twelve is a side
+  // second best — so a variant saying "{opp} had the ball" would be a flat lie
+  // about that match. The better of it, and who looked like scoring.
+  'report.stats.on_top':
+      '{club} had the better of it and looked the likelier side throughout.|'
+      'This was {club}\'s match to control, and they controlled it. {opp} spent '
+          'a lot of it chasing.|'
+      '{club} were on top for most of the ninety and {opp} rarely looked like '
+          'changing that.',
+  'report.stats.pinned_back':
+      '{club} spent a lot of it defending, and {opp} were the side who looked '
+          'like scoring.|'
+      '{opp} had the better of this from early on and {club} rarely got out '
+          'from under it.|'
+      'There was one side on top here and it was not {club}. {opp} carried the '
+          'game to them.',
+  'report.stats.ball_only':
+      '{club} had plenty of the ball and precious little to show for it. {opp} '
+          'defended their box and were happy to.|'
+      'All the possession in the world for {club}, and the chances that came '
+          'with it were not worth much.|'
+      '{club} kept the ball and {opp} kept them out of anywhere that mattered '
+          'with it.',
+  'report.stats.counter':
+      '{opp} had the ball and {club} had the moments, which is a way of playing '
+          'as much as an accident.|'
+      '{club} were happy to sit off {opp} and made far more of what came their '
+          'way.|'
+      'Possession went one way and the clear chances went the other. {club} '
+          'will not mind that at all.',
+  'report.stats.even':
+      'There was very little between them, on the ball or off it.|'
+      '{club} and {opp} were as evenly matched as the afternoon suggests.|'
+      'Neither {club} nor {opp} had enough of it for long enough to call it '
+          'their match.',
+
+  // The cards that matter: a red is a name; two or more bookings of ours are
+  // names. One booking is not mentioned — "so what?!" — and nor are theirs
+  // short of a red. **No minute**: what matters is that they finished a man
+  // short, not the moment they stopped being eleven.
   'report.cards.our_red_named':
-      '{player} was sent off in the {minute} minute, and {club} finished with '
-          'fewer men than they started with.|'
-      'A red card for {player} in the {minute} minute left {club} a man short.',
+      '{player} was sent off, and {club} finished with fewer men than they '
+          'started with.|'
+      'A red card for {player} left {club} a man short for the rest of it.',
   'report.cards.our_booked_many':
       '{n} {club} players were booked: {names}.|'
       'The referee booked {names} for {club}, {n} cautions in all.',
@@ -585,18 +629,58 @@ const Map<String, String> enCopy = <String, String>{
           'full side.|'
       '{n} red cards for {opp}, which shaped everything after them.',
 
-  // Our changes, in one sentence. `{list}` is "Jones for Smith (60th), Brown
-  // (75th)" and so on, joined with "and".
-  'report.subs.made':
-      '{club} made {n} change{s}: {list}.|'
-      'From the bench for {club}: {list}.',
+  // The bench. A substitute who scored is the whole point of a substitution
+  // and gets the sentence; a set of changes with nothing behind it gets a
+  // mention only when there were enough to have been a plan.
+  'report.subs.impact':
+      '{player} came off the bench and made the difference for {club}.|'
+      '{club}\'s change worked: {player} came on and scored.|'
+      'The bench paid for itself — {player} came on and got on the scoresheet '
+          'for {club}.',
+  'report.subs.changes':
+      '{club} went through their changes looking for something.|'
+      '{club} emptied the bench in search of a way into it.|'
+      'The changes came thick and fast from {club}, without much turning on '
+          'any of them.',
 
-  // What was played. `{tactic}` is the strip's own name for it — Balanced,
-  // Defence, High Press — so the sentence has to read with a noun in it.
-  'report.tactic.started':
-      '{club} began the match with {tactic}.|'
-      '{tactic} was where {club} started.',
-  'report.tactic.switch':
-      '{club} switched to {tactic} in the {minute} minute.|'
-      'In the {minute} minute {club} changed to {tactic}.',
+  // The last late change of tactic, and nothing else. **No minute and no
+  // tactic name in the English** — "on 80 minutes {club} switched to Defence"
+  // is a settings screen, and a write-up says what the manager decided. The
+  // nine translated catalogues still print `{minute}`, which is why the beat
+  // goes on passing it.
+  'report.tactic.shut_up_shop':
+      '{club} dropped deep for the closing stages and set about protecting what '
+          'they had.|'
+      'Late on {club} shut up shop, invited {opp} on to them and backed '
+          'themselves to see it out.|'
+      '{club} pulled everyone behind the ball for the last of it and played out '
+          'the afternoon that way.',
+  'report.tactic.went_for_it':
+      '{club} threw men forward for the closing stages and accepted the risk '
+          'that came with it.|'
+      'Late on {club} went for it, pushing up on {opp} rather than settling for '
+          'what they had.|'
+      '{club} gambled with the last of it and committed bodies forward.',
+  'report.tactic.settled':
+      '{club} changed their shape for the closing stages and finished the match '
+          'in it.|'
+      'A reshuffle from {club} late on shaped the way the afternoon ended.|'
+      '{club} reorganised for the last of it and saw the match out that way.',
+
+  // And what the side that lost did about it. `{chaser}` is the club that went
+  // into the closing stages behind and `{holder}` the one in front, so the
+  // sentence works whichever of the two the save belongs to.
+  'report.late.held_out':
+      '{chaser} threw everything forward in the last part of the game and could '
+          'not find a way through.|'
+      'The closing stages were all {chaser}, and {holder} held on.|'
+      '{chaser} pressed and pressed for the breakthrough and it never came.|'
+      '{holder} spent the end of it under pressure and did not crack.',
+  'report.late.consolation':
+      '{chaser} pushed everyone forward late on and got a goal out of it, and '
+          'not much else.|'
+      'The late goal gave {chaser} something to show for the pressure and never '
+          'looked like being enough.|'
+      '{chaser} found one at the end of a long spell of pressure, by which time '
+          '{holder} had done the hard part.',
 };

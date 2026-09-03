@@ -6,7 +6,7 @@ because that is the part worth keeping.
 
 ## Where this queue stands
 
-**80 done, 5 open, and one feature parked.** None of the open rows is a fault. One is a feature that was
+**83 done, 5 open, and one feature parked.** None of the open rows is a fault. One is a feature that was
 built, tried and turned down; one is a balance question rather than work; one is
 a survey to run before building; and one is **blocked on the spec repo**, which
 is the row to read if the queue looks short — richer commentary and report copy
@@ -35,6 +35,65 @@ pointed at did not have. **Unreachable code is not finished code**, and wiring i
 up without reading it would have shipped both faults.
 
 ---
+
+## Asked for, 3 Sep 2026 — the write-up's tone
+
+One report, and it is the fifth batch being asked to go the other way: "the
+summary text is a little too clinical, it spits out the stats a bit too much,
+like it says what minute every goal was scored in and exactly what tactic we
+used and when… so not going in to detail on the tactics change or the scorer and
+what minutes but generalises on the main talking points of the game."
+
+- [x] **The write-up was a transcript, not a summary.** (The fifth batch built
+      it to "use everything the match has" and it did exactly that, one fact per
+      sentence: ten `report.goal.*` pools that each printed a minute and the
+      running score, a `report.stats.board` line reciting possession, shots, on
+      target and corners for both sides, a `report.subs.made` team sheet —
+      "Jones for Smith (60th) and Brown (75th)" — three tactics lines naming the
+      dial and the minute of every change, and a minute on the red card. A 4-1
+      ran to fifteen sentences and none of them said what the afternoon was
+      like.
+
+      What replaced them came from the report's own worked example — "player a
+      started us off and player b got a hat-trick, they were untouchable today,
+      team a dropped to defend deep late in the game to defend the lead, team b
+      tried throwing everything forward in the last part of the game but just
+      couldn't find a breakthrough". So: who opened it, by name and with no
+      minute, standing aside when the tally is about to name the same man; the
+      tally itself, which now always fires because nothing else names a scorer
+      any more; a half that ran away from the other, told as a half; the board
+      as one verdict with **no digits in it**, off two axes so that all the ball
+      and none of the chances stays a different afternoon from the reverse; a
+      substitute who SCORED instead of the team sheet; the last late change of
+      tactic and nothing else, told as a decision rather than as a setting; and
+      the losing side's late push, held out or answered with a consolation.
+
+      **The timeline is still read, it is simply not printed.** Every one of
+      those beats is derived from `ReportFacts.goals` — the list did not get
+      smaller, the prose did.
+
+      Fifteen keys added and thirteen dropped, all in `en_copy.dart`. `{minute}`
+      and `{tactic}` still travel on the tactics beat because the nine
+      translated catalogues print them and only the English is replaced.)
+
+### Found on the way, not built
+
+- [x] **A 2-0 shared between two scorers said one of them "got the goal".**
+      (`report.scorers.spread` needed three different names and everything below
+      it fell through to `report.scorers.one`, which names the first. It was
+      invisible for as long as a goal-by-goal timeline was naming both men
+      underneath it; making the tally the only thing that names a scorer put it
+      on screen. Two is a spread.)
+
+- [x] **"Ayton threw everything forward and could not find a way through" —
+      four goals down.** (The late-push beat's first cut asked only who was
+      behind going into the closing stages. Nobody four down with a quarter of
+      an hour left is chasing a breakthrough, so the gap has to be catchable at
+      both ends of it now — `chasableGap`. The same first cut let
+      `report.stats.pinned_back` claim the opposition "had the ball" on a match
+      the club had 55% of; that pool fires on a single axis, so it and `on_top`
+      are written about the better of it and about who looked like scoring, and
+      only the two CONTRASTING pools may say who had the ball.)
 
 ## Asked for, 3 Sep 2026 — the trait roll
 
