@@ -60,10 +60,14 @@ void main() {
     });
 
     test('a veteran trait claws back aging', () {
-      // Veteran III reduces the penalty by 10, so an 11-season card is whole.
+      // An 11-season card carries a penalty of 10. Veteran III takes 6 of it
+      // back — SOME of it, not all: Rock is the trait whose description claims
+      // to be the strongest defence against decline, and Veteran is the one
+      // that covers aging AND recovery on any position instead of owning
+      // either axis.
       expect(
         getEffectiveRating(_card(seasonsPlayed: 11, traitId: 'veteran', traitLevel: 3)),
-        56,
+        56 - 4,
       );
     });
 

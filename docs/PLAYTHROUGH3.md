@@ -6,7 +6,7 @@ because that is the part worth keeping.
 
 ## Where this queue stands
 
-**77 done, 5 open, and one feature parked.** None of the open rows is a fault. One is a feature that was
+**80 done, 5 open, and one feature parked.** None of the open rows is a fault. One is a feature that was
 built, tried and turned down; one is a balance question rather than work; one is
 a survey to run before building; and one is **blocked on the spec repo**, which
 is the row to read if the queue looks short — richer commentary and report copy
@@ -35,6 +35,49 @@ pointed at did not have. **Unreachable code is not finished code**, and wiring i
 up without reading it would have shipped both faults.
 
 ---
+
+## Asked for, 3 Sep 2026 — the trait roll
+
+Two reports in one line: the ATK and DEF flags updating before the spin had
+finished, and too many traits being the same as each other.
+
+- [x] **The badge's effect chips answered before the reels did.** (The header's
+      numbers were already held for the spin — the sheet redraws itself as the
+      man he WAS until the wheel stops — but the chips inside the trait block
+      were not, and they are the two numbers a roll is actually bought to move.
+      `_effectsOf` took the trait's identity from the hold and the "with" side
+      from the LIVE card, and the roll writes the save before the reels move, so
+      for a second and a half the block named the old trait over the new one's
+      ATK and DEF. Both sides are composed from the trait being SHOWN now.)
+
+- [x] **The traits were mechanically distinct and read on screen as three of
+      them.** (The block printed ATK and DEF and nothing else, so Crowd Pleaser,
+      Tough, Veteran and None drew no chip at all and the rest drew the same one
+      or two. The ten `feature.effect.*` strings — "+{n}% income", "-{n}% squad
+      injury", "{n}% faster healing" — are shipped in all ten catalogues and had
+      NO caller in `lib/`. Same tell as the coach tips, the income breakdown and
+      prestige before them.)
+
+- [x] **And several of them genuinely were the same.** (The bank's own rule was
+      "no two traits share an effect vector", which is far too weak: Pressing III
+      was `10 ATK / 13 DEF` against All Rounder III's `10 / 10` — different
+      vectors, same trait, one strictly better. The universals are in EVERY pool,
+      so each of the four re-ran a position trait's job: All Rounder was a
+      smaller Engine Room for a midfielder and a smaller Ball-Playing for a
+      defender, Tough and Enforcer split one injury axis 0.18/0.10, and Rock,
+      Veteran, Reflexes and Speedster shared aging and recovery between them
+      four ways. The rule is stated per POOL now and `traits_test.dart` enforces
+      it: nothing may be dominated by a poolmate; only ATK+DEF may repeat as a
+      shape, and then only with the lead stat differing by a sixth of the split;
+      and an axis a description claims to be "biggest" at is held outright, at
+      1.8× the nearest rival. Pressing became a forward who really defends
+      (8/26 — `defenceWeights['FWD']` is 0.15, so the raw number has to be
+      large), Engine Room drives forward (18/9), Ball-Playing is a defender who
+      attacks (38/5), and All Rounder is the only even one. Ids and names are
+      untouched, so an existing save keeps its trait — it just does a new job.
+      **The JS could not be consulted**: `../merge-empire-fc` is not in a cloud
+      container. These numbers were already the port's own, per the file's
+      Balance model section, and the divergence stays on this side.)
 
 ## Done
 
