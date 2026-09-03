@@ -25,8 +25,44 @@
 /// position's weight. A trait sitting on a stat its position barely weights
 /// (Ball-Playing's ATK on a defender) carries a deliberately large raw number.
 ///
-/// The other half of the rule: NO TWO TRAITS SHARE AN EFFECT VECTOR. Ids and
-/// names are stable — an existing save keeps its trait, it just does a new job.
+/// ── The distinctness rule ──────────────────────────────────────────────────
+/// **A ROLL IS ONLY INTERESTING IF THE OUTCOMES ARE.** "No two traits share an
+/// effect vector" was the old statement of this and it is far too weak a test to
+/// keep the promise: Pressing III was `10 ATK / 13 DEF` and All Rounder III was
+/// `10 / 10`, which are different vectors and the *same trait*, one of them
+/// strictly better. Every pool had a pair like it, because the universals are in
+/// EVERY pool and each of them re-ran a position trait's job.
+///
+/// What is enforced now, per POOL rather than per bank (`traits_test.dart`):
+///
+///  1. **Nothing is dominated.** No trait may be worse than another in its own
+///     pool on every axis it touches. That is what killed the old All Rounder:
+///     Engine Room was `13/16` against its `10/10`, so a midfielder rolling the
+///     universal got a smaller Engine Room and nothing else.
+///  2. **A shared shape needs a different LEAN.** Only ATK+DEF is allowed to
+///     repeat inside a pool — All Rounder's own copy pins it there and the
+///     catalogues are generated, so it cannot be given a third axis. The two are
+///     then separated by which stat leads, by at least 0.15 of the split:
+///     Pressing is a forward who defends (8/26), Engine Room drives forward
+///     (18/9), Ball-Playing is a defender who attacks (38/5), and All Rounder is
+///     the only one that is exactly even.
+///  3. **One owner per superlative.** Playmaker owns idle income, Commanding
+///     matchday, Tough own-injury, Rock aging, Sweeper squad-injury, Speedster
+///     recovery, Iron Lungs stamina. A trait naming a "biggest" in its
+///     description must hold that axis outright, and the ones that merely touch
+///     it are cut back far enough to read as a perk rather than a rival.
+///
+/// **Two consequences worth knowing before touching a number.** Raw values are
+/// NOT comparable across positions: `attackWeights['DEF']` is 0.15, so
+/// Ball-Playing's 38 is worth less team ATK than Iron Wall's 16 is team DEF,
+/// which is why it looks so large. And `attackWeights['GK']` is **0.00** — a
+/// keeper banks only All Rounder's defensive half, so the universal is
+/// deliberately the middle option in that pool, between Reflexes and Shot
+/// Stopper, rather than a rival to either. That is not a bug to tune away; a
+/// goalkeeper has no attack.
+///
+/// Ids and names are stable — an existing save keeps its trait, it just does a
+/// new job.
 ///
 /// Deliberately Flutter-free so it runs under plain `dart test`.
 library;
@@ -107,9 +143,9 @@ const Map<String, Trait> traits = {
     positions: ['FWD'], type: 'hybrid',
     desc: 'Presses high and tracks back — attack, plus real defensive work',
     levels: [
-      TraitLevel(level: 1, label: 'I', atkBonus: 3, defBonus: 4),
-      TraitLevel(level: 2, label: 'II', atkBonus: 6, defBonus: 8),
-      TraitLevel(level: 3, label: 'III', atkBonus: 10, defBonus: 13),
+      TraitLevel(level: 1, label: 'I', atkBonus: 2, defBonus: 8),
+      TraitLevel(level: 2, label: 'II', atkBonus: 5, defBonus: 16),
+      TraitLevel(level: 3, label: 'III', atkBonus: 8, defBonus: 26),
     ],
   ),
   'poacher': Trait(
@@ -117,9 +153,9 @@ const Map<String, Trait> traits = {
     positions: ['FWD'], type: 'matchrev',
     desc: 'Goals sell tickets — attack, plus a cut of every matchday gate',
     levels: [
-      TraitLevel(level: 1, label: 'I', atkBonus: 2, matchRevBonus: 0.04),
-      TraitLevel(level: 2, label: 'II', atkBonus: 4, matchRevBonus: 0.08),
-      TraitLevel(level: 3, label: 'III', atkBonus: 6, matchRevBonus: 0.13),
+      TraitLevel(level: 1, label: 'I', atkBonus: 3, matchRevBonus: 0.03),
+      TraitLevel(level: 2, label: 'II', atkBonus: 5, matchRevBonus: 0.06),
+      TraitLevel(level: 3, label: 'III', atkBonus: 8, matchRevBonus: 0.10),
     ],
   ),
   'speedster': Trait(
@@ -127,9 +163,9 @@ const Map<String, Trait> traits = {
     positions: ['FWD'], type: 'recovery',
     desc: 'Quick to burn past a challenge — and quick to shake off a knock',
     levels: [
-      TraitLevel(level: 1, label: 'I', atkBonus: 2, recoveryBonus: 0.12),
-      TraitLevel(level: 2, label: 'II', atkBonus: 4, recoveryBonus: 0.24),
-      TraitLevel(level: 3, label: 'III', atkBonus: 6, recoveryBonus: 0.40),
+      TraitLevel(level: 1, label: 'I', atkBonus: 2, recoveryBonus: 0.15),
+      TraitLevel(level: 2, label: 'II', atkBonus: 4, recoveryBonus: 0.30),
+      TraitLevel(level: 3, label: 'III', atkBonus: 6, recoveryBonus: 0.50),
     ],
   ),
 
@@ -139,9 +175,9 @@ const Map<String, Trait> traits = {
     positions: ['MID'], type: 'hybrid',
     desc: 'Tireless box-to-box motor — strong in both attack and defence',
     levels: [
-      TraitLevel(level: 1, label: 'I', atkBonus: 4, defBonus: 5),
-      TraitLevel(level: 2, label: 'II', atkBonus: 8, defBonus: 10),
-      TraitLevel(level: 3, label: 'III', atkBonus: 13, defBonus: 16),
+      TraitLevel(level: 1, label: 'I', atkBonus: 5, defBonus: 2),
+      TraitLevel(level: 2, label: 'II', atkBonus: 11, defBonus: 5),
+      TraitLevel(level: 3, label: 'III', atkBonus: 18, defBonus: 9),
     ],
   ),
   'anchor': Trait(
@@ -169,9 +205,9 @@ const Map<String, Trait> traits = {
     positions: ['MID'], type: 'toughness',
     desc: 'Wins the ball and takes the hit — defence, plus a lower injury risk',
     levels: [
-      TraitLevel(level: 1, label: 'I', defBonus: 4, injuryReduction: 0.03),
-      TraitLevel(level: 2, label: 'II', defBonus: 8, injuryReduction: 0.06),
-      TraitLevel(level: 3, label: 'III', defBonus: 13, injuryReduction: 0.10),
+      TraitLevel(level: 1, label: 'I', defBonus: 4, injuryReduction: 0.02),
+      TraitLevel(level: 2, label: 'II', defBonus: 8, injuryReduction: 0.04),
+      TraitLevel(level: 3, label: 'III', defBonus: 13, injuryReduction: 0.07),
     ],
   ),
 
@@ -192,9 +228,9 @@ const Map<String, Trait> traits = {
     desc:
         'Overlapping wing-back — turns a defender into a real attacking threat',
     levels: [
-      TraitLevel(level: 1, label: 'I', atkBonus: 6, defBonus: 2),
-      TraitLevel(level: 2, label: 'II', atkBonus: 12, defBonus: 4),
-      TraitLevel(level: 3, label: 'III', atkBonus: 20, defBonus: 6),
+      TraitLevel(level: 1, label: 'I', atkBonus: 10, defBonus: 2),
+      TraitLevel(level: 2, label: 'II', atkBonus: 22, defBonus: 3),
+      TraitLevel(level: 3, label: 'III', atkBonus: 38, defBonus: 5),
     ],
   ),
   'rock': Trait(
@@ -294,9 +330,9 @@ const Map<String, Trait> traits = {
     positions: null, type: 'toughness',
     desc: "Built to last — by far the biggest cut to this player's injury chance",
     levels: [
-      TraitLevel(level: 1, label: 'I', injuryReduction: 0.05),
-      TraitLevel(level: 2, label: 'II', injuryReduction: 0.10),
-      TraitLevel(level: 3, label: 'III', injuryReduction: 0.18),
+      TraitLevel(level: 1, label: 'I', injuryReduction: 0.06),
+      TraitLevel(level: 2, label: 'II', injuryReduction: 0.12),
+      TraitLevel(level: 3, label: 'III', injuryReduction: 0.20),
     ],
   ),
   'veteran': Trait(
@@ -304,9 +340,9 @@ const Map<String, Trait> traits = {
     positions: null, type: 'veteran',
     desc: 'Old head — softens the aging penalty and shrugs off knocks faster',
     levels: [
-      TraitLevel(level: 1, label: 'I', agingReduction: 3, recoveryBonus: 0.10),
-      TraitLevel(level: 2, label: 'II', agingReduction: 6, recoveryBonus: 0.20),
-      TraitLevel(level: 3, label: 'III', agingReduction: 10, recoveryBonus: 0.35),
+      TraitLevel(level: 1, label: 'I', agingReduction: 2, recoveryBonus: 0.07),
+      TraitLevel(level: 2, label: 'II', agingReduction: 4, recoveryBonus: 0.14),
+      TraitLevel(level: 3, label: 'III', agingReduction: 6, recoveryBonus: 0.25),
     ],
   ),
   // Pro mode only. Recovery scales by the same factor, so it buys in-match

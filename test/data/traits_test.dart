@@ -178,6 +178,139 @@ void main() {
       expect(getTraitLevel(traits['rock'], 3)!.agingReduction, best('aging'));
     });
 
+    // ── The pool rules ──────────────────────────────────────────────────────
+    //
+    // These are the ones that matter, and the bank-wide "no two traits share an
+    // effect vector" above is far too weak to stand in for them: Pressing III
+    // was `10 ATK / 13 DEF` and All Rounder III was `10 / 10`, which are
+    // different vectors and the SAME TRAIT, one of them strictly better. What a
+    // player experiences is a POOL — the three or four for their position, plus
+    // the universals — so that is the unit a distinctness rule has to be stated
+    // in.
+
+    /// Every axis of a level, with stamina flipped so that bigger is always
+    /// better and one comparison can run over all nine.
+    List<num> better(TraitLevel l) => [
+      l.atkBonus,
+      l.defBonus,
+      l.incomeBonus,
+      l.matchRevBonus,
+      l.injuryReduction,
+      l.teamInjuryReduction,
+      l.agingReduction,
+      l.recoveryBonus,
+      1 - (l.staminaMult ?? 1),
+    ];
+
+    /// Which axes a level touches at all — its SHAPE.
+    Set<int> shape(TraitLevel l) {
+      final v = better(l);
+      return {for (var i = 0; i < v.length; i++) if (v[i] != 0) i};
+    }
+
+    test('no trait in a pool is dominated by another in the same pool', () {
+      // A trait that is worse than a poolmate on every axis it touches, and
+      // better on none, is not an outcome — it is a consolation prize with a
+      // name on it. Rolling one is indistinguishable from rolling the trait
+      // that beats it, except worse, which is the whole of what "too many of
+      // them are the same" meant.
+      for (final pos in ['FWD', 'MID', 'DEF', 'GK']) {
+        final pool = getTraitPoolForPosition(pos, hardMode: true)
+            .where((t) => t.id != 'none')
+            .toList();
+        for (final a in pool) {
+          for (final b in pool) {
+            if (identical(a, b)) continue;
+            for (var lvl = 1; lvl <= 3; lvl++) {
+              final va = better(getTraitLevel(a, lvl)!);
+              final vb = better(getTraitLevel(b, lvl)!);
+              final dominated =
+                  List.generate(va.length, (i) => vb[i] >= va[i]).every((x) => x) &&
+                  List.generate(va.length, (i) => vb[i] > va[i]).any((x) => x);
+              expect(
+                dominated,
+                isFalse,
+                reason: '$pos L$lvl: ${b.id} is a strictly better ${a.id}',
+              );
+            }
+          }
+        }
+      }
+    });
+
+    test('only the ATK+DEF shape repeats inside a pool, and it must lean', () {
+      // All Rounder's own copy — shipped and translated ten times over — pins it
+      // to attack AND defence "on any player", so it cannot be given a third
+      // axis to tell it apart from the position hybrid it shares every pool
+      // with. What separates them instead is which stat LEADS: Pressing is a
+      // forward who defends, Engine Room drives forward, Ball-Playing is a
+      // defender who attacks, and All Rounder is the only one that is exactly
+      // even. Anything closer than a sixth of the split reads as the same trait.
+      const atkDef = {0, 1};
+      for (final pos in ['FWD', 'MID', 'DEF', 'GK']) {
+        final pool = getTraitPoolForPosition(pos, hardMode: true)
+            .where((t) => t.id != 'none')
+            .toList();
+        for (var lvl = 1; lvl <= 3; lvl++) {
+          final byShape = <String, List<Trait>>{};
+          for (final t in pool) {
+            byShape
+                .putIfAbsent(shape(getTraitLevel(t, lvl)!).join(','), () => [])
+                .add(t);
+          }
+          byShape.forEach((key, sharing) {
+            if (sharing.length < 2) return;
+            expect(
+              key,
+              atkDef.join(','),
+              reason: '$pos L$lvl: ${sharing.map((t) => t.id)} do the same job',
+            );
+            final leans = [
+              for (final t in sharing)
+                () {
+                  final l = getTraitLevel(t, lvl)!;
+                  return l.atkBonus / (l.atkBonus + l.defBonus);
+                }(),
+            ]..sort();
+            for (var i = 1; i < leans.length; i++) {
+              expect(
+                leans[i] - leans[i - 1],
+                greaterThanOrEqualTo(0.15),
+                reason: '$pos L$lvl: ${sharing.map((t) => t.id)} lean alike',
+              );
+            }
+          });
+        }
+      }
+    });
+
+    test('every superlative axis has exactly one owner, outright', () {
+      // Second place on an axis has to read as a PERK rather than a rival, or
+      // the trait that owns the axis stops being the reason to want it.
+      // Enforcer's injury cut against Tough's is the case this was written for:
+      // it was 0.10 against 0.18, which is not "by far the biggest" by any
+      // reading a player would recognise.
+      void owns(String id, num Function(TraitLevel) axis, {double margin = 1.8}) {
+        final mine = axis(getTraitLevel(traits[id], 3)!);
+        expect(mine, greaterThan(0), reason: id);
+        for (final t in traitList.where((t) => t.id != id)) {
+          final theirs = axis(getTraitLevel(t, 3)!);
+          if (theirs == 0) continue;
+          expect(
+            mine / theirs,
+            greaterThanOrEqualTo(margin),
+            reason: '${t.id} is too close to $id on its own axis',
+          );
+        }
+      }
+
+      owns('playmaker', (l) => l.incomeBonus);
+      owns('commanding', (l) => l.matchRevBonus);
+      owns('tough', (l) => l.injuryReduction);
+      owns('rock', (l) => l.agingReduction);
+      owns('speedster', (l) => l.recoveryBonus);
+    });
+
     test('only sweeper cuts injury risk squad-wide', () {
       final squadWide =
           traitList.where((t) => getTraitLevel(t, 3)!.teamInjuryReduction > 0);

@@ -1604,29 +1604,68 @@ class TraitBlockState extends ConsumerState<TraitBlock>
     return () => controller.removeListener(onScroll);
   }
 
-  /// What this trait is worth on THIS card, in points.
+  /// What this trait is worth on THIS card.
   ///
-  /// **BY DIFFERENCE.** `getCardStats` is the documented single source of truth
-  /// for what a card is worth and it already folds the trait in, so the honest
-  /// figure is that number minus the same card with the trait taken off —
-  /// rather than recomposing the bonus fields here and drifting from the sim
-  /// the first time either changes.
-  List<({String label, int value})> _effectsOf(
+  /// **IT DESCRIBES [trait], NOT THE SAVE.** This read the live card for the
+  /// "with" side while taking the trait's identity from the argument, and the
+  /// two are DIFFERENT for the length of a spin: the roll writes the save before
+  /// the reels move (see [_roll]), so the badge went on naming the old trait
+  /// over chips already showing the new one's ATK and DEF. The answer arrived
+  /// a second and a half early, in the two numbers the roll is bought to move.
+  /// Reported from the couch. Both sides are composed from the trait being
+  /// SHOWN now, which is also what makes this correct at rest.
+  ///
+  /// **The directional pair is BY DIFFERENCE.** `getCardStats` is the documented
+  /// single source of truth for what a card is worth and it already folds the
+  /// trait in, so the honest figure is that number minus the same card with the
+  /// trait taken off — rather than recomposing the bonus fields here and
+  /// drifting from the sim the first time either changes. It is also the only
+  /// pair that CAN come back zero on a trait that promises it: the split is
+  /// clamped at 100, which is the whole reason [traitStatScale] exists.
+  ///
+  /// **And the other seven axes are here at all now.** The block showed ATK and
+  /// DEF and nothing else, so four of the nine outcomes in a forward's pool —
+  /// Crowd Pleaser, Tough, Veteran, None — drew no chip whatsoever and the
+  /// remaining five drew the same one or two. A bank of twenty mechanically
+  /// distinct traits read on screen as three. The ten `feature.effect.*` strings
+  /// are shipped in all ten catalogues and had NO caller in `lib/`; they are the
+  /// short-form labels this needs, exactly.
+  List<String> _effectsOf(
     CardInstance? card,
     Map<String, dynamic>? trait,
     Map<String, dynamic> ratios,
   ) {
     if (card == null || trait == null) return const [];
+    final def = getTrait(trait['id'] as String?);
+    final level = (trait['level'] as num?)?.toInt();
+    final lvl = level == null ? null : getTraitLevel(def, level);
+    if (lvl == null) return const [];
+
     final bare = CardInstance(<String, dynamic>{...card.raw}..remove('trait'));
-    final with_ = getCardStats(card, definitionRatios: ratios);
+    final shown = CardInstance(<String, dynamic>{...card.raw, 'trait': trait});
+    final with_ = getCardStats(shown, definitionRatios: ratios);
     final without = getCardStats(bare, definitionRatios: ratios);
-    return [
-      for (final row in <({String label, int value})>[
-        (label: 'ATK', value: with_.attack - without.attack),
-        (label: 'DEF', value: with_.defence - without.defence),
-      ])
-        if (row.value != 0) row,
-    ];
+
+    // A percentage the copy writes whole: `0.13` is "13%".
+    int pct(double v) => (v * 100).round();
+
+    final rows = <String>[];
+    void add(String key, int n) {
+      if (n <= 0) return;
+      rows.add(t('feature.effect.$key', {'n': '$n'}));
+    }
+
+    add('atk', with_.attack - without.attack);
+    add('def', with_.defence - without.defence);
+    add('income', pct(lvl.incomeBonus));
+    add('matchrev', pct(lvl.matchRevBonus));
+    add('injury', pct(lvl.injuryReduction));
+    add('teaminjury', pct(lvl.teamInjuryReduction));
+    add('recovery', pct(lvl.recoveryBonus));
+    add('aging', lvl.agingReduction);
+    // Below 1 tires slower, and the copy states the DRAIN it removes.
+    add('stamina', pct(1 - (lvl.staminaMult ?? 1)));
+    return rows;
   }
 
   Future<void> _roll(List<Trait> pool) async {
@@ -2164,7 +2203,11 @@ class _TraitDisc extends StatelessWidget {
 class _TraitEffects extends StatelessWidget {
   const _TraitEffects({required this.rows});
 
-  final List<({String label, int value})> rows;
+  /// Already-formatted chip text — see `TraitBlockState._effectsOf`. The
+  /// catalogue's `feature.effect.*` strings carry their own sign and unit
+  /// ("-7% injury", "50% faster healing"), so there is nothing left to compose
+  /// here and no place for a second set of English literals.
+  final List<String> rows;
 
   @override
   Widget build(BuildContext context) {
@@ -2183,9 +2226,7 @@ class _TraitEffects extends StatelessWidget {
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
               child: Text(
-                // The sign is always shown: a trait that COSTS something reads
-                // as a cost rather than as a smaller gift.
-                '${row.label} ${row.value >= 0 ? '+' : '−'}${row.value.abs()}',
+                row,
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w900,
@@ -2210,8 +2251,8 @@ class _TraitBadge extends StatelessWidget {
   final Trait trait;
   final Map<String, dynamic> instance;
 
-  /// What the trait is worth on THIS card, in points — see [_TraitEffects].
-  final List<({String label, int value})> effects;
+  /// What the trait is worth on THIS card — see [_TraitEffects].
+  final List<String> effects;
 
   @override
   Widget build(BuildContext context) {

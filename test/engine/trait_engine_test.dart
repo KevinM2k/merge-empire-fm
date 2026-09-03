@@ -162,13 +162,13 @@ void main() {
       // Poacher is FWD-locked but its matchday cut is squad-wide.
       final b = getTraitBonus(_card('a', traitId: 'poacher', level: 3), 'GK');
       expect(b.atkBonus, 0);
-      expect(b.matchRevBonus, 0.13);
+      expect(b.matchRevBonus, 0.10);
     });
 
     test('aging, recovery and injury axes are unscaled', () {
       final b = getTraitBonus(_card('a', traitId: 'veteran', level: 3), 'MID');
-      expect(b.agingReduction, 10);
-      expect(b.recoveryBonus, 0.35);
+      expect(b.agingReduction, 6);
+      expect(b.recoveryBonus, 0.25);
     });
 
     test('a universal trait applies to every position', () {
@@ -258,7 +258,7 @@ void main() {
         for (var i = 0; i < 3; i++) _card('x$i', traitId: 'poacher', level: 3),
       ];
       final totals = computeSquadTraitTotals(grid);
-      expect(totals.matchRevBonus, closeTo(0.39, 1e-9));
+      expect(totals.matchRevBonus, closeTo(0.30, 1e-9));
     });
 
     test('a benched trait sells no tickets', () {

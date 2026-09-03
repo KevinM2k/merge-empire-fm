@@ -983,6 +983,101 @@ void main() {
       await settleSave(tester);
     });
 
+    testWidgets("AND NEITHER DO THE TRAIT'S OWN EFFECT CHIPS", (tester) async {
+      // The badge under the reels names the held trait and then prints what it
+      // is worth. Those two came from DIFFERENT cards: the name from the hold,
+      // the numbers from the save — and the roll writes the save before the
+      // reels move. So the chips read the new trait's ATK and DEF for the whole
+      // spin, under a name still saying the old one. Reported from the couch as
+      // the ATK and DEF flags updating before the roll had finished, and it is
+      // the same fault as the header's numbers one layer down, missed because
+      // the header was fixed by holding the whole CARD and this reads the trait
+      // straight.
+      addTearDown(resetTraitRandom);
+      tester.view.physicalSize = const Size(1200, 4000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      final container = await pumpSquad(
+        tester,
+        mutate: (s) {
+          final cells = (s['grid'] as Map<String, dynamic>)['cells'] as List;
+          final first =
+              cells.firstWhere((c) => c != null) as Map<String, dynamic>;
+          // A universal, so it is worth the same chips whatever he plays — and
+          // an ECONOMY one, so the trait he rolls into cannot coincidentally
+          // print the same pair.
+          first['trait'] = <String, dynamic>{'id': 'crowdpleaser', 'level': 1};
+        },
+      );
+      await openDetailOfFirst(tester, container);
+      await tester.pumpAndSettle();
+
+      List<String?> chips() => tester
+          .widgetList<Text>(
+            find.descendant(
+              of: find.byKey(const ValueKey('detail-trait-effects')),
+              matching: find.byType(Text),
+            ),
+          )
+          .map((w) => w.data)
+          .toList();
+
+      final before = chips();
+      expect(before, isNotEmpty, reason: 'the block says nothing it can hold');
+
+      // Land on the pool's first entry — his own position's headline trait,
+      // which is directional and so shares no axis with Crowd Pleaser.
+      setTraitRandom(_AlwaysPicks(0));
+      await tester.tap(find.byKey(const ValueKey('detail-trait-roll')));
+      await tester.pump();
+      expect(
+        chips(),
+        before,
+        reason: 'the chips answered before the reels did',
+      );
+      await tester.pump(TraitBlockState.spin ~/ 3);
+      expect(chips(), before);
+
+      await tester.pump(
+        TraitBlockState.spin + const Duration(milliseconds: 400),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        chips(),
+        isNot(before),
+        reason: 'and then they never caught up with the answer',
+      );
+      await settleSave(tester);
+    });
+
+    testWidgets('a trait that pays no ATK or DEF still shows what it does', (
+      tester,
+    ) async {
+      // The block printed ATK and DEF and nothing else, so four of the nine
+      // outcomes in a pool — Crowd Pleaser, Tough, Veteran and None — drew no
+      // chip at all and the rest drew the same one or two. Twenty mechanically
+      // distinct traits read on screen as three. The ten `feature.effect.*`
+      // strings are shipped in all ten catalogues and had no caller in `lib/`.
+      final container = await pumpSquad(
+        tester,
+        mutate: (s) {
+          final cells = (s['grid'] as Map<String, dynamic>)['cells'] as List;
+          final first =
+              cells.firstWhere((c) => c != null) as Map<String, dynamic>;
+          first['trait'] = <String, dynamic>{'id': 'tough', 'level': 3};
+        },
+      );
+      await openDetailOfFirst(tester, container);
+      await scrollSheetTo(tester, 'detail-trait');
+      await tester.pumpAndSettle();
+      expect(
+        find.text(t('feature.effect.injury', {'n': '20'})),
+        findsOneWidget,
+        reason: 'Tough III cuts injury by 20 points and said so nowhere',
+      );
+    });
+
     /// **THE SECOND ROLL BARELY MOVED.**
     ///
     /// `animateToItem` takes an ABSOLUTE index and the target was written as
