@@ -1802,9 +1802,46 @@ void main() {
     expect(find.byKey(const ValueKey('token-suspended')), findsOneWidget);
   });
 
+  testWidgets('AND HE IS WASHED OUT, the way an injured man is', (
+    tester,
+  ) async {
+    // The token drew the red card and nothing else — no wash, art undimmed —
+    // so a banned man in the eleven read as available at a glance, against a
+    // bench where the same player was plainly out. Reported from the couch.
+    await pumpSquad(
+      tester,
+      mutate: (s) {
+        final cells = (s['grid'] as Map<String, dynamic>)['cells'] as List;
+        (cells[0] as Map<String, dynamic>)['suspendedUntilMatch'] = 9;
+        s['progression'] = <String, dynamic>{
+          ...?(s['progression'] as Map<String, dynamic>?),
+          'matchesPlayed': 4,
+        };
+      },
+    );
+    final washed = tester
+        .widgetList<ColoredBox>(
+          find.descendant(
+            of: find.byType(PitchToken),
+            matching: find.byType(ColoredBox),
+          ),
+        )
+        .where((b) => b.color == const Color(0x80640000));
+    expect(washed, isNotEmpty, reason: 'a ban wears the same wash as an injury');
+  });
+
   testWidgets('and a squad with nobody banned draws none', (tester) async {
     await pumpSquad(tester);
     expect(find.byKey(const ValueKey('token-suspended')), findsNothing);
+    final washed = tester
+        .widgetList<ColoredBox>(
+          find.descendant(
+            of: find.byType(PitchToken),
+            matching: find.byType(ColoredBox),
+          ),
+        )
+        .where((b) => b.color == const Color(0x80640000));
+    expect(washed, isEmpty);
   });
 
   // ── A ban is a ban on the sheet too ──────────────────────────────────────

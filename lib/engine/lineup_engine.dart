@@ -59,16 +59,24 @@ class _Pair {
 /// factor — the same maths the match uses — so a 76%-fit midfielder still beats
 /// a fresher defender shoved into midfield, and fitness only separates players
 /// of equal in-slot value. In Casual ("Auto") fitness is irrelevant.
+/// **A SUSPENSION IS NOT AN INJURY**, and [banned] is how it gets in here. The
+/// JS has no suspension in this function at all — `_selectable` is
+/// `!injured && !isUnavailable` there too — so an empty set is the spec's own
+/// behaviour and every parity fixture keeps it. The port already diverged for
+/// `fillLineupGaps` and the subs panel; Auto was the path left fielding a man
+/// who cannot play.
 List<LineupSlot> buildDefaultLineup(
   String? formationId,
   List<CardInstance?> gridCells, {
   bool fatigue = false,
+  Set<String> banned = const {},
 }) {
   final slots = getFormation(formationId).slots;
 
   final candidates = <_Candidate>[];
   for (final card in gridCells) {
     if (card == null || !card.isSelectable) continue;
+    if (banned.contains(card.instanceId)) continue;
     final def = getPlayerDef(card.definitionId);
     if (def == null) continue;
     candidates.add(

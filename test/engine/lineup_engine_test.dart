@@ -55,6 +55,31 @@ void main() {
   });
 
   group('buildDefaultLineup', () {
+    test('A BANNED MAN IS NOT PICKED', () {
+      // Auto scored on `isSelectable`, which is injury and availability and
+      // knows nothing about a ban — so the button walked a suspended player
+      // into the eleven, and only that button did. Reported from the couch.
+      // A spare forward, so the ban is covered rather than leaving a hole.
+      final squad = [..._squad(), _card('spare', definitionId: 'player_t5_fwd')];
+      final picked = [
+        for (final slot in buildDefaultLineup('4-3-3', squad, banned: {'p9'}))
+          slot.cardInstanceId,
+      ];
+      expect(picked, isNot(contains('p9')));
+      expect(picked, contains('spare'), reason: 'the reserve takes his slot');
+      expect(picked.whereType<String>().length, 11, reason: 'still a full XI');
+    });
+
+    test('and an empty ban set is the spec\'s own behaviour', () {
+      // The JS has no suspension in this function at all, and the parity
+      // fixtures compare against that — so the default must not change it.
+      final picked = [
+        for (final s in buildDefaultLineup('4-3-3', _squad()))
+          s.cardInstanceId,
+      ];
+      expect(picked, contains('p9'));
+    });
+
     test('produces one entry per formation slot', () {
       final lineup = buildDefaultLineup('4-3-3', _squad());
       expect(lineup.length, 11);

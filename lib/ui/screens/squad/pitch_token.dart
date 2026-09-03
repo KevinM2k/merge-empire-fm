@@ -296,18 +296,23 @@ class PitchToken extends StatelessWidget {
                             // than the art is tall, and the face is what has to
                             // survive the crop.
                             fit: BoxFit.cover,
-                            dimmed: card.injured,
+                            dimmed: card.injured || card.suspended,
                             fallback: PlayerPortrait(
                               variantIndex: card.variant!,
                               kitColor: accent,
                             ),
                           ),
+                        // **THE WASH IS FOR BOTH**, the way `PlayerCard` does it
+                        // on the bench. A ban had the red card and no wash, so a
+                        // suspended man on the team sheet read as available at a
+                        // glance — reported from the couch, against a bench where
+                        // the same player was plainly out. ONE wash, or a man
+                        // carrying an injury and a ban gets it twice.
+                        if (card.injured || card.suspended)
+                          const ColoredBox(color: Color(0x80640000)),
                         if (card.injured)
-                          const ColoredBox(
-                            color: Color(0x80640000),
-                            child: Center(
-                              child: InjuryCross(size: pitchTokenWidth * 0.34),
-                            ),
+                          const Center(
+                            child: InjuryCross(size: pitchTokenWidth * 0.34),
                           ),
                         // **A BAN IS DRAWN ON THE TEAM SHEET.** It was on the
                         // Players tab and nowhere else, which is the wrong page

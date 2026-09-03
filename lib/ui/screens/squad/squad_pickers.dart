@@ -922,6 +922,10 @@ void autoFillLineup(WidgetRef ref) {
     final squad = s['squad'];
     if (squad is! Map<String, dynamic>) return;
     final cards = [for (final raw in gridCells(s)) CardInstance.from(raw)];
+    // **AUTO MUST NOT PICK A BANNED MAN.** Both paths scored on `isSelectable`,
+    // which is injury and availability and says nothing about a ban — so Auto
+    // walked a suspended player straight into the eleven, and only Auto did.
+    final banned = suspendedIn(s);
 
     if (isProMode(s)) {
       squad['lineup'] = encodeLineup(
@@ -929,12 +933,13 @@ void autoFillLineup(WidgetRef ref) {
           squad['formation'] as String? ?? defaultFormation,
           cards,
           fatigue: true,
+          banned: banned,
         ),
       );
       return;
     }
 
-    final pick = bestFormationForFixture(s);
+    final pick = bestFormationForFixture(s, banned: banned);
     squad['formation'] = pick.formationId;
     squad['lineup'] = encodeLineup(pick.lineup);
   });

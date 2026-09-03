@@ -986,8 +986,9 @@ class _Raise extends StatelessWidget {
   final Animation<double> animation;
   final Widget child;
 
-  // Slower than the old bounce: a phone is lifted, not flicked. "Too fast".
-  static const Duration duration = Duration(milliseconds: 640);
+  // A phone is lifted, not flicked — but 640 was a beat too long once the rise
+  // went straight up rather than swinging in from the corner. 1.5x quicker.
+  static const Duration duration = Duration(milliseconds: 425);
 
   /// Where the raise starts and the lowering ends, as a share of the SCREEN.
   /// **`dx` is a TRANSLATION off the dialog's own centred position, not a

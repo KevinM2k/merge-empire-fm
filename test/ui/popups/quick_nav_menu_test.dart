@@ -224,7 +224,9 @@ void main() {
     await tester.pump();
     // By the last frames it is well down, on its way off — and straight down
     // the line it rose on, which is what makes the lowering the raise reversed.
-    await tester.pump(const Duration(milliseconds: 600));
+    // Must stay INSIDE the raise's own duration, or the route has finished and
+    // there is no phone left to measure.
+    await tester.pump(const Duration(milliseconds: 280));
     final going = tester.getCenter(find.byKey(const ValueKey('quick-nav-phone')));
     expect(going.dy, greaterThan(settled.dy + 40));
     expect(going.dx, closeTo(settled.dx, 1));

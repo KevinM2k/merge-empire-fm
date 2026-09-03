@@ -478,9 +478,12 @@ typedef FormationPick = ({
 /// through the same goal model the match will use — so "best" means best at
 /// winning THIS game. Ties break toward the shape already set, because a change
 /// the manager didn't ask for should have to earn itself.
+/// [banned] is passed by the Auto button so a suspended man is not picked; it
+/// defaults empty, which is what the JS does and what the fixtures compare.
 FormationPick bestFormationForFixture(
   Map<String, dynamic>? state, {
   String? divisionId,
+  Set<String> banned = const {},
 }) {
   final cells = _cells(state);
   final ratios = _map(state?['definitionRatios']) ?? const {};
@@ -515,7 +518,7 @@ FormationPick bestFormationForFixture(
 
   FormationPick? best;
   for (final formationId in candidates) {
-    final lineup = buildDefaultLineup(formationId, cells);
+    final lineup = buildDefaultLineup(formationId, cells, banned: banned);
     final split = computeSquadRatings(
       cells,
       lineup: [for (final s in lineup) _slotMap(s)],
