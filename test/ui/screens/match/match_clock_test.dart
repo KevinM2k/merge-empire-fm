@@ -782,22 +782,6 @@ void main() {
       expect([for (final l in lines) l.minute], [10, 22]);
     });
 
-    test('THE SIDE IS NAMED FROM THE PLAYER\'S POINT OF VIEW', () {
-      // **This test used to assert the bug.** It read `team: 'away'` with
-      // `isHome: false` as OUR chance — the venue XOR — and it contradicted
-      // the goal test directly below it, which has always read `team: 'home'`
-      // as ours whatever the ground. The goal one matches the engine and
-      // matches the game; this one matched the code it was written against.
-      //
-      // `away` is the opposition at both grounds. See the group above.
-      for (final isHome in [true, false]) {
-        final theirs = feed([
-          ev('chance', team: 'away', big: true, shotResult: 'on_target'),
-        ], isHome: isHome);
-        expect(theirs.single.params['who'], 'Them');
-      }
-    });
-
     test('A GOAL IS DESCRIBED BY WHAT IT DID TO THE SCORE', () {
       // Eight `commentary.goal.*` pools sat translated in ten catalogues with
       // nothing able to reach one: the feed printed the scorer's name alone. But
