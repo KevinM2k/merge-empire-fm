@@ -9,6 +9,9 @@ library;
 
 /// Replaces the generated entry, or adds a key French did not have.
 const Map<String, String> frCopy = <String, String>{
+  // Une troisième ligne à côté de Son et Musique : le clic de chaque bouton.
+  'settings.ui_sounds': 'Interface',
+
   // ── Le résumé d'ouverture ────────────────────────────────────────────────
   //
   // Remplacés plutôt qu'élargis : les textes générés ouvrent tous sur {score}.

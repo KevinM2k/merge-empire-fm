@@ -1,0 +1,59 @@
+/* Fixed across every kit and both themes. A referee's card is the same object
+   whatever the app is wearing; danger has to mean danger in a club that plays
+   in red, which is the one thing a kit-derived red cannot promise. */
+:root {
+  --color-danger: #f44336;
+  --color-warning: #ff9800;
+  --color-gold: #ffd700;
+  --color-silver: #c0c0c0;
+  --color-bronze: #cd7f32;
+  --color-legendary: #b06aff;
+  --card-yellow: #f6c915;
+  --card-red: #e0342b;
+
+  /* Tactic identity — one hue per tactic, hue-separated and deliberately clear
+     of --color-danger. Balanced rides the KIT accent: it is the default, so it
+     should look like "your club" rather than a fifth flavour. */
+  --tactic-attack: #ff6b4a;
+  --tactic-defence: #4fa8ff;
+  --tactic-counter: #b98bff;
+  --tactic-press: #ffc247;
+  --tactic-ink: #16120f;
+
+  --font-ui: 'Barlow', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  --font-display: 'Lilita One', var(--font-ui);
+  /* Barlow's w400 is lighter than the system faces it replaced, so everything
+     starts here. One place, because the next nudge should be one number. */
+  --weight-base: 600;
+  /* NOTHING IS SMALLER THAN THIS. A slot that cannot hold 12px in every
+     language shrinks at draw time; it does not take a point off the type. */
+  --font-size-min: 12px;
+
+  --radius-control: 10px;
+  --radius-panel: 16px;
+  --radius-pill: 999px;
+  --control-lift: 3px;
+
+  --transition-fast: 80ms ease;
+  --transition-med: 250ms ease;
+}
+
+/* The kit ramp. Written by <KitProvider>, which is a port of
+   buildKitSurfaces() in lib/util/kit_theme.dart — these defaults are the
+   turf kit in dark so a bare stylesheet is never unstyled. */
+:root,
+[data-me-kit] {
+  --color-bg: hsl(123, 46%, 7%);
+  --color-surface: hsl(123, 35%, 12%);
+  --color-surface-2: hsl(123, 30%, 16%);
+  --color-border: hsl(123, 25%, 22%);
+  --color-text: #eef2ee;
+  --color-text-muted: hsl(123, 14%, 82%);
+  --color-accent: #2e7d32;
+  --color-accent-bright: hsl(123, 90%, 70%);
+  --color-accent-bright-ink: #0d0d0d;
+  --color-accent-ink: #ffffff;
+  /* The moulded button's hard bottom edge: the accent under 45% black. */
+  --color-accent-edge: #19441b;
+  --kit-hue-rotate: 0deg;
+}

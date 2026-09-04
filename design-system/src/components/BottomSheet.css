@@ -1,0 +1,16 @@
+.me-sheet {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-bottom: 0;
+  border-radius: 20px 20px 0 0;
+  box-shadow: 0 -8px 28px #00000059;
+  overflow: hidden;
+}
+.me-sheet__handle {
+  width: 36px;
+  height: 4px;
+  margin: 8px auto 0;
+  border-radius: var(--radius-pill);
+  background: var(--color-border);
+}
+.me-sheet__body { padding: 0 16px 16px; }

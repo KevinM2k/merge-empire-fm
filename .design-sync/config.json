@@ -1,0 +1,19 @@
+{
+  "shape": "storybook",
+  "pkg": "@merge-empire/design-system",
+  "globalName": "MergeEmpireDS",
+  "storybookConfigDir": "design-system/.storybook",
+  "storybookStatic": ".design-sync/sb-reference",
+  "buildCmd": "npm --prefix design-system run build",
+  "cssEntry": "dist/style.css",
+  "provider": {
+    "component": "KitProvider",
+    "props": {
+      "kit": "turf"
+    }
+  },
+  "extraFonts": [
+    "dist/fonts.css"
+  ],
+  "readmeHeader": ".design-sync/conventions.md"
+}

@@ -114,6 +114,45 @@ class CoinReward extends Notifier<int> {
   void land() => state = state + 1;
 }
 
+/// Rewards that must not fly yet, by tag.
+///
+/// **MONEY THAT HAS NOT BEEN DECIDED MUST NOT LAND.** The end-of-match screen
+/// offers to double what the match paid, and until that offer is answered the
+/// player does not have the money — so a flight at the whistle animates a
+/// figure the next screen is still asking about. Reported from the couch: you
+/// cannot show that until I have chosen. Three things pay inside that window
+/// and every one of them flew — the match quests, which `settleMatch`
+/// auto-pays at full time; any achievement the whistle unlocked, paid by
+/// `game_wiring`'s listener; and, in a cup, the round prize `commitCupRound`
+/// credits there and then.
+///
+/// **And the flight had nowhere to land anyway.** The HUD is behind the match
+/// route rather than gone, so its chip still has a position — the sprites flew
+/// to a corner of the screen with no coin counter visible in it.
+///
+/// So the window is HELD: an increase announced inside it is remembered rather
+/// than thrown, and one flight goes up per wallet when the window closes.
+final Set<String> _holds = {};
+
+/// The match chain's tag. Held alongside `matchPopupBlocker` and released once
+/// the money is in the save: after `payMatch` in a league game, and once the
+/// tie's screen is gone in a cup, which has no offer to wait for.
+const String matchCoinHold = 'match-reward';
+
+/// Announced when a hold is lifted, so the layer can settle up. The set above
+/// is read synchronously by the listener and needs no event; a RELEASE has to
+/// wake a widget.
+const String coinFlightReleased = 'coins:flight-released';
+
+void holdCoinFlight(String tag) => _holds.add(tag);
+
+void releaseCoinFlight(String tag) {
+  if (_holds.remove(tag) && _holds.isEmpty) emit(coinFlightReleased);
+}
+
+/// Test seam: whether anything is holding the layer.
+bool isCoinFlightHeld() => _holds.isNotEmpty;
+
 /// How many sprites one reward throws. More than this reads as confetti.
 const int coinFlightSprites = 7;
 
@@ -184,6 +223,12 @@ class CoinFlightState extends ConsumerState<CoinFlight>
   /// wallet, because one loop tick can announce both coins and energy.
   final Set<String> _passive = {};
 
+  /// Wallets that went UP while the layer was held — see [_holds]. One flight
+  /// each when the hold lifts, however many announcements went into it: seven
+  /// sprites are seven sprites, and the quests, the fee and an achievement are
+  /// one payout as far as the player is concerned.
+  final Set<String> _owed = {};
+
   /// What each balance was last time it was announced.
   ///
   /// An `:updated` fires on a SPEND as well as on a reward — a signing, a trait
@@ -243,12 +288,34 @@ class CoinFlightState extends ConsumerState<CoinFlight>
       listen(wallet.updated, (args) {
         final seen = _last[wallet.updated];
         final now = args is num ? args : seen;
-        _last[wallet.updated] = now ?? 0;
         final wasPassive = _passive.remove(wallet.updated);
+        // **THE BALANCE IS STILL WRITTEN DOWN WHILE HELD**, and only the
+        // flight waits: `_last` is what tells a SPEND from a reward, and a
+        // layer that stopped tracking for the length of a match would read the
+        // first purchase after it as money arriving. The passive flag is
+        // consumed either way — a skipped one left set would swallow the next
+        // real reward.
+        _last[wallet.updated] = now ?? 0;
         if (wasPassive || seen == null || now == null) return;
         if (now <= seen) return;
+        if (_holds.isNotEmpty) {
+          _owed.add(wallet.updated);
+          return;
+        }
         _launch(wallet);
       });
+    }
+    listen(coinFlightReleased, (_) => _settle());
+  }
+
+  /// One flight per wallet that was paid while the layer was held.
+  void _settle() {
+    if (_owed.isEmpty) return;
+    final owed = Set<String>.of(_owed);
+    _owed.clear();
+    if (!mounted) return;
+    for (final wallet in flightWallets()) {
+      if (owed.contains(wallet.updated)) _launch(wallet);
     }
   }
 

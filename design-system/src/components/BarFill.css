@@ -1,0 +1,2 @@
+.me-bar { width: 100%; border-radius: var(--radius-pill); overflow: hidden; }
+.me-bar__fill { height: 100%; border-radius: inherit; transition: width var(--transition-med); }

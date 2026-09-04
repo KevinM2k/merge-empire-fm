@@ -9,6 +9,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/ui/popups/prestige_card.dart' show proLockedAnswer;
 import 'package:merge_empire_fc/ui/popups/toast_host.dart';
+import 'package:merge_empire_fc/ui/shell/shell_controller.dart';
+import 'package:merge_empire_fc/ui/shell/tabs.dart';
 import 'package:merge_empire_fc/ui/theme/app_theme.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/util/event_bus.dart';
@@ -433,8 +435,8 @@ void main() {
       expect(text.style?.color, const Color(0xFFFFD700));
       expect(text.style?.fontWeight, FontWeight.w800);
 
-      // An ordinary line is gone by three seconds; this one is not.
-      await tester.pump(const Duration(seconds: 3));
+      // An ordinary line is gone by two seconds; this one is not.
+      await tester.pump(const Duration(seconds: 2));
       expect(find.byKey(const ValueKey('toast')), findsOneWidget);
       await tester.pump(const Duration(seconds: 1));
       await tester.pumpAndSettle();
@@ -583,7 +585,7 @@ void main() {
       expect(host.sweep, 1);
 
       // And it closes back the same way rather than being switched off.
-      await tester.pump(const Duration(milliseconds: 2700));
+      await tester.pump(const Duration(milliseconds: 1900));
       await tester.pump(const Duration(milliseconds: 120));
       expect(host.sweep, lessThan(1));
       expect(host.sweep, greaterThan(0));
@@ -660,5 +662,86 @@ void main() {
     expect(host.sweep, 1);
     await tester.pump(const Duration(seconds: 3));
     await tester.pumpAndSettle();
+  });
+
+  group('A LINE THE PLAYER HAS MOVED PAST IS GONE', () {
+    // It waits for nothing and answers nothing, so a band still lying across
+    // the middle of a screen the player has already left is furniture in front
+    // of the thing they went there to do. Asked for in one sentence: tap
+    // anything, or change tab, and it should be gone.
+    testWidgets('the first tap anywhere ends it', (tester) async {
+      var taps = 0;
+      await tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            theme: buildAppTheme(kitId: '#4caf50', light: false),
+            home: ToastHost(
+              child: Scaffold(
+                body: Center(
+                  child: ElevatedButton(
+                    onPressed: () => taps++,
+                    child: const Text('somewhere else'),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      emit('toast:success', 'bought it');
+      await tester.pump();
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('toast')), findsOneWidget);
+
+      // **AND THE TAP STILL LANDS ON THE BUTTON UNDER IT**, which is the whole
+      // reason this is a `Listener` and not a dismissal barrier: the band is
+      // over the middle of the screen, and a toast that eats the control it is
+      // sitting on is worse than one that overstays.
+      await tester.tap(find.text('somewhere else'));
+      await tester.pumpAndSettle();
+      expect(taps, 1);
+      expect(find.byKey(const ValueKey('toast')), findsNothing);
+    });
+
+    testWidgets('and so does a change of tab', (tester) async {
+      await pumpToasts(tester);
+      emit('toast:success', 'bought it');
+      await tester.pump();
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('toast')), findsOneWidget);
+
+      ProviderScope.containerOf(tester.element(find.byType(ToastHost)))
+          .read(shellControllerProvider.notifier)
+          .goTab(ShellTab.squad);
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('toast')), findsNothing);
+    });
+
+    testWidgets('a second tap during the slide out changes nothing', (
+      tester,
+    ) async {
+      // `_dismiss` is idempotent: the line is already null, and the animation
+      // it started is left to finish rather than restarted.
+      await pumpToasts(tester);
+      emit('toast:info', 'no');
+      await tester.pump();
+      await tester.pumpAndSettle();
+      final host = tester.state<ToastHostState>(find.byType(ToastHost));
+
+      await tester.tapAt(const Offset(5, 5));
+      // Two pumps: the layer's own [Ticker] reports zero elapsed on the frame
+      // it starts, so the first one buys no movement. The strike test above
+      // pumps in the same pair for the same reason.
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      final part = host.sweep;
+      expect(part, lessThan(1));
+      expect(part, greaterThan(0));
+      await tester.tapAt(const Offset(5, 5));
+      await tester.pump();
+      expect(host.sweep, lessThanOrEqualTo(part));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('toast')), findsNothing);
+    });
   });
 }

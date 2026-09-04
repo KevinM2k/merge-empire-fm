@@ -99,6 +99,16 @@ const Map<String, String> gameIcons = {
       '<svg viewBox="0 0 24 24" $_stroke>'
       '<path d="M9 18V5l10-2v13"/><circle cx="6" cy="18" r="3"/>'
       '<circle cx="16" cy="16" r="3"/></svg>',
+  // **Not the JS's, and it is the only one in the set that is not.** The
+  // interface's audio channel is this port's own — the JS never clicked — so
+  // there was no glyph to port for it. A hand, at the set's own 1.8 stroke: the
+  // finger and then the palm, in two paths, so it reads at the 18pt the
+  // settings rows draw icons at.
+  'tap':
+      '<svg viewBox="0 0 24 24" $_stroke>'
+      '<path d="M12 13.5V5.2a1.8 1.8 0 0 1 3.6 0V15"/>'
+      '<path d="M15.6 12.2a1.7 1.7 0 0 1 3.4 0V16a5 5 0 0 1-5 5h-1.2a5 5 0 0 '
+      '1-3.5-1.5L6 16.4a1.7 1.7 0 0 1 2.4-2.4l1.6 1.6"/></svg>',
   'sun':
       '<svg viewBox="0 0 24 24" $_stroke><circle cx="12" cy="12" r="4"/>'
       '<path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 '

@@ -1,0 +1,13 @@
+.me-tier {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border-radius: var(--radius-pill);
+  font-size: var(--font-size-min);
+  font-weight: 900;
+  letter-spacing: 0.3px;
+  line-height: 1.3;
+  white-space: nowrap;
+}
+.me-tier__emoji { font-size: 90%; }

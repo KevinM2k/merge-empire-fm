@@ -7,6 +7,9 @@ library;
 
 /// Replaces the generated entry, or adds a key Spanish did not have.
 const Map<String, String> esCopy = <String, String>{
+  // Una tercera fila junto a Sonido y Música: el clic de cada botón.
+  'settings.ui_sounds': 'Interfaz',
+
   // ── The headline ─────────────────────────────────────────────────────────
   //
   // Replaced, not widened: the generated pools all open on {score}, and the

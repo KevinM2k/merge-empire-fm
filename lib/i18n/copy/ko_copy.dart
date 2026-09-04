@@ -8,6 +8,9 @@ library;
 
 /// Replaces the generated entry, or adds a key Korean did not have.
 const Map<String, String> koCopy = <String, String>{
+  // 사운드·음악 옆의 세 번째 줄. 모든 버튼의 탭 소리.
+  'settings.ui_sounds': '터치음',
+
   // ── 헤드라인 ──────────────────────────────────────────────────────────────
   //
   // 넓힌 것이 아니라 교체한 것입니다. 생성된 문장은 모두 {score}로 시작합니다.

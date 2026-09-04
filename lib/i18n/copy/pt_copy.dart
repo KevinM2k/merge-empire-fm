@@ -7,6 +7,9 @@ library;
 
 /// Replaces the generated entry, or adds a key Portuguese did not have.
 const Map<String, String> ptCopy = <String, String>{
+  // Uma terceira linha ao lado de Som e Música: o clique de cada botão.
+  'settings.ui_sounds': 'Interface',
+
   // ── O título ─────────────────────────────────────────────────────────────
   //
   // Substituídos, não alargados: os textos gerados abrem todos com {score}.

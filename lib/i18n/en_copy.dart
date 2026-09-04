@@ -287,6 +287,14 @@ const Map<String, String> enMore = <String, String>{
 /// wrong for the port, or when a screen needs a string the catalogues do not
 /// carry at all.
 const Map<String, String> enCopy = <String, String>{
+  // ── The interface's own audio channel ────────────────────────────────────
+  //
+  // A third row beside Sound and Music. The press cue rides the theme's splash
+  // factory, so it fires on every button and every `InkWell` in the app — and
+  // a blip on every tap is either what a player wants or the first thing they
+  // go looking for a switch for. It ships OFF; see `SoundService`.
+  'settings.ui_sounds': 'Interface',
+
 
   // ── "1 points" ───────────────────────────────────────────────────────────
   //

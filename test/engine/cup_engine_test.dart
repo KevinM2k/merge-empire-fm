@@ -493,6 +493,19 @@ void main() {
       expect(activeCup(state)?['round'], 0);
     });
 
+    test('THE PRIZE ANNOUNCES ITSELF, and it never did', () {
+      // The same omission the league fee had — see `applyMatchRewards`. A round
+      // prize was credited in silence, so nothing flew to the counter and the
+      // lifetime high-water mark `game_wiring` keeps never counted a cup run.
+      final heard = <Object?>[];
+      on('coins:updated', heard.add);
+      final state = _state();
+      startCup(state);
+      commitCupRound(state, true, prepareCupRound(state)!);
+      expect(heard, isNotEmpty);
+      expect(heard.last, (state['resources'] as Map)['fanCoins']);
+    });
+
     test('the commit uses the FINAL result, not the prepared one', () {
       // The player can change tactics on the way through and change the
       // outcome, so the prize is recalculated.

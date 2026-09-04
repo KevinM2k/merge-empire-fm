@@ -8,6 +8,9 @@ library;
 
 /// Replaces the generated entry, or adds a key Japanese did not have.
 const Map<String, String> jaCopy = <String, String>{
+  // サウンド・音楽に並ぶ3つ目の行。すべてのボタンのタップ音。
+  'settings.ui_sounds': '操作音',
+
   // ── 見出し ────────────────────────────────────────────────────────────────
   //
   // 差し替えであって追加ではない。生成された文はすべて{score}で始まる。

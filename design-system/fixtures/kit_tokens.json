@@ -1,0 +1,845 @@
+{
+  "surfaces": {
+    "turf|dark": {
+      "bg": "hsl(123,46%,7%)",
+      "surface": "hsl(123,35%,12%)",
+      "surface2": "hsl(123,30%,16%)",
+      "border": "hsl(123,25%,22%)",
+      "textMuted": "hsl(123,14%,82%)",
+      "accent": "#2e7d32",
+      "accentBright": "hsl(123,90%,70%)",
+      "accentBrightInk": "#0d0d0d",
+      "accentInk": "#ffffff",
+      "hueRotate": 0
+    },
+    "turf|light": {
+      "bg": "hsl(123,46%,99%)",
+      "surface": "hsl(123,35%,95%)",
+      "surface2": "hsl(123,30%,90%)",
+      "border": "hsl(123,25%,84%)",
+      "textMuted": "#5b616b",
+      "accent": "#2e7d32",
+      "accentBright": "hsl(123,60%,36%)",
+      "accentBrightInk": "#ffffff",
+      "accentInk": "#ffffff",
+      "hueRotate": 0
+    },
+    "humbug|dark": {
+      "bg": "#111",
+      "surface": "#1a1a1a",
+      "surface2": "#222",
+      "border": "#3a3a3a",
+      "textMuted": "#d0d0d0",
+      "accent": "#d32f2f",
+      "accentBright": "#ff5c5c",
+      "accentBrightInk": "#0d0d0d",
+      "accentInk": "#ffffff",
+      "hueRotate": 180
+    },
+    "humbug|light": {
+      "bg": "hsl(0,65%,99%)",
+      "surface": "hsl(0,49%,95%)",
+      "surface2": "hsl(0,42%,90%)",
+      "border": "hsl(0,36%,84%)",
+      "textMuted": "#5b616b",
+      "accent": "#d32f2f",
+      "accentBright": "hsl(0,60%,36%)",
+      "accentBrightInk": "#ffffff",
+      "accentInk": "#ffffff",
+      "hueRotate": 180
+    },
+    "sunset|dark": {
+      "bg": "#1a0800",
+      "surface": "#2a1008",
+      "surface2": "#3a1a0c",
+      "border": "#5a2a14",
+      "textMuted": "#d4956a",
+      "accent": "#ff6b35",
+      "accentBright": "#ffb347",
+      "accentBrightInk": "#0d0d0d",
+      "accentInk": "#0d0d0d",
+      "hueRotate": 30
+    },
+    "sunset|light": {
+      "bg": "hsl(14,80%,99%)",
+      "surface": "hsl(14,60%,95%)",
+      "surface2": "hsl(14,52%,90%)",
+      "border": "hsl(14,44%,84%)",
+      "textMuted": "#5b616b",
+      "accent": "#e64a19",
+      "accentBright": "hsl(14,60%,36%)",
+      "accentBrightInk": "#ffffff",
+      "accentInk": "#ffffff",
+      "hueRotate": 30
+    },
+    "midnight|dark": {
+      "bg": "#03030f",
+      "surface": "#08081e",
+      "surface2": "#0e0e2c",
+      "border": "#1a1a44",
+      "textMuted": "#7070b0",
+      "accent": "#4466ff",
+      "accentBright": "#88aaff",
+      "accentBrightInk": "#0d0d0d",
+      "accentInk": "#ffffff",
+      "hueRotate": -90
+    },
+    "midnight|light": {
+      "bg": "hsl(229,80%,99%)",
+      "surface": "hsl(229,60%,95%)",
+      "surface2": "hsl(229,52%,90%)",
+      "border": "hsl(229,44%,84%)",
+      "textMuted": "#5b616b",
+      "accent": "#3355ee",
+      "accentBright": "hsl(229,60%,36%)",
+      "accentBrightInk": "#ffffff",
+      "accentInk": "#ffffff",
+      "hueRotate": -90
+    },
+    "empire|dark": {
+      "bg": "#001418",
+      "surface": "#001e24",
+      "surface2": "#002830",
+      "border": "#00404e",
+      "textMuted": "#4aa8c0",
+      "accent": "#00c8ff",
+      "accentBright": "#7ee8fa",
+      "accentBrightInk": "#0d0d0d",
+      "accentInk": "#001418",
+      "hueRotate": -120
+    },
+    "empire|light": {
+      "bg": "hsl(195,80%,99%)",
+      "surface": "hsl(195,60%,95%)",
+      "surface2": "hsl(195,52%,90%)",
+      "border": "hsl(195,44%,84%)",
+      "textMuted": "#5b616b",
+      "accent": "#0099cc",
+      "accentBright": "hsl(195,60%,36%)",
+      "accentBrightInk": "#ffffff",
+      "accentInk": "#ffffff",
+      "hueRotate": -120
+    },
+    "void|dark": {
+      "bg": "#030006",
+      "surface": "#09000f",
+      "surface2": "#100018",
+      "border": "#220030",
+      "textMuted": "#7a50a0",
+      "accent": "#9933ff",
+      "accentBright": "#cc88ff",
+      "accentBrightInk": "#0d0d0d",
+      "accentInk": "#ffffff",
+      "hueRotate": 150
+    },
+    "void|light": {
+      "bg": "hsl(267,60%,99%)",
+      "surface": "hsl(267,45%,95%)",
+      "surface2": "hsl(267,39%,90%)",
+      "border": "hsl(267,33%,84%)",
+      "textMuted": "#5b616b",
+      "accent": "#7733cc",
+      "accentBright": "hsl(267,60%,36%)",
+      "accentBrightInk": "#ffffff",
+      "accentInk": "#ffffff",
+      "hueRotate": 150
+    },
+    "#4caf50|dark": {
+      "bg": "hsl(122,39%,7%)",
+      "surface": "hsl(122,29%,12%)",
+      "surface2": "hsl(122,25%,16%)",
+      "border": "hsl(122,21%,22%)",
+      "textMuted": "hsl(122,16%,55%)",
+      "accent": "#4caf50",
+      "accentBright": "hsl(122,90%,70%)",
+      "accentBrightInk": "#0d0d0d",
+      "accentInk": "#ffffff",
+      "hueRotate": -1
+    },
+    "#4caf50|light": {
+      "bg": "hsl(122,39%,99%)",
+      "surface": "hsl(122,29%,95%)",
+      "surface2": "hsl(122,25%,90%)",
+      "border": "hsl(122,21%,84%)",
+      "textMuted": "#5b616b",
+      "accent": "#4caf50",
+      "accentBright": "hsl(122,60%,36%)",
+      "accentBrightInk": "#ffffff",
+      "accentInk": "#ffffff",
+      "hueRotate": -1
+    },
+    "#ffeb3b|dark": {
+      "bg": "hsl(54,80%,7%)",
+      "surface": "hsl(54,60%,12%)",
+      "surface2": "hsl(54,52%,16%)",
+      "border": "hsl(54,44%,22%)",
+      "textMuted": "hsl(54,32%,55%)",
+      "accent": "#ffeb3b",
+      "accentBright": "hsl(54,90%,70%)",
+      "accentBrightInk": "#0d0d0d",
+      "accentInk": "#0d0d0d",
+      "hueRotate": -69
+    },
+    "#ffeb3b|light": {
+      "bg": "hsl(54,80%,99%)",
+      "surface": "hsl(54,60%,95%)",
+      "surface2": "hsl(54,52%,90%)",
+      "border": "hsl(54,44%,84%)",
+      "textMuted": "#5b616b",
+      "accent": "#ffeb3b",
+      "accentBright": "hsl(54,60%,36%)",
+      "accentBrightInk": "#ffffff",
+      "accentInk": "#111111",
+      "hueRotate": -69
+    },
+    "#ff9800|dark": {
+      "bg": "hsl(36,80%,7%)",
+      "surface": "hsl(36,60%,12%)",
+      "surface2": "hsl(36,52%,16%)",
+      "border": "hsl(36,44%,22%)",
+      "textMuted": "hsl(36,32%,55%)",
+      "accent": "#ff9800",
+      "accentBright": "hsl(36,90%,70%)",
+      "accentBrightInk": "#0d0d0d",
+      "accentInk": "#0d0d0d",
+      "hueRotate": -87
+    },
+    "#ff9800|light": {
+      "bg": "hsl(36,80%,99%)",
+      "surface": "hsl(36,60%,95%)",
+      "surface2": "hsl(36,52%,90%)",
+      "border": "hsl(36,44%,84%)",
+      "textMuted": "#5b616b",
+      "accent": "#ff9800",
+      "accentBright": "hsl(36,60%,36%)",
+      "accentBrightInk": "#ffffff",
+      "accentInk": "#111111",
+      "hueRotate": -87
+    },
+    "#00bcd4|dark": {
+      "bg": "hsl(187,80%,7%)",
+      "surface": "hsl(187,60%,12%)",
+      "surface2": "hsl(187,52%,16%)",
+      "border": "hsl(187,44%,22%)",
+      "textMuted": "hsl(187,32%,55%)",
+      "accent": "#00bcd4",
+      "accentBright": "hsl(187,90%,70%)",
+      "accentBrightInk": "#0d0d0d",
+      "accentInk": "#ffffff",
+      "hueRotate": 64
+    },
+    "#00bcd4|light": {
+      "bg": "hsl(187,80%,99%)",
+      "surface": "hsl(187,60%,95%)",
+      "surface2": "hsl(187,52%,90%)",
+      "border": "hsl(187,44%,84%)",
+      "textMuted": "#5b616b",
+      "accent": "#00bcd4",
+      "accentBright": "hsl(187,60%,36%)",
+      "accentBrightInk": "#ffffff",
+      "accentInk": "#ffffff",
+      "hueRotate": 64
+    },
+    "#9e9e9e|dark": {
+      "bg": "hsl(0,20%,7%)",
+      "surface": "hsl(0,15%,12%)",
+      "surface2": "hsl(0,13%,16%)",
+      "border": "hsl(0,11%,22%)",
+      "textMuted": "hsl(0,8%,55%)",
+      "accent": "#9e9e9e",
+      "accentBright": "hsl(0,90%,70%)",
+      "accentBrightInk": "#0d0d0d",
+      "accentInk": "#ffffff",
+      "hueRotate": -123
+    },
+    "#9e9e9e|light": {
+      "bg": "hsl(0,20%,99%)",
+      "surface": "hsl(0,15%,95%)",
+      "surface2": "hsl(0,13%,90%)",
+      "border": "hsl(0,11%,84%)",
+      "textMuted": "#5b616b",
+      "accent": "#9e9e9e",
+      "accentBright": "hsl(0,60%,36%)",
+      "accentBrightInk": "#ffffff",
+      "accentInk": "#ffffff",
+      "hueRotate": -123
+    },
+    "#00ff88|dark": {
+      "bg": "hsl(152,80%,7%)",
+      "surface": "hsl(152,60%,12%)",
+      "surface2": "hsl(152,52%,16%)",
+      "border": "hsl(152,44%,22%)",
+      "textMuted": "hsl(152,32%,55%)",
+      "accent": "#00ff88",
+      "accentBright": "hsl(152,90%,70%)",
+      "accentBrightInk": "#0d0d0d",
+      "accentInk": "#0d0d0d",
+      "hueRotate": 29
+    },
+    "#00ff88|light": {
+      "bg": "hsl(152,80%,99%)",
+      "surface": "hsl(152,60%,95%)",
+      "surface2": "hsl(152,52%,90%)",
+      "border": "hsl(152,44%,84%)",
+      "textMuted": "#5b616b",
+      "accent": "#00ff88",
+      "accentBright": "hsl(152,60%,36%)",
+      "accentBrightInk": "#ffffff",
+      "accentInk": "#111111",
+      "hueRotate": 29
+    },
+    "#d32f2f|dark": {
+      "bg": "hsl(0,65%,7%)",
+      "surface": "hsl(0,49%,12%)",
+      "surface2": "hsl(0,42%,16%)",
+      "border": "hsl(0,36%,22%)",
+      "textMuted": "hsl(0,26%,55%)",
+      "accent": "#d32f2f",
+      "accentBright": "hsl(0,90%,70%)",
+      "accentBrightInk": "#0d0d0d",
+      "accentInk": "#ffffff",
+      "hueRotate": -123
+    },
+    "#d32f2f|light": {
+      "bg": "hsl(0,65%,99%)",
+      "surface": "hsl(0,49%,95%)",
+      "surface2": "hsl(0,42%,90%)",
+      "border": "hsl(0,36%,84%)",
+      "textMuted": "#5b616b",
+      "accent": "#d32f2f",
+      "accentBright": "hsl(0,60%,36%)",
+      "accentBrightInk": "#ffffff",
+      "accentInk": "#ffffff",
+      "hueRotate": -123
+    },
+    "#3355ee|dark": {
+      "bg": "hsl(229,80%,7%)",
+      "surface": "hsl(229,60%,12%)",
+      "surface2": "hsl(229,52%,16%)",
+      "border": "hsl(229,44%,22%)",
+      "textMuted": "hsl(229,32%,55%)",
+      "accent": "#3355ee",
+      "accentBright": "hsl(229,90%,70%)",
+      "accentBrightInk": "#0d0d0d",
+      "accentInk": "#ffffff",
+      "hueRotate": 106
+    },
+    "#3355ee|light": {
+      "bg": "hsl(229,80%,99%)",
+      "surface": "hsl(229,60%,95%)",
+      "surface2": "hsl(229,52%,90%)",
+      "border": "hsl(229,44%,84%)",
+      "textMuted": "#5b616b",
+      "accent": "#3355ee",
+      "accentBright": "hsl(229,60%,36%)",
+      "accentBrightInk": "#ffffff",
+      "accentInk": "#ffffff",
+      "hueRotate": 106
+    },
+    "#ffffff|dark": {
+      "bg": "hsl(0,20%,7%)",
+      "surface": "hsl(0,15%,12%)",
+      "surface2": "hsl(0,13%,16%)",
+      "border": "hsl(0,11%,22%)",
+      "textMuted": "hsl(0,8%,55%)",
+      "accent": "#ffffff",
+      "accentBright": "hsl(0,90%,70%)",
+      "accentBrightInk": "#0d0d0d",
+      "accentInk": "#0d0d0d",
+      "hueRotate": -123
+    },
+    "#ffffff|light": {
+      "bg": "hsl(0,20%,99%)",
+      "surface": "hsl(0,15%,95%)",
+      "surface2": "hsl(0,13%,90%)",
+      "border": "hsl(0,11%,84%)",
+      "textMuted": "#5b616b",
+      "accent": "#ffffff",
+      "accentBright": "hsl(0,60%,36%)",
+      "accentBrightInk": "#ffffff",
+      "accentInk": "#111111",
+      "hueRotate": -123
+    },
+    "#000000|dark": {
+      "bg": "hsl(0,20%,7%)",
+      "surface": "hsl(0,15%,12%)",
+      "surface2": "hsl(0,13%,16%)",
+      "border": "hsl(0,11%,22%)",
+      "textMuted": "hsl(0,8%,55%)",
+      "accent": "#000000",
+      "accentBright": "hsl(0,90%,70%)",
+      "accentBrightInk": "#0d0d0d",
+      "accentInk": "#ffffff",
+      "hueRotate": -123
+    },
+    "#000000|light": {
+      "bg": "hsl(0,20%,99%)",
+      "surface": "hsl(0,15%,95%)",
+      "surface2": "hsl(0,13%,90%)",
+      "border": "hsl(0,11%,84%)",
+      "textMuted": "#5b616b",
+      "accent": "#000000",
+      "accentBright": "hsl(0,60%,36%)",
+      "accentBrightInk": "#ffffff",
+      "accentInk": "#ffffff",
+      "hueRotate": -123
+    },
+    "not-a-kit|dark": {
+      "bg": "hsl(122,39%,7%)",
+      "surface": "hsl(122,29%,12%)",
+      "surface2": "hsl(122,25%,16%)",
+      "border": "hsl(122,21%,22%)",
+      "textMuted": "hsl(122,16%,55%)",
+      "accent": "#4caf50",
+      "accentBright": "hsl(122,90%,70%)",
+      "accentBrightInk": "#0d0d0d",
+      "accentInk": "#ffffff",
+      "hueRotate": -1
+    },
+    "not-a-kit|light": {
+      "bg": "hsl(122,39%,99%)",
+      "surface": "hsl(122,29%,95%)",
+      "surface2": "hsl(122,25%,90%)",
+      "border": "hsl(122,21%,84%)",
+      "textMuted": "#5b616b",
+      "accent": "#4caf50",
+      "accentBright": "hsl(122,60%,36%)",
+      "accentBrightInk": "#ffffff",
+      "accentInk": "#ffffff",
+      "hueRotate": -1
+    }
+  },
+  "primitives": {
+    "#4caf50": {
+      "hsl": [
+        122,
+        39,
+        49
+      ],
+      "roundTrip": "#4cae4f",
+      "relLuminance": 0.3277563096600313,
+      "inkFor": "#ffffff",
+      "kitSaturation": 39,
+      "kitHueRotate": -1
+    },
+    "#ffeb3b": {
+      "hsl": [
+        54,
+        100,
+        62
+      ],
+      "roundTrip": "#ffec3d",
+      "relLuminance": 0.8099242849815864,
+      "inkFor": "#111111",
+      "kitSaturation": 80,
+      "kitHueRotate": -69
+    },
+    "#ff9800": {
+      "hsl": [
+        36,
+        100,
+        50
+      ],
+      "roundTrip": "#ff9900",
+      "relLuminance": 0.4371647278063132,
+      "inkFor": "#111111",
+      "kitSaturation": 80,
+      "kitHueRotate": -87
+    },
+    "#00bcd4": {
+      "hsl": [
+        187,
+        100,
+        42
+      ],
+      "roundTrip": "#00bdd6",
+      "relLuminance": 0.40719905659246924,
+      "inkFor": "#ffffff",
+      "kitSaturation": 80,
+      "kitHueRotate": 64
+    },
+    "#9e9e9e": {
+      "hsl": [
+        0,
+        0,
+        62
+      ],
+      "roundTrip": "#9e9e9e",
+      "relLuminance": 0.3419144249086609,
+      "inkFor": "#ffffff",
+      "kitSaturation": 20,
+      "kitHueRotate": -123
+    },
+    "#ffffff": {
+      "hsl": [
+        0,
+        0,
+        100
+      ],
+      "roundTrip": "#ffffff",
+      "relLuminance": 1.0,
+      "inkFor": "#111111",
+      "kitSaturation": 20,
+      "kitHueRotate": -123
+    },
+    "#000000": {
+      "hsl": [
+        0,
+        0,
+        0
+      ],
+      "roundTrip": "#000000",
+      "relLuminance": 0.0,
+      "inkFor": "#ffffff",
+      "kitSaturation": 20,
+      "kitHueRotate": -123
+    },
+    "#2e7d32": {
+      "hsl": [
+        123,
+        46,
+        34
+      ],
+      "roundTrip": "#2f7f33",
+      "relLuminance": 0.15478362741669344,
+      "inkFor": "#ffffff",
+      "kitSaturation": 46,
+      "kitHueRotate": 0
+    },
+    "#7733cc": {
+      "hsl": [
+        267,
+        60,
+        50
+      ],
+      "roundTrip": "#7833cc",
+      "relLuminance": 0.10649224674764612,
+      "inkFor": "#ffffff",
+      "kitSaturation": 60,
+      "kitHueRotate": 144
+    }
+  },
+  "tiers": {
+    "1": {
+      "bg": {
+        "angleDeg": 160,
+        "stops": [
+          [
+            "#3b1f00",
+            0.0
+          ],
+          [
+            "#1a0d00",
+            100.0
+          ]
+        ]
+      },
+      "bgLight": {
+        "angleDeg": 160,
+        "stops": [
+          [
+            "#efdcc2",
+            0.0
+          ],
+          [
+            "#e0c9a0",
+            100.0
+          ]
+        ]
+      },
+      "accent": "#8B5A00",
+      "accentLight": "#C87F2A",
+      "labelBg": "#3d2000",
+      "label": "Bronze",
+      "emoji": "🟫"
+    },
+    "2": {
+      "bg": {
+        "angleDeg": 160,
+        "stops": [
+          [
+            "#4a2800",
+            0.0
+          ],
+          [
+            "#261400",
+            100.0
+          ]
+        ]
+      },
+      "bgLight": {
+        "angleDeg": 160,
+        "stops": [
+          [
+            "#ecd2b0",
+            0.0
+          ],
+          [
+            "#d9bd8e",
+            100.0
+          ]
+        ]
+      },
+      "accent": "#A06820",
+      "accentLight": "#D4943A",
+      "labelBg": "#4a2800",
+      "label": "Bronze+",
+      "emoji": "🟤"
+    },
+    "3": {
+      "bg": {
+        "angleDeg": 160,
+        "stops": [
+          [
+            "#252525",
+            0.0
+          ],
+          [
+            "#111",
+            100.0
+          ]
+        ]
+      },
+      "bgLight": {
+        "angleDeg": 160,
+        "stops": [
+          [
+            "#ededed",
+            0.0
+          ],
+          [
+            "#d6d6d6",
+            100.0
+          ]
+        ]
+      },
+      "accent": "#888888",
+      "accentLight": "#bbbbbb",
+      "labelBg": "#2a2a2a",
+      "label": "Silver",
+      "emoji": "⚪"
+    },
+    "4": {
+      "bg": {
+        "angleDeg": 160,
+        "stops": [
+          [
+            "#2d2d2d",
+            0.0
+          ],
+          [
+            "#181818",
+            100.0
+          ]
+        ]
+      },
+      "bgLight": {
+        "angleDeg": 160,
+        "stops": [
+          [
+            "#f1f1f1",
+            0.0
+          ],
+          [
+            "#dcdcdc",
+            100.0
+          ]
+        ]
+      },
+      "accent": "#999999",
+      "accentLight": "#cccccc",
+      "labelBg": "#333333",
+      "label": "Silver★",
+      "emoji": "🔘"
+    },
+    "5": {
+      "bg": {
+        "angleDeg": 160,
+        "stops": [
+          [
+            "#3a2a00",
+            0.0
+          ],
+          [
+            "#1a1200",
+            100.0
+          ]
+        ]
+      },
+      "bgLight": {
+        "angleDeg": 160,
+        "stops": [
+          [
+            "#f3e6b0",
+            0.0
+          ],
+          [
+            "#e6d28a",
+            100.0
+          ]
+        ]
+      },
+      "accent": "#C8960C",
+      "accentLight": "#FFD440",
+      "labelBg": "#3d2e00",
+      "label": "Gold",
+      "emoji": "🟡"
+    },
+    "6": {
+      "bg": {
+        "angleDeg": 160,
+        "stops": [
+          [
+            "#4a3600",
+            0.0
+          ],
+          [
+            "#241b00",
+            100.0
+          ]
+        ]
+      },
+      "bgLight": {
+        "angleDeg": 160,
+        "stops": [
+          [
+            "#f5e4a0",
+            0.0
+          ],
+          [
+            "#ead07e",
+            100.0
+          ]
+        ]
+      },
+      "accent": "#FFB300",
+      "accentLight": "#FFD740",
+      "labelBg": "#4a3800",
+      "label": "Gold★",
+      "emoji": "🟠"
+    },
+    "7": {
+      "bg": {
+        "angleDeg": 160,
+        "stops": [
+          [
+            "#1f004a",
+            0.0
+          ],
+          [
+            "#0d0025",
+            100.0
+          ]
+        ]
+      },
+      "bgLight": {
+        "angleDeg": 160,
+        "stops": [
+          [
+            "#e6d2f5",
+            0.0
+          ],
+          [
+            "#d2b0ec",
+            100.0
+          ]
+        ]
+      },
+      "accent": "#A040F0",
+      "accentLight": "#C880FF",
+      "labelBg": "#2a0060",
+      "label": "Legend",
+      "emoji": "🟣"
+    },
+    "8": {
+      "bg": {
+        "angleDeg": 135,
+        "stops": [
+          [
+            "#001a40",
+            0.0
+          ],
+          [
+            "#003366",
+            50.0
+          ],
+          [
+            "#000820",
+            100.0
+          ]
+        ]
+      },
+      "bgLight": {
+        "angleDeg": 135,
+        "stops": [
+          [
+            "#cfe8f5",
+            0.0
+          ],
+          [
+            "#bfe0f0",
+            50.0
+          ],
+          [
+            "#d6eef8",
+            100.0
+          ]
+        ]
+      },
+      "accent": "#00c8ff",
+      "accentLight": "#80e8ff",
+      "labelBg": "#001830",
+      "label": "World Class",
+      "emoji": "🌟"
+    },
+    "9": {
+      "bg": {
+        "angleDeg": 135,
+        "stops": [
+          [
+            "#1a0a00",
+            0.0
+          ],
+          [
+            "#3d1f00",
+            30.0
+          ],
+          [
+            "#000820",
+            70.0
+          ],
+          [
+            "#1a0040",
+            100.0
+          ]
+        ]
+      },
+      "bgLight": {
+        "angleDeg": 135,
+        "stops": [
+          [
+            "#f5e2c2",
+            0.0
+          ],
+          [
+            "#f0d2a0",
+            30.0
+          ],
+          [
+            "#d6e2f5",
+            70.0
+          ],
+          [
+            "#e0d2f5",
+            100.0
+          ]
+        ]
+      },
+      "accent": "#ffaa00",
+      "accentLight": "#ffe066",
+      "labelBg": "#1a0800",
+      "label": "⚡ Icon",
+      "emoji": "⚡"
+    }
+  }
+}

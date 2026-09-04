@@ -1,11 +1,12 @@
 /// The sound engine, wired to the save and to the app's lifecycle.
 ///
 /// **NOTHING CALLS THE SERVICE'S SWITCHES BY HAND.** The settings screen writes
-/// `soundEnabled` / `soundVolume` / `musicEnabled` / `musicVolume` into the save
-/// and stops there, exactly as it did when nothing was listening. [soundSyncProvider]
-/// is what carries those four to the engine — so a value that arrives from a
-/// migration, a cloud restore or a reset lands the same way a tap does, and there
-/// is no second place for the two to disagree.
+/// `soundEnabled` / `soundVolume` / `musicEnabled` / `musicVolume` /
+/// `uiSoundsEnabled` / `uiSoundsVolume` into the save and stops there, exactly
+/// as it did when nothing was listening. [soundSyncProvider] is what carries
+/// them to the engine — so a value that arrives from a migration, a cloud
+/// restore or a reset lands the same way a tap does, and there is no second
+/// place for the two to disagree.
 ///
 /// **THE FIRST SOUND HAS TO BE READY BEFORE IT IS WANTED.** Two dozen effects are
 /// synthesised rather than shipped (see `util/audio_render.dart`), which is the
@@ -28,9 +29,16 @@ final soundServiceProvider = Provider<SoundService>(
   (ref) => SoundService(backend: AudioPlayersBackend()),
 );
 
-/// The four save values the engine follows.
+/// The save values the engine follows.
 final soundSettingsProvider = savePick<
-  ({bool sound, double soundVolume, bool music, double musicVolume})
+  ({
+    bool sound,
+    double soundVolume,
+    bool music,
+    double musicVolume,
+    bool ui,
+    double uiVolume,
+  })
 >((s) {
   final settings = s['settings'];
   final map = settings is Map<String, dynamic>
@@ -43,10 +51,15 @@ final soundSettingsProvider = savePick<
     // Music ships OFF, matching the schema.
     music: map['musicEnabled'] == true,
     musicVolume: vol(map['musicVolume']),
+    // **AND SO DOES THE INTERFACE**, for the same reason it is read as
+    // `== true` rather than `!= false`: a save written before the channel
+    // existed has no key, and the absent key has to mean off.
+    ui: map['uiSoundsEnabled'] == true,
+    uiVolume: vol(map['uiSoundsVolume']),
   );
 });
 
-/// Pushes the save's four values into the engine whenever they move.
+/// Pushes the save's audio values into the engine whenever they move.
 ///
 /// Watched by [SoundHost] rather than being a listener set up at boot: a provider
 /// that is never watched is never built, and this one has to be alive for the
@@ -56,6 +69,8 @@ final soundSyncProvider = Provider<void>((ref) {
   final settings = ref.watch(soundSettingsProvider);
   service.setSoundEnabled(settings.sound);
   service.setSoundVolume(settings.soundVolume);
+  service.setUiSoundsEnabled(settings.ui);
+  service.setUiSoundsVolume(settings.uiVolume);
   service.setMusicVolume(settings.musicVolume);
   // Last, and asynchronous: it starts or stops the bed, and it needs the volume
   // above to already be in place or the first frame of the fade is at the old one.

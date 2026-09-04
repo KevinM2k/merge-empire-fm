@@ -1,0 +1,60 @@
+.me-player {
+  position: relative;
+  width: 104px;
+  border: 1.5px solid var(--color-border);
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  color: #fff;
+  box-shadow: 0 4px 12px #00000038;
+}
+.me-player--tap { cursor: pointer; }
+.me-player__rating {
+  position: absolute;
+  top: 5px;
+  left: 5px;
+  z-index: 2;
+  min-width: 22px;
+  padding: 1px 5px;
+  border-radius: 6px;
+  font-size: var(--font-size-min);
+  font-weight: 900;
+  text-align: center;
+  line-height: 1.4;
+}
+.me-player__art {
+  aspect-ratio: 1;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  overflow: hidden;
+}
+.me-player__traits {
+  position: absolute;
+  right: 4px;
+  top: 5px;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  align-items: flex-end;
+}
+.me-player__plate {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  padding: 4px 6px;
+  min-width: 0;
+}
+.me-player__pos { font-size: var(--font-size-min); font-weight: 900; flex: none; }
+.me-player__name {
+  font-size: var(--font-size-min);
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #fff;
+}
+/* A card lifted onto a light page keeps its own ink. */
+.me-player[data-me-card-theme='light'] .me-player__name { color: #14171c; }

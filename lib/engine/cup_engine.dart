@@ -940,6 +940,10 @@ CupSponsorDrop? commitCupRound(
   final actualEarned = _roundPrize(state, cup, prepared.round, won);
   final resources = _branch(state, 'resources');
   resources['fanCoins'] = (_num(resources['fanCoins']) ?? 0) + actualEarned;
+  // The same omission the league fee had — see `applyMatchRewards`. A round
+  // prize was credited in silence, so nothing flew to the counter and the
+  // lifetime high-water mark `game_wiring` keeps never counted a cup run.
+  if (actualEarned > 0) emit('coins:updated', resources['fanCoins']);
 
   _chargeCupFitness(state, prepared);
 

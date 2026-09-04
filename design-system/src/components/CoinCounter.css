@@ -1,0 +1,12 @@
+.me-coins { display: inline-block; font-variant-numeric: tabular-nums; will-change: transform; }
+/* Small with it: this is a figure in a bar, and anything that shoves its
+   neighbours about is worse than no swell at all. */
+.me-coins--swell { animation: me-coin-swell 420ms ease-out; }
+@keyframes me-coin-swell {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.16); }
+  100% { transform: scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .me-coins--swell { animation: none; }
+}

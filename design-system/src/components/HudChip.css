@@ -1,0 +1,36 @@
+.me-hudchip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 8px;
+  border-radius: var(--radius-pill);
+  font-size: var(--font-size-min);
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+}
+/* The cog has no figure, so it gets no gutter either — otherwise it sits
+   off-centre in its own badge. */
+.me-hudchip--bare { padding: 5px 7px; gap: 0; }
+.me-hudchip--tap { cursor: pointer; }
+.me-hudchip__icon { display: inline-flex; font-size: 16px; line-height: 1; }
+.me-hudchip__trailing { margin-left: 1px; display: inline-flex; }
+
+.me-hudcluster { display: inline-flex; align-items: center; gap: 5px; }
+
+.me-hudplus {
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #ffffff38;
+  border: 1px solid #ffffff8c;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+}

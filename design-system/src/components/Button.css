@@ -1,0 +1,56 @@
+.me-btn {
+  /* radius 10, lift 3, padding 9/16, 14px — the Dart's own literals. */
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 9px 16px;
+  border: 0;
+  border-radius: var(--radius-control);
+  font-family: var(--font-ui);
+  font-size: 14px;
+  font-weight: var(--weight-base);
+  line-height: 1.2;
+  cursor: pointer;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+.me-btn--sm { padding: 7px 10px; font-size: 13px; }
+
+.me-btn--solid {
+  background: var(--color-accent);
+  color: var(--color-accent-ink);
+  box-shadow: 0 var(--control-lift) 0 var(--color-accent-edge);
+}
+/* The face drops by lift - 1 and the bar shrinks to 1, so sink + drop is
+   constant and the bar's bottom edge never moves — only the button does. */
+.me-btn--solid:active:not(:disabled) {
+  transform: translateY(calc(var(--control-lift) - 1px));
+  box-shadow: 0 1px 0 var(--color-accent-edge);
+}
+
+.me-btn--outline {
+  background: transparent;
+  color: var(--color-accent);
+  border: 1.4px solid var(--color-border);
+  box-shadow: 0 var(--control-lift) 0 var(--color-border);
+}
+.me-btn--outline:active:not(:disabled) {
+  transform: translateY(calc(var(--control-lift) - 1px));
+  box-shadow: 0 1px 0 var(--color-border);
+}
+
+/* No bar at all when it is off: a dead control does not offer to be pressed. */
+.me-btn:disabled {
+  background: var(--color-surface-2);
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+  box-shadow: none;
+  cursor: default;
+}
+
+.me-btn:focus-visible {
+  outline: 2px solid var(--color-accent-bright);
+  outline-offset: 2px;
+}

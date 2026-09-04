@@ -10,6 +10,9 @@ library;
 
 /// Replaces the generated entry, or adds a key German did not have.
 const Map<String, String> deCopy = <String, String>{
+  // Eine dritte Zeile neben Sound und Musik: der Klick jeder Schaltfläche.
+  'settings.ui_sounds': 'Oberfläche',
+
   // ── Die Schlagzeile ──────────────────────────────────────────────────────
   //
   // Ersetzt statt erweitert: die generierten Texte öffnen alle mit {score}.

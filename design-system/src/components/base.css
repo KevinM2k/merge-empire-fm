@@ -1,0 +1,8 @@
+.me-root {
+  font-family: var(--font-ui);
+  font-weight: var(--weight-base);
+  color: var(--color-text);
+  background: var(--color-bg);
+  -webkit-font-smoothing: antialiased;
+}
+.me-root *, .me-root *::before, .me-root *::after { box-sizing: border-box; }

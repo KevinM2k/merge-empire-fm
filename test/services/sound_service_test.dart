@@ -68,6 +68,7 @@ Map<String, Uint8List> fakeRender() => {
     'scout',
     'newDiscovery',
     'thunder',
+    'tap',
   ])
     name: Uint8List(1),
 };
@@ -220,6 +221,56 @@ void main() {
         closeTo(sfxBaseVolume * fireworkVolume, 1e-9),
       );
       expect(b.sfx, isEmpty, reason: 'it is not a synth');
+    });
+  });
+
+  group('THE INTERFACE IS ITS OWN CHANNEL, and it ships silent', () {
+    // Every button and every `InkWell` in the app clicks — the cue rides the
+    // theme's splash factory — and it was on the SFX toggle, so the only way to
+    // stop the blip was to mute the coins with it. Reported from the couch as
+    // really annoying, asking for a switch of its own.
+    test('a press says nothing until the channel is turned on', () {
+      final (service: s, backend: b, clock: _) = build();
+      expect(s.uiSoundsEnabled, isFalse);
+      unawaited(s.playUi('tap'));
+      expect(b.sfx, isEmpty);
+
+      s.setUiSoundsEnabled(true);
+      unawaited(s.playUi('tap'));
+      expect(b.sfx, hasLength(1));
+    });
+
+    test('and it is a PEER of sound, not a child of it', () {
+      // The whole point of the row: the game's effects and the interface's are
+      // turned on and off independently, exactly as music already is.
+      final (service: s, backend: b, clock: _) = build();
+      s.setSoundEnabled(false);
+      s.setUiSoundsEnabled(true);
+      unawaited(s.playUi('tap'));
+      expect(b.sfx, hasLength(1));
+
+      s.setSoundEnabled(true);
+      s.setUiSoundsEnabled(false);
+      unawaited(s.play('merge'));
+      expect(b.sfx, hasLength(2));
+      unawaited(s.playUi('tap'));
+      expect(b.sfx, hasLength(2));
+    });
+
+    test('it carries its own volume', () {
+      final (service: s, backend: b, clock: _) = build();
+      s.setUiSoundsEnabled(true);
+      s.setUiSoundsVolume(0.5);
+      unawaited(s.playUi('tap'));
+      expect(b.sfx.single.volume, closeTo(sfxBaseVolume * 0.5, 1e-9));
+    });
+
+    test('and it still goes quiet when the app does', () async {
+      final (service: s, backend: b, clock: _) = build();
+      s.setUiSoundsEnabled(true);
+      await s.suspend();
+      await s.playUi('tap');
+      expect(b.sfx, isEmpty);
     });
   });
 

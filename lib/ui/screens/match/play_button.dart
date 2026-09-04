@@ -33,6 +33,8 @@ import 'package:merge_empire_fc/ui/screens/settings_controls.dart'
     show settingPick;
 import 'package:merge_empire_fc/ui/screens/match/match_screen.dart';
 import 'package:merge_empire_fc/ui/screens/match/match_summary.dart';
+import 'package:merge_empire_fc/ui/hud/coin_flight.dart'
+    show holdCoinFlight, matchCoinHold, releaseCoinFlight;
 import 'package:merge_empire_fc/ui/screens/home/play_freeze.dart';
 import 'package:merge_empire_fc/ui/screens/season/season_end_button.dart';
 import 'package:merge_empire_fc/services/store_review.dart';
@@ -370,6 +372,11 @@ class PlayMatchButton extends ConsumerWidget {
     // `match:open`; blocking the QUEUE covers every popup rather than only that
     // one — the welcome-back card could land on the pitch too.
     blockPopups(matchPopupBlocker);
+    // **AND NOTHING FLIES OVER ONE EITHER, until the offer is answered.** The
+    // quests pay at the whistle and an achievement can too, so coins flew to a
+    // HUD that is behind the match while the summary was still asking whether
+    // to double them. See [matchCoinHold].
+    holdCoinFlight(matchCoinHold);
     // **THE SUMMARY REPLACES THE MATCH.** Popping the match and then pushing
     // the summary put the Play page on screen for a frame between the two —
     // reported three times as a page flashing up before the end-of-match
@@ -423,6 +430,9 @@ class PlayMatchButton extends ConsumerWidget {
       await showMatchSummary(navigator.context, result);
     }
     game.update((s) => payMatch(s, result));
+    // The choice is made and the money is in the save, so now it can land — one
+    // flight for the fee, the quests and anything the whistle unlocked.
+    releaseCoinFlight(matchCoinHold);
     // **AND THE COOLDOWN STARTS HERE**, which is what `startMatchCooldown` was
     // written for and what only the CUP flow was doing. A league match stamps
     // `lastMatchAt` in `buildMatchResult` — at kick-off — so the thirty seconds
@@ -477,6 +487,11 @@ class PlayMatchButton extends ConsumerWidget {
 
     CupSponsorDrop? drop;
     blockPopups(matchPopupBlocker);
+    // A cup has no doubling offer — `commitCupRound` pays at full time — so the
+    // hold is not about a choice here, it is about where the coins land: the
+    // HUD is behind the tie's screen, and a flight to a counter nobody can see
+    // is a flight to nowhere. Released once the screen is gone.
+    holdCoinFlight(matchCoinHold);
     await Navigator.of(context).push<void>(
       MaterialPageRoute(
         fullscreenDialog: true,
@@ -503,6 +518,9 @@ class PlayMatchButton extends ConsumerWidget {
     // The cooldown starts once the player is back on the Play screen rather than
     // at the final whistle — `commitCupRound` stamps it too, but only as a floor.
     game.update(startMatchCooldown);
+    // Before the mounted check, because a hold nobody lifts is every later
+    // reward in the session animating nothing.
+    releaseCoinFlight(matchCoinHold);
     if (!context.mounted) return;
 
     // **THE CUP REACTS, and it never did.** Twenty-odd `cup.round_win.*`,

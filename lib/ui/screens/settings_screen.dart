@@ -439,6 +439,22 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
           // The JS ships music off by default, and the schema agrees.
           defaultEnabled: false,
         ),
+        // **THE PRESS CUE IS ITS OWN CHANNEL.** Every button and every
+        // `InkWell` in the app clicks — the cue rides the theme's splash
+        // factory — and it was on the SFX toggle, so the only way to stop the
+        // blip was to mute the coins with it. Reported from the couch as really
+        // annoying, asking for a switch of its own. Off by default, and its keys
+        // are deliberately absent from `state_schema.dart` for the reason
+        // `themeMode` is: the schema is compared against the JS's default state
+        // field for field, and this channel is the port's own. An absent key
+        // reads as off — see `soundSettingsProvider`.
+        AudioChannelRow(
+          icon: 'tap',
+          label: t('settings.ui_sounds'),
+          enabledKey: 'uiSoundsEnabled',
+          volumeKey: 'uiSoundsVolume',
+          defaultEnabled: false,
+        ),
         // **COLIN'S CHANNEL IS GONE, and the reason is that it controlled
         // nothing.** It was added when his voice rode the SFX toggle — the only
         // way to stop him talking was to mute the coin sounds with him — and

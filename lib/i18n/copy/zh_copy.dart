@@ -8,6 +8,9 @@ library;
 
 /// Replaces the generated entry, or adds a key Chinese did not have.
 const Map<String, String> zhCopy = <String, String>{
+  // 位于“声音”和“音乐”旁的第三行：每个按钮的点击音。
+  'settings.ui_sounds': '按键音',
+
   // ── 头条 ──────────────────────────────────────────────────────────────────
   //
   // 是替换而不是扩充：生成的文案一律以{score}开头。{minute}只送到三条`.late`。

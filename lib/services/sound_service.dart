@@ -150,6 +150,20 @@ class SoundService {
   bool _musicEnabled = false;
   double _sfxVolume = 1;
   double _musicVolume = 1;
+
+  /// **THE INTERFACE IS ITS OWN CHANNEL, and it ships silent.** Every button
+  /// and every `InkWell` in the app clicks — the cue is wired onto the theme's
+  /// splash factory, so the framework decides what counts as a button — and a
+  /// blip on every tap is the kind of thing a player either wants or cannot
+  /// stand. Reported from the couch as really annoying, with the ask being a
+  /// switch of its own rather than a choice between clicks and coins.
+  ///
+  /// A PEER of sound and music rather than a child of sound, which is what
+  /// makes it a channel: the game's own effects and the interface's are turned
+  /// on and off independently, exactly as music already is. The mini-games'
+  /// direct `play('tap')` calls are game sounds and stay on the SFX channel.
+  bool _uiEnabled = false;
+  double _uiVolume = 1;
   bool _suspended = false;
   bool _rendering = false;
 
@@ -200,6 +214,12 @@ class SoundService {
     return startMusic();
   }
 
+  bool get uiSoundsEnabled => _uiEnabled;
+  void setUiSoundsEnabled(bool on) => _uiEnabled = on;
+
+  double get uiSoundsVolume => _uiVolume;
+  void setUiSoundsVolume(double v) => _uiVolume = v.clamp(0.0, 1.0);
+
   double get musicVolume => _musicVolume;
   Future<void> setMusicVolume(double v) async {
     _musicVolume = v.clamp(0.0, 1.0);
@@ -215,6 +235,24 @@ class SoundService {
   /// be an error, because the alternative is a game that crashes on a tap.
   Future<void> play(String name, {bool overlap = false}) async {
     if (!_soundEnabled || _suspended) return;
+    await _playAt(name, sfxBaseVolume * _sfxVolume, overlap: overlap);
+  }
+
+  /// The same, on the INTERFACE channel — see [_uiEnabled].
+  ///
+  /// One caller: the press cue every button in the app wears. It is a separate
+  /// entry point rather than a flag on [play] because the channel it answers to
+  /// is the whole difference between the two.
+  Future<void> playUi(String name) async {
+    if (!_uiEnabled || _suspended) return;
+    await _playAt(name, sfxBaseVolume * _uiVolume, overlap: false);
+  }
+
+  Future<void> _playAt(
+    String name,
+    double volume, {
+    required bool overlap,
+  }) async {
     final wav = _cache[name];
     if (wav == null) return;
     // **ONE ACTION IS ONE SOUND.** See [retriggerFloor]. Overlapping effects are
@@ -228,7 +266,7 @@ class SoundService {
     await _backend.playSfx(
       name,
       wav,
-      volume: sfxBaseVolume * _sfxVolume,
+      volume: volume,
       overlap: overlap,
       length: soundLength(name),
     );

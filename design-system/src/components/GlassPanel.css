@@ -1,0 +1,63 @@
+/* The tint pairs, transcribed from glass.dart. The JS's 168deg — down the
+   panel and a little across it. */
+.me-glass {
+  position: relative;
+  --glass-a: #141e2c59;
+  --glass-b: #090f1842;
+  background-image: linear-gradient(168deg, var(--glass-a), var(--glass-b));
+  isolation: isolate;
+}
+.me-glass--chip { --glass-a: #141e2cad; --glass-b: #090f188f; }
+.me-glass--deep { --glass-a: #141e2c6e; --glass-b: #090f1854; }
+
+[data-me-theme='light'] .me-glass { --glass-a: #fcfeff45; --glass-b: #e4eff833; }
+[data-me-theme='light'] .me-glass--chip { --glass-a: #fcfeffc4; --glass-b: #e4eff8ad; }
+[data-me-theme='light'] .me-glass--deep { --glass-a: #fcfeff57; --glass-b: #dceaf542; }
+
+/* A takeover page pins its own material in both themes. */
+.me-glass--night { --glass-a: #141e2c59; --glass-b: #090f1842; }
+.me-glass--night.me-glass--chip { --glass-a: #141e2cad; --glass-b: #090f188f; }
+.me-glass--day { --glass-a: #fcfeff45; --glass-b: #e4eff833; }
+
+/* Sigma 20 in Flutter. The CSS radius is roughly 2x sigma; saturate is the
+   1.4 the Dart names. Note backdrop-filter needs something behind it to bite. */
+.me-glass--blur {
+  backdrop-filter: blur(20px) saturate(1.4);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+}
+
+/* Top-lit: a bright band across the top third falling away to nothing, plus a
+   whisper of light caught on the bottom edge. */
+.me-glass--sheen::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    #ffffff2e 0%, #ffffff10 30%, #ffffff00 58%, #ffffff0d 100%
+  );
+}
+/* On light glass the same white band is invisible, and pushed hard enough to
+   show it bleaches the pane. A breath on the top edge and almost nothing else. */
+[data-me-theme='light'] .me-glass--sheen::before {
+  background: linear-gradient(
+    to bottom,
+    #ffffff30 0%, #ffffff00 30%, #00000000 70%, #0f2a440a 100%
+  );
+}
+
+.me-glass--shadow { box-shadow: 0 6px 18px #0000004d; }
+[data-me-theme='light'] .me-glass--shadow { box-shadow: 0 6px 18px #0f2a441f; }
+
+/* The rim. On dark glass white at 6-15% is the whole vocabulary for an edge. */
+.me-glass::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  border: 1px solid #ffffff1f;
+  pointer-events: none;
+}
+[data-me-theme='light'] .me-glass::after { border-color: #0f2a4414; }

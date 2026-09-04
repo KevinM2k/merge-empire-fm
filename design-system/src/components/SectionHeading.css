@@ -1,0 +1,30 @@
+.me-heading {
+  --heading-ink: var(--color-accent-bright);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.me-heading__icon {
+  display: inline-flex;
+  font-size: 20px;
+  line-height: 1;
+  color: var(--heading-ink);
+}
+.me-heading__title {
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 0.6px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+/* Runs to the right edge and fades out — it stops the heading floating
+   unattached above its content without a heavy container round everything. */
+.me-heading__rule {
+  flex: 1;
+  height: 1px;
+  min-width: 0;
+  background: linear-gradient(to right,
+    color-mix(in srgb, var(--heading-ink) 45%, transparent), transparent);
+}

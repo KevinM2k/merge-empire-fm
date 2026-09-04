@@ -339,6 +339,37 @@ void main() {
       expect(settingsOf(container)['soundEnabled'], isFalse);
     });
 
+    testWidgets('THE INTERFACE IS A THIRD CHANNEL, and it starts OFF', (
+      tester,
+    ) async {
+      // Every button and every `InkWell` in the app clicks — the cue rides the
+      // theme's splash factory — and it was on the SFX toggle, so the only way
+      // to stop the blip was to mute the coins with it. Reported from the couch
+      // as really annoying, asking for a switch of its own.
+      //
+      // **The keys are absent from a fresh save**, deliberately: the schema is
+      // compared against the JS's default state field for field and this
+      // channel is the port's own, so an absent key has to read as off.
+      final container = await pumpSettings(tester, SettingsTab.audio);
+      expect(settingsOf(container).containsKey('uiSoundsEnabled'), isFalse);
+      final toggle = find.byKey(const ValueKey('setting-uiSoundsEnabled'));
+      expect(toggle, findsOneWidget);
+
+      await tester.tap(toggle);
+      await tester.pumpAndSettle();
+      await settleSave(tester);
+      expect(settingsOf(container)['uiSoundsEnabled'], isTrue);
+      // Rule 1 applies to it like any other channel: on at zero would be a
+      // control that claims to be on while nothing can be heard. It was left
+      // at 1, so nothing to nudge.
+      expect(settingsOf(container)['uiSoundsVolume'], anyOf(isNull, 1));
+
+      await tester.tap(toggle);
+      await tester.pumpAndSettle();
+      await settleSave(tester);
+      expect(settingsOf(container)['uiSoundsEnabled'], isFalse);
+    });
+
     testWidgets('the slider writes a 0..1 number', (tester) async {
       final container = await pumpSettings(tester, SettingsTab.audio);
       await tester.drag(

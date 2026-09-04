@@ -1,0 +1,21 @@
+.me-pitch {
+  position: relative;
+  aspect-ratio: 3 / 4;
+  width: 100%;
+  border-radius: var(--radius-panel);
+  overflow: hidden;
+  /* Mown bands. The turf reads darker than the diorama pitch on purpose. */
+  background:
+    repeating-linear-gradient(to bottom, #2b6b2f 0 8%, #27612b 8% 16%);
+}
+.me-pitch__markings { position: absolute; inset: 0; pointer-events: none; }
+.me-pitch__markings > * { position: absolute; border: 2px solid #ffffff2e; }
+.me-pitch__circle {
+  width: 26%; aspect-ratio: 1; border-radius: 50%;
+  left: 50%; top: 50%; transform: translate(-50%, -50%);
+}
+.me-pitch__halfway { left: 0; right: 0; top: 50%; border-width: 0 0 2px; }
+.me-pitch__box { left: 22%; right: 22%; height: 14%; }
+.me-pitch__box--top { top: 0; border-top: 0; }
+.me-pitch__box--bottom { bottom: 0; border-bottom: 0; }
+.me-pitch__slot { position: absolute; }

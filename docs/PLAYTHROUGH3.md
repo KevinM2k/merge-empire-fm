@@ -6,7 +6,7 @@ because that is the part worth keeping.
 
 ## Where this queue stands
 
-**107 done, 6 open, and one feature parked.** None of the open rows is a fault.
+**110 done, 6 open, and one feature parked.** None of the open rows is a fault.
 One is a feature that was built, tried and turned down; one is a balance
 question rather than work; one is a survey to run before building; and one is
 **blocked on the spec repo** for the COMMENTARY, which is the row to read if the
@@ -1255,6 +1255,85 @@ Reported in one sitting on 4 Sep 2026.
       `rg` does not take `--include` and mixing them made every search print a
       usage error — and **exits 2 with an install line if there is none**,
       rather than looking green.
+
+## Tenth batch — money that had not been decided, and a blip on every tap
+
+Reported in one sitting on 4 Sep 2026.
+
+- [x] **"At the end of a game I get the coin animation, however you can't show
+      that until I've decided on the end game scroll to go for normal coins or
+      2x coins — until then I haven't got them. I think cup games are slightly
+      different, but same premise."** Right on both counts. `payMatch` has
+      always been deferred to after the summary on purpose — the doubling offer
+      lives on the closing screen — but three OTHER things pay at the whistle
+      and every one of them threw a flight: the match quests, which
+      `settleMatch` auto-pays with the final scoreline; any achievement the
+      whistle unlocked, paid by `game_wiring`'s listener; and, in a cup, the
+      round prize `commitCupRound` credits there and then. The flight also had
+      nowhere to land — the HUD is BEHIND the match route rather than gone, so
+      its chip still has a position, and the sprites flew to a corner of the
+      screen with no coin counter visible in it.
+
+      `coin_flight.dart` takes a HOLD now (`holdCoinFlight` / `matchCoinHold`),
+      taken beside `blockPopups(matchPopupBlocker)` and lifted after `payMatch`
+      in a league game and once the tie's screen is gone in a cup — which has no
+      offer to wait for, so its hold is only about where the coins land. An
+      increase announced inside the window is remembered rather than thrown and
+      ONE flight goes up per wallet when it closes: the quests, the fee and an
+      achievement are one payout as far as the player is concerned. The balance
+      keeps being written down while held, because `_last` is what tells a spend
+      from a reward and a layer that stopped tracking for the length of a match
+      would read the first purchase after it as money arriving.
+
+      **And it turned out the fee itself had never had a flight at all.**
+      `applyMatchRewards` credits the biggest payout in the game and emitted
+      nothing — every other engine that moves `fanCoins` announces it — so
+      `coin_flight` had nothing to fly and `game_wiring`'s lifetime high-water
+      mark never counted a match fee: a player could earn past an "earn N coins"
+      achievement on fees alone and not unlock it. `commitCupRound` had the same
+      omission for a round prize. Both emit now, before the loan settlement's
+      own announcement rather than after, so the credit and the wage deduction
+      are not collapsed into one figure.
+
+- [x] **"The dot noise when clicking things is really annoying — dunno if we
+      need another audio queue in the settings to turn them off separate to the
+      game, or just wipe them out altogether."** A channel of its own, shipping
+      OFF. `'tap'` is a 50ms 800Hz triangle blip wired onto the theme's splash
+      factory, so it fires on every button and every `InkWell` in the app, and
+      it was riding the SFX toggle — the only way to stop the blip was to mute
+      the coins with it. `SoundService.playUi` answers to the new Interface row
+      in Settings and nothing else, a PEER of Sound and Music rather than a
+      child of Sound, with its own volume. The mini-games' direct `play('tap')`
+      calls are game sounds and stay on the SFX channel.
+
+      Its keys are deliberately absent from `state_schema.dart`, for the reason
+      `themeMode` is: the schema is compared against the JS's default state
+      field for field and this channel is the port's own, so an absent key reads
+      as off. `settings.ui_sounds` is written in all ten languages, and the hand
+      glyph is the only icon in `gameIcons` that is not the JS's — there was
+      nothing to port for a channel the JS never had.
+
+- [x] **"If a toast comes up, if I click on a new tab that toast should go away
+      instantly, or if I tap the screen it should go away too. Also it sticks
+      around a little too long, make it last less time."** All three. The band
+      took no taps and no route cared about it, so its timer was the only way it
+      ever left — and it is a full-bleed band across the MIDDLE of the screen,
+      which is the one place a line cannot be missed and also the worst place to
+      leave one lying. The first pointer down anywhere ends it, and a change of
+      tab does too.
+
+      **It still takes no taps**, which is why this is a `Listener` and not a
+      dismissal barrier: raw pointer events never enter the gesture arena, and
+      `HitTestBehavior.translucent` puts the layer in the hit-test result
+      without claiming the hit, so the button under the band gets the same tap
+      that dismissed the toast. Down rather than up, because the tap that CAUSED
+      the line is usually still held and its own release would close the band
+      before it had finished arriving. The band itself stays inside its
+      `IgnorePointer`. With the player able to end it, the hold only has to
+      cover a line nobody reacts to at all: 2.6s → 1.8s, and the gem line's
+      3.6s → 2.6s.
+
+---
 
 ## Features asked for, not yet built
 

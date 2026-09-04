@@ -1,0 +1,11 @@
+.me-trait {
+  display: inline-flex;
+  align-items: center;
+  background: #000000c7;
+  border: 1px solid #ffffff38;
+  color: #fff;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+.me-trait__icon { display: inline-flex; line-height: 1.2; }
+.me-trait__level { font-weight: 900; }

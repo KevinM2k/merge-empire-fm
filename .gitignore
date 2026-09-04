@@ -36,3 +36,18 @@ __pycache__/
 # `/graphify`'s build output — a knowledge graph of this repo, rebuilt on
 # demand. The SKILL lives in `.claude/skills/graphify`; its output does not.
 graphify-out/
+
+# design-system (the React kit synced to claude.ai/design)
+design-system/node_modules/
+design-system/dist/
+design-system/storybook-static/
+design-system/.shots/
+
+# design-sync: derived, regenerated, or transient. The durable half of
+# .design-sync/ — config, NOTES, conventions — IS committed.
+.design-sync/sb-reference/
+.design-sync/.cache/
+.design-sync/learnings/
+.design-sync/node_modules
+.ds-sync/
+ds-bundle/

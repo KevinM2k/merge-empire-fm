@@ -1,0 +1,20 @@
+/* Thirteen call sites each passed their own gap once. This is the one. */
+.me-sheethead { position: relative; padding: 16px 16px 10px; }
+.me-sheethead__title {
+  text-align: center;
+  color: var(--color-accent-bright);
+  font-size: 15px;
+  font-weight: 900;
+  letter-spacing: 0.8px;
+  line-height: 1.2;
+}
+.me-sheethead__sub {
+  margin-top: 5px;
+  text-align: center;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-min);
+  line-height: 1.45;
+}
+/* Over the top rather than in a row: a trailing control that takes width off
+   the middle moves the title off centre. */
+.me-sheethead__trailing { position: absolute; top: 16px; right: 16px; }

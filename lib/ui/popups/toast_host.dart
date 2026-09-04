@@ -25,6 +25,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/sound_providers.dart';
 import 'package:merge_empire_fc/ui/popups/prestige_card.dart';
+import 'package:merge_empire_fc/ui/shell/shell_controller.dart';
 import 'package:merge_empire_fc/ui/theme/app_theme.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/match_stat_rows.dart'
@@ -298,10 +299,18 @@ const List<String> toastEvents = [
 /// a reward.
 
 /// How long a line is held, once it has finished arriving. A gem payout gets
-/// longer: it happens a handful of times in a whole run, and the ordinary 2.6s
+/// longer: it happens a handful of times in a whole run, and the ordinary hold
 /// is sized for lines that repeat.
-const Duration _hold = Duration(milliseconds: 2600);
-const Duration _gemHold = Duration(milliseconds: 3600);
+///
+/// **SHORTER THAN IT WAS, because the player can now end it.** 2.6s and 3.6s
+/// were the times of a band that had to outlast being ignored — it took no
+/// taps and no route cared about it, so the timer was the only way it ever
+/// left. It goes on the first pointer down and on a change of tab now (see
+/// [ToastHostState._dismiss]), which means the hold only has to cover a line
+/// nobody reacts to at all. Reported from the couch as sticking around too
+/// long.
+const Duration _hold = Duration(milliseconds: 1800);
+const Duration _gemHold = Duration(milliseconds: 2600);
 
 /// **A TOAST MOVES.** It used to be there and then not be there, which is the
 /// one thing a notification cannot do: a banner that simply appears in the
@@ -419,16 +428,30 @@ class ToastHostState extends ConsumerState<ToastHost>
     _clear?.cancel();
     // Long enough to read, short enough that two in a row both land — and
     // longer for gems, which turn up a handful of times in a whole run.
-    _clear = Timer(toast.gem ? _gemHold : _hold, () {
-      if (!mounted) return;
-      _current = null;
-      if (_reducedMotion) {
-        _move.value = 0;
-        _drop();
-      } else {
-        _move.reverse();
-      }
-    });
+    _clear = Timer(toast.gem ? _gemHold : _hold, _dismiss);
+  }
+
+  /// Close the band, whatever ended it — its own timer, a tap, a change of tab.
+  ///
+  /// **A TOAST THE PLAYER HAS MOVED PAST IS LITTER.** It waits for nothing and
+  /// answers nothing, so a band still lying across the middle of a screen the
+  /// player has already left is furniture in front of the thing they went there
+  /// to do. Asked for in one sentence: tap anything, or change tab, and it
+  /// should be gone.
+  ///
+  /// Idempotent — a tap during the slide out, or a second one, finds `_current`
+  /// already null and leaves the animation to finish.
+  void _dismiss() {
+    if (!mounted || _current == null) return;
+    _clear?.cancel();
+    _clear = null;
+    _current = null;
+    if (_reducedMotion) {
+      _move.value = 0;
+      _drop();
+    } else {
+      _move.reverse();
+    }
   }
 
   bool get _reducedMotion =>
@@ -489,6 +512,12 @@ class ToastHostState extends ConsumerState<ToastHost>
 
   @override
   Widget build(BuildContext context) {
+    // **A CHANGE OF TAB ENDS THE LINE.** Unconditionally, above the early
+    // return: a listener registered only on the frames the band happens to be
+    // up is a listener that is not there when it is needed.
+    ref.listen(shellControllerProvider.select((ShellState s) => s.tab), (_, _) {
+      _dismiss();
+    });
     // The line itself lives in the overlay — see [_raise]. The in-place Stack
     // is only ever used by a test pumping this host with no Navigator above it.
     if (_entry != null || _current == null) return widget.child;
@@ -541,50 +570,66 @@ class ToastHostState extends ConsumerState<ToastHost>
         ? kit.accentBright
         : dangerInk;
     return Positioned.fill(
-      child: IgnorePointer(
-        // **THE MIDDLE OF WHAT IS LEFT, not the middle of the screen.**
-        //
-        // It was a bare `Alignment.center`, so with a keyboard up the band
-        // landed across the bottom half of the visible strip — reported from
-        // the couch after prestige, where the gem line opened directly over
-        // the box the new club's name was about to be typed into. The middle
-        // is where it belongs and is where it stays; it just no longer counts
-        // the keyboard as screen it may use. With nothing up, `viewInsets` is
-        // zero and this is exactly the centre it always was.
-        child: Padding(
-          padding: EdgeInsets.only(
-            bottom: MediaQuery.viewInsetsOf(context).bottom,
-          ),
-          child: Align(
-            alignment: Alignment.center,
-            child: AnimatedBuilder(
-              animation: _move,
-              builder: (context, child) {
-                // **IT STRIKES IN FROM THE LEFT AND CLOSES BACK THE SAME WAY.**
-                // A full-bleed band has one axis worth animating along: it
-                // already spans the screen, so sliding it up or fading it in is
-                // motion applied to the wrong dimension. Wiping it open left to
-                // right is the shape of the thing itself — and the sentence
-                // arrives with the wipe rather than under it, which is what makes
-                // it read as a strike rather than as a box growing.
-                //
-                // The clip is what moves; the band is laid out full width
-                // underneath at every frame, so nothing reflows and the text
-                // never re-wraps mid-animation.
-                final t = _sweepCurve.transform(_move.value);
-                return Stack(
-                  children: [
-                    ClipRect(clipper: _Wipe(t), child: child),
-                    // The bolt's own leading edge, and only while it is travelling
-                    // — parked at either end it would just be a stripe.
-                    if (t > 0.02 && t < 0.995)
-                      Positioned.fill(
-                        child: CustomPaint(painter: _Strike(t: t, tone: tone)),
-                      ),
-                  ],
-                );
-              },
-              child: _band(context, toast, tone, kit),
+      // **THE FIRST POINTER DOWN ANYWHERE ENDS IT, and it still takes no
+      // taps.** A `Listener` is raw pointer events rather than a gesture, so it
+      // never enters the arena and cannot win a tap off the button underneath;
+      // `translucent` puts it in the hit-test result without claiming the hit,
+      // so the overlay entries below — the whole app — are tested as though it
+      // were not there. The band itself stays inside its [IgnorePointer]: the
+      // rule that a toast is never the thing being answered is unchanged, and
+      // this is deliberately not a tap TARGET.
+      //
+      // Down rather than up, because the tap that CAUSED the line is usually
+      // still held: its own release would close the band before it had finished
+      // arriving.
+      child: Listener(
+        behavior: HitTestBehavior.translucent,
+        onPointerDown: (_) => _dismiss(),
+        child: IgnorePointer(
+          // **THE MIDDLE OF WHAT IS LEFT, not the middle of the screen.**
+          //
+          // It was a bare `Alignment.center`, so with a keyboard up the band
+          // landed across the bottom half of the visible strip — reported from
+          // the couch after prestige, where the gem line opened directly over
+          // the box the new club's name was about to be typed into. The middle
+          // is where it belongs and is where it stays; it just no longer counts
+          // the keyboard as screen it may use. With nothing up, `viewInsets` is
+          // zero and this is exactly the centre it always was.
+          child: Padding(
+            padding: EdgeInsets.only(
+              bottom: MediaQuery.viewInsetsOf(context).bottom,
+            ),
+            child: Align(
+              alignment: Alignment.center,
+              child: AnimatedBuilder(
+                animation: _move,
+                builder: (context, child) {
+                  // **IT STRIKES IN FROM THE LEFT AND CLOSES BACK THE SAME WAY.**
+                  // A full-bleed band has one axis worth animating along: it
+                  // already spans the screen, so sliding it up or fading it in is
+                  // motion applied to the wrong dimension. Wiping it open left to
+                  // right is the shape of the thing itself — and the sentence
+                  // arrives with the wipe rather than under it, which is what makes
+                  // it read as a strike rather than as a box growing.
+                  //
+                  // The clip is what moves; the band is laid out full width
+                  // underneath at every frame, so nothing reflows and the text
+                  // never re-wraps mid-animation.
+                  final t = _sweepCurve.transform(_move.value);
+                  return Stack(
+                    children: [
+                      ClipRect(clipper: _Wipe(t), child: child),
+                      // The bolt's own leading edge, and only while it is travelling
+                      // — parked at either end it would just be a stripe.
+                      if (t > 0.02 && t < 0.995)
+                        Positioned.fill(
+                          child: CustomPaint(painter: _Strike(t: t, tone: tone)),
+                        ),
+                    ],
+                  );
+                },
+                child: _band(context, toast, tone, kit),
+              ),
             ),
           ),
         ),

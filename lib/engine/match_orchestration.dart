@@ -47,6 +47,7 @@ import 'package:merge_empire_fc/engine/tactic_coach.dart';
 import 'package:merge_empire_fc/engine/trait_engine.dart';
 import 'package:merge_empire_fc/engine/transfer_engine.dart';
 import 'package:merge_empire_fc/util/analytics.dart';
+import 'package:merge_empire_fc/util/event_bus.dart';
 import 'package:merge_empire_fc/state/card_instance.dart';
 import 'package:merge_empire_fc/util/format.dart';
 import 'package:merge_empire_fc/util/random.dart' as seeded;
@@ -1450,6 +1451,19 @@ void applyMatchRewards(Map<String, dynamic> state, MatchResult? result) {
   resources['fanCoins'] = (_num(resources['fanCoins']) ?? 0) + coins;
   resources['trophies'] = (_num(resources['trophies']) ?? 0) + trophies;
   prog['trophiesTotal'] = (_num(prog['trophiesTotal']) ?? 0) + trophies;
+
+  // **THE BIGGEST PAYOUT IN THE GAME ANNOUNCED NOTHING.** Every other engine
+  // that moves `fanCoins` emits this — the quests, the sponsors, the loans, the
+  // shop — and the match fee, the one figure the end-of-match screen is built
+  // around and the one the doubling offer doubles, was credited in silence. So
+  // `coin_flight.dart` had nothing to fly and `game_wiring`'s lifetime
+  // high-water mark never counted it: a player could earn past an "earn N
+  // coins" achievement on match fees alone and not unlock it.
+  //
+  // BEFORE the loan settlement below, which emits its own with the balance
+  // after wages: this is the credit, that is the deduction, and a single
+  // announcement covering both would say the fee was smaller than it was.
+  if (coins > 0) emit('coins:updated', resources['fanCoins']);
 
   // Loan wages come out of the payout that just landed, and this match burns a
   // game off every live loan. Settling AFTER the credit is the point: the wage

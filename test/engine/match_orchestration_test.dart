@@ -23,6 +23,7 @@ import 'package:merge_empire_fc/engine/match_events.dart';
 import 'package:merge_empire_fc/engine/booking_engine.dart'
     show oppTeamRatingMult;
 import 'package:merge_empire_fc/engine/match_orchestration.dart';
+import 'package:merge_empire_fc/util/event_bus.dart';
 import 'package:merge_empire_fc/state/card_instance.dart';
 import 'package:merge_empire_fc/util/analytics.dart';
 import 'package:merge_empire_fc/util/random.dart' as seeded;
@@ -339,6 +340,31 @@ void main() {
   });
 
   group('settlement', () {
+    test('THE FEE ANNOUNCES ITSELF, and it never did', () {
+      // Every other engine that moves `fanCoins` emits this — the quests, the
+      // sponsors, the loans, the shop — and the match fee, the biggest payout
+      // in the game and the one the doubling offer is about, was credited in
+      // silence. So nothing flew to the counter and `game_wiring`'s lifetime
+      // high-water mark never counted it.
+      clearBus();
+      addTearDown(clearBus);
+      final heard = <Object?>[];
+      on('coins:updated', heard.add);
+
+      final state = _state();
+      final result = simulateMatch(state, 'regional_league');
+      applyMatchRewards(state, result);
+      expect(heard, isNotEmpty);
+      // The balance AFTER the credit, which is what every other caller sends.
+      expect(heard.first, (state['resources'] as Map)['fanCoins']);
+
+      // And it is idempotent with the credit: a second call pays nothing and
+      // says nothing.
+      heard.clear();
+      applyMatchRewards(state, result);
+      expect(heard, isEmpty);
+    });
+
     test('credits once, however many times it is called', () {
       final state = _state();
       final result = simulateMatch(state, 'regional_league');

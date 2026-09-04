@@ -13,6 +13,9 @@ library;
 
 /// Replaces the generated entry, or adds a key Arabic did not have.
 const Map<String, String> arCopy = <String, String>{
+  // صف ثالث إلى جانب الصوت والموسيقى: نقرة كل زر.
+  'settings.ui_sounds': 'أصوات الواجهة',
+
   // ── العنوان ───────────────────────────────────────────────────────────────
   //
   // استبدال لا توسيع: النصوص المولدة تبدأ جميعها بـ {score}. و{minute} لا تصل

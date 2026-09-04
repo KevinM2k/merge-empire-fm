@@ -94,6 +94,87 @@ Future<void> pumpStagger(WidgetTester tester) => tester.pump(
 
 void main() {
   tearDown(clearBus);
+  // A hold nobody lifts is every later reward in the session animating
+  // nothing, so a test that leaves one must not leak it into the next.
+  tearDown(() => releaseCoinFlight(matchCoinHold));
+
+  group('MONEY THAT HAS NOT BEEN DECIDED DOES NOT LAND', () {
+    // The end-of-match screen offers to double what the match paid, and until
+    // that is answered the player does not have the money. Three things pay
+    // inside that window — the match quests, an achievement the whistle
+    // unlocked, and the fee itself — and the flight went up at the whistle,
+    // to a HUD chip sitting behind the match screen. Reported from the couch:
+    // you cannot show that until I have chosen.
+    testWidgets('a payout inside the window waits for the window to close', (
+      tester,
+    ) async {
+      final state = await pumpFlight(tester);
+      holdCoinFlight(matchCoinHold);
+      expect(isCoinFlightHeld(), isTrue);
+
+      // The quests auto-pay at full time — `settleMatch` — and an achievement
+      // can pay on the same whistle.
+      emit('coins:updated', 90100);
+      await tester.pump();
+      await pumpStagger(tester);
+      expect(state.flying, 0);
+      emit('coins:updated', 90200);
+      await tester.pump();
+      await pumpStagger(tester);
+      expect(state.flying, 0);
+
+      // The offer is answered and the fee lands.
+      emit('coins:updated', 95000);
+      releaseCoinFlight(matchCoinHold);
+      await tester.pump();
+      await pumpStagger(tester);
+      // **ONE flight for the lot.** Three announcements, one payout as far as
+      // the player is concerned — seven sprites either way.
+      expect(state.flying, coinFlightSprites);
+      await tester.pumpAndSettle();
+      expect(state.flying, 0);
+    });
+
+    testWidgets('and a window that paid nothing throws nothing', (
+      tester,
+    ) async {
+      final state = await pumpFlight(tester);
+      holdCoinFlight(matchCoinHold);
+      // A defeat with all three quests missed. The balance never moved, so
+      // there is nothing owed and the release is silent.
+      releaseCoinFlight(matchCoinHold);
+      await tester.pump();
+      await pumpStagger(tester);
+      expect(state.flying, 0);
+    });
+
+    testWidgets('a SPEND inside the window is still not a reward', (
+      tester,
+    ) async {
+      // `_last` keeps being written while held — a layer that stopped tracking
+      // for the length of a match would read the first purchase after it as
+      // money arriving.
+      final state = await pumpFlight(tester);
+      emit('coins:updated', 90000);
+      await tester.pump();
+      await tester.pumpAndSettle();
+
+      holdCoinFlight(matchCoinHold);
+      emit('coins:updated', 40000);
+      releaseCoinFlight(matchCoinHold);
+      await tester.pump();
+      await pumpStagger(tester);
+      expect(state.flying, 0);
+
+      // And the figure it compares against is the one it last heard, not the
+      // one before the spend.
+      emit('coins:updated', 50000);
+      await tester.pump();
+      await pumpStagger(tester);
+      expect(state.flying, coinFlightSprites);
+      await tester.pumpAndSettle();
+    });
+  });
 
   testWidgets('a reward throws a handful of coins at the counter', (
     tester,

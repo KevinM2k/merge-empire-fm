@@ -1,0 +1,12 @@
+.me-portrait {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 50%;
+  border: 2px solid var(--color-border);
+  background: var(--color-surface-2);
+  flex: none;
+}
+.me-portrait img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.me-portrait__fallback { font-size: 60%; line-height: 1; }

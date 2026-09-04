@@ -288,8 +288,14 @@ const double minFontSize = 12;
 /// **THE BUTTONS WERE SILENT, and they always had been.** `'tap'` is in
 /// `sound_defs.dart` — a 50ms blip — and the only things that ever played it
 /// were the five mini-games. Reported from the couch as having been lost;
-/// nothing was lost, it was never wired. Behind the sound toggle by
-/// construction: `SoundService.play` returns early unless it is on.
+/// nothing was lost, it was never wired.
+///
+/// **AND IT IS NOW ON ITS OWN CHANNEL, which ships OFF.** Wired to the SFX
+/// toggle it was reported as really annoying, with the ask being a switch of
+/// its own rather than a choice between clicks and coins — so it goes through
+/// `SoundService.playUi`, which answers to the Interface row in Settings and
+/// nothing else. Behind that switch by construction: `playUi` returns early
+/// unless the channel is on.
 ///
 /// **ON THE SPLASH FACTORY rather than on eighty call sites.** Material makes
 /// exactly one of these per press, for every button and every `InkWell` in the

@@ -1,0 +1,30 @@
+/* woff2 only: derived from ../../assets/fonts/*.ttf (the app's own faces) with
+   fontTools — see NOTES.md. The .ttf originals are not duplicated here.
+
+   Barlow proper, NOT a condensed cut — both were tried on device and came back
+   "too condensed". Lilita One is the display face and ships ONE weight by
+   design, so it is never asked for a bold it does not have. */
+@font-face {
+  font-family: 'Barlow';
+  src: url('../fonts/Barlow-SemiBold.woff2') format('woff2');
+  font-weight: 600;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Barlow';
+  src: url('../fonts/Barlow-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Barlow';
+  src: url('../fonts/Barlow-Black.woff2') format('woff2');
+  font-weight: 900;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Lilita One';
+  src: url('../fonts/LilitaOne-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-display: swap;
+}

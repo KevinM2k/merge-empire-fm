@@ -83,7 +83,8 @@ final appThemeProvider = Provider<ThemeData>((ref) {
   return buildAppTheme(
     kitId: ref.watch(kitIdProvider),
     light: forcedDark ? false : ref.watch(lightModeProvider),
-    onPress: () => unawaited(sound.play('tap')),
+    // On the INTERFACE channel, not the SFX one — see `SoundService.playUi`.
+    onPress: () => unawaited(sound.playUi('tap')),
   );
 });
 
