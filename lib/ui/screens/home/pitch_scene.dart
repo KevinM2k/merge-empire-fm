@@ -615,6 +615,7 @@ class PitchScene extends StatelessWidget {
     this.frozen = false,
     this.onBallCue,
     this.onBallStrike,
+    this.onBallWatch,
     this.ballWind = 0,
     this.onTapWalker,
     this.celebration,
@@ -686,6 +687,10 @@ class PitchScene extends StatelessWidget {
 
   /// He is about to play the stray ball back — see [PitchBall.onStrike].
   final VoidCallback? onBallStrike;
+
+  /// There is a ball worth looking at, or there no longer is — see
+  /// [PitchBall.onWatch].
+  final void Function(bool watching)? onBallWatch;
 
   /// What the weather does to a ball in flight, from `windAccelFor`.
   ///
@@ -1018,6 +1023,7 @@ class PitchScene extends StatelessWidget {
                               frozen: frozen,
                               onCue: onBallCue ?? (_) {},
                               onStrike: onBallStrike,
+                              onWatch: onBallWatch,
                               sceneWidth: w,
                               walkerLeft: w * 0.45 - 57,
                             ),

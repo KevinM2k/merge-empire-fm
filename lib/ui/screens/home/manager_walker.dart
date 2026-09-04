@@ -717,6 +717,11 @@ double hairSwayAt(double t, {required double tilt, double amount = 1}) {
 /// settled with him.
 const double _hairSettleAt = 14;
 
+/// How far the head drops to watch a ball at his feet, in degrees, and where
+/// the eyes go — down and ahead, which is where a ball rolling in is.
+const double ballHeadDrop = 9;
+const Offset ballGaze = Offset(0.55, 0.7);
+
 /// How much a HEAD moves on top of the hair, in degrees.
 ///
 /// **A neck is not a bracket.** The head was rigid on a bobbing body, which is
@@ -854,6 +859,7 @@ class ManagerWalker extends StatefulWidget {
     this.gesture,
     this.idle,
     this.carrying = false,
+    this.watchingBall = false,
     this.ballLayer,
     this.soft = true,
     super.key,
@@ -935,6 +941,13 @@ class ManagerWalker extends StatefulWidget {
   /// It BEATS a gesture, and the screen stops offering one while it is true —
   /// his arms are visibly full.
   final bool carrying;
+
+  /// **HE LOOKS AT THE BALL.** A ball rolling in, sitting at his boot or
+  /// coming up into his hands — `pitch_ball.dart` says when, see
+  /// `ballWatched`. The head drops toward it and the eyes go to it, eased over
+  /// a third of a second, and the idle glances give way while it is there. A
+  /// gesture that owns the head — the kick's own look-down — still wins.
+  final bool watchingBall;
 
   /// **The stray ball, drawn INSIDE him rather than over him.**
   ///
@@ -1037,6 +1050,7 @@ class _ManagerWalkerState extends State<ManagerWalker>
     _sync(context);
     _syncBlink();
     _syncCarry();
+    _syncWatch();
     _syncLife();
   }
 
@@ -1047,6 +1061,7 @@ class _ManagerWalkerState extends State<ManagerWalker>
     _sync(context);
     _syncBlink();
     _syncCarry();
+    _syncWatch();
     _syncLife();
   }
 
@@ -1105,6 +1120,24 @@ class _ManagerWalkerState extends State<ManagerWalker>
     vsync: this,
     duration: const Duration(milliseconds: 250),
   );
+
+  /// The look at the ball, eased in and out — see [ManagerWalker.watchingBall].
+  late final AnimationController _watchClock = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 350),
+  );
+
+  void _syncWatch() {
+    if (widget.watchingBall) {
+      if (_watchClock.status != AnimationStatus.forward &&
+          _watchClock.value != 1) {
+        _watchClock.forward();
+      }
+    } else if (_watchClock.status != AnimationStatus.reverse &&
+        _watchClock.value != 0) {
+      _watchClock.reverse();
+    }
+  }
 
   void _syncCarry() {
     if (widget.carrying) {
@@ -1331,6 +1364,7 @@ class _ManagerWalkerState extends State<ManagerWalker>
     _gestureClock.dispose();
     _blinkClock.dispose();
     _carryClock.dispose();
+    _watchClock.dispose();
     _lifeTicker.dispose();
     _life.dispose();
     super.dispose();
@@ -1384,6 +1418,7 @@ class _ManagerWalkerState extends State<ManagerWalker>
         _gestureClock,
         _blinkClock,
         _carryClock,
+        _watchClock,
         _life,
       ]),
       builder: (context, _) {
@@ -1434,15 +1469,22 @@ class _ManagerWalkerState extends State<ManagerWalker>
         // gaze is quantised so the features band, which is cached, repaints
         // a few times across a glance rather than on every frame of it.
         final life = _wantsLife ? walkLifeAt(_life.value) : null;
-        final lifeHead = scanning ? (life?.head ?? 0) : 0.0;
-        final gaze = scanning && life != null
-            ? Offset(
-                (life.gaze.dx * 8).round() / 8,
-                (life.gaze.dy * 8).round() / 8,
-              )
+        // The ball, when there is one to look at: the glances give way to it.
+        final watch = _watchClock.value;
+        final lifeHead = scanning ? (life?.head ?? 0) * (1 - watch) : 0.0;
+        final lifeGaze = life?.gaze ?? Offset.zero;
+        final rawGaze = scanning
+            ? Offset.lerp(lifeGaze, ballGaze, watch)!
             : Offset.zero;
+        final gaze = Offset(
+          (rawGaze.dx * 8).round() / 8,
+          (rawGaze.dy * 8).round() / 8,
+        );
         final headTilt = scanning
-            ? _headAngle(null) + (widget.idle?.head ?? 0) + lifeHead
+            ? _headAngle(null) +
+                  (widget.idle?.head ?? 0) +
+                  lifeHead +
+                  ballHeadDrop * watch
             : _headAngle(pose);
         // **THE TURN** — see `walkLifeAt` and `gestureTurn`. The life's own
         // when nothing else has him, a gesture's while one plays; either way

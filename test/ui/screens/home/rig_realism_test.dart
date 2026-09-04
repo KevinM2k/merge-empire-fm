@@ -13,6 +13,7 @@ import 'package:merge_empire_fc/data/manager_looks.dart';
 import 'package:merge_empire_fc/ui/screens/home/gesture_poses.dart';
 import 'package:merge_empire_fc/ui/screens/home/hair_strands.dart';
 import 'package:merge_empire_fc/ui/screens/home/manager_walker.dart';
+import 'package:merge_empire_fc/ui/screens/home/pitch_ball.dart';
 
 void main() {
   group('HAIR IS SHEARED FROM THE CROWN, not turned', () {
@@ -304,5 +305,55 @@ void main() {
     // Into the middle of the first look-up.
     await tester.pump(const Duration(milliseconds: 4700));
     expect(tilt(), isNot(closeTo(square, 1e-6)), reason: 'no glance under an idle');
+  });
+
+  group('HE LOOKS AT THE BALL', () {
+    test('when it is close, at his boot or coming up — not once it is his', () {
+      expect(ballWatched(BallPhase.incoming, 200), isFalse);
+      expect(ballWatched(BallPhase.incoming, ballWatchDistance), isTrue);
+      expect(ballWatched(BallPhase.trap, 5), isTrue);
+      expect(ballWatched(BallPhase.pickup, 0), isTrue);
+      expect(ballWatched(BallPhase.hold, -4), isFalse);
+      expect(ballWatched(BallPhase.out, 40), isFalse);
+      expect(ballWatched(BallPhase.past, -30), isFalse);
+      expect(ballWatched(BallPhase.idle, 0), isFalse);
+      expect(ballHeadDrop, greaterThan(0), reason: 'down, not up');
+      expect(ballGaze.dy, greaterThan(0));
+    });
+
+    testWidgets('and the head drops when told to', (tester) async {
+      Future<double> tiltWith(bool watching) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            home: MediaQuery(
+              data: const MediaQueryData(disableAnimations: false),
+              child: Scaffold(
+                body: SizedBox(
+                  width: 120,
+                  height: 170,
+                  child: ManagerWalker(
+                    kit: const Color(0xFF4CAF50),
+                    skin: const Color(0xFFEEBB8C),
+                    hair: const Color(0xFF3A2A1C),
+                    watchingBall: watching,
+                    look: const {'style': 'crop', 'outfit': 'kit'},
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 400));
+        return tester
+            .widgetList<Transform>(find.byType(Transform))
+            .map((w) => w.transform)
+            .fold<double>(0, (a, m) => a + m.getRotation().row0.y.abs());
+      }
+
+      final square = await tiltWith(false);
+      final watching = await tiltWith(true);
+      expect(watching, greaterThan(square + 0.05));
+    });
   });
 }

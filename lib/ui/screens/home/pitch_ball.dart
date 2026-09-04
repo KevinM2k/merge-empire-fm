@@ -675,8 +675,15 @@ class PitchBall extends StatefulWidget {
     this.sceneWidth = 0,
     this.walkerLeft = 0,
     this.onStrike,
+    this.onWatch,
     super.key,
   });
+
+  /// **HE LOOKS AT THE BALL.** True while there is one worth looking at — one
+  /// rolling in within [ballWatchDistance] of his boot, one sitting at it, one
+  /// being picked up — and false again once it has gone. Screen-side like
+  /// [onStrike], so the sim's cue trace stays the JS fixture's.
+  final void Function(bool watching)? onWatch;
 
   /// He is about to play the ball back: fired [_PitchBallState.kickLead]
   /// seconds before the sim releases it, so a kick cued on it lands its
@@ -735,6 +742,7 @@ class _PitchBallState extends State<PitchBall>
 
   bool _strikeCued = false;
   bool _wasTrap = false;
+  bool _watching = false;
   double _flick = 0;
 
   /// The cosmetic lift, in pixels, on top of the sim's y.
@@ -809,6 +817,11 @@ class _PitchBallState extends State<PitchBall>
     _sim.halted = widget.frozen;
     _sim.step(dt, walkSpeed: moved / dt, nominalWalkSpeed: _nominalWalkSpeed);
     _watchStrike(dt);
+    final watch = ballWatched(_sim.phase, _sim.x);
+    if (watch != _watching) {
+      _watching = watch;
+      widget.onWatch?.call(watch);
+    }
     if (_sim.visible || wasVisible) setState(() {});
   }
 
@@ -991,6 +1004,20 @@ class _PitchBallState extends State<PitchBall>
     );
   }
 }
+
+/// How far ahead of his boot, in the figure's units, a ball rolling in is
+/// close enough to look at. About a body length.
+const double ballWatchDistance = 110;
+
+/// Whether the ball is something he would be looking at right now: rolling in
+/// close, trapped at his boot, or coming up into his hands. Not once it is IN
+/// his hands — he looks where he is going with it — and not once it has been
+/// played or ignored.
+bool ballWatched(BallPhase phase, double x) => switch (phase) {
+  BallPhase.incoming => x <= ballWatchDistance,
+  BallPhase.trap || BallPhase.pickup => true,
+  _ => false,
+};
 
 /// The grass, measured up from the bottom of the figure's box.
 ///

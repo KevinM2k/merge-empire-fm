@@ -34,6 +34,7 @@ typedef _Cell = ({
   Gesture? gesture,
   int pumpMs,
   bool carrying,
+  bool watching,
   bool ball,
   bool standing,
   Mood mood,
@@ -46,6 +47,7 @@ _Cell _cell(
   Gesture? gesture,
   int pumpMs = 0,
   bool carrying = false,
+  bool watching = false,
   bool ball = false,
   bool standing = false,
   Mood mood = Mood.neutral,
@@ -67,6 +69,7 @@ _Cell _cell(
   gesture: gesture,
   pumpMs: pumpMs,
   carrying: carrying,
+  watching: watching,
   ball: ball,
   standing: standing,
   mood: mood,
@@ -103,6 +106,7 @@ void main() {
                   mood: c.mood,
                   standing: c.standing,
                   carrying: c.carrying,
+                  watchingBall: c.watching,
                   gesture: c.gesture == null ? null : GestureCue(c.gesture!),
                   ballLayer: c.ball
                       ? Positioned(
@@ -205,6 +209,7 @@ void main() {
       _cell('carry t=.25', t: 0.25, carrying: true, pumpMs: 300, ball: true),
       _cell('carry t=.75', t: 0.75, carrying: true, pumpMs: 300, ball: true),
       _cell('ball at boot', t: 0.25, ball: true),
+      _cell('watching', t: 0.25, ball: true, watching: true, pumpMs: 400),
     ]);
   });
 

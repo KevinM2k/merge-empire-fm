@@ -296,6 +296,9 @@ class _SceneState extends ConsumerState<_Scene> {
   /// taking hold cancels whatever gesture was running and blocks the next.
   bool _carrying = false;
 
+  /// A ball is rolling in or sitting at his boot, and he is looking at it.
+  bool _watchingBall = false;
+
   /// The last two he played, so the rota keeps moving.
   ///
   /// A FILTER rather than a reroll, because the weights are lopsided: a crushed
@@ -472,6 +475,10 @@ class _SceneState extends ConsumerState<_Scene> {
       // this screen that moves in the JS and did not exist here.
       onBallCue: _onBall,
       onBallStrike: _onBallStrike,
+      onBallWatch: (watching) {
+        if (!mounted || watching == _watchingBall) return;
+        setState(() => _watchingBall = watching);
+      },
       // What the weather does to one in flight. `windAccelFor` has been ported
       // and tested since the weather landed and had no reader at all: the chain
       // resolved a gust and nothing was ever blown by it.
@@ -528,6 +535,7 @@ class _SceneState extends ConsumerState<_Scene> {
             mood: mood,
             gesture: _cue,
             carrying: _carrying,
+            watchingBall: _watchingBall,
             idle: idle.pose,
             // Handed the ball rather than having it stacked over him: what
             // goes on TOP of it is his own near arm, closing round it.
