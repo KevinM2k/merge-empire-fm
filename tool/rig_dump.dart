@@ -275,4 +275,14 @@ void main() {
       _cell('applaud', gesture: _g('applaud'), pumpMs: 900, standing: true),
     ], cols: 7, scale: 5);
   });
+
+  testWidgets('outfits closeup', (tester) async {
+    await sheet(tester, 'outfits_closeup', [
+      _cell('coat', look: {'outfit': 'coat', 'style': 'crop'}),
+      _cell('coat scarf beanie', look: {'outfit': 'coat', 'hat': 'beanie', 'neck': 'scarf', 'style': 'slick'}),
+      _cell('suit', look: {'outfit': 'suit', 'style': 'slick'}),
+      _cell('suit beard', look: {'outfit': 'suit', 'beard': 'goatee', 'style': 'crop'}),
+      _cell('tracksuit', look: {'outfit': 'tracksuit'}),
+    ], cols: 5, scale: 7);
+  });
 }
