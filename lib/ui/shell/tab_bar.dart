@@ -40,9 +40,12 @@ class ShellTabBar extends StatelessWidget {
         // The same chrome as the top bar — see [hudChrome]. Neutral by
         // luminance in both themes, with the club in what stands ON it.
         gradient: onScene ? null : hudChrome(kit, context),
-        border: onScene
-            ? null
-            : Border(top: BorderSide(color: kit.border)),
+        // Clear on the scene, not dropped: a border changes the bar's height.
+        border: Border(
+          top: BorderSide(
+            color: onScene ? kit.border.withValues(alpha: 0) : kit.border,
+          ),
+        ),
       ),
       child: SafeArea(
         top: false,

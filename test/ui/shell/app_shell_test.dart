@@ -215,29 +215,20 @@ void main() {
     expect(activeTabOf(tester), ShellTab.grid);
   });
 
-  testWidgets('a tab tap slides, and a deep link does not', (tester) async {
+  testWidgets('a tab tap arrives in place: nothing slides', (tester) async {
     await pumpShell(tester);
     final shell = tester.state<AppShellState>(find.byType(AppShell));
 
     shell.goTab(ShellTab.shop);
     await tester.pump();
-    // Mid-slide: the incoming screen is still off to one side.
-    final mid = tester.widget<SlideTransition>(
-      find.byKey(const ValueKey('tab-slide')),
-    );
-    expect(mid.position.value, isNot(Offset.zero));
+    // One frame, and the page is there. The slide drew the diorama at a
+    // fractional offset for 220ms and the raster thread could not keep up.
+    expect(activeTabOf(tester), ShellTab.shop);
+    expect(find.byKey(const ValueKey('tab-slide')), findsNothing);
 
-    await tester.pump(const Duration(milliseconds: 300));
     shell.goTab(ShellTab.grid, noSlide: true);
     await tester.pump();
-    final deep = tester.widget<SlideTransition>(
-      find.byKey(const ValueKey('tab-slide')),
-    );
-    expect(
-      deep.position.value,
-      Offset.zero,
-      reason: 'a deep link arrives already in place',
-    );
+    expect(activeTabOf(tester), ShellTab.grid);
   });
 
   testWidgets('the tab labels are translated, not hardcoded', (tester) async {

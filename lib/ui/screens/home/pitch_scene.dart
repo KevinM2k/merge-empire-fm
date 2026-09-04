@@ -993,45 +993,48 @@ class PitchScene extends StatelessWidget {
                   // filled it, which is what made him tower over the pitch. The
                   // box also has to be bounded: the rig is an `AspectRatio` and an
                   // unbounded one cannot lay itself out at all.
-                  child: SizedBox(
-                    width: walkerWidth,
-                    height: walkerHeight,
-                    child: GestureDetector(
-                      // A tap on HIM, not on the scene: the diorama's own taps are
-                      // the crowd's and the fireworks', and tapping the manager
-                      // used to set off a rocket — which is what you noticed.
-                      onTap: onTapWalker,
-                      child: Transform.scale(
-                        scale: walkerScale,
-                        alignment: Alignment.bottomCenter,
-                        // **The ball is in HIS box**, so it is scaled by the
-                        // same number he is and a distance means the same thing
-                        // to it as to his boot — which is the whole reason the
-                        // JS parents `.ps-ball` to `.ps-walker`. Unclipped,
-                        // because a pass has to travel most of the scene's
-                        // width and his box is 120 units wide; the scene's own
-                        // `ClipRect` is what stops it at the frame.
-                        // **THE BALL GOES INSIDE HIM NOW, not over him.** It
-                        // still draws above every part of the figure — that has
-                        // not changed and is right — but being one of his own
-                        // layers is what lets the near arm be drawn ONE MORE
-                        // TIME on top of it while he is carrying, so the ball is
-                        // closed round rather than balanced on. See
-                        // `ManagerWalker.ballLayer`, and the JS's `.ps-hold-arm`,
-                        // which exists to solve the same thing the hard way.
-                        child: walkerBuilder(
-                          Positioned.fill(
-                            key: const ValueKey('pitch-ball'),
-                            child: PitchBall(
-                              mood: mood,
-                              wind: ballWind,
-                              frozen: frozen,
-                              onCue: onBallCue ?? (_) {},
-                              onStrike: onBallStrike,
-                              onFlick: onBallFlick,
-                              onWatch: onBallWatch,
-                              sceneWidth: w,
-                              walkerLeft: w * 0.45 - 57,
+                  // His own layer: his tick repainted the whole scene with him.
+                  child: RepaintBoundary(
+                      child: SizedBox(
+                      width: walkerWidth,
+                      height: walkerHeight,
+                      child: GestureDetector(
+                        // A tap on HIM, not on the scene: the diorama's own taps are
+                        // the crowd's and the fireworks', and tapping the manager
+                        // used to set off a rocket — which is what you noticed.
+                        onTap: onTapWalker,
+                        child: Transform.scale(
+                          scale: walkerScale,
+                          alignment: Alignment.bottomCenter,
+                          // **The ball is in HIS box**, so it is scaled by the
+                          // same number he is and a distance means the same thing
+                          // to it as to his boot — which is the whole reason the
+                          // JS parents `.ps-ball` to `.ps-walker`. Unclipped,
+                          // because a pass has to travel most of the scene's
+                          // width and his box is 120 units wide; the scene's own
+                          // `ClipRect` is what stops it at the frame.
+                          // **THE BALL GOES INSIDE HIM NOW, not over him.** It
+                          // still draws above every part of the figure — that has
+                          // not changed and is right — but being one of his own
+                          // layers is what lets the near arm be drawn ONE MORE
+                          // TIME on top of it while he is carrying, so the ball is
+                          // closed round rather than balanced on. See
+                          // `ManagerWalker.ballLayer`, and the JS's `.ps-hold-arm`,
+                          // which exists to solve the same thing the hard way.
+                          child: walkerBuilder(
+                            Positioned.fill(
+                              key: const ValueKey('pitch-ball'),
+                              child: PitchBall(
+                                mood: mood,
+                                wind: ballWind,
+                                frozen: frozen,
+                                onCue: onBallCue ?? (_) {},
+                                onStrike: onBallStrike,
+                                onFlick: onBallFlick,
+                                onWatch: onBallWatch,
+                                sceneWidth: w,
+                                walkerLeft: w * 0.45 - 57,
+                              ),
                             ),
                           ),
                         ),

@@ -111,9 +111,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         // The scene fills the screen, so it is also the box the pill's position
         // is converted into — measuring against it is measuring against the
         // page.
+        // One layer: the diorama's tick repainted the card and footer with it.
         Positioned.fill(
           key: _sceneKey,
-          child: _Scene(walkerBottom: _walkerBottom),
+          child: RepaintBoundary(child: _Scene(walkerBottom: _walkerBottom)),
         ),
         // The card is the page's HEADLINE and sits at the top, over the scene.
         // The port had it in the sticky footer directly above the Play button on

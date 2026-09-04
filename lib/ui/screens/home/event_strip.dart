@@ -293,29 +293,32 @@ class _LiveDotState extends State<_LiveDot>
   }
 
   @override
-  Widget build(BuildContext context) => AnimatedBuilder(
-    animation: _c,
-    builder: (context, _) {
-      // A ring expanding out of the dot and fading, which is a broadcast's
-      // on-air light rather than a blinking cursor.
-      final t = Curves.easeOut.transform(_c.value.clamp(0, 0.7) / 0.7);
-      return SizedBox(
-        width: 8,
-        height: 8,
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: _red,
-            shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: _red.withValues(alpha: 0.7 * (1 - t)),
-                spreadRadius: 6 * t,
-              ),
-            ],
+  // Its own layer: it beats every frame, and the page must not beat with it.
+  Widget build(BuildContext context) => RepaintBoundary(
+    child: AnimatedBuilder(
+      animation: _c,
+      builder: (context, _) {
+        // A ring expanding out of the dot and fading, which is a broadcast's
+        // on-air light rather than a blinking cursor.
+        final t = Curves.easeOut.transform(_c.value.clamp(0, 0.7) / 0.7);
+        return SizedBox(
+          width: 8,
+          height: 8,
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: _red,
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: _red.withValues(alpha: 0.7 * (1 - t)),
+                  spreadRadius: 6 * t,
+                ),
+              ],
+            ),
           ),
-        ),
-      );
-    },
+        );
+      },
+    ),
   );
 }
 
@@ -413,55 +416,58 @@ class _TickerState extends State<_Ticker> with SingleTickerProviderStateMixin {
               ),
             ),
             Expanded(
-              child: ClipRect(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 5),
-                  child: still
-                      ? Padding(
-                          padding: const EdgeInsets.only(left: _leadPad),
-                          child: Text(
-                            widget.lines.first,
-                            key: const ValueKey('event-news'),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: _style,
-                          ),
-                        )
-                      : AnimatedBuilder(
-                          animation: _c,
-                          builder: (context, child) => Transform.translate(
-                            offset: Offset(-_c.value * width, 0),
-                            child: child,
-                          ),
-                          child: OverflowBox(
-                            alignment: Alignment.centerLeft,
-                            maxWidth: width * 2,
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                for (var i = 0; i < 2; i++)
-                                  SizedBox(
-                                    width: width,
-                                    child: Padding(
-                                      padding: const EdgeInsets.only(
-                                        left: _leadPad,
-                                      ),
-                                      child: Text(
-                                        _copy,
-                                        key: i == 0
-                                            ? const ValueKey('event-news')
-                                            : null,
-                                        maxLines: 1,
-                                        softWrap: false,
-                                        overflow: TextOverflow.clip,
-                                        style: _style,
+              // Its own layer: the crawl repainted the footer and page with it.
+              child: RepaintBoundary(
+                child: ClipRect(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 5),
+                    child: still
+                        ? Padding(
+                            padding: const EdgeInsets.only(left: _leadPad),
+                            child: Text(
+                              widget.lines.first,
+                              key: const ValueKey('event-news'),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: _style,
+                            ),
+                          )
+                        : AnimatedBuilder(
+                            animation: _c,
+                            builder: (context, child) => Transform.translate(
+                              offset: Offset(-_c.value * width, 0),
+                              child: child,
+                            ),
+                            child: OverflowBox(
+                              alignment: Alignment.centerLeft,
+                              maxWidth: width * 2,
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  for (var i = 0; i < 2; i++)
+                                    SizedBox(
+                                      width: width,
+                                      child: Padding(
+                                        padding: const EdgeInsets.only(
+                                          left: _leadPad,
+                                        ),
+                                        child: Text(
+                                          _copy,
+                                          key: i == 0
+                                              ? const ValueKey('event-news')
+                                              : null,
+                                          maxLines: 1,
+                                          softWrap: false,
+                                          overflow: TextOverflow.clip,
+                                          style: _style,
+                                        ),
                                       ),
                                     ),
-                                  ),
-                              ],
+                                ],
+                              ),
                             ),
                           ),
-                        ),
+                  ),
                 ),
               ),
             ),

@@ -888,7 +888,7 @@ class ManagerWalker extends StatefulWidget {
     this.carrying = false,
     this.watchingBall = false,
     this.ballLayer,
-    this.soft = true,
+    this.soft = false,
     super.key,
   });
 
@@ -992,9 +992,12 @@ class ManagerWalker extends StatefulWidget {
 
   /// Blurred shading on the skin, the limbs and the shirt.
   ///
-  /// **Off for a still.** A dozen `MaskFilter.blur` passes are the most
-  /// expensive thing a rig rasterises, and on an 80-point chip the softness
-  /// they buy is below a pixel. The customiser's grid turns them off.
+  /// **Off by default.** A dozen `MaskFilter.blur` passes are the most
+  /// expensive thing a rig rasterises: profiled on a phone, they were what made
+  /// a full-screen render of the home page ~28ms, so any frame that damaged the
+  /// whole screen (a sheet rising over him, the old tab slide) ran at ~30fps,
+  /// and the customiser's live preview and its six tiles paid the same. On
+  /// screen the softness is a pixel or two of edge; a still may still ask.
   final bool soft;
 
   @override

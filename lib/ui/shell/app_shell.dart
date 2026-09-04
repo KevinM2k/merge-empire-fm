@@ -32,7 +32,6 @@ import 'package:merge_empire_fc/ui/shell/screen_covered.dart';
 import 'package:merge_empire_fc/ui/shell/shell_controller.dart';
 import 'package:merge_empire_fc/ui/shell/shell_routes.dart';
 import 'package:merge_empire_fc/ui/shell/tab_bar.dart';
-import 'package:merge_empire_fc/ui/shell/tab_transition.dart';
 import 'package:merge_empire_fc/ui/shell/coach_floating.dart';
 import 'package:merge_empire_fc/ui/shell/coach_tip_host.dart';
 import 'package:merge_empire_fc/ui/shell/tabs.dart';
@@ -56,22 +55,17 @@ class AppShell extends ConsumerStatefulWidget {
 /// Public so a test can drive [goTab] directly, the same seam Flutter's own
 /// ScaffoldState exposes. Production navigation goes through
 /// [shellControllerProvider], which this watches.
-class AppShellState extends ConsumerState<AppShell>
-    with SingleTickerProviderStateMixin {
+class AppShellState extends ConsumerState<AppShell> {
   ShellTab _active = defaultTab;
-  EnterMode _enter = EnterMode.none;
 
   /// The card-reveal overlay dims the whole screen and sits UNDER the HUD, so
   /// an unhidden HUD punches through its dim. The JS flags the body element for
   /// the same reason.
   bool _revealActive = false;
 
-  late final AnimationController _slide;
-
   @override
   void initState() {
     super.initState();
-    _slide = AnimationController(vsync: this, duration: tabSlideDuration);
     // The engines emit navigation onto the bus; this is the only thing that
     // listens for it.
     attachShellBusListeners(ref.read(shellControllerProvider.notifier));
@@ -80,61 +74,45 @@ class AppShellState extends ConsumerState<AppShell>
   @override
   void dispose() {
     detachShellBusListeners();
-    _slide.dispose();
     super.dispose();
   }
 
   /// Every route into the shell goes through the controller, so there is one
-  /// answer to "which tab, and did it slide" rather than two racing.
+  /// answer to "which tab" rather than two racing.
   ///
   /// **BUT THE TAP APPLIES ON THE TAP.** It used to only write the controller
   /// and wait for the `ref.listen` in `build` to hand it back, which is a whole
   /// frame in the best case: Riverpod's listener fires DURING the rebuild that
-  /// observes the change, `_applyTab` calls `setState` from inside that build,
-  /// and the slide therefore cannot start until the frame after. Reported as a
-  /// delay of about 100ms before a tab starts moving, which is two frames plus
-  /// whatever the incoming screen costs to build.
+  /// observes the change and `_applyTab` calls `setState` from inside that
+  /// build. Applying first and telling the controller second is not two
+  /// answers racing: the listener's call is a no-op by the time it arrives,
+  /// because `_applyTab` returns early on the tab it is already on.
   ///
-  /// Applying first and telling the controller second is not two answers
-  /// racing: the listener's call is a no-op by the time it arrives, because
-  /// `_applyTab` returns early on the tab it is already on.
+  /// [noSlide] is the controller's own flag and means nothing here now: no tab
+  /// slides. See `_applyTab`.
   void goTab(ShellTab tab, {bool noSlide = false}) {
-    _applyTab(tab, noSlide: noSlide);
+    _applyTab(tab);
     ref.read(shellControllerProvider.notifier).goTab(tab, noSlide: noSlide);
   }
 
-  void _applyTab(ShellTab tab, {required bool noSlide}) {
+  /// **NO SLIDE.** The page opens on the tap. The 220ms slide drew the diorama
+  /// at a fractional offset and Impeller rastered every frame of it at 40-50ms.
+  void _applyTab(ShellTab tab) {
     // The home screen used to have sub-tabs, so tapping Home had to reset it to
     // Overview — "take me home", and last week's table is not home. It has no
     // sub-tabs now: the table and the fixtures are quick-nav sheets and close
     // over the screen rather than replacing it, so there is nothing left to
     // reset and the rule holds by construction.
     if (tab == _active) return;
-    final mode = enterModeFor(from: _active, to: tab, noSlide: noSlide);
-    setState(() {
-      _active = tab;
-      _enter = mode;
-    });
-    if (mode == EnterMode.none) {
-      _slide.value = 1;
-    } else {
-      _slide.forward(from: 0);
-    }
+    setState(() => _active = tab);
   }
-
-  Offset get _beginOffset => switch (_enter) {
-    EnterMode.fromRight => const Offset(1, 0),
-    EnterMode.fromLeft => const Offset(-1, 0),
-    EnterMode.fromBelow => const Offset(0, 1),
-    EnterMode.none => Offset.zero,
-  };
 
   @override
   Widget build(BuildContext context) {
     // Navigation that came from anywhere but the tab bar — a deep link, a bus
     // event — arrives here.
     ref.listen(shellControllerProvider, (_, next) {
-      _applyTab(next.tab, noSlide: next.noSlide);
+      _applyTab(next.tab);
     });
     final covered = ref.watch(screenIsCoveredProvider);
     // The HUD's energy + asks for this rather than opening it, so the button
@@ -165,7 +143,8 @@ class AppShellState extends ConsumerState<AppShell>
         // — see `Hud.build` and `ShellTabBar.build`. The body's own
         // `MediaQuery` carries the bar's height, so the footer's `SafeArea`
         // clears it without anything here being told how tall it is.
-        extendBody: _active == ShellTab.home,
+        // Constant: flipping it per tab re-laid out all five tabs on every switch.
+        extendBody: true,
         body: Stack(
           children: [
             // FULL BLEED. The ground and anything a screen paints over it run to
@@ -190,23 +169,9 @@ class AppShellState extends ConsumerState<AppShell>
               // filter strip sideways. So an intercepted or slightly diagonal
               // drag threw the player onto a different screen. Reported from
               // the couch: it happens by accident, and the five buttons in the
-              // bar are what people use anyway.
-              //
-              // The SLIDE stays. It is what says a tab arrived from the left or
-              // the right, and it is driven by `goTab` rather than by a finger.
+              // bar are what people use anyway. And no slide either — see
+              // `_applyTab`.
               child: SizedBox.expand(
-                child: SlideTransition(
-                    key: const ValueKey('tab-slide'),
-                    position:
-                        Tween<Offset>(
-                          begin: _beginOffset,
-                          end: Offset.zero,
-                        ).animate(
-                          CurvedAnimation(
-                            parent: _slide,
-                            curve: Curves.easeOutCubic,
-                          ),
-                        ),
                     // **ONE LAYER FOR THE BODY.** The coach's pulse ring and
                     // the HUD live in the same Stack; without this every beat
                     // of the ring repainted the whole tab under it.
@@ -227,32 +192,38 @@ class AppShellState extends ConsumerState<AppShell>
                               // "second animated screen" the customiser's lag was
                               // reported as. See `screen_covered.dart`.
                               enabled: tab == _active && !covered,
-                              // Exhaustive over ShellTab: every tab has a real
-                              // screen now, so there is no fallback left to write.
-                              child:
-                                  widget.screenFor?.call(tab) ??
-                                  switch (tab) {
-                                    ShellTab.grid => const GridScreen(
-                                      key: ValueKey('screen-grid'),
-                                    ),
-                                    ShellTab.squad => const SquadScreen(
-                                      key: ValueKey('screen-squad'),
-                                    ),
-                                    ShellTab.home => const HomeScreen(
-                                      key: ValueKey('screen-home'),
-                                    ),
-                                    ShellTab.club => const ClubScreen(
-                                      key: ValueKey('screen-club'),
-                                    ),
-                                    ShellTab.shop => const ShopScreen(
-                                      key: ValueKey('screen-shop'),
-                                    ),
-                                  },
+                              // The inset `extendBody` used to give them, per tab.
+                              child: SafeArea(
+                                top: false,
+                                left: false,
+                                right: false,
+                                bottom: tab != ShellTab.home,
+                                // Exhaustive over ShellTab: every tab has a real
+                                // screen now, so there is no fallback left to write.
+                                child:
+                                    widget.screenFor?.call(tab) ??
+                                    switch (tab) {
+                                      ShellTab.grid => const GridScreen(
+                                        key: ValueKey('screen-grid'),
+                                      ),
+                                      ShellTab.squad => const SquadScreen(
+                                        key: ValueKey('screen-squad'),
+                                      ),
+                                      ShellTab.home => const HomeScreen(
+                                        key: ValueKey('screen-home'),
+                                      ),
+                                      ShellTab.club => const ClubScreen(
+                                        key: ValueKey('screen-club'),
+                                      ),
+                                      ShellTab.shop => const ShopScreen(
+                                        key: ValueKey('screen-shop'),
+                                      ),
+                                    },
+                              ),
                             ),
                         ],
                       ),
                     ),
-                  ),
               ),
             ),
             // **Colin, on every tab.** Above the screens and below the HUD, inside

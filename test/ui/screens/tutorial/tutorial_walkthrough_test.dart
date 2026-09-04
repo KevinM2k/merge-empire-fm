@@ -336,6 +336,8 @@ void main() {
       reason: 'nothing was pointing at the play button',
     );
     expect(find.byKey(const ValueKey('tutorial-spotlight')), findsOneWidget);
+    // The card is a Dialog, and its inset padding glides for 100ms.
+    await tester.pump(const Duration(milliseconds: 200));
     // **AND THE CARD IS NOT SITTING ON THE BUTTON.** Colin stands over a box
     // along the BOTTOM of the screen now, which is exactly where the play
     // button is — the card landed on top of it, and since the box eats its own
