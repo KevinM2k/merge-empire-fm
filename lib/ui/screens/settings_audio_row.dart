@@ -102,7 +102,10 @@ class AudioChannelRow extends ConsumerWidget {
                   key: ValueKey('setting-$volumeKey'),
                   value: volume,
                   divisions: audioVolumeSteps,
-                  activeColor: kit.accentBright,
+                  // The channel's own colour, matching the tile on its row:
+                  // three identical sliders in one card, and on the shared
+                  // accent only the label said which level you had hold of.
+                  activeColor: settingsRowInk(context, icon),
                   inactiveColor: kit.surface2,
                   onChanged: setVolume,
                 ),

@@ -1126,4 +1126,67 @@ void main() {
       expect(backend.checked, isTrue);
     });
   });
+
+  group('the icon column carries a colour', () {
+    /// Every glyph the screen actually draws a row with, tab by tab.
+    Future<List<String>> iconsOn(WidgetTester tester, SettingsTab tab) async {
+      await pumpSettings(tester, tab);
+      return tester
+          .widgetList<SettingsIconTile>(find.byType(SettingsIconTile))
+          .map((tile) => tile.icon)
+          .toList();
+    }
+
+    testWidgets('EVERY ROW ON EVERY TAB IS IN THE TABLE', (tester) async {
+      // The fallback is the kit accent — the flat column this replaced — so a
+      // glyph nobody added goes silently back to it.
+      for (final tab in SettingsTab.values) {
+        for (final icon in await iconsOn(tester, tab)) {
+          expect(
+            settingsIconTints.containsKey(icon),
+            isTrue,
+            reason: 'the $icon row on ${tab.name} has no tint',
+          );
+        }
+      }
+    });
+
+    testWidgets('AND NO TAB IS ONE COLOUR REPEATED', (tester) async {
+      // The complaint as a test: one accent fifteen times over.
+      for (final tab in SettingsTab.values) {
+        final icons = await iconsOn(tester, tab);
+        expect(
+          icons.map((i) => settingsIconTints[i]).toSet().length,
+          icons.length,
+          reason: 'two rows on ${tab.name} share a colour',
+        );
+      }
+    });
+
+    test('a tint is legible on the card it is drawn on, in BOTH themes', () {
+      // One saturation and fifteen hues at one lightness reads 3.3:1 to 9.3:1,
+      // so this measures what the solve produces, not the table.
+      for (final entry in settingsIconTints.entries) {
+        for (final (light, ground, want) in [
+          (true, settingsTintGroundLight, settingsTintContrastLight),
+          (false, settingsTintGroundDark, settingsTintContrastDark),
+        ]) {
+          final ink = settingsTintFor(entry.value, light: light);
+          final got = settingsContrast(ink, ground);
+          expect(
+            got,
+            closeTo(want, 0.15),
+            reason: '${entry.key} reads $got on the ${light ? 'light' : 'dark'} card',
+          );
+          // The hue identifies the subject, so the solve may not touch it. The
+          // tolerance is the round trip through eight bits per channel.
+          expect(
+            HSLColor.fromColor(ink).hue,
+            closeTo(HSLColor.fromColor(entry.value).hue, 2),
+            reason: '${entry.key} changed hue',
+          );
+        }
+      }
+    });
+  });
 }

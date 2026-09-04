@@ -62,6 +62,141 @@ void writeSetting(WidgetRef ref, String key, Object? value) {
 /// background gradient shows through the card rather than being covered by it.
 Color settingsSurface(KitTheme kit) => kit.surface.withValues(alpha: 0.88);
 
+/// What colour a row's icon is drawn in — the cards say where a subject starts,
+/// this says what it IS. Keyed on the icon, which already names the subject, so
+/// the table is one place rather than fifteen call sites.
+///
+/// **Not kit-derived, for [dangerInk]'s reason:** a subject colour that moves
+/// with the club's kit identifies nothing. One saturation, only the hue moves;
+/// [settingsTintInk] puts each on the page it is on.
+const Map<String, Color> settingsIconTints = {
+  // General
+  'club': Color(0xFF307FCF),
+  'shield': Color(0xFF7230CF),
+  'sun': Color(0xFFCF9530),
+  'bell': Color(0xFFCF304B),
+  'star': Color(0xFFCFA730),
+  'lock': Color(0xFF30CF9A),
+  // Audio
+  'sound': Color(0xFF309ACF),
+  'music': Color(0xFFA730CF),
+  'tap': Color(0xFF30CFC1),
+  // Match
+  'video': Color(0xFF30CF72),
+  'bolt': Color(0xFFCF7A30),
+  'swords': Color(0xFFCF303E),
+  'tag': Color(0xFFCF309A),
+  // Account
+  'globe': Color(0xFF30A7CF),
+  'trophy': Color(0xFFCFA730),
+};
+
+/// The ground a tint is solved against: every kit's surface is 95% lightness in
+/// light mode and 12% in dark, so both are known ahead of a frame.
+const Color settingsTintGroundLight = Color(0xFFF2F2F2);
+const Color settingsTintGroundDark = Color(0xFF1F1F1F);
+
+/// What every tint is solved to against that ground.
+///
+/// **A constant lightness is not a constant weight:** at HSL 36% the teal reads
+/// 3.3:1 on the light card and the violet 9.3:1, so half the column shouts and
+/// half whispers. Solved per hue instead, so only the hue tells them apart.
+const double settingsTintContrastLight = 4.6;
+const double settingsTintContrastDark = 7.0;
+
+/// WCAG's ratio, which is what the targets above are expressed in.
+double settingsContrast(Color a, Color b) {
+  final x = a.computeLuminance();
+  final y = b.computeLuminance();
+  return ((x > y ? x : y) + 0.05) / ((x > y ? y : x) + 0.05);
+}
+
+final Map<(int, bool), Color> _tintInkCache = {};
+
+/// A subject colour, moved to where it reads on the page it is on. Only the
+/// lightness moves, and it stops at the first value clearing the target —
+/// solving past it washes every tint towards the ink at the far end.
+Color settingsTintInk(BuildContext context, Color base) => settingsTintFor(
+  base,
+  light: Theme.of(context).brightness == Brightness.light,
+);
+
+/// [settingsTintInk] without a tree, so the solve can be checked on its own.
+Color settingsTintFor(Color base, {required bool light}) {
+  return _tintInkCache.putIfAbsent((base.toARGB32(), light), () {
+    final hsl = HSLColor.fromColor(base);
+    final ground = light ? settingsTintGroundLight : settingsTintGroundDark;
+    final want = light ? settingsTintContrastLight : settingsTintContrastDark;
+    // Monotonic in lightness against a ground at either extreme, so twelve
+    // halvings land inside a step nobody can see.
+    var lo = light ? 0.0 : 0.02;
+    var hi = light ? 0.98 : 1.0;
+    for (var i = 0; i < 12; i++) {
+      final mid = (lo + hi) / 2;
+      final ok =
+          settingsContrast(hsl.withLightness(mid).toColor(), ground) >= want;
+      // `lo` is the passing end in light and the failing end in dark.
+      if (light == ok) {
+        lo = mid;
+      } else {
+        hi = mid;
+      }
+    }
+    return hsl.withLightness(light ? lo : hi).toColor();
+  });
+}
+
+/// The colour a row draws its icon — and its own controls — in.
+Color settingsRowInk(BuildContext context, String icon) {
+  final tint = settingsIconTints[icon];
+  if (tint == null) {
+    return Theme.of(context).extension<KitTheme>()!.accentBright;
+  }
+  return settingsTintInk(context, tint);
+}
+
+/// The plate an icon sits on. Sets the note's indent and the two rows' gutter.
+const double settingsIconTileSize = 28;
+
+/// The icon at the head of a row, in a tile of its subject's colour.
+///
+/// **A tile, not a tinted stroke:** eighteen points of line art carries almost
+/// no colour. It is [DangerRow]'s plate one size down, so the two agree.
+class SettingsIconTile extends StatelessWidget {
+  const SettingsIconTile({super.key, required this.icon, this.muted = false});
+
+  final String icon;
+
+  /// A row that cannot be pressed. Its icon goes grey with its label rather
+  /// than keeping a colour that promises a live control.
+  final bool muted;
+
+  @override
+  Widget build(BuildContext context) {
+    final kit = Theme.of(context).extension<KitTheme>()!;
+    final light = Theme.of(context).brightness == Brightness.light;
+    final base = settingsIconTints[icon] ?? kit.accentBright;
+    return Container(
+      width: settingsIconTileSize,
+      height: settingsIconTileSize,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        // The base hue washes the plate, not the solved ink — that one has been
+        // pushed away from the ground to be legible.
+        color: muted
+            ? kit.surface2
+            : base.withValues(alpha: light ? 0.14 : 0.22),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: GameIcon(
+        icon,
+        size: 18,
+        color: muted ? kit.textMuted : settingsRowInk(context, icon),
+      ),
+    );
+  }
+}
+
 /// A card's shadow, which the JS only draws in LIGHT mode (`--card-shadow` is
 /// `none` in the dark block). On a dark page a drop shadow is invisible and the
 /// border is what separates the card; on a light one the border alone reads as a
@@ -211,7 +346,7 @@ class SettingsRow extends StatelessWidget {
             constraints: const BoxConstraints(minHeight: settingsRowContentHeight),
             child: Row(
               children: [
-                GameIcon(icon, size: 20, color: kit.accentBright),
+                SettingsIconTile(icon: icon),
                 const SizedBox(width: 10),
                 Expanded(
                   child: Text(
@@ -230,8 +365,12 @@ class SettingsRow extends StatelessWidget {
           if (note != null)
             Padding(
               // Indented past the icon, so the note reads as belonging to the
-              // label rather than to the row.
-              padding: const EdgeInsets.only(left: 30, top: 6, bottom: 6),
+              // label rather than to the row. The tile plus the gutter.
+              padding: const EdgeInsets.only(
+                left: settingsIconTileSize + 10,
+                top: 6,
+                bottom: 6,
+              ),
               child: Text(
                 note!,
                 style: TextStyle(
@@ -528,11 +667,7 @@ class SettingsAction extends StatelessWidget {
         padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
         child: Row(
           children: [
-            GameIcon(
-              icon,
-              size: 20,
-              color: pending ? kit.textMuted : kit.accentBright,
-            ),
+            SettingsIconTile(icon: icon, muted: pending),
             const SizedBox(width: 10),
             Expanded(
               child: Column(
