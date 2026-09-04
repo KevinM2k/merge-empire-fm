@@ -163,7 +163,7 @@ final ourCupTiesProvider = savePick<List<CupTie>>((s) {
           ourGoals: result == null ? null : _int(result['homeGoals']),
           theirGoals: result == null ? null : _int(result['awayGoals']),
           won: result?['won'] == true,
-          rating: oppRating?.rating.round(),
+          rating: oppRating?.rating,
           ratingEstimated: oppRating?.estimated ?? true,
         );
       }(),

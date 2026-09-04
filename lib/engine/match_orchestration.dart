@@ -1501,17 +1501,60 @@ void applyMatchRewards(Map<String, dynamic> state, MatchResult? result) {
     attack: _num(result['ourAttackRating'])?.toDouble() ?? 0,
     defence: _num(result['ourDefenceRating'])?.toDouble() ?? 0,
   );
-  if (_flag(result['isCup'])) return base;
+  return applyMatchRatingMods(base.attack, base.defence, result);
+}
 
-  final homeAdv = _flag(result['isHome'])
-      ? (_num(result['homeAdvDisplay'])?.toDouble() ?? 0)
-      : 0.0;
-  final stagnation = _num(result['stagnationBuff'])?.toDouble() ?? 0;
-  final relegation = _flag(result['playerInRelegationZone']) ? relegationBoost : 0;
-
+/// What the fixture ADDS to a raw ATK/DEF pair — the three modifiers the sim
+/// applies before the tactic, read off the result that stamped them.
+///
+/// **The JS stashes exactly these three for the resume, and the port's resume
+/// read two of them.** `hardSim` carries `ourHomeAdv`, `stagnation` and
+/// `releg` — they are in the node dump, so they are the spec's, and the comment
+/// that writes them says in as many words what they are for: "what a mid-match
+/// sub needs to resume the sim". [reSimulateRemainder] then re-derived the
+/// first two from the save and never read the third at all, so a side fighting
+/// relegation lost its lift the moment the manager changed anything. All three
+/// keys had no reader anywhere in `lib/` or `test/`, which is the tell.
+///
+/// Taken from the RESULT rather than from the save because none of the three
+/// can move during a match: the league table does not update at half time, the
+/// division does not change, and a Fan Zone cannot be bought from inside a
+/// takeover. The same reading serves the kickoff pair and the resumed one, so
+/// the two cannot drift — which is the fault this whole helper exists for.
+({num homeAdv, num stagnation, num relegation}) matchRatingMods(
+  MatchResult result,
+) {
+  // **A cup tie has none of them.** `prepareCupRound` plays on neutral ground
+  // and knows nothing of the league table, so its split is the base one — and
+  // its results carry `isHome: true` for every round, which is why the venue
+  // alone cannot be trusted here.
+  if (_flag(result['isCup'])) {
+    return (homeAdv: 0, stagnation: 0, relegation: 0);
+  }
   return (
-    attack: math.min(base.attack + homeAdv, 100) + stagnation + relegation,
-    defence: math.min(base.defence + homeAdv, 100) + stagnation + relegation,
+    // Stamped for BOTH venues — it is what our ground is worth, not what this
+    // fixture pays — so the venue gate is here rather than in the field.
+    homeAdv: _flag(result['isHome'])
+        ? (_num(result['homeAdvDisplay']) ?? 0)
+        : 0,
+    stagnation: _num(result['stagnationBuff']) ?? 0,
+    relegation: _flag(result['playerInRelegationZone']) ? relegationBoost : 0,
+  );
+}
+
+/// [matchRatingMods] applied to one pair, in the sim's own order: the home
+/// bonus is capped at 100 and the buffs go on top of the cap, so a maxed side
+/// does not forfeit its stagnation buff to the ceiling.
+({double attack, double defence}) applyMatchRatingMods(
+  num attack,
+  num defence,
+  MatchResult result,
+) {
+  final mods = matchRatingMods(result);
+  final extra = mods.stagnation + mods.relegation;
+  return (
+    attack: (math.min(attack + mods.homeAdv, 100) + extra).toDouble(),
+    defence: (math.min(defence + mods.homeAdv, 100) + extra).toDouble(),
   );
 }
 
@@ -1638,13 +1681,6 @@ List<Map<String, dynamic>> reSimulateRemainder(
     liveBaseDefence = fixedBase;
   } else {
     final liveLineup = _lineupOf(state);
-    final liveHomeAdv = (!isCup && _flag(result['isHome']))
-        ? homeAdvantageFor(fanZoneTier(_map(state?['clubAssets'])))
-        : 0;
-    final prog = _map(state?['progression']);
-    final liveStag =
-        _num(_map(prog?['stagnationBuffs'])?['${prog?['currentDivision']}']) ?? 0;
-
     if (hardMode && hardSim != null) {
       // Record the switch in the strategy timeline, so fatigue accrued so far
       // stays priced at the tactic it was played under.
@@ -1682,10 +1718,21 @@ List<Map<String, dynamic>> reSimulateRemainder(
             fatigue: hardMode,
             ratingMultipliers: bookedMultipliers,
           );
-    final liveAttack =
-        math.min(liveRatings.attack + liveHomeAdv, 100) + liveStag;
-    final liveDefence =
-        math.min(liveRatings.defence + liveHomeAdv, 100) + liveStag;
+    // **THE FIXTURE'S MODIFIERS, all three of them** — see [matchRatingMods].
+    // This block used to re-derive the home bonus and the stagnation buff from
+    // the save and drop the relegation lift entirely, so a side in the drop
+    // zone re-rolled the remainder a point weaker on BOTH stats than it kicked
+    // off: changing tactics while fighting relegation quietly cost the boost
+    // the sim had just given for fighting it. The JS stashes all three in
+    // `hardSim` for exactly this moment and the port stashed them faithfully
+    // and then read none of them.
+    final live = applyMatchRatingMods(
+      liveRatings.attack,
+      liveRatings.defence,
+      result,
+    );
+    final liveAttack = live.attack;
+    final liveDefence = live.defence;
 
     adjAttack = math.max(1.0, applyTacticAtk(liveAttack, strat, oppAttackRatio));
     adjDefence = math.max(1.0, applyTacticDef(liveDefence, strat, oppAttackRatio));
@@ -1701,8 +1748,12 @@ List<Map<String, dynamic>> reSimulateRemainder(
       fatigue: hardMode,
       ratingMultipliers: bookedMultipliers,
     );
-    adjSquad =
-        math.max(1.0, (math.min(liveBase + liveHomeAdv, 100) + liveStag).toDouble());
+    // The star the board prints, on the same three modifiers — `effectiveMatchRating`
+    // adds the relegation lift at face value for the same reason the split does.
+    adjSquad = math.max(
+      1.0,
+      applyMatchRatingMods(liveBase, liveBase, result).attack,
+    );
   }
 
   // Each side sampled at the goal RATE for the remaining minutes rather than a

@@ -6,7 +6,7 @@ because that is the part worth keeping.
 
 ## Where this queue stands
 
-**91 done, 5 open, and one feature parked.** None of the open rows is a fault.
+**92 done, 5 open, and one feature parked.** None of the open rows is a fault.
 One is a feature that was built, tried and turned down; one is a balance
 question rather than work; one is a survey to run before building; and one is
 **blocked on the spec repo** for the COMMENTARY, which is the row to read if the
@@ -990,6 +990,33 @@ a screen speaking in a voice that is not its own.
       unplayed round: a schedule says who you are drawn against, and the league
       rows read `seasonOpponentRatings` raw for the same reason. Pinned in
       `league_fixtures_test`.
+
+- [x] **And the same fault a third time: a re-sim threw the relegation lift
+      away.** Spotted while fixing the two above, not reported. The kickoff sim
+      adds `relegationBoost` to ATK and DEF for a side in the drop zone;
+      `reSimulateRemainder` re-derived the home bonus and the stagnation buff
+      from the save and never looked at the lift at all. So changing tactics,
+      making a substitution or picking up a booking while fighting relegation
+      took back the boost the sim had just given for fighting it — and not only
+      on the board: `adjAttack` and `adjDefence` sample the remaining goals.
+
+      **The spec settles it, which is why this is a fix rather than a guess.**
+      `hardSim` carries `ourHomeAdv`, `stagnation` and `releg`, all three are in
+      the node dump, and the comment that writes them says what they are for:
+      "what a mid-match sub needs to resume the sim". The port stashed all three
+      faithfully and then read none of them — every one of the keys had no
+      reader anywhere in `lib/` or `test/`, which is the tell this repo keeps
+      finding things by.
+
+      `matchRatingMods` is now the single reading of the three, off the result
+      that stamped them — none of them can move mid-match, so the save is the
+      wrong place to ask — and both the kickoff pair and the resumed one go
+      through it. That is the point: two derivations of "our effective split" is
+      exactly the shape of the first bug in this batch.
+      `match_orchestration_parity_test` stays green because no resim scenario is
+      at home, in the drop zone or carrying a buff — the harness could not have
+      caught this, and a test now pins `matchRatingMods` field-for-field against
+      the JS's own `hardSim` stash.
 
 ---
 
