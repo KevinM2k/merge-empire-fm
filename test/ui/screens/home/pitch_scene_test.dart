@@ -617,7 +617,7 @@ void main() {
       expect(groundHalfStrideArtUnits, lessThan(walkerStrideArtUnits));
       // 1.12 while the ground runs level: the planted foot outruns a constant
       // ground at mid-stance and the eye reads the mean as slow. See the knob.
-      expect(groundSpeedTrim, closeTo(1.12, 1e-9));
+      expect(groundSpeedTrim, closeTo(1.22, 1e-9));
     });
 
     test(

@@ -360,6 +360,10 @@ class _SceneState extends ConsumerState<_Scene> {
   void _onBallStrike() =>
       _start(const Gesture(id: 'kick', ms: 520, weight: {}));
 
+  /// And the flick that lifts one into his hands before a pickup.
+  void _onBallFlick() =>
+      _start(const Gesture(id: 'flick', ms: 380, weight: {}));
+
   void _onBall(BallCue cue) {
     if (!mounted) return;
     switch (cue) {
@@ -475,6 +479,7 @@ class _SceneState extends ConsumerState<_Scene> {
       // this screen that moves in the JS and did not exist here.
       onBallCue: _onBall,
       onBallStrike: _onBallStrike,
+      onBallFlick: _onBallFlick,
       onBallWatch: (watching) {
         if (!mounted || watching == _watchingBall) return;
         setState(() => _watchingBall = watching);

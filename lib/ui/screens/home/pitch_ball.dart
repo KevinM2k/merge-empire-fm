@@ -77,8 +77,10 @@ const double _maxY = 72;
 /// Where a ball settles at his boot.
 ///
 /// Just AHEAD of the foot, so a trapped ball reads as touching it rather than
-/// as floating a stride in front of him.
+/// as floating a stride in front of him. Public as [ballTrapX]: the kick's
+/// contact frame is solved against it.
 const double _trapX = 5;
+const double ballTrapX = _trapX;
 
 /// The ball never rolls behind him except when he is ignoring it.
 const double _minX = -10;
@@ -676,8 +678,14 @@ class PitchBall extends StatefulWidget {
     this.walkerLeft = 0,
     this.onStrike,
     this.onWatch,
+    this.onFlick,
     super.key,
   });
+
+  /// He is about to lift the ball into his hands: flick it up. Fired
+  /// [_PitchBallState.flickLead] before the pickup begins, so the toe is under
+  /// the ball as it leaves the grass — a ball does not rise on its own.
+  final VoidCallback? onFlick;
 
   /// **HE LOOKS AT THE BALL.** True while there is one worth looking at — one
   /// rolling in within [ballWatchDistance] of his boot, one sitting at it, one
@@ -734,6 +742,12 @@ class _PitchBallState extends State<PitchBall>
   /// The kick's wind-up: the gesture's contact is at 0.6 of 520ms.
   static const double kickLead = 0.31;
 
+  /// The flick's: its toe is under the ball at 0.55 of 380ms.
+  static const double flickLead = 0.21;
+
+  /// How long the cue has been waiting for the leg to come round.
+  double _strikeWait = 0;
+
   /// How long the played ball is lifted off the turf, and how high, in pixels.
   /// A cosmetic hop — the sim's own y is the fixture's — so a pass that would
   /// otherwise slide away reads as struck.
@@ -766,29 +780,42 @@ class _PitchBallState extends State<PitchBall>
         walkerThighAngle(phase, near: true);
   }
 
-  /// How far past [kickLead] the cue will wait for that window before giving up
-  /// and playing anyway.
-  ///
-  /// A stride is the longest it can ever have to wait — the near leg comes
-  /// forward once per stride — and the ball's own release is on the sim's clock
-  /// rather than on this, so a cue that never fired would leave a ball leaving
-  /// his feet with no kick at all.
-  static const double _strikeWindow = 0.34;
+  /// How long the cue will wait for the leg before playing anyway: a stride,
+  /// which is the longest the near leg can take to come forward again.
+  double get _strikeWindow =>
+      walkDurationFor(widget.mood).inMicroseconds / 1e6;
 
+  /// **THE BALL WAITS FOR THE BOOT.** The cue used to fire when the trap timer
+  /// reached its lead IF the near leg happened to be swinging forward, and
+  /// otherwise gave up after a third of a second — while the ball left on the
+  /// sim's own clock regardless. So about half the time the ball was gone
+  /// before the kick started, or there was no kick at all. Reported as the
+  /// foot not touching the ball, and as kicks that never happened.
+  ///
+  /// Now the trap timer is HELD at the lead until the leg comes round (at most
+  /// a stride), so the release and the contact are the same instant. Screen
+  /// side, like the cue itself: the sim's own trace is the fixture's.
   void _watchStrike(double dt) {
-    final trap = _sim.phase == BallPhase.trap && _sim.play != 'pickup';
-    if (trap && !_strikeCued && _sim.timer <= kickLead && !_sim.halted) {
-      final late = _sim.timer <= kickLead - _strikeWindow;
-      if (_nearLegSwingingForward || late) {
+    final trap = _sim.phase == BallPhase.trap;
+    final pickup = _sim.play == 'pickup';
+    final lead = pickup ? flickLead : kickLead;
+    if (trap && !_strikeCued && _sim.timer <= lead && !_sim.halted) {
+      _strikeWait += dt;
+      if (_nearLegSwingingForward || _strikeWait >= _strikeWindow) {
         _strikeCued = true;
-        widget.onStrike?.call();
+        (pickup ? widget.onFlick : widget.onStrike)?.call();
+      } else {
+        _sim.timer = lead;
       }
     }
     // Left the trap for the turf: the ball has just been struck.
     if (_wasTrap && _sim.phase == BallPhase.out && _sim.grounded) {
       _flick = _flickSeconds;
     }
-    if (!trap) _strikeCued = false;
+    if (!trap) {
+      _strikeCued = false;
+      _strikeWait = 0;
+    }
     _wasTrap = trap;
     if (_flick > 0) _flick = math.max(0, _flick - dt);
   }

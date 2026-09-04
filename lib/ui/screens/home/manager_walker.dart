@@ -41,6 +41,7 @@ import 'package:merge_empire_fc/data/manager_looks.dart';
 import 'package:merge_empire_fc/data/manager_mood.dart';
 import 'package:merge_empire_fc/ui/screens/home/gesture_poses.dart';
 import 'package:merge_empire_fc/ui/screens/home/hair_strands.dart';
+import 'package:merge_empire_fc/ui/screens/home/pitch_ball.dart' show ballHomeX, ballSize, ballTrapX;
 import 'package:merge_empire_fc/ui/screens/home/walk_life.dart';
 import 'package:merge_empire_fc/ui/screens/home/walk_ramp.dart';
 import 'package:merge_empire_fc/ui/screens/home/pitch_scene.dart';
@@ -716,6 +717,32 @@ double hairSwayAt(double t, {required double tilt, double amount = 1}) {
 /// gesture that puts his chin on his chest gets a head of hair that has
 /// settled with him.
 const double _hairSettleAt = 14;
+
+/// How much of the near leg a kick owns at [progress] through it: in over the
+/// first eighth, all of it through the middle, out over the last eighth.
+double kickBlendAt(double progress) {
+  final p = progress.clamp(0.0, 1.0);
+  if (p < 0.125) return Curves.easeInOut.transform(p / 0.125);
+  if (p > 0.875) return Curves.easeInOut.transform((1 - p) / 0.125);
+  return 1;
+}
+
+double _kickBlendAt(double progress) => kickBlendAt(progress);
+
+/// Where the near boot's TOE is, in art units, with the leg at absolute
+/// [thighDeg] and [shinDeg] — the kick's own frame of reference. Public so a
+/// test can put the contact frame on the ball.
+double kickToeX(double thighDeg, double shinDeg) {
+  final thigh = _deg(thighDeg);
+  final shin = thigh + _deg(shinDeg);
+  final hipX = (_WalkerPainter._shortsLeft + _WalkerPainter._shortsRight) / 2 + 2;
+  final ankle = hipX - walkerThigh * math.sin(thigh) - walkerShin * math.sin(shin);
+  return ankle + _bootToe;
+}
+
+/// The back face of a ball trapped at his boot, and its centre, in art units.
+double get ballRearX => ballHomeX + ballTrapX;
+double get ballCentreX => ballRearX + ballSize / 2;
 
 /// How far the head drops to watch a ball at his feet, in degrees, and where
 /// the eyes go — down and ahead, which is where a ball rolling in is.
@@ -1550,10 +1577,19 @@ class _ManagerWalkerState extends State<ManagerWalker>
         // pose and the same look; they differ ONLY in [arms], so there is no
         // window in which a copy of the arm and the real one are in different
         // places, and nothing to crossfade.
+        // How far the near leg belongs to a kick rather than the stride — see
+        // [_WalkerPainter.kickBlend]. In over the first eighth, out over the
+        // last, so the leg neither snaps out of the walk nor back into it.
+        final kickBlend = playing != null &&
+                _gestureClock.isAnimating &&
+                (playing.id == 'kick' || playing.id == 'flick')
+            ? _kickBlendAt(_gestureClock.value)
+            : 0.0;
         _WalkerPainter walker(WalkerArms arms) => _WalkerPainter(
           soft: widget.soft,
           t: t,
           turn: turn,
+          kickBlend: kickBlend,
           kit: widget.kit,
           skin: parts.skin,
           // **His SHAPE.** The build axis was in the customiser, the wardrobe,
@@ -3043,6 +3079,7 @@ class _WalkerPainter extends CustomPainter {
   const _WalkerPainter({
     required this.t,
     this.turn = 0,
+    this.kickBlend = 0,
     required this.kit,
     required this.skin,
     required this.build,
@@ -3065,6 +3102,11 @@ class _WalkerPainter extends CustomPainter {
   /// profile**: a squashed head with a second eye sliding in was tried and it
   /// skewed the face, so the twist is the body's alone.
   final double turn;
+
+  /// How much the near leg is the KICK's rather than the stride's, 0 to 1.
+  /// The kick's angles are absolute — a contact solved onto the ball — and
+  /// this blends the leg from the walk to them and back. See `kickBlendAt`.
+  final double kickBlend;
 
   final Color kit;
   final Color skin;
@@ -3247,11 +3289,15 @@ class _WalkerPainter extends CustomPainter {
     // A kick rides on top of whatever the leg was doing: the near leg only.
     final kickThigh = near ? (pose?.kickThigh ?? 0) : 0.0;
     final kickShin = near ? (pose?.kickShin ?? 0) : 0.0;
+    // **ABSOLUTE, blended** — see [kickBlend]. Only the near leg kicks.
+    final blend = near ? kickBlend : 0.0;
+    final walkThigh = walkerThighAngle(phase, near: near);
+    final walkShin = walkerShinAngle(phase, near: near);
     final solved = standing
         ? (thigh: kickThigh, shin: kickShin)
         : (
-            thigh: walkerThighAngle(phase, near: near) + kickThigh,
-            shin: walkerShinAngle(phase, near: near) + kickShin,
+            thigh: walkThigh + (kickThigh - walkThigh) * blend,
+            shin: walkShin + (kickShin - walkShin) * blend,
           );
     // **No rotation of its own.** The boot is drawn inside the shin's frame, so
     // zero is the JS's arrangement exactly: it points where the lower leg points,
@@ -3599,6 +3645,7 @@ class _WalkerPainter extends CustomPainter {
   bool shouldRepaint(_WalkerPainter old) =>
       old.t != t ||
       old.turn != turn ||
+      old.kickBlend != kickBlend ||
       old.kit != kit ||
       old.skin != skin ||
       old.build != build ||

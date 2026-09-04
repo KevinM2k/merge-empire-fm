@@ -451,9 +451,20 @@ final Map<String, GestureAnimation> _animations = {
   // as he winds up, leans back off the swing to balance it, throws the
   // opposite arm forward as the leg comes through and drops a shade at the
   // plant — none of it large, all of it what makes a kick a kick.
+  //
+  // **THE KICK LEG IS ABSOLUTE, and the contact is ON THE BALL.** These used
+  // to be added to whatever the walk had the near leg doing, so where the boot
+  // ended up depended on the stride phase — and the swing went to -26, which
+  // puts the ankle a whole boot past a ball trapped at his toe. The ball is
+  // drawn over the leg, so the boot vanished into it and read as missing it.
+  // Now the walker blends the near leg from the stride to these angles at the
+  // start and back at the end (see `_WalkerPainter.kickBlend`), and the
+  // contact frame is solved: thigh -5, shin 2 puts the toe at x≈75.6, two
+  // units into the rear of a ball whose back face is at 73. The follow-through
+  // after it is small — the ball has gone.
   'kick': const GestureAnimation(
-    kickThigh: [(0, 0), (0.30, 20), (0.60, -26), (0.80, -4), (1, 0)],
-    kickShin: [(0, 0), (0.30, 46), (0.60, -4), (0.80, 6), (1, 0)],
+    kickThigh: [(0, 0), (0.28, 22), (0.60, -5), (0.74, -24), (0.95, 0), (1, 0)],
+    kickShin: [(0, 0), (0.28, 48), (0.60, 2), (0.74, -2), (0.95, 0), (1, 0)],
     // The near arm swings back with the near leg's wind-up and comes forward
     // with the strike; the far arm does the opposite, which is what balances
     // him.
@@ -468,6 +479,16 @@ final Map<String, GestureAnimation> _animations = {
     legs: [(0, 0), (0.30, -2), (0.60, 5), (0.85, 0), (1, 0)],
     // A dip onto the standing leg at the contact. Art units, positive down.
     bodyLift: [(0, 0), (0.30, -0.6), (0.60, 1.4), (0.85, 0), (1, 0)],
+    curve: Curves.easeInOut,
+  ),
+  // ── FLICK. The little scoop under a ball that lifts it into his hands
+  // before a pickup — a ball does not rise off the grass on its own. Same
+  // shape as the kick at a third of the size, toe under the ball at 0.55,
+  // which is where `PitchBall` starts the lift.
+  'flick': const GestureAnimation(
+    kickThigh: [(0, 0), (0.28, 9), (0.55, -3), (0.7, -9), (0.95, 0), (1, 0)],
+    kickShin: [(0, 0), (0.28, 26), (0.55, 4), (0.7, 0), (0.95, 0), (1, 0)],
+    head: [(0, 0), (0.3, 8), (0.8, 4), (1, 0)],
     curve: Curves.easeInOut,
   ),
   // ── SALUTE. Snapped up rather than eased: the curve is the gesture.

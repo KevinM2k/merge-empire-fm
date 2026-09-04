@@ -511,7 +511,8 @@ class _WalkBeatState extends State<_WalkBeat>
 
 /// A last nudge on the ground's speed.
 ///
-/// **1.12, because the ground runs level again.** With the turf at one speed
+/// **1.22, because the ground runs level again.** (1.12 was still read as a
+/// shade slow from the couch.) With the turf at one speed
 /// the planted foot outruns it by half at mid-stance, and the eye reads that
 /// as the grass being too slow even when the average is exact — reported from
 /// the couch in as many words the moment the per-step ease came out. Pushing
@@ -519,7 +520,7 @@ class _WalkBeatState extends State<_WalkBeat>
 /// stance is what the eye locks onto, and this closes most of that gap without
 /// making the swing phase visibly quick. It was 1 while [groundEase] tracked
 /// the foot outright and there was nothing to trim.
-const double groundSpeedTrim = 1.12;
+const double groundSpeedTrim = 1.22;
 
 /// How long one lane pair takes to sweep past, so that the grass AT HIS FEET
 /// moves at [groundSpeedPxPerSec].
@@ -615,6 +616,7 @@ class PitchScene extends StatelessWidget {
     this.frozen = false,
     this.onBallCue,
     this.onBallStrike,
+    this.onBallFlick,
     this.onBallWatch,
     this.ballWind = 0,
     this.onTapWalker,
@@ -687,6 +689,9 @@ class PitchScene extends StatelessWidget {
 
   /// He is about to play the stray ball back — see [PitchBall.onStrike].
   final VoidCallback? onBallStrike;
+
+  /// He is about to flick the ball up into his hands — see [PitchBall.onFlick].
+  final VoidCallback? onBallFlick;
 
   /// There is a ball worth looking at, or there no longer is — see
   /// [PitchBall.onWatch].
@@ -1023,6 +1028,7 @@ class PitchScene extends StatelessWidget {
                               frozen: frozen,
                               onCue: onBallCue ?? (_) {},
                               onStrike: onBallStrike,
+                              onFlick: onBallFlick,
                               onWatch: onBallWatch,
                               sceneWidth: w,
                               walkerLeft: w * 0.45 - 57,
