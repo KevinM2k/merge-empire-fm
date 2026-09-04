@@ -254,4 +254,25 @@ void main() {
       _cell('glum full beard suit', look: {'beard': 'full', 'outfit': 'suit', 'style': 'slick'}, mood: Mood.glum),
     ], cols: 4, scale: 7);
   });
+
+  testWidgets('hats closeup', (tester) async {
+    await sheet(tester, 'hats_closeup', [
+      for (final h in ['cap', 'beanie', 'bucket', 'santa', 'visor', 'laurel', 'flatcap', 'headband'])
+        _cell(h, look: {'hat': h, 'style': 'afro'}, t: 0.375),
+    ], cols: 8, scale: 6);
+  });
+
+  testWidgets('life', (tester) async {
+    // Seconds into the life cycle: the middle of the look-up, the survey and
+    // the camera beat, plus the arms fold and a blown kiss, which turn him.
+    await sheet(tester, 'life', [
+      _cell('square', look: {'style': 'flow'}),
+      _cell('look up', look: {'style': 'flow'}, pumpMs: 4700),
+      _cell('survey', look: {'style': 'flow'}, pumpMs: 24100),
+      _cell('camera', look: {'style': 'flow', 'hat': 'cap'}, pumpMs: 35400),
+      _cell('armsfolded', gesture: _g('armsfolded'), pumpMs: 1000, standing: true, look: {'style': 'flow'}),
+      _cell('blowkiss', gesture: _g('blowkiss'), pumpMs: 800, standing: true),
+      _cell('applaud', gesture: _g('applaud'), pumpMs: 900, standing: true),
+    ], cols: 7, scale: 5);
+  });
 }

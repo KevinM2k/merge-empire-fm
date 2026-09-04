@@ -228,9 +228,83 @@ class WeatherSky extends StatelessWidget {
             ),
           ),
         ),
+        // **BIRDS.** A handful, crossing the sky at their own pace, because a
+        // sky with nothing alive in it is a backdrop. Not in rain, snow, fog
+        // or a storm, and not at night. Six strokes a frame on a layer of
+        // their own, which is as cheap as life gets.
+        _Layer(
+          key: weatherLayerKey('birds'),
+          visible: !night && birdsFlyIn(condition),
+          fade: const Duration(milliseconds: 1600),
+          child: _Motion(
+            active: !night && birdsFlyIn(condition),
+            builder: (context, t) => CustomPaint(
+              size: Size.infinite,
+              painter: _BirdPainter(seconds: t),
+            ),
+          ),
+        ),
       ],
     );
   }
+}
+
+/// Whether birds are out in this weather.
+bool birdsFlyIn(String condition) =>
+    condition != 'rain' &&
+    condition != 'storm' &&
+    condition != 'snow' &&
+    condition != 'fog';
+
+/// One bird's flight: where it starts, how fast, how big, which way.
+typedef _Bird = ({double phase, double top, double speed, double size, double flap, bool left});
+
+/// Five birds. Two flying against the world's scroll, three with it, at
+/// different heights and speeds so they never bunch.
+const List<_Bird> _birds = [
+  (phase: 0.10, top: 0.08, speed: 26, size: 5.5, flap: 6.2, left: true),
+  (phase: 0.45, top: 0.16, speed: 19, size: 7.0, flap: 5.1, left: true),
+  (phase: 0.72, top: 0.05, speed: 33, size: 4.5, flap: 7.3, left: false),
+  (phase: 0.30, top: 0.22, speed: 22, size: 6.0, flap: 5.6, left: false),
+  (phase: 0.88, top: 0.12, speed: 15, size: 8.0, flap: 4.4, left: true),
+];
+
+/// The band of sky the birds keep to — above the clouds' own band's middle.
+const double _birdBand = 0.34;
+
+class _BirdPainter extends CustomPainter {
+  const _BirdPainter({required this.seconds});
+
+  final double seconds;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (size.isEmpty) return;
+    final ink = Paint()
+      ..color = const Color(0xFF2B3440).withValues(alpha: 0.75)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.1
+      ..strokeCap = StrokeCap.round;
+    final span = size.width + 40;
+    for (final b in _birds) {
+      final along = ((b.phase + seconds * b.speed / span) % 1);
+      final x = b.left ? size.width + 20 - along * span : -20 + along * span;
+      // A slow rise and fall on top of the flight line, so it soars.
+      final y = size.height * _birdBand * (b.top / 0.25) +
+          math.sin(seconds * 0.7 + b.phase * 6) * 3;
+      final flap = math.sin(seconds * b.flap + b.phase * 9);
+      final w = b.size;
+      final lift = w * (0.15 + 0.45 * flap);
+      final wing = Path()
+        ..moveTo(x - w, y - lift)
+        ..quadraticBezierTo(x - w * 0.45, y + w * 0.18, x, y)
+        ..quadraticBezierTo(x + w * 0.45, y + w * 0.18, x + w, y - lift);
+      canvas.drawPath(wing, ink);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_BirdPainter old) => old.seconds != seconds;
 }
 
 // ── Air: overcast, rain, snow, fog, wind ────────────────────────────────────

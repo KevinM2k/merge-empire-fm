@@ -146,30 +146,70 @@ const strands = (markup, id) => {
 // kind of gradient the painter draws.
 const SHADE_DEFS =
   '<defs><linearGradient id="sh" x1="0.15" y1="0" x2="0.65" y2="1">' +
-  '<stop offset="0" stop-color="#ffffff" stop-opacity="0.30"/>' +
+  '<stop offset="0" stop-color="#ffffff" stop-opacity="0.22"/>' +
   '<stop offset="0.45" stop-color="#ffffff" stop-opacity="0"/>' +
   '<stop offset="0.7" stop-color="#000000" stop-opacity="0.08"/>' +
-  '<stop offset="1" stop-color="#000000" stop-opacity="0.30"/>' +
+  '<stop offset="1" stop-color="#000000" stop-opacity="0.26"/>' +
   '</linearGradient></defs>';
 
 const SHAPE = /<(path|rect|circle|ellipse)\b([^>]*?)\/>/g;
 
+// **EACH SHAPE'S SHADING GOES STRAIGHT AFTER IT**, not after the whole hat.
+// Appended at the end, a dome's edge line was drawn ON TOP of the brim below
+// it, so the brim looked see-through with the dome's outline showing under it.
+// Interleaved, the next shape covers the edge of the one before, exactly as
+// its fill already covers that shape's body.
 const shade = (markup) => {
   const src = String(markup);
   if (!src.trim()) return src;
-  let over = '';
-  for (const m of src.matchAll(SHAPE)) {
-    const [, tag, attrs] = m;
+  let any = false;
+  const out = src.replace(SHAPE, (whole, tag, attrs) => {
     const fill = /\sfill="([^"]*)"/.exec(attrs)?.[1];
-    if (!fill || fill === 'none') continue;
-    // The geometry only: no fill, stroke or opacity of the original.
+    if (!fill || fill === 'none') return whole;
+    any = true;
     const geom = attrs
       .replace(/\s(fill|stroke|stroke-width|stroke-linejoin|stroke-linecap|opacity|fill-opacity|stroke-opacity)="[^"]*"/g, '')
       .trim();
-    over += `<${tag} ${geom} fill="url(#sh)"/>`;
-    over += `<${tag} ${geom} fill="none" stroke="rgba(0,0,0,0.32)" stroke-width="0.7" stroke-linejoin="round"/>`;
-  }
-  return over ? SHADE_DEFS + src + over : src;
+    return whole +
+      `<${tag} ${geom} fill="url(#sh)"/>` +
+      `<${tag} ${geom} fill="none" stroke="rgba(0,0,0,0.30)" stroke-width="0.7" stroke-linejoin="round"/>`;
+  });
+  return any ? SHADE_DEFS + out : src;
+};
+
+// **PARTS REDRAWN FOR THE RIG.** The spec's headband arcs over the top of the
+// skull from the brow up, eight units deep — at the rig's scale, on a short
+// haircut, that is a cap. A headband is a strip around the forehead: three
+// units, at brow height, with its tie hanging at the back. Same slot colour, so
+// it recolours like every other part.
+const OVERRIDES = {
+  managerHats: {
+    headband:
+      '<path d="M49.9 42.9 C53.2 41.1 57.3 40.2 62 40.2 C66.7 40.2 70.8 41.1 74.3 43.1 ' +
+      'L74.0 46.0 C70.6 44.3 66.6 43.5 62 43.5 C57.4 43.5 53.5 44.3 50.2 45.9 Z" fill="#4caf50"/>' +
+      '<path d="M50.3 44.1 L46.8 45.6 L47.4 47.0 L50.5 45.5 Z" fill="#4caf50"/>' +
+      '<path d="M50.2 44.9 L48.4 47.2 L49.5 47.6 L50.9 45.7 Z" fill="#4caf50"/>' +
+      '<path d="M51 42.3 C54.4 40.9 58 40.3 62 40.3 C66 40.3 69.6 40.9 73 42.3" fill="none" ' +
+      'stroke="#ffffff" stroke-opacity="0.35" stroke-width="0.5"/>',
+    // The Santa hat's tail is drawn FIRST and well into the dome, so the dome
+    // covers the join: drawn after it, as the spec has it, the tail's own
+    // edge line sat across the dome and read as a gap between the two.
+    santa:
+      '<path d="M54 33.6 C48.6 29.8 44.6 29 41.6 29.6 C42.2 32.6 43.8 34.8 45.8 36.2 ' +
+      'C48.4 34.8 51.2 34.4 54 35.2 Z" fill="#c62828"/>' +
+      '<path d="M48.8 42 C48.8 34 54.6 28.2 62 28.2 C69.4 28.2 75.2 34 75.2 42 Z" fill="#c62828"/>' +
+      '<circle cx="41.4" cy="29.2" r="3.6" fill="#f4f4f0"/>' +
+      '<rect x="47.4" y="38.4" width="29.2" height="6.4" rx="3.2" fill="#f4f4f0"/>',
+    // A laurel is a wreath with blossom in it, not ten green leaves: every
+    // other leaf is a flower. The spec alternates two greens, and the second
+    // is the one that does not recolour with the kit, so that is the one
+    // that becomes petals.
+    laurel: (() => {
+      let i = 0;
+      return String(av.HATS.laurel).replace(/<ellipse\b/g, (m) =>
+        i++ % 2 ? '<ellipse fill="#f2b8c6" stroke="#c98aa0"' : m);
+    })(),
+  },
 };
 
 const SHADED = new Set(['managerHats', 'managerBeards']);
@@ -230,7 +270,8 @@ const flatTables = {
 for (const [name, [source, doc]] of Object.entries(flatTables)) {
   lines.push(`/// ${doc}`);
   lines.push(`const Map<String, String> ${name} = {`);
-  for (const [id, markup] of Object.entries(av[source])) {
+  for (const [id, raw] of Object.entries(av[source])) {
+    const markup = OVERRIDES[name]?.[id] ?? raw;
     const body = SHADED.has(name) ? shade(markup) : markup;
     lines.push(`  '${id}': ${markup ? lit(wrap(body)) : "''"},`);
   }

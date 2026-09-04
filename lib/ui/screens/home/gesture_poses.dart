@@ -302,11 +302,20 @@ final Map<String, GestureAnimation> _animations = {
   // past the shirt's front edge, where it emerges below and in front of the
   // near one: the two of them are what makes it read as folded rather than as
   // one arm held across.
+  //
+  // **AND THE ELBOW ONLY BENDS ONE WAY.** A cut that swung the near elbow
+  // forward and laid the forearm back across the chest looked folded and was
+  // a joint bent through 180 degrees, which was noticed at once. A side-on
+  // rig cannot twist the upper arm, and the twist is what carries a real
+  // forearm across the body — so this is the fold a profile can honestly
+  // show: both elbows drawn BACK behind him, both forearms flexed forward
+  // and laid level across the chest, the near one over the far one and a
+  // shade higher, hands at the front.
   'armsfolded': GestureAnimation(
-    armNear: _hold(armNearRest, 25, 0.14, 0.86),
-    foreNear: _hold(foreRest, -135.5, 0.14, 0.86),
-    armFar: _hold(armFarRest, 13.5, 0.14, 0.86),
-    foreFar: _hold(foreRest, -112, 0.14, 0.86),
+    armNear: _hold(armNearRest, 42, 0.14, 0.86),
+    foreNear: _hold(foreRest, -132, 0.14, 0.86),
+    armFar: _hold(armFarRest, 28, 0.14, 0.86),
+    foreFar: _hold(foreRest, -118, 0.14, 0.86),
   ),
   'handsonhead': GestureAnimation(
     head: _hold(0, 20, 0.20, 0.80),
@@ -597,6 +606,39 @@ final Map<String, GestureAnimation> _animations = {
     foreNear: _hold(foreRest, -107, 0.34, 0.84),
   ),
 };
+
+/// **WHICH WAY A GESTURE TURNS HIM**, -1 toward the stand across the pitch,
+/// 1 toward the camera — see `walkLifeAt` for the axis. Not a track on the
+/// pose: the turn is a whole-figure matter and a handful of gestures want it.
+/// Folded arms face the camera so the forearms across the chest can be SEEN,
+/// which a profile cannot show; a kiss blown, a badge kissed and a finger
+/// wagged go to the camera too; applause, a point and a salute go to the
+/// stand. Ramped in over the gesture's first sixth and out over its last.
+const Map<String, double> gestureTurn = {
+  'armsfolded': 0.6,
+  'blowkiss': 0.45,
+  'badgekiss': 0.4,
+  'fingerwag': 0.3,
+  'shush': 0.3,
+  'handsonhips': 0.3,
+  'applaud': -0.3,
+  'point': -0.35,
+  'salute': -0.3,
+  'wave': -0.25,
+};
+
+/// The turn for gesture [id] at [progress], eased in and out.
+double gestureTurnAt(String id, double progress) {
+  final full = gestureTurn[id];
+  if (full == null) return 0;
+  final p = progress.clamp(0.0, 1.0);
+  final env = p < 1 / 6
+      ? Curves.easeInOut.transform(p * 6)
+      : p > 5 / 6
+      ? Curves.easeInOut.transform((1 - p) * 6)
+      : 1.0;
+  return full * env;
+}
 
 /// True when this gesture has a pose to play. Every id in
 /// `manager_mood.dart`'s table does; the check exists so a future emote cannot

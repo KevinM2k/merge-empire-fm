@@ -7,6 +7,8 @@ library;
 
 import 'dart:ui' as ui;
 
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -221,7 +223,8 @@ void main() {
       // A single-deck ground is untouched: there is no depth to show.
       expect(deckPlan(4).deckScales, [1.0]);
       // And the three-decker's back tier is visibly back without vanishing.
-      expect(deckPlan(8).deckScales.first, closeTo(0.774, 0.001));
+      // 0.84 a step: the back tier of a three-decker at 0.706.
+      expect(deckPlan(8).deckScales.first, closeTo(0.706, 0.001));
     });
 
     test('and a deck that is further back is SHORTER too', () {
@@ -525,64 +528,36 @@ void main() {
       );
     });
 
-    test('THE GROUND MOVES AT THE FOOT\'S OWN RATE, not at an average of it', () {
-      // **No constant speed can do this.** The JS's tracks are linear in angle, so
-      // the supporting ankle's rate swings from -17 to +173 art units per cycle
-      // across one stance. A ground running at the mean sat at 119: 45% slow at
-      // mid-stance, and briefly going the wrong way at heel strike. That is the
-      // slip, and it is in the poses rather than in the speed.
+    test('THE GROUND MOVES AT ONE SPEED, and the foot does the varying', () {
+      // **This was the other way round, and it looked wrong.** The turf used to
+      // follow the supporting boot's own rate — no skate, and a lurch on every
+      // step, because the JS's poses swing that rate 45% either side of its
+      // mean across one stance. A walker's PACE is level; it is the foot that
+      // speeds up and slows down against the ground. Reported from the couch
+      // as the background easing on every step he takes. So the ease is the
+      // identity now — `groundEaseFloor` is 1 — and the planted foot's creep
+      // is the accepted price, measured here so it cannot grow unnoticed.
+      for (var i = 0; i <= 100; i++) {
+        expect(groundEase(i / 100), closeTo(i / 100, 1e-9));
+      }
       double sole(double t, bool near) =>
           walkerBootSoleY(t, near: near) - walkerHipRise(t);
-
-      // 256 steps, the same grid the table is built on. It matters: at the
-      // support HAND-OVER the two ankles are half a stride apart in x, so a step
-      // that classifies the supporting foot differently from the table compares
-      // one boot against the other and reports a ~50-unit slip that is not there.
       const n = 256;
       var worst = 0.0;
-      var worstAt = 0.0;
       for (var i = 0; i < n; i++) {
         final t = i / n * 0.5, t2 = (i + 1) / n * 0.5;
-        // Whichever boot is lower is the one carrying him.
         final near = sole(t, true) >= sole(t, false);
-        // Skip the hand-over itself: which foot is measured changes there, and
-        // that is a discontinuity in the measurement rather than in the world.
         if (near != (sole(t2, true) >= sole(t2, false))) continue;
         final foot =
             walkerAnkle(t, near: near).x - walkerAnkle(t2, near: near).x;
         final ground =
             (groundEase(t2 / 0.5) - groundEase(t / 0.5)) *
             groundHalfStrideArtUnits;
-        final slip = (foot - ground).abs() * n * 2; // units per cycle
-        if (slip > worst) {
-          worst = slip;
-          worstAt = t;
-        }
+        worst = math.max(worst, (foot - ground).abs() * n * 2);
       }
-      // **WHAT IS LEFT IS A DELIBERATE TRADE**, and it was 15 before it was 46.
-      // The clamp on the support foot's backward creep left the curve with a
-      // genuine standstill in it, so twice a stride the whole diorama stopped
-      // dead and surged out of it — which is what was being reported as the walk
-      // stuttering. `groundEaseFloor` blends a constant rate in to kill that, and
-      // the slip is the price. Still comfortably better than the 78 a wholly
-      // constant ground was rejected for: a planted foot creeping a little is a
-      // much smaller lie than a pitch stalling under a man mid-stride.
-      // **The guard was 55, and the world stalled to earn it.** Peak slip and a
-      // world that never stops are the same number seen from two sides: at the
-      // hand-over the supporting foot creeps BACKWARDS for a few per cent, so
-      // any ground still moving forwards there counts as slip. The player
-      // reported the stall ("he freezes, background and all, on every step"),
-      // so `groundEaseMinRate` fills that hole and the peak slip at it is what
-      // it is — 86 at t≈0.10, on the three samples of the hand-over, and the
-      // foot's own everywhere else. The stall guard below is the one that
-      // matters now, and it is tight.
-      expect(
-        worst,
-        lessThan(90),
-        reason:
-            'slip of ${worst.toStringAsFixed(1)} at t=$worstAt — a constant '
-            'ground was 78 out at its worst',
-      );
+      // ~121 units per cycle at its worst, at the hand-over where the planted
+      // foot briefly creeps backwards. A stall of the whole diorama was worse.
+      expect(worst, lessThan(135));
     });
 
     test('AND IT NEVER STOPS MID-STRIDE, which is what the floor is for', () {
@@ -640,9 +615,9 @@ void main() {
       // by 2.3% — a systematic error smeared over every step if the warp and the
       // scale disagree about which one they mean.
       expect(groundHalfStrideArtUnits, lessThan(walkerStrideArtUnits));
-      // And it is 1: it was 1.12 while the ground ran at a constant speed, which
-      // was covering for the varying rate that [groundEase] now matches outright.
-      expect(groundSpeedTrim, 1);
+      // 1.12 while the ground runs level: the planted foot outruns a constant
+      // ground at mid-stance and the eye reads the mean as slow. See the knob.
+      expect(groundSpeedTrim, closeTo(1.12, 1e-9));
     });
 
     test(

@@ -134,20 +134,25 @@ void paintLimb(
       ..color = Colors.white.withValues(alpha: far ? 0.06 : 0.13)
       ..maskFilter = soft ? const MaskFilter.blur(BlurStyle.normal, 1.4) : null,
   );
+  // **A CREASE, not a smudge.** The occlusion at the joint was a disc of
+  // black at a fifth, and on skin it read as a dirty knee. It is the limb's
+  // own colour deepened now, softer and smaller, and blurred into the shading
+  // around it — the shadow a bent joint throws rather than a mark on it.
   if (occlude) {
     canvas.drawCircle(
       from,
-      wFrom * 0.62,
+      wFrom * 0.5,
       Paint()
         ..shader = ui.Gradient.radial(
           from,
-          wFrom * 0.62,
+          wFrom * 0.5,
           [
-            Colors.black.withValues(alpha: 0.22),
-            Colors.black.withValues(alpha: 0),
+            deepen(body, 0.5).withValues(alpha: 0.42),
+            deepen(body, 0.5).withValues(alpha: 0),
           ],
-          const [0.35, 1],
-        ),
+          const [0.2, 1],
+        )
+        ..maskFilter = soft ? const MaskFilter.blur(BlurStyle.normal, 1.2) : null,
     );
   }
   canvas.restore();
@@ -298,6 +303,13 @@ bool outfitSleevesAreKit(String? id) => id == 'tracksuit';
 ///   be confusable.
 typedef ManagerBuild = ({
   double torso,
+
+  /// **CHEST OVER WAIST.** Positive widens the shoulders and chest and pulls
+  /// the waist in — a V — and negative does the reverse. Scaling the whole
+  /// torso made `athletic` read as FAT: a man wider everywhere is heavier, a
+  /// man wider at the top and narrower at the middle is muscular. In profile
+  /// that V is the only thing that says it.
+  double taper,
   double hip,
   double limb,
 
@@ -311,9 +323,23 @@ typedef ManagerBuild = ({
 });
 
 const Map<String, ManagerBuild> managerBuilds = {
-  'regular': (torso: 1, hip: 1, limb: 1, arm: 1, bulge: null),
-  'lean': (torso: 0.76, hip: 0.86, limb: 0.85, arm: 0.85, bulge: null),
-  'broad': (torso: 1.28, hip: 1.16, limb: 1.18, arm: 1.18, bulge: null),
+  'regular': (torso: 1, taper: 0, hip: 1, limb: 1, arm: 1, bulge: null),
+  'lean': (
+    torso: 0.76,
+    taper: 0.04,
+    hip: 0.86,
+    limb: 0.85,
+    arm: 0.85,
+    bulge: null,
+  ),
+  'broad': (
+    torso: 1.26,
+    taper: 0.05,
+    hip: 1.16,
+    limb: 1.18,
+    arm: 1.18,
+    bulge: null,
+  ),
   // Gut low and forward, hanging OVER the waistband — a bulge that stops dead
   // at the shorts line reads as a barrel rather than a belly.
   //
@@ -325,17 +351,29 @@ const Map<String, ManagerBuild> managerBuilds = {
   // is only that its bust clears the shirt's edge; this now does the same, and
   // hangs to the hem at y93 while it is at it. See [bellyFront] for the rule.
   'belly': (
-    torso: 1.18,
+    torso: 1.16,
+    taper: -0.06,
     hip: 1.04,
     limb: 1.04,
     arm: 1.04,
     bulge: (cx: 64, cy: 82.5, rx: 8, ry: 11),
   ),
-  'athletic': (torso: 1.14, hip: 0.92, limb: 1.04, arm: 1.44, bulge: null),
+  // **Muscle, not bulk.** The torso was 1.14 all the way down, which is a
+  // heavier man; it is a shade over regular now with a hard V — chest and
+  // shoulders out, waist in — and the arms and thighs carry the rest.
+  'athletic': (
+    torso: 1.02,
+    taper: 0.2,
+    hip: 0.92,
+    limb: 1.08,
+    arm: 1.42,
+    bulge: null,
+  ),
   // Chest forward over a narrow torso and a wider hip, so the waist-to-hip
   // difference does as much work as the bust.
   'curvy': (
     torso: 0.84,
+    taper: 0.08,
     hip: 1.04,
     limb: 0.90,
     arm: 0.90,
@@ -370,26 +408,31 @@ ManagerBuild buildScales(String? id) =>
 ///
 /// [build] scales it about the centre line, so the customiser's build axis has
 /// something to act on: 1 is regular.
-Path torsoPath({double build = 1}) {
+Path torsoPath({double build = 1, double taper = 0}) {
   const centre = 58.0;
   const neckY = 57.0;
   const hemY = 91.0;
-  double x(double from) => centre + (from - centre) * build;
+  // The scale runs from `build·(1+taper)` at the collar to `build·(1-taper)`
+  // at the hem, so a taper is a V and the width is still the build's.
+  double x(double from, [double y = (neckY + hemY) / 2]) {
+    final along = ((y - neckY) / (hemY - neckY)).clamp(0.0, 1.0);
+    return centre + (from - centre) * build * (1 + taper * (1 - 2 * along));
+  }
 
   return Path()
     // Out of the neck and over the front deltoid, which is the widest point.
-    ..moveTo(x(61.4), neckY)
-    ..quadraticBezierTo(x(68.2), neckY + 1.6, x(69.4), neckY + 7)
+    ..moveTo(x(61.4, neckY), neckY)
+    ..quadraticBezierTo(x(68.2, neckY + 1.6), neckY + 1.6, x(69.4, neckY + 7), neckY + 7)
     // Chest, and the swell of it.
-    ..quadraticBezierTo(x(70.2), neckY + 14, x(68.4), neckY + 21)
+    ..quadraticBezierTo(x(70.2, neckY + 14), neckY + 14, x(68.4, neckY + 21), neckY + 21)
     // The tuck at the ribs — the waist is the narrowest part of him.
-    ..quadraticBezierTo(x(67.2), neckY + 27, x(68.0), hemY)
+    ..quadraticBezierTo(x(67.2, neckY + 27), neckY + 27, x(68.0, hemY), hemY)
     // Across the waistband.
-    ..lineTo(x(48.4), hemY)
+    ..lineTo(x(48.4, hemY), hemY)
     // Back up the spine side: waist, then the lats flaring to the shoulder.
-    ..quadraticBezierTo(x(49.0), neckY + 27, x(47.9), neckY + 20)
-    ..quadraticBezierTo(x(46.6), neckY + 13, x(48.0), neckY + 6.5)
-    ..quadraticBezierTo(x(49.2), neckY + 1.4, x(54.8), neckY)
+    ..quadraticBezierTo(x(49.0, neckY + 27), neckY + 27, x(47.9, neckY + 20), neckY + 20)
+    ..quadraticBezierTo(x(46.6, neckY + 13), neckY + 13, x(48.0, neckY + 6.5), neckY + 6.5)
+    ..quadraticBezierTo(x(49.2, neckY + 1.4), neckY + 1.4, x(54.8, neckY), neckY)
     ..close();
 }
 
@@ -403,10 +446,11 @@ void paintTorso(
   Canvas canvas,
   Color kit, {
   double build = 1,
+  double taper = 0,
   ({double cx, double cy, double rx, double ry})? bulge,
   bool soft = true,
 }) {
-  final path = torsoPath(build: build);
+  final path = torsoPath(build: build, taper: taper);
   final bounds = path.getBounds();
   canvas.drawPath(
     path,

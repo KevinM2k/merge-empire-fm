@@ -245,4 +245,22 @@ void main() {
       );
     }
   });
+
+  group('A GESTURE CAN TURN HIM', () {
+    test('folded arms face the camera, applause faces the stand', () {
+      expect(gestureTurnAt('armsfolded', 0.5), greaterThan(0.5));
+      expect(gestureTurnAt('applaud', 0.5), lessThan(0));
+      expect(gestureTurnAt('fistpump', 0.5), 0, reason: 'not every gesture turns');
+    });
+
+    test('and it ramps in from square and back to square', () {
+      expect(gestureTurnAt('armsfolded', 0), 0);
+      expect(gestureTurnAt('armsfolded', 1), 0);
+      expect(gestureTurnAt('armsfolded', 0.08).abs(), lessThan(gestureTurnAt('armsfolded', 0.5).abs()));
+      for (final id in gestureTurn.keys) {
+        expect(hasGesturePose(id), isTrue, reason: '$id turns but has no pose');
+        expect(gestureTurn[id]!.abs(), lessThanOrEqualTo(1));
+      }
+    });
+  });
 }

@@ -251,51 +251,15 @@ double groundSpeedPxPerSec(Mood mood) =>
     walkerScale /
     (walkDurationFor(mood).inMicroseconds / 2e6);
 
-/// **HOW FAR THE WORLD HAS TRAVELLED, as a fraction of one half-stride, [u] of
-/// the way through it.**
-///
-/// A constant ground speed cannot match this walk and no trim can rescue it. The
-/// JS's tracks are linear in ANGLE, so the supporting ankle's horizontal rate
-/// swings from -17 to +173 art units per cycle across one stance while a constant
-/// ground sat at 119. That is the foot outrunning the grass by 45% at mid-stance
-/// and briefly creeping the wrong way at heel strike — the slip that kept being
-/// reported, and it is in the poses, not in the speed.
-///
-/// So the ground moves at the foot's OWN rate: this is the integral of the
-/// supporting boot's horizontal velocity, normalised. A strip driven by it is
-/// stationary under the planted foot at every instant, which is what "planted"
-/// means — the one property a solved rig gets for free and a played one has to be
-/// handed.
-///
-/// **Whichever boot is lower is carrying him**, and that changes hands twice a
-/// cycle, so the velocity has period half a cycle — which is why this is per
-/// half-stride.
-///
-/// Negative velocity is CLAMPED OUT. The support foot really does creep forward
-/// for a few per cent either side of each hand-over, and following that exactly
-/// would judder the whole world backwards; the JS's own note calls it "the judder
-/// as he puts his foot down". A world that never reverses, with a hair of slip in
-/// that window, is the better of the two.
-/// How much of a CONSTANT rate is blended into the solved one.
-///
-/// **THE WORLD USED TO STOP DEAD ON EVERY STEP**, and that is what was being
-/// reported as a stutter — nothing to do with the gesture halt. Clamping the
-/// support foot's negative creep to zero leaves a genuine standstill in the
-/// curve: measured over a half-stride the rate ran 0.36, 0.21, 0.06, **0.00**,
-/// and then jumped straight to 1.11. Twice a stride the whole diorama came to a
-/// halt and surged out of it.
-///
-/// So a floor is blended in. It is not free and the trade is worth stating: the
-/// worst foot slip goes from 15 art units a cycle to about 46, against the 78
-/// that a wholly constant ground was rejected for. A third of the way back
-/// toward constant buys a world that never stops — and a planted foot that
-/// creeps a little is a much smaller lie than a pitch that stalls under a man
-/// mid-stride.
-///
-/// Two things fall out of the blend being LINEAR in the same 0..1: both terms
-/// start at 0 and end at 1, so the total distance a half-stride covers is
-/// untouched, and both are monotone, so the world still cannot reverse.
-const double groundEaseFloor = 0.3;
+/// **HOW MUCH OF THE GROUND'S SPEED IS THE PLANTED FOOT'S, and how much is a
+/// steady walk.** At 0 the turf follows the supporting boot exactly and never
+/// skates; at 1 it runs at one speed across the whole stride. It sat at 0.3,
+/// and the turf visibly pulsed — a lurch every step, which is not how walking
+/// looks: a walker's pace is level and the foot does the varying. Reported from
+/// the couch as the background easing on every step. So it is 1 now, the JS's
+/// own arrangement, and the residual skate is the accepted price — see
+/// `manager_walker_test`, where it is measured.
+const double groundEaseFloor = 1.0;
 
 /// The slowest the SOLVED rate may run, as a fraction of its mean, before the
 /// floor above is blended in.
@@ -545,19 +509,17 @@ class _WalkBeatState extends State<_WalkBeat>
       WalkBeat(notifier: _halfStrides, child: widget.child);
 }
 
-/// A last nudge on the ground's speed, if it is ever wanted.
+/// A last nudge on the ground's speed.
 ///
-/// **It is 1, and it should stay 1 unless something changes.** It was 1.12 for a
-/// while and it was covering for the wrong thing: with a constant-speed ground the
-/// foot outran the grass by 45% at mid-stance, and the eye reads that as "the
-/// ground is too slow" even when the AVERAGE is right — so the average kept being
-/// pushed up, which made the rest of the cycle too fast instead.
-///
-/// [groundEase] fixes it at source: the world now travels at the supporting foot's
-/// own instantaneous rate, so there is nothing left to trim. Kept as a named knob
-/// because it is the one honest place to put a correction if one is ever needed,
-/// rather than having somebody reach into the stride for it.
-const double groundSpeedTrim = 1;
+/// **1.12, because the ground runs level again.** With the turf at one speed
+/// the planted foot outruns it by half at mid-stance, and the eye reads that
+/// as the grass being too slow even when the average is exact — reported from
+/// the couch in as many words the moment the per-step ease came out. Pushing
+/// the mean up a shade is the honest correction: the fastest part of the
+/// stance is what the eye locks onto, and this closes most of that gap without
+/// making the swing phase visibly quick. It was 1 while [groundEase] tracked
+/// the foot outright and there was nothing to trim.
+const double groundSpeedTrim = 1.12;
 
 /// How long one lane pair takes to sweep past, so that the grass AT HIS FEET
 /// moves at [groundSpeedPxPerSec].
@@ -1422,11 +1384,13 @@ const int firstStandTier = 2;
 /// pitch and the deck's own height all take the same scale, because a deck
 /// where only the people shrank would be small fans in a full-size stand.
 ///
-/// 0.88 per step, which puts a three-decker's back tier at 0.77 — noticeably
-/// further off without the top of the ground turning into a hairline. The rows
+/// 0.84 per step, which puts a three-decker's back tier at 0.71 — plainly
+/// further off without the top of the ground turning into a hairline. It was
+/// 0.88 and the decks still read as one wall; asked for again from the couch:
+/// stadiums go BACK as they go up. The rows
 /// WITHIN a deck already narrow toward the back; this is the same idea one
 /// level up, and the two compound the way they do in a real ground.
-const double _deckDepth = 0.88;
+const double _deckDepth = 0.84;
 
 /// The scale for deck [index] of [decks], nearest first at 1.0.
 ///
@@ -1509,6 +1473,17 @@ const List<Color> _fanColours = [
   Color(0xFFFB8C00),
   Color(0xFF26C6DA),
   Color(0xFFCFD8DC),
+];
+
+/// Hair over the crowd's heads. Dark, mostly, with a few fair and a few grey.
+const List<Color> _fanHair = [
+  Color(0xFF2A1B12),
+  Color(0xFF1A1A1A),
+  Color(0xFF5B3A22),
+  Color(0xFF2A1B12),
+  Color(0xFFB88A4A),
+  Color(0xFF8A8A8A),
+  Color(0xFF3B2A1E),
 ];
 
 /// Skin variety, which the JS gets out of `nth-child` selectors for nothing.
@@ -1622,116 +1597,294 @@ class ParkPainter extends CustomPainter {
     // Seeded like the crowd is, so the tree line does not reshuffle per frame.
     final rng = math.Random(11);
     final scale = _crowdScale;
-    final unitW = size.width / 480;
+    final unit = size.width / 480;
+    final h = size.height;
+    final base = h;
 
     // This IS the horizon at these tiers — there is no plate behind it. See
     // the segment for the five reports that established that.
+    //
+    // **THE HAZE GOES ON THE THINGS AT THE HORIZON, NOT ON THE AIR ABOVE THEM,
+    // and that rectangle is the line this strip has been reported for.** The
+    // `srcATop` wash at the foot of this method tints only what this painter
+    // put down; the sky keeps its own colour. Everything above six tenths of
+    // the strip has to leave most of its row clear for the same reason, and
+    // `pitch_scene_test` counts the pixels.
+    canvas.saveLayer(Offset.zero & size, Paint());
 
-    void tree(double x, double size_) {
-      // No taller than the strip: the biggest tree stood 59 units in a 46-unit
-      // box and its crown was clipped flat, which read as something behind it.
-      final s = math.min(size_, size.height / (49 * scale));
-      final w = 34 * scale * s;
-      final trunkH = 15 * scale * s;
-      final crown = w;
-      final base = size.height;
+    // **A FAR TREELINE, in the bottom two fifths.** Three trees on a bare
+    // horizon is a field; a soft, hazed line of distant woodland behind them
+    // is a place, and it is what gives the near trees something to be in
+    // front of. Kept below the sixty-per-cent line so it is depth rather than
+    // a wash across the sky.
+    final farTop = h * 0.64;
+    final far = Path()..moveTo(0, h);
+    var fx = -8.0;
+    var i = 0;
+    while (fx < size.width + 20) {
+      final r = (7 + (i % 3) * 2.2 + ((i * 7) % 5) * 0.8) * unit;
+      final cy = farTop + r + 1;
+      far.addOval(Rect.fromCircle(center: Offset(fx, cy), radius: r));
+      fx += r * 1.15;
+      i++;
+    }
+    far.addRect(Rect.fromLTRB(0, farTop + 6, size.width, h));
+    canvas.drawPath(
+      far,
+      Paint()
+        ..shader = ui.Gradient.linear(Offset(0, farTop), Offset(0, h), [
+          const Color(0xFF5C9A78),
+          const Color(0xFF3F7A5B),
+        ]),
+    );
+
+    // A near tree: a trunk, a crown built of three blobs, lit up-left and
+    // shaded underneath, and a shadow on the grass at its foot. The old one
+    // was a disc on a stick.
+    void tree(double x, double size_, {bool tall = false}) {
+      final s = math.min(size_, h / (49 * scale));
+      final w = (tall ? 22 : 34) * scale * s;
+      final crownH = (tall ? 40 : 30) * scale * s;
+      final trunkH = (tall ? 12 : 15) * scale * s;
+      final trunkW = (tall ? 4 : 6) * scale * s;
+      final cx = x + w / 2;
+      // Shadow on the ground, so it stands on the grass rather than on the
+      // horizon line.
       canvas.drawOval(
-        Rect.fromLTWH(x, base - trunkH - crown, w, crown),
-        Paint()..color = const Color(0xFF2E6B34),
+        Rect.fromCenter(center: Offset(cx + w * 0.15, base - 1), width: w * 1.1, height: 4 * scale),
+        Paint()
+          ..color = Colors.black.withValues(alpha: 0.2)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.5),
+      );
+      // Trunk, tapered, with a branch or two into the crown.
+      canvas.drawPath(
+        Path()
+          ..moveTo(cx - trunkW * 0.7, base + 1)
+          ..lineTo(cx + trunkW * 0.7, base + 1)
+          ..lineTo(cx + trunkW * 0.35, base - trunkH - crownH * 0.35)
+          ..lineTo(cx - trunkW * 0.35, base - trunkH - crownH * 0.35)
+          ..close(),
+        Paint()..color = const Color(0xFF5E4130),
+      );
+      canvas.drawLine(
+        Offset(cx, base - trunkH - crownH * 0.2),
+        Offset(cx + w * 0.22, base - trunkH - crownH * 0.5),
+        Paint()
+          ..color = const Color(0xFF5E4130)
+          ..strokeWidth = trunkW * 0.35,
+      );
+      final crownTop = base - trunkH - crownH;
+      final crown = Path();
+      if (tall) {
+        crown.addOval(Rect.fromLTWH(cx - w / 2, crownTop, w, crownH));
+      } else {
+        crown.addOval(Rect.fromLTWH(cx - w * 0.5, crownTop + crownH * 0.18, w, crownH * 0.82));
+        crown.addOval(Rect.fromLTWH(cx - w * 0.32, crownTop, w * 0.62, crownH * 0.62));
+        crown.addOval(Rect.fromLTWH(cx - w * 0.05, crownTop + crownH * 0.1, w * 0.55, crownH * 0.6));
+      }
+      final cb = crown.getBounds();
+      canvas.drawPath(
+        crown,
+        Paint()
+          ..shader = ui.Gradient.linear(cb.topLeft, cb.bottomRight, [
+            const Color(0xFF6DB760),
+            const Color(0xFF3E8A42),
+            const Color(0xFF265C2C),
+          ], const [0, 0.5, 1]),
+      );
+      canvas.save();
+      canvas.clipPath(crown);
+      // Leaf clumps: a lit one high on the left, shade low on the right.
+      canvas.drawOval(
+        Rect.fromLTWH(cb.left + cb.width * 0.12, cb.top + cb.height * 0.1, cb.width * 0.4, cb.height * 0.32),
+        Paint()
+          ..color = Colors.white.withValues(alpha: 0.18)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2),
       );
       canvas.drawOval(
-        Rect.fromLTWH(x + w * 0.12, base - trunkH - crown * 0.9, w * 0.5, crown * 0.5),
-        Paint()..color = const Color(0xFF4A8F52),
+        Rect.fromLTWH(cb.left + cb.width * 0.3, cb.top + cb.height * 0.55, cb.width * 0.75, cb.height * 0.5),
+        Paint()
+          ..color = Colors.black.withValues(alpha: 0.2)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2.4),
       );
+      canvas.restore();
+    }
+
+    // A park bench: two slats, a back rest, two legs, in weathered wood.
+    void bench(double x) {
+      final w = 22 * unit;
+      final seatY = base - 7 * scale;
+      final wood = Paint()..color = const Color(0xFF8A5A36);
+      final light = Paint()..color = const Color(0xFFA97347);
+      canvas.drawOval(
+        Rect.fromCenter(center: Offset(x + w / 2, base - 0.5), width: w * 1.05, height: 3 * scale),
+        Paint()
+          ..color = Colors.black.withValues(alpha: 0.18)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.2),
+      );
+      // Legs.
+      canvas.drawRect(Rect.fromLTWH(x + 2 * unit, seatY, 1.6 * unit, base - seatY + 1), Paint()..color = const Color(0xFF3A3A3A));
+      canvas.drawRect(Rect.fromLTWH(x + w - 3.6 * unit, seatY, 1.6 * unit, base - seatY + 1), Paint()..color = const Color(0xFF3A3A3A));
+      // Seat slats.
+      canvas.drawRect(Rect.fromLTWH(x, seatY, w, 1.4 * scale), light);
+      canvas.drawRect(Rect.fromLTWH(x, seatY + 1.6 * scale, w, 1.2 * scale), wood);
+      // Back rest, leaning back a touch.
+      canvas.drawRect(Rect.fromLTWH(x + 1 * unit, seatY - 5.2 * scale, w - 2 * unit, 1.3 * scale), light);
+      canvas.drawRect(Rect.fromLTWH(x + 1 * unit, seatY - 3.4 * scale, w - 2 * unit, 1.1 * scale), wood);
+      canvas.drawRect(Rect.fromLTWH(x + 3 * unit, seatY - 5.6 * scale, 1.2 * unit, 5.6 * scale), Paint()..color = const Color(0xFF3A3A3A));
+      canvas.drawRect(Rect.fromLTWH(x + w - 4.2 * unit, seatY - 5.6 * scale, 1.2 * unit, 5.6 * scale), Paint()..color = const Color(0xFF3A3A3A));
+    }
+
+    // A person: legs, a shirt with two ARMS, a head with HAIR. The one who
+    // used to loiter here was a rounded rect with a disc on it.
+    void person(double x, Color shirt, Color hair, {bool sitting = false, bool waving = false, double seatY = 0}) {
+      final skin = _fanSkins[rng.nextInt(_fanSkins.length)];
+      final legH = sitting ? 5 * scale : 7 * scale;
+      final torsoH = 7 * scale;
+      final feet = sitting ? base : base;
+      final hip = sitting ? seatY : feet - legH;
+      final trousers = Paint()..color = const Color(0xFF34404A);
+      if (sitting) {
+        // Thighs forward along the seat, shins down to the ground.
+        canvas.drawRect(Rect.fromLTWH(x, hip - 1.5 * scale, 6 * unit, 2.6 * scale), trousers);
+        canvas.drawRect(Rect.fromLTWH(x + 4.5 * unit, hip, 2 * unit, feet - hip + 1), trousers);
+        canvas.drawRect(Rect.fromLTWH(x + 1.5 * unit, hip, 2 * unit, feet - hip + 1), trousers);
+      } else {
+        canvas.drawRect(Rect.fromLTWH(x + 1 * unit, hip, 2.4 * unit, legH + 1), trousers);
+        canvas.drawRect(Rect.fromLTWH(x + 4.2 * unit, hip, 2.4 * unit, legH + 1), trousers);
+      }
+      final torsoTop = hip - torsoH + (sitting ? 1.5 * scale : 0);
       canvas.drawRRect(
-        RRect.fromRectAndRadius(
-          Rect.fromLTWH(x + w * 0.41, base - trunkH, 6 * scale * s, trunkH),
-          const Radius.circular(2),
+        RRect.fromRectAndCorners(
+          Rect.fromLTWH(x, torsoTop, 7.6 * unit, torsoH + 0.5),
+          topLeft: const Radius.circular(2.5),
+          topRight: const Radius.circular(2.5),
         ),
-        Paint()..color = const Color(0xFF6B4A2E),
+        Paint()..color = shirt,
+      );
+      // Arms: one hanging, one hanging or raised.
+      final arm = Paint()
+        ..color = shirt
+        ..strokeWidth = 1.7 * unit
+        ..strokeCap = StrokeCap.round;
+      canvas.drawLine(Offset(x + 0.8 * unit, torsoTop + 1.5 * scale), Offset(x - 0.6 * unit, torsoTop + 6 * scale), arm);
+      if (waving) {
+        canvas.drawLine(Offset(x + 6.8 * unit, torsoTop + 1.5 * scale), Offset(x + 9.5 * unit, torsoTop - 4 * scale), arm);
+        canvas.drawCircle(Offset(x + 9.6 * unit, torsoTop - 4.6 * scale), 1.1 * unit, Paint()..color = skin);
+      } else if (sitting) {
+        canvas.drawLine(Offset(x + 6.8 * unit, torsoTop + 1.5 * scale), Offset(x + 7.5 * unit, torsoTop + 6 * scale), arm);
+      } else {
+        canvas.drawLine(Offset(x + 6.8 * unit, torsoTop + 1.5 * scale), Offset(x + 8.2 * unit, torsoTop + 6 * scale), arm);
+      }
+      // Head, and hair over the top of it.
+      final headC = Offset(x + 3.8 * unit, torsoTop - 3 * scale);
+      canvas.drawCircle(headC, 3.1 * unit, Paint()..color = skin);
+      canvas.drawPath(
+        Path()
+          ..addArc(Rect.fromCircle(center: headC, radius: 3.25 * unit), math.pi * 0.95, math.pi * 1.1)
+          ..close(),
+        Paint()..color = hair,
       );
     }
 
-    final unit = unitW;
+    const hairs = [Color(0xFF2A1B12), Color(0xFF5B3A22), Color(0xFFB88A4A), Color(0xFF8A8A8A), Color(0xFF1A1A1A)];
 
-    // **THE HAZE GOES ON THE THINGS AT THE HORIZON, NOT ON THE AIR ABOVE THEM,
-    // and that rectangle is the line this strip has been reported for.**
-    //
-    // The wash at the foot of this method was `drawRect(Offset.zero & size)` —
-    // the WHOLE strip, at 22% of the sky's own horizon colour. On the terrace
-    // that is correct, because a stand fills its strip and the haze lands on
-    // seats. A PARK does not: the trees, the hedge and the fence are the bottom
-    // third of it and the rest is sky. So the wash painted a hard-edged
-    // rectangle of slightly lighter sky across the diorama, with its top edge
-    // exactly [parkHeight] above the horizon.
-    //
-    // Every previous pass read that edge as the BACKDROP being cropped and went
-    // after the Kenney plate — its scale, then its crop, then its knocked-out
-    // sky, then its dark-theme dimming, and finally the plate itself. The plate
-    // was never what drew the line; it only hid some of it, which is why the
-    // line survived its removal.
-    //
-    // `srcATop` in the painter's own layer tints only the pixels this painter
-    // put down. Empty sky has no alpha to composite against, so there is
-    // nothing left with an edge — and the horizon still sits at the terrace's
-    // distance, which is what the haze is for.
-    canvas.saveLayer(Offset.zero & size, Paint());
+    // Trees, two species, in a loose line.
+    tree((22 + rng.nextDouble() * 20) * unit, 0.9 + rng.nextDouble() * 0.3);
+    tree((120 + rng.nextDouble() * 20) * unit, 1.0 + rng.nextDouble() * 0.25, tall: true);
+    tree((205 + rng.nextDouble() * 30) * unit, 0.75 + rng.nextDouble() * 0.3);
+    tree((340 + rng.nextDouble() * 30) * unit, 0.9 + rng.nextDouble() * 0.3);
+    tree((430 + rng.nextDouble() * 20) * unit, 0.8, tall: true);
 
-    tree((30 + rng.nextDouble() * 30) * unit, 0.9 + rng.nextDouble() * 0.3);
-    tree((190 + rng.nextDouble() * 40) * unit, 0.7 + rng.nextDouble() * 0.3);
-    tree((350 + rng.nextDouble() * 50) * unit, 0.85 + rng.nextDouble() * 0.35);
+    // The hedge: a run of clipped bushes along the boundary, lit on top.
+    final hedgeX0 = (150 + rng.nextDouble() * 40) * unit;
+    for (var b = 0; b < 6; b++) {
+      final bx = hedgeX0 + b * 15 * unit;
+      final bh = (9 + (b % 2) * 2.5) * scale;
+      final box = Rect.fromLTWH(bx, base - bh, 18 * unit, bh + 1);
+      canvas.drawOval(box, Paint()..color = const Color(0xFF2F6E37));
+      canvas.drawOval(
+        Rect.fromLTWH(bx + 2 * unit, base - bh + 0.6, 10 * unit, bh * 0.45),
+        Paint()
+          ..color = Colors.white.withValues(alpha: 0.13)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.2),
+      );
+    }
 
-    // The hedge.
-    final bushX = (120 + rng.nextDouble() * 160) * unit;
-    canvas.drawOval(
-      Rect.fromLTWH(bushX, size.height - 15 * scale, 22 * scale, 13 * scale),
-      Paint()..color = const Color(0xFF33703A),
-    );
+    // **A PARK HAS BENCHES.** Two, either side of the pitch, and at Sunday
+    // League somebody is sitting on one.
+    final bench1 = 78 * unit;
+    final bench2 = 318 * unit;
+    bench(bench1);
+    bench(bench2);
 
-    // **SUNDAY LEAGUE GETS SPECTATORS; the park below it gets nobody.** One or
-    // two, which is the difference between a pitch someone turned up to watch
-    // and a pitch in a field.
     if (tier >= 1) {
-      final n = 1 + (rng.nextDouble() < 0.5 ? 1 : 0);
-      for (var i = 0; i < n; i++) {
-        final x = (90 + rng.nextDouble() * 300 + i * 60) * unit;
-        final shirt = _fanColours[rng.nextInt(_fanColours.length)];
-        final base = size.height;
-        canvas.drawRRect(
-          RRect.fromRectAndCorners(
-            Rect.fromLTWH(x, base - 13 * scale, 8 * scale, 13 * scale),
-            topLeft: const Radius.circular(3),
-            topRight: const Radius.circular(3),
-          ),
-          Paint()..color = shirt,
-        );
-        canvas.drawOval(
-          Rect.fromLTWH(x + scale, base - 19 * scale, 6 * scale, 6 * scale),
-          Paint()..color = const Color(0xFFE8C6A0),
-        );
+      // The changing rooms: a hut with a pitched roof, a door and a window.
+      final hx = 385 * unit;
+      final hw = 34 * unit;
+      final hh = 13 * scale;
+      final wall = Rect.fromLTWH(hx, base - hh, hw, hh + 1);
+      canvas.drawRect(wall, Paint()..color = const Color(0xFFD9CBB0));
+      canvas.drawRect(Rect.fromLTWH(hx, base - hh, hw * 0.3, hh + 1), Paint()..color = Colors.black.withValues(alpha: 0.1));
+      canvas.drawPath(
+        Path()
+          ..moveTo(hx - 3 * unit, base - hh + 0.5)
+          ..lineTo(hx + hw / 2, base - hh - 7 * scale)
+          ..lineTo(hx + hw + 3 * unit, base - hh + 0.5)
+          ..close(),
+        Paint()..color = const Color(0xFF6E3F36),
+      );
+      canvas.drawRect(Rect.fromLTWH(hx + 6 * unit, base - 8 * scale, 5 * unit, 8 * scale + 1), Paint()..color = const Color(0xFF4A5B6A));
+      canvas.drawRect(Rect.fromLTWH(hx + 18 * unit, base - 10 * scale, 7 * unit, 5 * scale), Paint()..color = const Color(0xFFBFDCEC));
+      canvas.drawRect(Rect.fromLTWH(hx + 21.2 * unit, base - 10 * scale, 0.7 * unit, 5 * scale), Paint()..color = const Color(0xFF7A6A55));
+      canvas.drawRect(Rect.fromLTWH(hx + 18 * unit, base - 7.8 * scale, 7 * unit, 0.7 * scale), Paint()..color = const Color(0xFF7A6A55));
+
+      // A lamp post and a bin, because somebody looks after this park.
+      final lx = 262 * unit;
+      canvas.drawRect(Rect.fromLTWH(lx, base - 24 * scale, 1.4 * unit, 24 * scale + 1), Paint()..color = const Color(0xFF4B5560));
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(Rect.fromLTWH(lx - 2.2 * unit, base - 26.5 * scale, 5.8 * unit, 3 * scale), const Radius.circular(1)),
+        Paint()..color = const Color(0xFF5E6975),
+      );
+      final binX = 236 * unit;
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(Rect.fromLTWH(binX, base - 7 * scale, 5.5 * unit, 7 * scale + 1), const Radius.circular(1.2)),
+        Paint()..color = const Color(0xFF3F4A44),
+      );
+      canvas.drawRect(Rect.fromLTWH(binX - 0.5 * unit, base - 7.6 * scale, 6.5 * unit, 1.2 * scale), Paint()..color = const Color(0xFF2B332F));
+
+      // **SUNDAY LEAGUE GETS SPECTATORS; the park below it gets nobody.** One
+      // sat on the bench, one standing with a wave, and a dog.
+      person(bench1 + 6 * unit, _fanColours[rng.nextInt(_fanColours.length)], hairs[rng.nextInt(hairs.length)], sitting: true, seatY: base - 7 * scale);
+      final px = (170 + rng.nextDouble() * 40) * unit;
+      person(px, _fanColours[rng.nextInt(_fanColours.length)], hairs[rng.nextInt(hairs.length)], waving: rng.nextDouble() < 0.6);
+      // The dog: a body, a head, four legs and a tail up.
+      final dx = px + 14 * unit;
+      final dog = Paint()..color = const Color(0xFF7A5A3A);
+      canvas.drawOval(Rect.fromLTWH(dx, base - 5 * scale, 7 * unit, 3.2 * scale), dog);
+      canvas.drawCircle(Offset(dx + 7.4 * unit, base - 4.6 * scale), 1.7 * unit, dog);
+      for (final lx2 in [dx + 1 * unit, dx + 2.6 * unit, dx + 4.6 * unit, dx + 6 * unit]) {
+        canvas.drawRect(Rect.fromLTWH(lx2, base - 2.2 * scale, 0.9 * unit, 2.2 * scale + 1), dog);
       }
+      canvas.drawLine(Offset(dx + 0.3 * unit, base - 4.4 * scale), Offset(dx - 1.6 * unit, base - 7 * scale), Paint()..color = const Color(0xFF7A5A3A)..strokeWidth = 0.9 * unit..strokeCap = StrokeCap.round);
     }
 
     // The low white fence along the front, which is what says "park" rather
     // than "field": a rail, and posts every 24.
     //
-    // **ITS FEET ARE ON THE PITCH.** The posts stopped 17 units up and the
-    // grass began below them, so the fence floated over a green gap — reported
-    // as "the fence doesn't touch the pitch". This strip's bottom edge IS the
-    // horizon, so a post that runs to `size.height` is a post standing on the
-    // turf. Two units of overlap, because a hairline gap at a seam between two
+    // **ITS FEET ARE ON THE PITCH.** This strip's bottom edge IS the horizon,
+    // so a post that runs to `size.height` is a post standing on the turf.
+    // Two units of overlap, because a hairline gap at a seam between two
     // layers is what a rounding error looks like on a real screen.
-    final fenceTop = size.height - 17 * scale;
+    final fenceTop = h - 17 * scale;
     final rail = Paint()..color = const Color(0xD9E2E2D8);
-    canvas.drawRect(
-      Rect.fromLTWH(0, fenceTop + 3 * scale, size.width, 2 * scale),
-      rail,
-    );
+    final railShade = Paint()..color = const Color(0x66707068);
+    canvas.drawRect(Rect.fromLTWH(0, fenceTop + 3 * scale, size.width, 2 * scale), rail);
+    canvas.drawRect(Rect.fromLTWH(0, fenceTop + 5 * scale, size.width, 0.6 * scale), railShade);
+    canvas.drawRect(Rect.fromLTWH(0, fenceTop + 9.5 * scale, size.width, 1.4 * scale), rail);
     for (var x = 0.0; x < size.width; x += 24 * unit) {
-      canvas.drawRect(
-        Rect.fromLTWH(x, fenceTop, 3 * unit, size.height - fenceTop + 2),
-        rail,
-      );
+      canvas.drawRect(Rect.fromLTWH(x, fenceTop, 3 * unit, h - fenceTop + 2), rail);
+      canvas.drawRect(Rect.fromLTWH(x + 2.2 * unit, fenceTop, 0.8 * unit, h - fenceTop + 2), railShade);
     }
 
     // The same aerial haze the terrace takes, so the two horizons sit at the
@@ -1740,7 +1893,7 @@ class ParkPainter extends CustomPainter {
     canvas.drawRect(
       Offset.zero & size,
       Paint()
-        ..color = haze.withValues(alpha: 0.22)
+        ..color = haze.withValues(alpha: 0.2)
         ..blendMode = BlendMode.srcATop,
     );
     canvas.restore();
@@ -1804,19 +1957,51 @@ class _StandPainter extends CustomPainter {
     final liveFrom = plan.perDeck.last - math.min(_liveRows, plan.perDeck.last);
 
     if (!front) {
-      // The terrace: a dark bank, with the seat rows as hairlines in it.
+      // The terrace: a dark bank, STEPPED. Each row is a tread caught by the
+      // light with a riser falling into shade under it — the old hairlines on
+      // a flat gradient read as a wall with a crowd glued to it, and the
+      // steps are what say the rows climb away from the pitch.
       canvas.drawRect(
         deckRect,
         Paint()
           ..shader = const LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [Color(0xFF39424E), Color(0xFF262E38)],
+            colors: [Color(0xFF39424E), Color(0xFF2A323C)],
           ).createShader(deckRect),
       );
-      final seatLine = Paint()..color = const Color(0x0FFFFFFF);
-      for (var y = deckTop; y < size.height; y += 7) {
-        canvas.drawRect(Rect.fromLTWH(0, y, size.width, 1), seatLine);
+      var stepY = deckTop;
+      for (var d = 0; d < plan.decks; d++) {
+        if (d > 0) stepY += _facadeHeight;
+        final depth = plan.deckScales[d];
+        final pitch = _rowPitch * _crowdScale * depth;
+        final deckH = plan.deckHs[d];
+        for (var row = 0; row < plan.perDeck[d]; row++) {
+          final y = stepY + (_deckPad + 4 + row * _rowPitch) * _crowdScale * depth;
+          if (y > stepY + deckH) break;
+          final riser = Rect.fromLTWH(0, y, size.width, math.min(pitch * 0.55, stepY + deckH - y));
+          canvas.drawRect(
+            riser,
+            Paint()
+              ..shader = LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Colors.black.withValues(alpha: 0.22), Colors.black.withValues(alpha: 0.02)],
+              ).createShader(riser),
+          );
+          canvas.drawRect(Rect.fromLTWH(0, y - 1, size.width, 1), Paint()..color = const Color(0x2EFFFFFF));
+        }
+        // Aisles: a stair up the deck every so often, lighter than the seats,
+        // with its steps marked. Sections, which is what a stand is made of.
+        final aisleGap = 96.0 * depth + 24;
+        for (var ax = 30.0 * depth; ax < size.width; ax += aisleGap) {
+          final aisle = Rect.fromLTWH(ax, stepY, 4 * depth + 1, deckH);
+          canvas.drawRect(aisle, Paint()..color = const Color(0xFF55606D));
+          for (var sy = stepY + 2; sy < stepY + deckH; sy += 3) {
+            canvas.drawRect(Rect.fromLTWH(ax, sy, aisle.width, 1), Paint()..color = const Color(0x40000000));
+          }
+        }
+        stepY += deckH;
       }
     }
 
@@ -1844,7 +2029,9 @@ class _StandPainter extends CustomPainter {
       // smaller.
       final deckPerRow = (perRow / depth).round();
       if (d > 0) {
-        // The balcony wall between two decks.
+        // The balcony wall between two decks — and the SHADOW it throws on the
+        // deck below, which is what says the upper deck stands back and above
+        // rather than being stacked flat on top.
         if (!front) {
           final facade = Rect.fromLTWH(0, deckY, size.width, _facadeHeight);
           canvas.drawRect(
@@ -1853,8 +2040,20 @@ class _StandPainter extends CustomPainter {
               ..shader = const LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: [Color(0xFF4A5462), Color(0xFF2B333D)],
+                colors: [Color(0xFF5A6572), Color(0xFF3A434E), Color(0xFF232A33)],
+                stops: [0, 0.55, 1],
               ).createShader(facade),
+          );
+          canvas.drawRect(Rect.fromLTWH(0, deckY, size.width, 1), Paint()..color = const Color(0x55FFFFFF));
+          final drop = Rect.fromLTWH(0, deckY + _facadeHeight, size.width, 7);
+          canvas.drawRect(
+            drop,
+            Paint()
+              ..shader = LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [Colors.black.withValues(alpha: 0.4), Colors.black.withValues(alpha: 0)],
+              ).createShader(drop),
           );
         }
         deckY += _facadeHeight;
@@ -1897,6 +2096,9 @@ class _StandPainter extends CustomPainter {
                   depth
             : 0.0;
         final skin = _fanSkins[rng.nextInt(_fanSkins.length)];
+        // Drawn from the stream on BOTH halves so the two stay in step.
+        final hair = _fanHair[rng.nextInt(_fanHair.length)];
+        final armsUp = up && (keen < 0.1 || excitement > 0.5);
         if (mine) {
           _paintFan(
             canvas,
@@ -1905,6 +2107,8 @@ class _StandPainter extends CustomPainter {
             shoulder: shoulder,
             shirt: shirt,
             skin: skin,
+            hair: hair,
+            armsUp: armsUp,
           );
         }
       }
@@ -1967,10 +2171,19 @@ class _StandPainter extends CustomPainter {
           colors: [Color(0xFFC2CCD6), Color(0xFF828E9A)],
         ).createShader(roof),
     );
+    // And the shade it throws down the back rows, which is what puts the roof
+    // OVER the stand rather than along its top edge.
+    final eave = Rect.fromLTWH(0, _roofHeight, size.width, 9);
     canvas.drawRect(
-      Rect.fromLTWH(0, _roofHeight, size.width, 3),
-      Paint()..color = Colors.black.withValues(alpha: 0.4),
+      eave,
+      Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Colors.black.withValues(alpha: 0.5), Colors.black.withValues(alpha: 0)],
+        ).createShader(eave),
     );
+    canvas.drawRect(Rect.fromLTWH(0, 0, size.width, 1.2), Paint()..color = const Color(0xFFE6ECF2));
   }
 
   /// One supporter, at `.ps-fan`'s geometry. Everything is a multiple of
@@ -1983,8 +2196,23 @@ class _StandPainter extends CustomPainter {
     required double shoulder,
     required Color shirt,
     required Color skin,
+    required Color hair,
+    bool armsUp = false,
   }) {
     final body = Paint()..color = shirt;
+    // **ARMS.** Down at the sides at rest, and thrown up when a fan is on
+    // their feet and bothered — a crowd with no arms is a row of bottles.
+    final arm = Paint()
+      ..color = shirt
+      ..strokeWidth = shoulder * 0.24
+      ..strokeCap = StrokeCap.round;
+    if (armsUp) {
+      canvas.drawLine(Offset(x + shoulder * 0.05, top + shoulder * 0.25), Offset(x - shoulder * 0.3, top - shoulder * 0.55), arm);
+      canvas.drawLine(Offset(x + shoulder * 0.95, top + shoulder * 0.25), Offset(x + shoulder * 1.3, top - shoulder * 0.55), arm);
+    } else {
+      canvas.drawLine(Offset(x + shoulder * 0.05, top + shoulder * 0.3), Offset(x - shoulder * 0.1, top + shoulder * 0.85), arm);
+      canvas.drawLine(Offset(x + shoulder * 0.95, top + shoulder * 0.3), Offset(x + shoulder * 1.1, top + shoulder * 0.85), arm);
+    }
     // Sloped shoulders, squarer at the seat.
     canvas.drawRRect(
       RRect.fromRectAndCorners(
@@ -2009,10 +2237,15 @@ class _StandPainter extends CustomPainter {
       ),
       body,
     );
-    canvas.drawCircle(
-      Offset(x + shoulder * 0.5, top - shoulder * 0.21),
-      shoulder * 0.31,
-      Paint()..color = skin,
+    final head = Offset(x + shoulder * 0.5, top - shoulder * 0.21);
+    canvas.drawCircle(head, shoulder * 0.31, Paint()..color = skin);
+    // **HAIR**, as a cap over the top of the head. One arc, but it is the
+    // difference between a peach and a person at this size.
+    canvas.drawPath(
+      Path()
+        ..addArc(Rect.fromCircle(center: head, radius: shoulder * 0.33), math.pi * 0.92, math.pi * 1.16)
+        ..close(),
+      Paint()..color = hair,
     );
   }
 

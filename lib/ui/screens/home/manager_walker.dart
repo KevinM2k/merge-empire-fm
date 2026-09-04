@@ -41,6 +41,7 @@ import 'package:merge_empire_fc/data/manager_looks.dart';
 import 'package:merge_empire_fc/data/manager_mood.dart';
 import 'package:merge_empire_fc/ui/screens/home/gesture_poses.dart';
 import 'package:merge_empire_fc/ui/screens/home/hair_strands.dart';
+import 'package:merge_empire_fc/ui/screens/home/walk_life.dart';
 import 'package:merge_empire_fc/ui/screens/home/walk_ramp.dart';
 import 'package:merge_empire_fc/ui/screens/home/pitch_scene.dart';
 import 'package:merge_empire_fc/ui/screens/home/walker_figure.dart';
@@ -134,25 +135,27 @@ class _SkullClipper extends CustomClipper<Path> {
 /// **Shared, because the beards are clipped to it** — see [_FaceClipper]. Two
 /// copies of a profile is two profiles, and the whole fault this fixes was art
 /// drawn against a silhouette that had moved.
-Path managerFaceOutline() => Path()
-  ..addArc(
-    Rect.fromCircle(center: skullInArt, radius: skullRadius),
-    _deg(140),
-    _deg(180),
-  )
-  // **The nose is part of the PROFILE, not a shape laid over it.** It used to
-  // be its own slightly-lighter sliver drawn on top, and a two-point curve
-  // closed with a straight edge — so the closing edge ran down the middle of
-  // the face as a visible line. A nose is a bump in the outline; put it in the
-  // outline and there is no seam to see.
-  ..quadraticBezierTo(73.4, 43.4, 77.0, 48.0)
-  ..quadraticBezierTo(74.6, 50.8, 71.9, 51.3)
-  // The top lip, then down past the cheekbone to the point of the chin.
-  ..quadraticBezierTo(73.6, 55.2, 70.2, 59.6)
-  ..quadraticBezierTo(67.6, 62.4, 63.4, 61.8)
-  // And back under the jaw to where the ear meets it.
-  ..quadraticBezierTo(56.2, 60.8, 52.4, 55.2)
-  ..close();
+Path managerFaceOutline() {
+  return Path()
+    ..addArc(
+      Rect.fromCircle(center: skullInArt, radius: skullRadius),
+      _deg(140),
+      _deg(180),
+    )
+    // **The nose is part of the PROFILE, not a shape laid over it.** It used
+    // to be its own slightly-lighter sliver drawn on top, and a two-point
+    // curve closed with a straight edge — so the closing edge ran down the
+    // middle of the face as a visible line. A nose is a bump in the outline;
+    // put it in the outline and there is no seam to see.
+    ..quadraticBezierTo(73.4, 43.4, 77.0, 48.0)
+    ..quadraticBezierTo(74.6, 50.8, 71.9, 51.3)
+    // The top lip, then down past the cheekbone to the point of the chin.
+    ..quadraticBezierTo(73.6, 55.2, 70.2, 59.6)
+    ..quadraticBezierTo(67.6, 62.4, 63.4, 61.8)
+    // And back under the jaw to where the ear meets it.
+    ..quadraticBezierTo(56.2, 60.8, 52.4, 55.2)
+    ..close();
+}
 
 /// The FACE, for the layers that have to stay on it.
 ///
@@ -1034,6 +1037,7 @@ class _ManagerWalkerState extends State<ManagerWalker>
     _sync(context);
     _syncBlink();
     _syncCarry();
+    _syncLife();
   }
 
   @override
@@ -1043,6 +1047,7 @@ class _ManagerWalkerState extends State<ManagerWalker>
     _sync(context);
     _syncBlink();
     _syncCarry();
+    _syncLife();
   }
 
   /// **THE BLINK.** He never did, and a face that never blinks is a mask.
@@ -1110,6 +1115,34 @@ class _ManagerWalkerState extends State<ManagerWalker>
     } else if (_carryClock.status != AnimationStatus.reverse &&
         _carryClock.value != 0) {
       _carryClock.reverse();
+    }
+  }
+
+  /// **WHAT HE DOES BETWEEN GESTURES.** A walking man glances at the stand,
+  /// looks down at the grass, nods to himself — see `walk_life.dart`. Its own
+  /// clock in seconds, because the schedule is in seconds and must not speed
+  /// up with a cheerful stride.
+  ///
+  /// Only when nothing else owns the head: a dugout idle has its own scan and
+  /// a gesture has its own tilt. And only while he is animating at all.
+  final ValueNotifier<double> _life = ValueNotifier<double>(0);
+  late final Ticker _lifeTicker = createTicker(
+    (elapsed) => _life.value = elapsed.inMicroseconds / 1e6,
+  );
+
+  /// The eyes wander whenever he is animating; the HEAD only when nothing
+  /// else has it — the dugout cam's idle already scans, so there the life is
+  /// in the eyes and the cam keeps the neck.
+  bool get _wantsLife => _animating(context);
+
+  void _syncLife() {
+    final run = _wantsLife;
+    if (run == _lifeTicker.isActive) return;
+    if (run) {
+      _lifeTicker.start();
+    } else {
+      _lifeTicker.stop();
+      _life.value = 0;
     }
   }
 
@@ -1297,6 +1330,8 @@ class _ManagerWalkerState extends State<ManagerWalker>
     _gestureClock.dispose();
     _blinkClock.dispose();
     _carryClock.dispose();
+    _lifeTicker.dispose();
+    _life.dispose();
     super.dispose();
   }
 
@@ -1348,6 +1383,7 @@ class _ManagerWalkerState extends State<ManagerWalker>
         _gestureClock,
         _blinkClock,
         _carryClock,
+        _life,
       ]),
       builder: (context, _) {
         // **STANDING IS NOT A FRAME OF THE WALK**, so the stride's own
@@ -1393,9 +1429,33 @@ class _ManagerWalkerState extends State<ManagerWalker>
         // [_overIdle] because the two want different arithmetic on the same
         // field.
         final scanning = _pose == null || _playingHead == null;
+        // The glances, when nothing else owns the head — see [_life]. The
+        // gaze is quantised so the features band, which is cached, repaints
+        // a few times across a glance rather than on every frame of it.
+        final life = _wantsLife ? walkLifeAt(_life.value) : null;
+        final lifeHead = scanning && widget.idle == null
+            ? (life?.head ?? 0)
+            : 0.0;
+        final gaze = scanning && life != null
+            ? Offset(
+                (life.gaze.dx * 8).round() / 8,
+                (life.gaze.dy * 8).round() / 8,
+              )
+            : Offset.zero;
         final headTilt = scanning
-            ? _headAngle(null) + (widget.idle?.head ?? 0)
+            ? _headAngle(null) + (widget.idle?.head ?? 0) + lifeHead
             : _headAngle(pose);
+        // **THE TURN** — see `walkLifeAt` and `gestureTurn`. The life's own
+        // when nothing else has him, a gesture's while one plays; either way
+        // one number the head group, the face and the body all read.
+        final playing = _playing;
+        final gestureTwist = playing != null && _gestureClock.isAnimating
+            ? gestureTurnAt(playing.id, _gestureClock.value)
+            : 0.0;
+        final turn = (gestureTwist != 0
+                ? gestureTwist
+                : (widget.idle == null ? (life?.turn ?? 0) : 0.0))
+            .clamp(-1.0, 1.0);
         // The hips, and the same number the leg solver uses — see
         // [walkerHipRise]. It is not decoration: the bob is what lets the foot
         // reach the ends of the step, so the figure's rise and its stride are
@@ -1454,6 +1514,7 @@ class _ManagerWalkerState extends State<ManagerWalker>
         _WalkerPainter walker(WalkerArms arms) => _WalkerPainter(
           soft: widget.soft,
           t: t,
+          turn: turn,
           kit: widget.kit,
           skin: parts.skin,
           // **His SHAPE.** The build axis was in the customiser, the wardrobe,
@@ -1693,6 +1754,7 @@ class _ManagerWalkerState extends State<ManagerWalker>
                                         blink: _blink,
                                         features: true,
                                         mood: widget.mood,
+                                        gaze: gaze,
                                       ),
                                     ),
                                     for (final layer in parts.overHead)
@@ -2558,7 +2620,12 @@ class _HeadPainter extends CustomPainter {
     this.features = false,
     this.soft = true,
     this.mood = Mood.neutral,
+    this.gaze = Offset.zero,
   });
+
+  /// Where he is looking, in eye units — see `walk_life.dart`. The iris and
+  /// pupil move inside the socket; the white and the lids do not.
+  final Offset gaze;
 
   /// **THE BROW ACTS.** The mouth carries the mood already; the brow is the
   /// other feature that reads at four pixels, and it was a fixed line.
@@ -2790,13 +2857,17 @@ class _HeadPainter extends CustomPainter {
     // most of why the face read as a mask.
     canvas.save();
     canvas.clipPath(socket);
+    // The iris sits forward in the socket at rest — he is looking where he is
+    // going — and the gaze moves it about a unit either way. The glint stays
+    // put: it is the light, not the eye.
+    final look = Offset(gaze.dx * 0.9, gaze.dy * 0.7);
     canvas.drawCircle(
-      eye.translate(0.7, 0.25),
+      eye.translate(0.7, 0.25) + look,
       1.55,
       Paint()..color = const Color(0xFF6B4A2E),
     );
     canvas.drawCircle(
-      eye.translate(0.75, 0.3),
+      eye.translate(0.75, 0.3) + look,
       0.85,
       Paint()..color = const Color(0xFF1C130E),
     );
@@ -2902,7 +2973,8 @@ class _HeadPainter extends CustomPainter {
       old.blink != blink ||
       old.features != features ||
       old.soft != soft ||
-      old.mood != mood;
+      old.mood != mood ||
+      old.gaze != gaze;
 }
 
 /// Which arms a rig pass draws.
@@ -2931,6 +3003,7 @@ enum WalkerArms {
 class _WalkerPainter extends CustomPainter {
   const _WalkerPainter({
     required this.t,
+    this.turn = 0,
     required this.kit,
     required this.skin,
     required this.build,
@@ -2946,6 +3019,14 @@ class _WalkerPainter extends CustomPainter {
   final bool soft;
 
   final double t;
+
+  /// How far he is twisted about his spine, -1 away to 1 toward the camera —
+  /// see `walkLifeAt`. The chest broadens as it comes round and the shoulders
+  /// slide: the near one back, the far one forward. **The head stays in
+  /// profile**: a squashed head with a second eye sliding in was tried and it
+  /// skewed the face, so the twist is the body's alone.
+  final double turn;
+
   final Color kit;
   final Color skin;
 
@@ -3268,9 +3349,12 @@ class _WalkerPainter extends CustomPainter {
     // The shoulder itself moves with the swing — see [walkShoulderShift]. Only
     // while the WALK owns the arm: a posed arm was solved against the pivot
     // where the art draws it.
-    final shift = standing || posed != null
+    final swing = standing || posed != null
         ? 0.0
         : walkShoulderShift(t) * (near ? 1 : -1);
+    // And the twist: the near shoulder goes back and the far one comes
+    // forward as he turns toward the camera. See [turn].
+    final shift = swing + 3.2 * turn * (near ? -1 : 1);
     canvas.save();
     canvas.translate(shift, 0);
     _about(
@@ -3438,13 +3522,20 @@ class _WalkerPainter extends CustomPainter {
     // head used to sit straight on the shirt, which is the other half of why it
     // read as stuck on.
     paintNeck(canvas, skin);
+    // The chest comes round as he turns: broader, about its own centre line.
+    canvas.save();
+    canvas.translate(58, 0);
+    canvas.scale(1 + 0.15 * turn.abs(), 1);
+    canvas.translate(-58, 0);
     paintTorso(
       canvas,
       _top,
       build: build.torso,
+      taper: build.taper,
       bulge: build.bulge,
       soft: soft,
     );
+    canvas.restore();
 
     // Where the shirt meets the shorts. A garment that ends without a shadow
     // under it reads as printed on rather than worn.
@@ -3468,6 +3559,7 @@ class _WalkerPainter extends CustomPainter {
   @override
   bool shouldRepaint(_WalkerPainter old) =>
       old.t != t ||
+      old.turn != turn ||
       old.kit != kit ||
       old.skin != skin ||
       old.build != build ||
