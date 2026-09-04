@@ -15,5 +15,6 @@
   "extraFonts": [
     "dist/fonts.css"
   ],
-  "readmeHeader": ".design-sync/conventions.md"
+  "readmeHeader": ".design-sync/conventions.md",
+  "projectId": "93fb0ae8-e29f-4865-bb7d-9df62bea50d4"
 }

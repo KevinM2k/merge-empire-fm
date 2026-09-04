@@ -34,6 +34,24 @@ place it is possible to be honest: the palette.
 - **`PlayerCard` is the card shell**, not the 54k-line widget: body gradient,
   rating chip, plate, traits. No hero art, no bench columns.
 
+## The target project
+
+Synced into the pre-existing **Merge Empire FC Design System**
+(`93fb0ae8-e29f-4865-bb7d-9df62bea50d4`), not a new one — the user chose to
+overwrite it. That sync deleted its previous contents: 10 hand-authored
+components (`components/brand|core|feedback|icon`), 14 `guidelines/*.card.html`
+and 4 `tokens/*.css`.
+
+**`assets/**` and `ui_kits/**` were deliberately KEPT and are now orphaned** —
+`ui_kits/app/screens-play.jsx` imports components that no longer exist, and
+~60 game art PNGs (players by position/tier, trophies, stadium backgrounds) are
+referenced by nothing this package ships. They are still the only copy of that
+art in the project. Decide whether to wire them in or drop them; do not assume
+a future sync will tidy them, because the anchor cannot see them.
+
+`SKILL.md` and `_adherence.oxlintrc.json` also survive from the old system and
+are stale.
+
 ## Re-sync risks
 
 - **The woff2 faces are derived and checked in; the .ttf are not duplicated.**
@@ -44,5 +62,9 @@ place it is possible to be honest: the palette.
   `dist/fonts.css` by `tool/bundle_styles.mjs`, which rewrites `../fonts/` to
   `./fonts/` on the way. If the faces ever come back as a 485kB `style.css`,
   that copy step stopped running.
+- **Build the reference storybook from inside `design-system/`**, not with
+  `npx --prefix design-system storybook build` from the repo root — the
+  `--prefix` form hung indefinitely (npx prompting), and it looks like a slow
+  build rather than a stall.
 - `design-system/.shots/` is a local eyeball aid (`tool/shots.mjs`), not part of
   the sync and not the compare harness's reference.
