@@ -130,3 +130,22 @@ String authErrorKey(Object? error) {
   }
   return 'auth.sign_in_failed';
 }
+
+/// Play Games' player, beside the Firebase uid — the JS's `pgsPlayerId`.
+///
+/// The display name stands in for the email a Play Games account never has,
+/// and only when nothing is there already: a name the player typed stands.
+void recordPgsIdentity(
+  Map<String, dynamic> state, {
+  required String playerId,
+  String? playerName,
+}) {
+  final board = _leaderboard(state);
+  board['pgsPlayerId'] = playerId;
+  final current = board['accountName'];
+  if (playerName == null || playerName.isEmpty) return;
+  if (current is String && current.isNotEmpty) return;
+  board['accountName'] = playerName.length > 40
+      ? playerName.substring(0, 40)
+      : playerName;
+}

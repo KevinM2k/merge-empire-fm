@@ -309,6 +309,38 @@ class AuthService {
     return session;
   }
 
+  /// Play Games' bridge: a custom token minted by the `pgsAutoSignIn`
+  /// function, exchanged for a session of this device's own.
+  ///
+  /// **Null, never a throw.** This runs on the boot path with nothing pressed,
+  /// and a bridge that fails leaves the player in Play Games and out of the
+  /// leaderboard — which is the JS's own answer.
+  Future<AuthSession?> signInWithCustomToken(
+    Map<String, dynamic> state,
+    String token,
+  ) async {
+    final AuthResponse response;
+    try {
+      response = await seams.post(_identityUri('signInWithCustomToken'), {
+        'token': token,
+        'returnSecureToken': true,
+      });
+    } catch (_) {
+      return null;
+    }
+    final session = sessionFromCustomToken(
+      response.data,
+      now: seams.now(),
+      provider: 'play_games',
+    );
+    if (session == null) return null;
+    _session = session;
+    await seams.writeRefresh(session.refreshToken);
+    applyAuthUser(state, uid: session.uid, provider: 'play_games');
+    emit('auth:changed', {'uid': session.uid});
+    return session;
+  }
+
   /// Sign out — the plugin session, the token and the save's own uid.
   ///
   /// **The anonymous session is dropped with it** rather than kept for reads: a

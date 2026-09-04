@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Play Games Services. Pinned in lib/data/pgs_app_id.dart, where a test checks it. -->
+    <string name="game_services_project_id" translatable="false">500974365483</string>
+</resources>

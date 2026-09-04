@@ -26,6 +26,7 @@ import 'package:merge_empire_fc/services/analytics_wiring.dart';
 import 'package:merge_empire_fc/engine/cloud_save_policy.dart';
 import 'package:merge_empire_fc/providers/boot_gate.dart';
 import 'package:merge_empire_fc/services/auth_service.dart';
+import 'package:merge_empire_fc/services/play_games_service.dart';
 import 'package:merge_empire_fc/services/cloud_sync.dart';
 import 'package:merge_empire_fc/ui/popups/boot_popups.dart';
 import 'package:merge_empire_fc/ui/popups/cloud_conflict_card.dart';
@@ -133,6 +134,7 @@ class _GameHostState extends ConsumerState<GameHost>
     // opens a socket — the same split that keeps the toasts and the sounds in
     // the UI layer on the same bus.
     on('match:complete', _submitMatch);
+    PlayGamesService.instance.attach();
     _refreshWeather();
     // And keep looking, on the JS's own cadence. `shouldRefreshLive` decides
     // whether looking is worth a call, so most of these cost nothing.
@@ -218,6 +220,10 @@ class _GameHostState extends ConsumerState<GameHost>
     };
     await AuthService.instance.restore(_runner.game.state);
     if (!mounted) return;
+    // Play Games after the restore, so a Google or Apple session stands and the
+    // bridge only runs for a player who has none — see `play_games_service.dart`.
+    await PlayGamesService.instance.init(_runner.game);
+    if (!mounted) return;
     final outcome = await runCloudBootSync(_runner.game);
     if (!mounted) return;
     if (outcome == CloudSyncOutcome.restored) {
@@ -273,6 +279,7 @@ class _GameHostState extends ConsumerState<GameHost>
   @override
   void dispose() {
     off('match:complete', _submitMatch);
+    PlayGamesService.instance.detach();
     _weatherPoll?.cancel();
     _weather.stop();
     unawaited(network.stop());

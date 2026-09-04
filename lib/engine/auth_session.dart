@@ -21,6 +21,8 @@
 /// failed because a test read the real one.
 library;
 
+import 'dart:convert';
+
 /// One signed-in Firebase session.
 ///
 /// [provider] is `google`, `apple` or null for the anonymous session the
@@ -157,3 +159,40 @@ String authErrorCodeFromRest(String? restCode) => switch (restCode) {
   null => 'auth/unavailable',
   _ => restCode,
 };
+
+/// The uid inside a Firebase ID token — its `sub`.
+///
+/// `accounts:signInWithCustomToken` answers with the tokens and no `localId`
+/// beside them, so the uid has to be read off the token itself.
+String? uidFromIdToken(String idToken) {
+  final parts = idToken.split('.');
+  if (parts.length < 2) return null;
+  try {
+    final payload = utf8.decode(base64Url.decode(base64Url.normalize(parts[1])));
+    final json = _map(jsonDecode(payload));
+    return _str(json?['sub']) ?? _str(json?['user_id']);
+  } catch (_) {
+    return null;
+  }
+}
+
+/// A session out of `accounts:signInWithCustomToken` — Play Games' bridge.
+AuthSession? sessionFromCustomToken(
+  Object? body, {
+  required DateTime now,
+  required String provider,
+}) {
+  final json = _map(body);
+  final idToken = _str(json?['idToken']);
+  final refresh = _str(json?['refreshToken']);
+  if (idToken == null || refresh == null) return null;
+  final uid = uidFromIdToken(idToken);
+  if (uid == null) return null;
+  return AuthSession(
+    uid: uid,
+    idToken: idToken,
+    refreshToken: refresh,
+    expiresAt: now.add(_lifetime(json?['expiresIn'])),
+    provider: provider,
+  );
+}
