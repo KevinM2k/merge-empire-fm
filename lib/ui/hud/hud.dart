@@ -367,6 +367,8 @@ class Hud extends ConsumerWidget {
                       ref.watch(energyMaxProvider),
                     ),
                     semanticLabel: t('hud.aria.energy'),
+                    // The chip has no other answer, so the whole of it is the +.
+                    onTap: () => emit('nav:energy'),
                     trailing: HudPlus(
                       key: const ValueKey('hud-energy-plus'),
                       label: t('hud.aria.energy'),

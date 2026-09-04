@@ -90,6 +90,7 @@ class GestureAnimation {
     this.finger,
     this.curve = Curves.easeInOut,
     this.cycleMs,
+    this.spline = false,
   });
 
   final GestureTrack? armNear;
@@ -109,6 +110,10 @@ class GestureAnimation {
   /// Eased per SEGMENT, the way CSS eases a keyframe track — not once across the
   /// whole run.
   final Curve curve;
+
+  /// One smooth swing through the keys, not an ease that stops at each — a
+  /// kick read segment by segment paused at every keyframe and looked jagged.
+  final bool spline;
 
   /// When the tracks run on their own clock rather than the gesture's. Only the
   /// robot does: 1.4s a cycle, repeating inside a 2.4s gesture, so the second
@@ -463,6 +468,7 @@ final Map<String, GestureAnimation> _animations = {
   // units into the rear of a ball whose back face is at 73. The follow-through
   // after it is small — the ball has gone.
   'kick': const GestureAnimation(
+    spline: true,
     kickThigh: [(0, 0), (0.28, 22), (0.60, -5), (0.74, -24), (0.95, 0), (1, 0)],
     kickShin: [(0, 0), (0.28, 48), (0.60, 2), (0.74, -2), (0.95, 0), (1, 0)],
     // The near arm swings back with the near leg's wind-up and comes forward
@@ -486,6 +492,7 @@ final Map<String, GestureAnimation> _animations = {
   // shape as the kick at a third of the size, toe under the ball at 0.55,
   // which is where `PitchBall` starts the lift.
   'flick': const GestureAnimation(
+    spline: true,
     kickThigh: [(0, 0), (0.28, 9), (0.55, -3), (0.7, -9), (0.95, 0), (1, 0)],
     kickShin: [(0, 0), (0.28, 26), (0.55, 4), (0.7, 0), (0.95, 0), (1, 0)],
     head: [(0, 0), (0.3, 8), (0.8, 4), (1, 0)],
@@ -666,6 +673,47 @@ double gestureTurnAt(String id, double progress) {
 /// silently freeze the figure in its rest pose.
 bool hasGesturePose(String id) => _animations.containsKey(id);
 
+/// Monotone cubic through the keys — smooth in velocity at each, and it never
+/// overshoots a key, so the contact frame is still exactly the contact frame.
+double? _splineAt(GestureTrack? track, double phase) {
+  if (track == null || track.isEmpty) return null;
+  if (track.length < 3) return _at(track, phase, Curves.linear);
+  final n = track.length;
+  final xs = [for (final k in track) k.$1];
+  final ys = [for (final k in track) k.$2];
+  final d = List<double>.filled(n - 1, 0);
+  final h = List<double>.filled(n - 1, 0);
+  for (var i = 0; i < n - 1; i++) {
+    h[i] = xs[i + 1] - xs[i];
+    d[i] = h[i] > 0 ? (ys[i + 1] - ys[i]) / h[i] : 0;
+  }
+  // Fritsch–Carlson tangents: zero where the slope changes sign or flattens.
+  final m = List<double>.filled(n, 0);
+  for (var i = 1; i < n - 1; i++) {
+    if (d[i - 1] == 0 || d[i] == 0 || d[i - 1].sign != d[i].sign) {
+      m[i] = 0;
+    } else {
+      final w1 = 2 * h[i] + h[i - 1];
+      final w2 = h[i] + 2 * h[i - 1];
+      m[i] = (w1 + w2) / (w1 / d[i - 1] + w2 / d[i]);
+    }
+  }
+  if (phase <= xs.first) return ys.first;
+  if (phase >= xs.last) return ys.last;
+  var i = 0;
+  while (i < n - 2 && phase > xs[i + 1]) {
+    i++;
+  }
+  if (h[i] <= 0) return ys[i + 1];
+  final t = (phase - xs[i]) / h[i];
+  final t2 = t * t;
+  final t3 = t2 * t;
+  return (2 * t3 - 3 * t2 + 1) * ys[i] +
+      (t3 - 2 * t2 + t) * h[i] * m[i] +
+      (-2 * t3 + 3 * t2) * ys[i + 1] +
+      (t3 - t2) * h[i] * m[i + 1];
+}
+
 double? _at(GestureTrack? track, double phase, Curve curve) {
   if (track == null || track.isEmpty) return null;
   for (var i = 0; i < track.length - 1; i++) {
@@ -704,17 +752,19 @@ GesturePose gesturePose(String id, double progress, {int? gestureMs}) {
   final phase = a.cycleMs == null || gestureMs == null
       ? progress.clamp(0.0, 1.0)
       : (progress * gestureMs / a.cycleMs!) % 1;
+  double? read(GestureTrack? track) =>
+      a.spline ? _splineAt(track, phase) : _at(track, phase, a.curve);
   return (
-    armNear: _at(a.armNear, phase, a.curve),
-    armFar: _at(a.armFar, phase, a.curve),
-    foreNear: _at(a.foreNear, phase, a.curve),
-    foreFar: _at(a.foreFar, phase, a.curve),
-    head: _at(a.head, phase, a.curve),
-    body: _at(a.body, phase, a.curve),
-    bodyLift: _at(a.bodyLift, phase, a.curve),
-    legs: _at(a.legs, phase, a.curve),
-    kickThigh: _at(a.kickThigh, phase, a.curve),
-    kickShin: _at(a.kickShin, phase, a.curve),
+    armNear: read(a.armNear),
+    armFar: read(a.armFar),
+    foreNear: read(a.foreNear),
+    foreFar: read(a.foreFar),
+    head: read(a.head),
+    body: read(a.body),
+    bodyLift: read(a.bodyLift),
+    legs: read(a.legs),
+    kickThigh: read(a.kickThigh),
+    kickShin: read(a.kickShin),
     // Linear, not the gesture's curve: it is an appearance, not a movement.
     finger: _at(a.finger, phase, Curves.linear) ?? 0,
   );

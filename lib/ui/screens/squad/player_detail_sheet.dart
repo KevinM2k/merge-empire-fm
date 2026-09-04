@@ -946,10 +946,8 @@ class _RenameButton extends StatelessWidget {
           color: Colors.black.withValues(alpha: 0.42),
           border: Border.all(color: Colors.white24),
         ),
-        // `cog`, not ✏️: the pencil is the platform's own drawing on a sheet
-        // where every other mark is the game's, and it renders as flat grey
-        // line art in the Material fallback font. Reported from the couch.
-        child: const GameIcon('cog', size: 14, color: Colors.white70),
+        // A pencil, as asked — Material's, not the emoji that drew grey.
+        child: const Icon(Icons.edit, size: 15, color: Colors.white70),
       ),
     ),
   );

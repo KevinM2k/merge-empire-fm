@@ -30,6 +30,7 @@ import 'package:merge_empire_fc/data/player_art.dart' show isVariantFemale;
 import 'package:merge_empire_fc/data/players.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
+import 'package:merge_empire_fc/state/game_state.dart';
 import 'package:merge_empire_fc/ui/popups/coach_card.dart';
 import 'package:merge_empire_fc/ui/screens/squad/player_detail_sheet.dart'
     show cardById;
@@ -124,24 +125,7 @@ class PlayerNameCardState extends ConsumerState<PlayerNameCard> {
   /// would rename something that is no longer there.
   String _commit(String? value) {
     final game = ref.read(gameProvider);
-    game.update((s) {
-      final cells = (s['grid'] as Map<String, dynamic>?)?['cells'];
-      if (cells is! List) return;
-      for (final raw in cells) {
-        if (raw is Map<String, dynamic> &&
-            raw['instanceId'] == widget.instanceId) {
-          if (value == null) {
-            raw.remove('customName');
-          } else {
-            raw['customName'] = value;
-          }
-          return;
-        }
-      }
-    });
-    // Flushed rather than left to the two-second debounce: a rename is cheap to
-    // lose and very annoying when it happens.
-    game.saveNow();
+    applyPlayerName(game, widget.instanceId, value);
     final now =
         cardById(game.state, widget.instanceId)?.name(_defaultName) ??
         _defaultName;
@@ -207,44 +191,43 @@ class PlayerNameCardState extends ConsumerState<PlayerNameCard> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          TextField(
-            key: const ValueKey('player-name-field'),
-            controller: _field,
-            autofocus: true,
-            maxLength: playerNameMax,
-            textCapitalization: TextCapitalization.words,
-            textInputAction: TextInputAction.done,
-            onSubmitted: (_) => _submit(),
-            // Cleared on the next keystroke rather than the next submit: a
-            // message about a name no longer in the field is about nothing.
-            onChanged: (_) {
-              if (_error != null) setState(() => _error = null);
-            },
-            decoration: InputDecoration(
-              hintText: _defaultName,
-              counterText: '',
-              filled: true,
-              fillColor: kit.surface2,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: BorderSide(color: kit.border),
+          // The dice beside the box — the club-name card's own row.
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  key: const ValueKey('player-name-field'),
+                  controller: _field,
+                  autofocus: true,
+                  maxLength: playerNameMax,
+                  textCapitalization: TextCapitalization.words,
+                  textInputAction: TextInputAction.done,
+                  onSubmitted: (_) => _submit(),
+                  // Cleared on the next keystroke rather than the next submit: a
+                  // message about a name no longer in the field is about nothing.
+                  onChanged: (_) {
+                    if (_error != null) setState(() => _error = null);
+                  },
+                  decoration: InputDecoration(
+                    hintText: _defaultName,
+                    counterText: '',
+                    filled: true,
+                    fillColor: kit.surface2,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: BorderSide(color: kit.border),
+                    ),
+                  ),
+                ),
               ),
-            ),
-          ),
-          const SizedBox(height: 6),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: TextButton.icon(
-              key: const ValueKey('player-name-randomise'),
-              onPressed: _randomise,
-              style: TextButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 8),
-                visualDensity: VisualDensity.compact,
-                foregroundColor: kit.accentBright,
+              const SizedBox(width: 8),
+              IconButton(
+                key: const ValueKey('player-name-randomise'),
+                tooltip: t('customise.randomise'),
+                icon: Icon(Icons.casino_outlined, color: kit.accentBright),
+                onPressed: _randomise,
               ),
-              icon: const Text('🎲', style: TextStyle(fontSize: 14)),
-              label: Text(t('customise.randomise')),
-            ),
+            ],
           ),
           if (_error != null) ...[
             const SizedBox(height: 8),
@@ -258,4 +241,25 @@ class PlayerNameCardState extends ConsumerState<PlayerNameCard> {
       ),
     );
   }
+}
+
+/// Write [value] as the card's name — null clears it back to the default.
+///
+/// Shared with the detail sheet's dice, which rolls a name straight in.
+void applyPlayerName(GameState game, String instanceId, String? value) {
+  game.update((s) {
+    final cells = (s['grid'] as Map<String, dynamic>?)?['cells'];
+    if (cells is! List) return;
+    for (final raw in cells) {
+      if (raw is Map<String, dynamic> && raw['instanceId'] == instanceId) {
+        if (value == null) {
+          raw.remove('customName');
+        } else {
+          raw['customName'] = value;
+        }
+        return;
+      }
+    }
+  });
+  game.saveNow();
 }

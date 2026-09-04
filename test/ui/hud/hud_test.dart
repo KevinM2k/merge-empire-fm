@@ -177,6 +177,17 @@ void main() {
     expect(asked, 1);
   });
 
+  testWidgets('and so does the rest of the chip: it has no other answer', (
+    tester,
+  ) async {
+    await pumpHud(tester, (_) {});
+    var asked = 0;
+    on('nav:energy', (_) => asked++);
+    await tester.tap(find.byKey(const ValueKey('hud-energy')));
+    await tester.pump();
+    expect(asked, 1);
+  });
+
   testWidgets('the cog runs its callback', (tester) async {
     var opened = 0;
     await pumpHud(tester, (_) {}, onSettings: () => opened++);
