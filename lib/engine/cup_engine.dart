@@ -1124,7 +1124,7 @@ Map<String, dynamic>? activeCup(Map<String, dynamic>? state) =>
 /// The Lucky Boot is deliberately NOT applied to an unplayed round: a schedule
 /// says who you are drawn against, and the league rows beside it read
 /// `seasonOpponentRatings` raw for the same reason.
-({num rating, bool estimated})? cupRoundOpponentRating(
+({int rating, bool estimated})? cupRoundOpponentRating(
   Map<String, dynamic>? state,
   Map<String, dynamic>? run,
   Cup cup,

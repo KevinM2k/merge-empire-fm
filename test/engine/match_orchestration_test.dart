@@ -546,6 +546,99 @@ void main() {
         expect(split.defence, 102);
       });
 
+      /// A home fixture in the second half of the season, with the club in the
+      /// drop zone, a stagnation buff banked and a crowd behind it — so all
+      /// three modifiers are non-zero at once and none of them can be mistaken
+      /// for another.
+      ({Map<String, dynamic> state, Map<String, dynamic> result}) fullHouse() {
+        seeded.setSeed(11);
+        final state = withCrowd();
+        final prog = state['progression'] as Map<String, dynamic>;
+        // Second half, or neither zone is even looked at.
+        var m = opponentsPerSeason;
+        while (!fixtureIsHome(3, m % opponentsPerSeason, m)) {
+          m++;
+        }
+        prog['seasonMatchesPlayed'] = m;
+        prog['playerTablePosition'] = 8;
+        (prog['stagnationBuffs'] as Map<String, dynamic>)['regional_league'] = 3;
+        final result = simulateMatch(state, 'regional_league');
+        return (state: state, result: result);
+      }
+
+      test('AND THE THREE OF THEM ARE THE JS\'S OWN, off its `hardSim` stash', () {
+        // **`hardSim` carries `ourHomeAdv`, `stagnation` and `releg`, and they
+        // are in the node dump** — so they are the spec\'s numbers, not this
+        // port\'s, and the comment that writes them says what they are for:
+        // "what a mid-match sub needs to resume the sim". Every one of the
+        // three had no reader anywhere in `lib/` or `test/`, because the resume
+        // re-derived two from the save and dropped the third.
+        //
+        // This is what pins `matchRatingMods` to them: the helper the resume
+        // reads now has to agree, field for field, with what the kickoff
+        // stashed for it.
+        seeded.setSeed(11);
+        final state = withCrowd();
+        (state['settings'] as Map<String, dynamic>)['hardMode'] = true;
+        final prog = state['progression'] as Map<String, dynamic>;
+        var m = opponentsPerSeason;
+        while (!fixtureIsHome(3, m % opponentsPerSeason, m)) {
+          m++;
+        }
+        prog['seasonMatchesPlayed'] = m;
+        prog['playerTablePosition'] = 8;
+        (prog['stagnationBuffs'] as Map<String, dynamic>)['regional_league'] = 3;
+
+        final result = simulateMatch(state, 'regional_league');
+        final stash = result['hardSim'] as Map<String, dynamic>;
+        final mods = matchRatingMods(result);
+
+        expect(mods.homeAdv, stash['ourHomeAdv']);
+        expect(mods.stagnation, stash['stagnation']);
+        expect(mods.relegation, stash['releg']);
+        // And none of them is a zero that would prove nothing.
+        expect(mods.homeAdv, greaterThan(0));
+        expect(mods.stagnation, greaterThan(0));
+        expect(mods.relegation, greaterThan(0));
+      });
+
+      test('A RE-SIM KEEPS THE RELEGATION LIFT, which it used to throw away', () {
+        // The kickoff sim adds `relegationBoost` to ATK and DEF for a side in
+        // the drop zone; the resume re-derived the home bonus and the
+        // stagnation buff from the save and never looked at the lift, so
+        // changing tactics while fighting relegation took back the boost the
+        // sim had just given for fighting it. Not display-only: `adjAttack` and
+        // `adjDefence` sample the remaining goals.
+        final match = fullHouse();
+        expect(match.result['playerInRelegationZone'], isTrue);
+        expect(match.result['isHome'], isTrue);
+
+        final out = <String, dynamic>{};
+        seeded.setSeed(11);
+        reSimulateRemainder(
+          match.result,
+          45,
+          'balanced',
+          0,
+          0,
+          match.state,
+          liveRatingsOut: out,
+        );
+        // Nobody was booked and nobody came off, so a clean resume re-rolls
+        // with exactly the pair that kicked off — lift included.
+        final kickoff = ourMatchSplit(match.result);
+        expect(out['liveAttackRating'], kickoff.attack);
+        expect(out['liveDefenceRating'], kickoff.defence);
+        // And the lift is genuinely in there rather than cancelling out.
+        expect(
+          out['liveAttackRating'] as num,
+          (match.result['ourAttackRating'] as num) +
+              (match.result['homeAdvDisplay'] as num) +
+              3 +
+              relegationBoost,
+        );
+      });
+
       test('AND A RE-SIM HANDS BACK THE SAME BASIS, not the bare squad', () {
         // The live pair is what the remainder was actually rolled with, and the
         // board prints it in place of the kickoff one — so handing back
