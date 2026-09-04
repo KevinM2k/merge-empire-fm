@@ -1130,9 +1130,10 @@ class _ManagerWalkerState extends State<ManagerWalker>
     (elapsed) => _life.value = elapsed.inMicroseconds / 1e6,
   );
 
-  /// The eyes wander whenever he is animating; the HEAD only when nothing
-  /// else has it — the dugout cam's idle already scans, so there the life is
-  /// in the eyes and the cam keeps the neck.
+  /// Whenever he is animating. **Under an idle too**: the home screen hands
+  /// him one for the breath and the weight shift, and gating the glances on
+  /// there being none left him looking straight ahead everywhere but the
+  /// customiser. The idle's scan is a degree; the glances sit on top of it.
   bool get _wantsLife => _animating(context);
 
   void _syncLife() {
@@ -1433,9 +1434,7 @@ class _ManagerWalkerState extends State<ManagerWalker>
         // gaze is quantised so the features band, which is cached, repaints
         // a few times across a glance rather than on every frame of it.
         final life = _wantsLife ? walkLifeAt(_life.value) : null;
-        final lifeHead = scanning && widget.idle == null
-            ? (life?.head ?? 0)
-            : 0.0;
+        final lifeHead = scanning ? (life?.head ?? 0) : 0.0;
         final gaze = scanning && life != null
             ? Offset(
                 (life.gaze.dx * 8).round() / 8,
@@ -1452,9 +1451,7 @@ class _ManagerWalkerState extends State<ManagerWalker>
         final gestureTwist = playing != null && _gestureClock.isAnimating
             ? gestureTurnAt(playing.id, _gestureClock.value)
             : 0.0;
-        final turn = (gestureTwist != 0
-                ? gestureTwist
-                : (widget.idle == null ? (life?.turn ?? 0) : 0.0))
+        final turn = (gestureTwist != 0 ? gestureTwist : (life?.turn ?? 0))
             .clamp(-1.0, 1.0);
         // The hips, and the same number the leg solver uses — see
         // [walkerHipRise]. It is not decoration: the bob is what lets the foot

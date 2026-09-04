@@ -263,4 +263,46 @@ void main() {
       }
     });
   });
+
+  testWidgets('HE GLANCES UNDER AN IDLE TOO, which is the home screen', (
+    tester,
+  ) async {
+    // The home screen hands him an idle for breath and weight; the glances
+    // were gated on there being none, so he only looked about in the
+    // customiser. The head painter's angle is read off the tilt widget.
+    const idle = (
+      armNear: null, armFar: null, foreNear: null, foreFar: null,
+      head: 0.0, body: null, bodyLift: 0.0, legs: null,
+      kickThigh: null, kickShin: null, finger: 0.0,
+    );
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: MediaQuery(
+          data: MediaQueryData(disableAnimations: false),
+          child: Scaffold(
+            body: SizedBox(
+              width: 120,
+              height: 170,
+              child: ManagerWalker(
+                kit: Color(0xFF4CAF50),
+                skin: Color(0xFFEEBB8C),
+                hair: Color(0xFF3A2A1C),
+                idle: idle,
+                look: {'style': 'crop', 'outfit': 'kit'},
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    double tilt() => tester
+        .widgetList<Transform>(find.byType(Transform))
+        .map((w) => w.transform)
+        .fold<double>(0, (a, m) => a + m.getRotation().row0.y.abs());
+    final square = tilt();
+    // Into the middle of the first look-up.
+    await tester.pump(const Duration(milliseconds: 4700));
+    expect(tilt(), isNot(closeTo(square, 1e-6)), reason: 'no glance under an idle');
+  });
 }
