@@ -316,4 +316,61 @@ void main() {
       );
     });
   });
+
+  group('A BAN IS ONE FIXTURE, in either competition', () {
+    // **The screen adds the plus one and the LEAGUE is what earns it.**
+    // `applySuspensions` wants the count INCLUDING the match just played, and
+    // at the whistle the save has not counted it yet — `buildMatchResult`
+    // increments `matchesPlayed` at KICK-OFF, and only for a league fixture. A
+    // cup tie never touches the counter at all (which is what keeps a cup from
+    // shortening the league season), so adding one there compensates for a move
+    // that never happens and the man serves two.
+    //
+    // The engine is the same call either way; this pins what each caller has to
+    // hand it. See `MatchScreenState._finish`.
+    Map<String, dynamic> saveWith({required int played}) => {
+      'progression': <String, dynamic>{'matchesPlayed': played},
+      'grid': <String, dynamic>{
+        'cells': <dynamic>[
+          <String, dynamic>{'instanceId': 'sent-off'},
+          <String, dynamic>{'instanceId': 'innocent'},
+        ],
+      },
+    };
+
+    test('a LEAGUE sending-off costs exactly the next fixture', () {
+      // At the whistle the counter still reads 4; kick-off has already moved it
+      // once for THIS match, so the screen hands over 5.
+      final s = saveWith(played: 4);
+      applySuspensions(s, ['sent-off'], playedSoFar: 5);
+      // The next fixture: the counter moves to 5 at ITS kick-off.
+      expect(suspendedIn(s), {'sent-off'});
+      (s['progression'] as Map<String, dynamic>)['matchesPlayed'] = 5;
+      expect(suspendedIn(s), {'sent-off'}, reason: 'he served no ban at all');
+      // And the one after it he is free.
+      (s['progression'] as Map<String, dynamic>)['matchesPlayed'] = 6;
+      expect(suspendedIn(s), isEmpty, reason: 'one red card, two matches out');
+    });
+
+    test('and a CUP sending-off costs exactly the next fixture too', () {
+      // A cup tie does not move the counter, so the screen hands over the
+      // stored figure unchanged.
+      final s = saveWith(played: 4);
+      applySuspensions(s, ['sent-off'], playedSoFar: 4);
+      expect(suspendedIn(s), {'sent-off'});
+      // The next league game kicks off and counts itself.
+      (s['progression'] as Map<String, dynamic>)['matchesPlayed'] = 5;
+      expect(
+        suspendedIn(s),
+        isEmpty,
+        reason: 'a red card in a cup tie cost two league fixtures',
+      );
+    });
+
+    test('nobody else is touched by either', () {
+      final s = saveWith(played: 4);
+      applySuspensions(s, ['sent-off'], playedSoFar: 5);
+      expect(suspendedIn(s), isNot(contains('innocent')));
+    });
+  });
 }

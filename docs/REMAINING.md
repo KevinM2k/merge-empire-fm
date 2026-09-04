@@ -64,6 +64,20 @@ against a real away fixture, or something here is still missing. The spec repo
 is absent from a cloud container, so the JS's own screens could not be consulted
 either. **Play an away match and read the board before believing this.**
 
+### A sending-off in a CUP cost two fixtures
+
+Found while chasing the report below, and it is the one real defect the chase
+turned up. `applySuspensions` wants the match count INCLUDING the match just
+played, and at the whistle the save has not counted it yet — so the match screen
+adds the one itself. That reasoning holds for a LEAGUE fixture and only for one:
+the counter moves inside `buildMatchResult` at kick-off, and a cup tie never
+goes near it (`prepareCupRound` and `commitCupRound` do not touch
+`matchesPlayed`, which is what keeps a cup from shortening the league season).
+So in a cup the plus one compensated for a move that never happened, `played + 2`
+was written against a counter still sitting at `played`, and the next TWO league
+games both found him banned. `suspensionMatches` is one match, in both
+competitions.
+
 ### Still open — the red card seen twice
 
 The substitute turned out to be a DUPLICATE of the sent-off player — same
@@ -75,13 +89,21 @@ before kick-off, `applySuspensions` and `recordBookings` are instance-keyed, the
 pitch slots carry no per-card widget keys, and `restoreKickoffLineup` refuses the
 banned man by id.
 
-What CAN happen is legibility: at the whistle `restoreKickoffLineup` leaves the
-banned man's slot empty and `refillLineupFromBench` fills it best-for-position —
-which, with his duplicate on the bench, puts a card that looks exactly like him
-in the position he was sent off from, while he sits nearby wearing the
-suspension's red. Two adjacent defects found on the way were real and are fixed
-(see the previous session). **Still needs:** which screen showed the second card,
-and whether the two men were separate cards on the grid or one card seen twice.
+**Narrowed to the SUBS BENCH**, on the follow-up: a different card, the same
+name, with the red card drawn over it. That overlay is `CardView.suspended`, fed
+by `suspendedIn(state)` — instance-keyed, and a ban is not written until the
+whistle, so a bench card carrying one mid-match is serving a ban from an EARLIER
+fixture and is correctly drawn. With a duplicate of the sent-off man on the
+bench (same definition, same portrait, a nickname apart) that reads as the same
+player wearing a second red.
+
+So on the evidence this is legibility rather than data, and the couch agrees —
+"could have been a duplicate I guess". Two adjacent defects found on the way
+were real and are fixed (see the previous session), plus the cup ban above.
+**Left open deliberately**, because the honest fix is to make two cards of one
+definition tellable apart at bench size and that is a design change, not a bug
+fix. Worth doing: the tile has a name, a rating and a portrait, and duplicates
+share two of the three.
 
 ## Playtest, 3 Sep 2026 (second sitting) — the cup week, the referee and the bench
 

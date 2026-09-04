@@ -1437,6 +1437,18 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
         // instant the whistle was recorded, and the man was available for the
         // very fixture he was supposed to miss. `applySuspensions` wants the
         // count INCLUDING the match just played; the save does not have it yet.
+        //
+        // **EXCEPT IN A CUP, WHERE NOTHING IS ABOUT TO COUNT IT.** That
+        // reasoning holds for a league fixture and only for one: the counter
+        // moves inside `buildMatchResult`, and a cup tie never goes near it —
+        // `prepareCupRound` and `commitCupRound` do not touch `matchesPlayed`,
+        // which is the same rule that keeps a cup from shortening the league
+        // season. So the plus one was compensating for a move that never
+        // happened, and a sending-off in a cup tie cost TWO fixtures instead of
+        // one: `played + 2` written against a counter still sitting at
+        // `played`, so the next league game and the one after it both found him
+        // banned. `suspensionMatches` is one match, in both competitions.
+        final isCup = widget.result['isCup'] == true;
         applySuspensions(
           state,
           off,
@@ -1444,7 +1456,7 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
               (prog is Map<String, dynamic>
                   ? (prog['matchesPlayed'] as num?)?.toInt() ?? 0
                   : 0) +
-              1,
+              (isCup ? 0 : 1),
         );
         // And the cards themselves go on the record, beside his goals.
         recordBookings(state, _bookingRecords);
