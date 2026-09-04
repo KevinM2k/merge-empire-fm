@@ -436,10 +436,29 @@ final Map<String, GestureAnimation> _animations = {
   // loose ball back to a ball boy. Reported as the kick being far too much.
   // The swing stops where it meets the ball, and the leg is down again by 0.8
   // rather than riding a follow-through all the way to the end of the clip.
+  //
+  // **AND THE REST OF HIM KICKS TOO.** The leg swung under a body that did
+  // nothing, which is a leg on a hinge. A man striking a ball looks down at it
+  // as he winds up, leans back off the swing to balance it, throws the
+  // opposite arm forward as the leg comes through and drops a shade at the
+  // plant — none of it large, all of it what makes a kick a kick.
   'kick': const GestureAnimation(
     kickThigh: [(0, 0), (0.30, 20), (0.60, -26), (0.80, -4), (1, 0)],
     kickShin: [(0, 0), (0.30, 46), (0.60, -4), (0.80, 6), (1, 0)],
-    armNear: [(0, armNearRest), (0.30, armNearRest + 10), (0.60, armNearRest - 14), (1, armNearRest)],
+    // The near arm swings back with the near leg's wind-up and comes forward
+    // with the strike; the far arm does the opposite, which is what balances
+    // him.
+    armNear: [(0, armNearRest), (0.30, armNearRest + 14), (0.60, armNearRest - 30), (1, armNearRest)],
+    foreNear: [(0, foreRest), (0.30, foreRest + 14), (0.60, foreRest - 12), (1, foreRest)],
+    armFar: [(0, armFarRest), (0.30, armFarRest - 16), (0.60, armFarRest + 34), (1, armFarRest)],
+    // Eyes on the ball through the wind-up and the contact.
+    head: [(0, 0), (0.25, 9), (0.60, 6), (0.85, 0), (1, 0)],
+    // Leaning back off the strike, legs counter-rotated so the plant foot
+    // stays planted.
+    body: [(0, 0), (0.30, 2), (0.60, -5), (0.85, 0), (1, 0)],
+    legs: [(0, 0), (0.30, -2), (0.60, 5), (0.85, 0), (1, 0)],
+    // A dip onto the standing leg at the contact. Art units, positive down.
+    bodyLift: [(0, 0), (0.30, -0.6), (0.60, 1.4), (0.85, 0), (1, 0)],
     curve: Curves.easeInOut,
   ),
   // ── SALUTE. Snapped up rather than eased: the curve is the gesture.

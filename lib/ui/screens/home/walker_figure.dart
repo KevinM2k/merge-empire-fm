@@ -483,16 +483,74 @@ void paintTorso(
     canvas.restore();
   }
 
-  // A collar that sits ON the shoulders rather than being a line across them.
+  // **CLOTH HAS FOLDS.** A shirt that is one smooth gradient from collar to
+  // hem is a painted torso; two soft creases — one pulled in under the arm
+  // where the sleeve meets the body, one across the belly where it tucks —
+  // are what make it fabric with a man inside it.
+  if (soft) {
+    canvas.save();
+    canvas.clipPath(path);
+    final crease = Paint()
+      ..color = Colors.black.withValues(alpha: 0.13)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5
+      ..strokeCap = StrokeCap.round
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.1);
+    canvas.drawPath(
+      Path()
+        ..moveTo(50.6, 68)
+        ..quadraticBezierTo(53.4, 74, 51.8, 81),
+      crease,
+    );
+    canvas.drawPath(
+      Path()
+        ..moveTo(52.4, 83.6)
+        ..quadraticBezierTo(59, 85.4, 66.4, 82.6),
+      crease,
+    );
+    // A pull of light on the chest, where the cloth is stretched over it.
+    canvas.drawOval(
+      Rect.fromCenter(center: const Offset(65, 68), width: 6, height: 11),
+      Paint()
+        ..color = Colors.white.withValues(alpha: 0.09)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2),
+    );
+    canvas.restore();
+  }
+
+  // **A COLLAR, not a line across the shoulders.** A band round the base of
+  // the neck with a raised top edge and a placket notch at the front — the
+  // three marks that say "polo shirt" in profile at this size.
+  final band = Path()
+    ..moveTo(53.2, 58.4)
+    ..quadraticBezierTo(58.6, 65.4, 63.8, 58.0)
+    ..lineTo(63.4, 55.6)
+    ..quadraticBezierTo(58.6, 61.6, 53.6, 55.8)
+    ..close();
+  canvas.drawPath(band, Paint()..color = deepen(kit, 0.36));
   canvas.drawPath(
     Path()
-      ..moveTo(53.6, 57.8)
-      ..quadraticBezierTo(58.6, 65.2, 63.4, 57.4),
+      ..moveTo(53.6, 55.8)
+      ..quadraticBezierTo(58.6, 61.6, 63.4, 55.6),
     Paint()
-      ..color = deepen(kit, 0.36)
-      ..strokeWidth = 2.2
+      ..color = lift(kit, 0.22)
+      ..strokeWidth = 0.8
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round,
+  );
+  // The placket: a short notch down from the collar's front, with a button.
+  canvas.drawLine(
+    const Offset(61.8, 60.6),
+    const Offset(61.2, 65.4),
+    Paint()
+      ..color = deepen(kit, 0.3)
+      ..strokeWidth = 0.9
+      ..strokeCap = StrokeCap.round,
+  );
+  canvas.drawCircle(
+    const Offset(61.4, 64.2),
+    0.55,
+    Paint()..color = lift(kit, 0.5),
   );
 }
 
@@ -570,6 +628,48 @@ void paintBoot(Canvas canvas, Offset ankle, Color boot) {
     Rect.fromLTWH(bounds.left, bounds.bottom - 1.5, bounds.width, 1.5),
     Paint()..color = lift(boot, 0.18),
   );
+  // **A BOOT HAS LACES AND A TOE.** Without them it is a black wedge. A pale
+  // tongue over the instep with three cross-laces, a toe cap caught by the
+  // light along its top, and a heel counter behind the ankle.
+  final tongue = Rect.fromCenter(
+    center: ankle.translate(3.0, -0.6),
+    width: 4.6,
+    height: 2.4,
+  );
+  canvas.drawRRect(
+    RRect.fromRectAndRadius(tongue, const Radius.circular(1)),
+    Paint()..color = lift(boot, 0.34),
+  );
+  final lace = Paint()
+    ..color = lift(boot, 0.7)
+    ..strokeWidth = 0.45
+    ..strokeCap = StrokeCap.round;
+  for (var i = 0; i < 3; i++) {
+    final x = tongue.left + 0.9 + i * 1.4;
+    canvas.drawLine(
+      Offset(x, tongue.top + 0.4),
+      Offset(x + 0.9, tongue.bottom - 0.4),
+      lace,
+    );
+  }
+  canvas.drawPath(
+    Path()
+      ..moveTo(ankle.dx + 6.4, ankle.dy - 0.4)
+      ..quadraticBezierTo(ankle.dx + 9.6, ankle.dy - 0.2, ankle.dx + 10.8, ankle.dy + 1.6),
+    Paint()
+      ..color = lift(boot, 0.32)
+      ..strokeWidth = 0.7
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round,
+  );
+  canvas.drawLine(
+    Offset(ankle.dx - 1.4, ankle.dy - 1.6),
+    Offset(ankle.dx - 1.0, ankle.dy + 2.4),
+    Paint()
+      ..color = deepen(boot, 0.35)
+      ..strokeWidth = 0.6
+      ..strokeCap = StrokeCap.round,
+  );
   canvas.restore();
 }
 
@@ -622,11 +722,15 @@ void paintWatch(Canvas canvas, Offset wrist, Color accent) {
   );
 }
 
-/// A hand: a mitten, wider across the knuckles than at the wrist.
+/// A hand: a mitten, wider across the knuckles than at the wrist — with a
+/// THUMB on the leading edge, which is the one mark that turns an oval on the
+/// end of an arm into a hand.
 void paintHand(Canvas canvas, Offset at, Color skin, {bool far = false}) {
   final flesh = far ? deepen(skin, 0.26) : skin;
+  final palm = Path()
+    ..addOval(Rect.fromCenter(center: at, width: 7.4, height: 6.4));
   canvas.drawPath(
-    Path()..addOval(Rect.fromCenter(center: at, width: 7.4, height: 6.4)),
+    palm,
     Paint()
       ..shader = ui.Gradient.radial(
         at.translate(-1, -1.4),
@@ -635,4 +739,76 @@ void paintHand(Canvas canvas, Offset at, Color skin, {bool far = false}) {
         const [0, 0.55, 1],
       ),
   );
+  // The thumb, a smaller round forward and up of the knuckles, with a crease
+  // where it joins.
+  final thumb = at.translate(2.9 * facing, -1.9);
+  canvas.drawCircle(thumb, 1.55, Paint()..color = lift(flesh, 0.06));
+  canvas.drawArc(
+    Rect.fromCircle(center: thumb, radius: 1.55),
+    math.pi * 0.55,
+    math.pi * 0.8,
+    false,
+    Paint()
+      ..color = deepen(flesh, 0.3)
+      ..strokeWidth = 0.45
+      ..style = PaintingStyle.stroke,
+  );
+  // A knuckle line across the back of the hand.
+  canvas.save();
+  canvas.clipPath(palm);
+  canvas.drawPath(
+    Path()
+      ..moveTo(at.dx - 2.2, at.dy + 0.4)
+      ..quadraticBezierTo(at.dx + 0.4, at.dy - 0.6, at.dx + 2.8, at.dy + 0.6),
+    Paint()
+      ..color = deepen(flesh, 0.22)
+      ..strokeWidth = 0.5
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.round,
+  );
+  canvas.restore();
+}
+
+/// **KIT SOCKS.** A football kit is shorts, a shirt and socks pulled up the
+/// shin; the bare-legged figure read as a man in gym shorts. Drawn over the
+/// lower shin in the club's colour with a paler turnover at the top, from
+/// [top] down to the [ankle], in the shin's own frame.
+void paintSock(
+  Canvas canvas,
+  Offset top,
+  Offset ankle,
+  double wTop,
+  double wAnkle, {
+  required Color kit,
+  bool far = false,
+  bool soft = true,
+}) {
+  paintLimb(
+    canvas,
+    top,
+    ankle,
+    wTop,
+    wAnkle,
+    base: deepen(kit, 0.08),
+    far: far,
+    occlude: false,
+    soft: soft,
+  );
+  // The turnover: a paler band across the top of the sock, INSIDE the sock's
+  // own shape — a second capsule's round caps made it twice its height.
+  final band = far ? deepen(lift(kit, 0.42), 0.26) : lift(kit, 0.42);
+  canvas.save();
+  canvas.clipPath(taperedLimb(top, ankle, wTop, wAnkle));
+  canvas.drawRect(
+    Rect.fromLTWH(top.dx - wTop, top.dy - wTop, wTop * 2, wTop + 2.4),
+    Paint()..color = band,
+  );
+  canvas.drawLine(
+    Offset(top.dx - wTop, top.dy + 2.4),
+    Offset(top.dx + wTop, top.dy + 2.4),
+    Paint()
+      ..color = Colors.black.withValues(alpha: 0.18)
+      ..strokeWidth = 0.5,
+  );
+  canvas.restore();
 }

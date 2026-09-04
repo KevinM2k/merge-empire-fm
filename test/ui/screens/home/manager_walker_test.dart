@@ -16,6 +16,7 @@ import 'package:merge_empire_fc/data/manager_looks.dart';
 import 'package:merge_empire_fc/ui/screens/home/walker_figure.dart';
 import 'package:merge_empire_fc/data/manager_mood.dart';
 import 'package:merge_empire_fc/ui/screens/home/gesture_poses.dart';
+import 'package:merge_empire_fc/ui/screens/home/hair_strands.dart';
 import 'package:merge_empire_fc/ui/screens/home/manager_walker.dart';
 import 'package:merge_empire_fc/ui/screens/home/walk_ramp.dart';
 import 'package:merge_empire_fc/ui/theme/app_theme.dart';
@@ -859,11 +860,16 @@ void main() {
   });
 
   group('a hat and the hair under it', () {
-    /// Every clip applied to a head layer, as a fraction of the box's height.
+    /// Every brow line a hair mass is hidden above, as a fraction of the
+    /// box's height. The hair is painted rather than laid out now, so the
+    /// clip is the painter's own rather than a `ClipRect` in the tree.
     List<double> clipsIn(WidgetTester tester) => [
-      for (final clip in tester.widgetList<ClipRect>(find.byType(ClipRect)))
-        if (clip.clipper != null)
-          clip.clipper!.getClip(const Size(120, 170)).top / 170,
+      for (final paint in tester.widgetList<CustomPaint>(
+        find.byType(CustomPaint),
+      ))
+        if (paint.painter is HairPainter &&
+            (paint.painter! as HairPainter).hideAbove != null)
+          (paint.painter! as HairPainter).hideAbove! / 170,
     ];
 
     testWidgets('A CAP HIDES THE HAIR COMING THROUGH IT', (tester) async {
@@ -961,14 +967,33 @@ void main() {
     });
   });
 
-  test('THE CARRY IS REBASED, not copied off the JS', () {
-    // The JS hangs its forearm at a static -52 and folds to -110 — a delta of
-    // 58. The port rebased that rest (-9 to -31, because -38/-68 put the
-    // forearm horizontal with the shoulder swing on top), so copying -110
-    // across folded the arm forty degrees too far. Reported as the ball carry
-    // looking odd.
-    expect(carryFore, greaterThan(-110));
-    expect(carryFore, lessThan(carryArm));
+  test('THE CARRY IS TWO ARMS ON THE BALL, not a tray', () {
+    // Both arms at one angle balanced the ball on the forearms. The near arm
+    // reaches UNDER it and the far arm folds OVER it — solved onto the ball
+    // the sim parks at his hands, centre (74.5, 85) r 10.5.
+    ({Offset elbow, Offset hand}) arm(double armDeg, double foreDeg) {
+      final a = armDeg * math.pi / 180;
+      final elbow = Offset(
+        armShoulder.dx - 18 * math.sin(a),
+        armShoulder.dy + 18 * math.cos(a),
+      );
+      final w = (armDeg + foreDeg) * math.pi / 180;
+      return (
+        elbow: elbow,
+        hand: Offset(elbow.dx - 20.6 * math.sin(w), elbow.dy + 20.6 * math.cos(w)),
+      );
+    }
+
+    const ball = Offset(74.5, 85);
+    final near = arm(carryArm, carryFore).hand;
+    final far = arm(carryArmFar, carryForeFar).hand;
+    // The near hand is on the ball's lower front, the far one on its upper
+    // back: on it, and on opposite sides of it.
+    expect((near - ball).distance, lessThan(12), reason: 'near hand off the ball');
+    expect((far - ball).distance, lessThan(12), reason: 'far hand off the ball');
+    expect(near.dy, greaterThan(ball.dy + 4));
+    expect(far.dy, lessThan(ball.dy - 4));
+    expect(near.dx, greaterThan(far.dx));
   });
 
 
@@ -1248,24 +1273,41 @@ void main() {
       expect(turned, isEmpty, reason: 'a crop is swinging');
     });
 
-    testWidgets('the hair turns about the CROWN, not the face', (tester) async {
-      // About the skull's centre it would slide the parting down his forehead;
-      // about the box it would swing the whole head.
-      expect(hairPivot.y, lessThan(0), reason: 'the pivot is below the crown');
+    testWidgets('the hair hangs from the CROWN, and the tips move most', (
+      tester,
+    ) async {
+      // **Not a turn any more — a shear.** The mass used to rotate as one
+      // shape about the crown, which is a helmet on a hinge; now the roots
+      // are held and every point moves by how far it hangs. Pinned on the
+      // pure function, then on the tree: a ponytail's masses are being driven.
+      expect(hairShearAt(0, 40, swing: 5, front: false), 0);
+      final root = hairShearAt(0.2, 40, swing: 5, front: false);
+      final mid = hairShearAt(0.6, 40, swing: 5, front: false);
+      final tip = hairShearAt(1, 40, swing: 5, front: false);
+      expect(root.abs(), lessThan(mid.abs()));
+      expect(mid.abs(), lessThan(tip.abs()));
+      // A fringe flutters where a tail swings.
+      expect(
+        hairShearAt(1, 40, swing: 5, front: true).abs(),
+        lessThan(tip.abs() / 2),
+      );
       await pumpWalker(
         tester,
         reduceMotion: false,
         look: {'style': 'pony', 'outfit': 'kit', 'build': 'regular'},
       );
-      final turned = tester
-          .widgetList<Transform>(
+      final driven = tester
+          .widgetList<CustomPaint>(
             find.descendant(
               of: find.byType(ManagerWalker),
-              matching: find.byType(Transform),
+              matching: find.byType(CustomPaint),
             ),
           )
-          .where((w) => w.alignment == hairPivot);
-      expect(turned, isNotEmpty, reason: 'no hair layer is turning');
+          .where(
+            (w) => w.painter is HairPainter &&
+                (w.painter! as HairPainter).motion.amount > 0,
+          );
+      expect(driven, isNotEmpty, reason: 'no hair mass is being driven');
     });
   });
 

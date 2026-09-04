@@ -83,7 +83,7 @@ Map<String, SvgGradient> parseGradients(String svg) {
     final colours = <Color>[];
     for (final stop in _stopTag.allMatches(m.group(3) ?? '')) {
       final sa = _attrsOf(stop.group(1) ?? '');
-      final colour = _colour(
+      final colour = svgColour(
         sa['stop-color'],
         double.tryParse(sa['stop-opacity'] ?? '') ?? 1.0,
       );
@@ -238,7 +238,11 @@ final _rgba = RegExp(
   r'rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)\s*(?:[,/]\s*([\d.]+)\s*)?\)',
 );
 
-Color? _colour(String? value, double opacity) {
+/// An SVG colour — `#rgb`, `#rrggbb`, `#rrggbbaa` or `rgba(...)` — at [opacity].
+///
+/// Public because the hair painter reads a mass's fill off the same art the
+/// walker draws, and a second colour parser is a second opinion.
+Color? svgColour(String? value, double opacity) {
   if (value == null || value.isEmpty || value == 'none') return null;
   var hex = value.trim();
   // The icon set rims its coins in `rgba(0,0,0,0.30)`, and hex-only parsing
@@ -298,7 +302,7 @@ class SvgPainter extends CustomPainter {
     if (value == null || value.isEmpty || value == 'none') return null;
     final ref = _urlRef.firstMatch(value);
     if (ref == null) {
-      final colour = _colour(value, opacity);
+      final colour = svgColour(value, opacity);
       return colour == null ? null : (Paint()..color = colour);
     }
     final g = gradients[ref.group(1)];

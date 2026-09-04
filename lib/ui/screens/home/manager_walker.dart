@@ -40,6 +40,7 @@ import 'package:merge_empire_fc/data/manager_art.g.dart';
 import 'package:merge_empire_fc/data/manager_looks.dart';
 import 'package:merge_empire_fc/data/manager_mood.dart';
 import 'package:merge_empire_fc/ui/screens/home/gesture_poses.dart';
+import 'package:merge_empire_fc/ui/screens/home/hair_strands.dart';
 import 'package:merge_empire_fc/ui/screens/home/walk_ramp.dart';
 import 'package:merge_empire_fc/ui/screens/home/pitch_scene.dart';
 import 'package:merge_empire_fc/ui/screens/home/walker_figure.dart';
@@ -351,7 +352,9 @@ double walkerShinAngle(double t, {bool near = true}) =>
 /// foot works, and it put a POINTED TOE on the end of every step — which the
 /// original does not do, and which reads as a dancer rather than a manager.
 double walkerBootAngle(double t, {bool near = true}) =>
-    walkerThighAngle(t, near: near) + walkerShinAngle(t, near: near);
+    walkerThighAngle(t, near: near) +
+    walkerShinAngle(t, near: near) +
+    walkerAnkleAngle(t, near: near);
 
 /// Where the ankle ends up given those angles — FORWARD kinematics.
 ///
@@ -533,8 +536,15 @@ const _Track _elbowFar = [
 /// held out, so the walking elbow is -9 to -31 here. Copying -110 across on top
 /// of the new rest folded the arm forty degrees too far and it read exactly as
 /// reported: odd. Same DELTA off the port's own rest instead.
-const double carryArm = -20;
-const double carryFore = -78;
+/// **TWO DIFFERENT ARMS.** Both at the same angle is a tray, not a hold: the
+/// near arm reaches UNDER the ball and takes its weight, the far arm folds
+/// over the top of it. Solved onto the ball the sim parks at `_handX`/`_handY`
+/// — centre (74.5, 85), r 10.5 — so the near hand lands on its lower front and
+/// the far hand peeps over its top edge behind.
+const double carryArm = -30;
+const double carryFore = -14;
+const double carryArmFar = 18;
+const double carryForeFar = -121;
 
 /// How tall the shadow's own box is, as a fraction of his.
 ///
@@ -652,7 +662,11 @@ const Offset skullOnScreen = Offset(
 /// given style actually uses is `hairSwayFactor` in `data/manager_looks.dart` —
 /// a crop is nought and a ponytail is one — because a whole head of hair does
 /// not sway and a close crop does not move at all.
-const double hairSwayDegrees = 3.2;
+///
+/// **Raised from 3.2 when the hair stopped turning as a slab.** The mass is
+/// sheared from the crown now — the roots never move, the skull holds what is
+/// on it — so the tips can travel further without daylight at the parting.
+const double hairSwayDegrees = 5;
 
 /// Which way the hair is hanging, in degrees, for a figure at walk phase [t].
 ///
@@ -763,6 +777,43 @@ double moodHeadTilt(Mood mood) => switch (mood) {
 
 /// How far he sways, once a stride. A walk is not a figure on rails.
 const double _sway = 1.6;
+
+/// **THE TORSO PITCHES.** A walking body leans into the step and rocks a
+/// little twice a stride — forward as the weight comes over the planted foot,
+/// back as the trailing leg pushes off. The rig stood bolt upright through all
+/// of it, which is most of what read as a figure on rails. Degrees about the
+/// hip, positive forward, the same sense as a gesture's `body`.
+double walkBodyPitch(double t) => 1.8 + 1.1 * math.sin(t * 4 * math.pi);
+
+/// **THE SHOULDERS TURN WITH THE ARMS.** In profile a swinging arm carries its
+/// shoulder with it — forward when the arm is forward, back when it is back —
+/// because the torso is twisting about its spine. Art units; the near shoulder
+/// gets this and the far one the negative.
+double walkShoulderShift(double t) => -1.3 * math.cos(t * 2 * math.pi);
+
+/// **THE HEAD DOES NOT BOB AS MUCH AS THE HIPS.** The neck absorbs a share of
+/// the rise, so the head travels less than the body under it. The share, of
+/// `walkerHipRise`.
+const double headBobDamping = 0.28;
+
+/// **THE ANKLE ROLLS.** The boot used to point wherever the shin pointed —
+/// the JS's arrangement — which is right in the swing and wrong on the ground:
+/// a foot lands heel first with the toe up, flattens, and leaves toe last with
+/// the heel up. A few degrees of that is what says the foot is carrying him.
+/// Degrees about the ankle, positive toes-down. Small on purpose: the JS's
+/// float is measured and accepted, and a big roll would push it past that.
+const _Track _ankleNear = [
+  (0, -9),
+  (0.12, 0),
+  (0.38, 6),
+  (0.52, 11),
+  (0.66, 2),
+  (0.84, -5),
+  (1, -9),
+];
+
+double walkerAnkleAngle(double t, {bool near = true}) =>
+    _sample(_ankleNear, near ? t % 1 : (t + 0.5) % 1);
 
 /// The look a walker draws when the save has none.
 ///
@@ -1074,9 +1125,9 @@ class _ManagerWalkerState extends State<ManagerWalker>
         _sample(track, t) + (target - _sample(track, t)) * k;
     return (
       armNear: to(carryArm, _armNear),
-      armFar: to(carryArm, _armFar),
+      armFar: to(carryArmFar, _armFar),
       foreNear: to(carryFore, _elbowNear),
-      foreFar: to(carryFore, _elbowFar),
+      foreFar: to(carryForeFar, _elbowFar),
       head: pose?.head,
       body: pose?.body,
       bodyLift: pose?.bodyLift,
@@ -1084,6 +1135,26 @@ class _ManagerWalkerState extends State<ManagerWalker>
       kickThigh: pose?.kickThigh,
       kickShin: pose?.kickShin,
       finger: 0,
+    );
+  }
+
+  /// The stride's pitch, folded into the pose the painter reads: the LEGS
+  /// counter-rotate it so a body that leans forward does not drag its boots
+  /// along the grass with it. The body half is applied by [_Fold] outside.
+  GesturePose? _withPitch(GesturePose? pose, double pitch) {
+    if (pitch == 0) return pose;
+    return (
+      armNear: pose?.armNear,
+      armFar: pose?.armFar,
+      foreNear: pose?.foreNear,
+      foreFar: pose?.foreFar,
+      head: pose?.head,
+      body: pose?.body,
+      bodyLift: pose?.bodyLift,
+      legs: (pose?.legs ?? 0) - pitch,
+      kickThigh: pose?.kickThigh,
+      kickShin: pose?.kickShin,
+      finger: pose?.finger ?? 0,
     );
   }
 
@@ -1285,7 +1356,11 @@ class _ManagerWalkerState extends State<ManagerWalker>
         // the legs below hold their rest angles. See [ManagerWalker.standing].
         final standing = widget.standing;
         final t = _phase;
-        final pose = _carryOver(_pose, t);
+        // The stride's own pitch, under whatever a gesture folds him by. The
+        // legs take the opposite so the feet stay where the ground is — see
+        // [walkBodyPitch].
+        final pitch = standing ? 0.0 : walkBodyPitch(t);
+        final pose = _withPitch(_carryOver(_pose, t), pitch);
         // Whether this gesture's hand belongs in FRONT of the face — see
         // [gestureHandsOverHead]. Only while it is actually playing: at rest
         // his arms are by his sides and a second pass would be two of them.
@@ -1441,7 +1516,7 @@ class _ManagerWalkerState extends State<ManagerWalker>
             // Wrapped OUTSIDE the walk's offsets so the fold composes with the
             // stride instead of replacing it.
             _Fold(
-              degrees: pose?.body,
+              degrees: (pose?.body ?? 0) + pitch,
               child: Transform.translate(
                 // Art units × [unit]. See the note on the `LayoutBuilder`:
                 // these are the offsets that were pixels while the shadow was
@@ -1505,99 +1580,128 @@ class _ManagerWalkerState extends State<ManagerWalker>
                     // Off for a rig that is not moving (the customiser's
                     // chips): a layer each for twenty stills is memory for
                     // nothing.
-                    _Tilt(
-                      degrees: drawnTilt,
-                      child: _SetBack(
-                        // **FOUR CACHED BANDS, not one cached head.**
-                        //
-                        // It was one boundary round the whole group, and that
-                        // was right while every part of the head was static:
-                        // the tilt became a layer transform and only a blink or
-                        // a new look repainted it. The hair moves now — see
-                        // [hairSwayAt] — and a fringe turning inside a single
-                        // boundary drags the skull, the beard, the glasses and
-                        // the hat into a repaint with it, which is the whole
-                        // saving thrown away.
-                        //
-                        // So the head is a STACK of layers, in the order it has
-                        // always been drawn in, each cached on its own: hair
-                        // behind, the skull and the paint on it, the fringe,
-                        // then the features and everything worn over them. The
-                        // two hair bands turn; the other two never do, so
-                        // turning a fringe is a matrix on one layer and nothing
-                        // repaints at all.
-                        child: Stack(
-                          fit: StackFit.expand,
-                          children: [
-                              // **THE HAIR IS ITS OWN LAYER, and it MOVES.**
-                              // Both masses hang off the crown and swing behind
-                              // the head — see [hairSwayAt]. They are lifted
-                              // out of the group's shared raster into two of
-                              // their own, because a fringe that turned inside
-                              // it would re-rasterise the skull, the beard, the
-                              // glasses and the hat every frame with it; on
-                              // their own the turn is a matrix on a picture
-                              // that is already drawn, which is what makes a
-                              // moving fringe free.
-                              //
-                              // The ORDER is untouched, and it is the whole of
-                              // this head: hair behind, skull, paint on the
-                              // skin, fringe, features, then everything worn
-                              // over the top.
-                            for (final layer in parts.behindHead)
-                              _Hair(
-                                degrees: hairBackSway,
-                                animating: _animating(context),
-                                layer: layer,
-                              ),
-                            // The skull and anything painted ON it. One band,
-                            // because a blink repaints both and nothing else
-                            // repaints either.
-                            cachedLayer(
-                              _animating(context),
-                              Stack(
-                                fit: StackFit.expand,
-                                children: [
-                                  CustomPaint(
-                                    painter: _HeadPainter(
-                                      soft: widget.soft,
-                                      skin: parts.skin,
-                                      blink: _blink,
+                    Transform.translate(
+                      // The neck takes a share of the bob — see
+                      // [headBobDamping]. Art units × [unit], like every other
+                      // offset on him.
+                      offset: Offset(0, rise * headBobDamping * unit),
+                        child: _Tilt(
+                        degrees: drawnTilt,
+                        child: _SetBack(
+                          // **FOUR CACHED BANDS, not one cached head.**
+                          //
+                          // It was one boundary round the whole group, and that
+                          // was right while every part of the head was static:
+                          // the tilt became a layer transform and only a blink or
+                          // a new look repainted it. The hair moves now — see
+                          // [hairSwayAt] — and a fringe turning inside a single
+                          // boundary drags the skull, the beard, the glasses and
+                          // the hat into a repaint with it, which is the whole
+                          // saving thrown away.
+                          //
+                          // So the head is a STACK of layers, in the order it has
+                          // always been drawn in, each cached on its own: hair
+                          // behind, the skull and the paint on it, the fringe,
+                          // then the features and everything worn over them. The
+                          // two hair bands turn; the other two never do, so
+                          // turning a fringe is a matrix on one layer and nothing
+                          // repaints at all.
+                          child: Stack(
+                            fit: StackFit.expand,
+                            children: [
+                                // **THE HAIR IS ITS OWN LAYER, and it MOVES.**
+                                // Both masses hang off the crown and swing behind
+                                // the head — see [hairSwayAt]. They are lifted
+                                // out of the group's shared raster into two of
+                                // their own, because a fringe that turned inside
+                                // it would re-rasterise the skull, the beard, the
+                                // glasses and the hat every frame with it; on
+                                // their own the turn is a matrix on a picture
+                                // that is already drawn, which is what makes a
+                                // moving fringe free.
+                                //
+                                // The ORDER is untouched, and it is the whole of
+                                // this head: hair behind, skull, paint on the
+                                // skin, fringe, features, then everything worn
+                                // over the top.
+                              for (final layer in parts.behindHead)
+                                _Hair(
+                                  motion: HairMotion(
+                                    swing: hairBackSway,
+                                    swingLate: hairSwayAt(
+                                      t - hairTipLag,
+                                      tilt: headTilt,
+                                      amount: moving * swayBack,
                                     ),
+                                    phase: t,
+                                    amount: moving * swayBack,
                                   ),
-                                  for (final layer in parts.onSkin)
-                                    _HeadArt(layer: layer),
-                                ],
-                              ),
-                            ),
-                            for (final layer in parts.overHair)
-                              _Hair(
-                                degrees: hairFrontSway,
-                                animating: _animating(context),
-                                layer: layer,
-                              ),
-                            // The features and everything worn over them —
-                            // beard, glasses, hat, mouth. Never moved by the
-                            // hair, which is the point of the split.
-                            cachedLayer(
-                              _animating(context),
-                              Stack(
-                                fit: StackFit.expand,
-                                children: [
-                                  CustomPaint(
-                                    painter: _HeadPainter(
-                                      soft: widget.soft,
-                                      skin: parts.skin,
-                                      blink: _blink,
-                                      features: true,
+                                  front: false,
+                                  soft: widget.soft,
+                                  animating: _animating(context),
+                                  layer: layer,
+                                ),
+                              // The skull and anything painted ON it. One band,
+                              // because a blink repaints both and nothing else
+                              // repaints either.
+                              cachedLayer(
+                                _animating(context),
+                                Stack(
+                                  fit: StackFit.expand,
+                                  children: [
+                                    CustomPaint(
+                                      painter: _HeadPainter(
+                                        soft: widget.soft,
+                                        skin: parts.skin,
+                                        blink: _blink,
+                                      ),
                                     ),
-                                  ),
-                                  for (final layer in parts.overHead)
-                                    _HeadArt(layer: layer),
-                                ],
+                                    for (final layer in parts.onSkin)
+                                      _HeadArt(layer: layer),
+                                  ],
+                                ),
                               ),
-                            ),
-                          ],
+                              for (final layer in parts.overHair)
+                                _Hair(
+                                  motion: HairMotion(
+                                    swing: hairFrontSway,
+                                    swingLate: hairSwayAt(
+                                      t - hairTipLag,
+                                      tilt: headTilt,
+                                      amount: moving * swayFront,
+                                    ),
+                                    phase: t,
+                                    amount: moving * swayFront,
+                                  ),
+                                  front: true,
+                                  soft: widget.soft,
+                                  animating: _animating(context),
+                                  layer: layer,
+                                ),
+                              // The features and everything worn over them —
+                              // beard, glasses, hat, mouth. Never moved by the
+                              // hair, which is the point of the split.
+                              cachedLayer(
+                                _animating(context),
+                                Stack(
+                                  fit: StackFit.expand,
+                                  children: [
+                                    CustomPaint(
+                                      painter: _HeadPainter(
+                                        soft: widget.soft,
+                                        skin: parts.skin,
+                                        blink: _blink,
+                                        features: true,
+                                        mood: widget.mood,
+                                      ),
+                                    ),
+                                    for (final layer in parts.overHead)
+                                      _HeadArt(layer: layer),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                     ),
@@ -1648,9 +1752,17 @@ class _ManagerWalkerState extends State<ManagerWalker>
                         key: const ValueKey('manager-walker-ball-layer'),
                         child: Transform.translate(
                           offset: -bodyOffset,
-                          child: Stack(
-                            fit: StackFit.expand,
-                            children: [widget.ballLayer!],
+                          // And not pitching with him either: the stride's
+                          // lean and a bow both turn him about the hip, and
+                          // a ball on the grass — or in his hands — has no
+                          // business turning with his spine. The legs take
+                          // the same counter-turn; see [walkBodyPitch].
+                          child: _Fold(
+                            degrees: -((pose?.body ?? 0) + pitch),
+                            child: Stack(
+                              fit: StackFit.expand,
+                              children: [widget.ballLayer!],
+                            ),
                           ),
                         ),
                       ),
@@ -2445,7 +2557,12 @@ class _HeadPainter extends CustomPainter {
     this.blink = 0,
     this.features = false,
     this.soft = true,
+    this.mood = Mood.neutral,
   });
+
+  /// **THE BROW ACTS.** The mouth carries the mood already; the brow is the
+  /// other feature that reads at four pixels, and it was a fixed line.
+  final Mood mood;
 
   /// See [ManagerWalker.soft].
   final bool soft;
@@ -2596,6 +2713,64 @@ class _HeadPainter extends CustomPainter {
           ..color = Colors.black.withValues(alpha: 0.16)
           ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2.2),
       );
+      // **THE FACE HAS PLANES.** Four more marks, all soft: the shadow the
+      // hair throws on the forehead, which seats the fringe on the head;
+      // a warm blush across the cheek, which is what makes skin skin rather
+      // than a paint chip; the jaw's edge from under the ear to the chin; and
+      // a catch of light on the chin and the brow ridge.
+      canvas.drawOval(
+        Rect.fromCenter(center: const Offset(62.5, 39.4), width: 17, height: 5),
+        Paint()
+          ..color = Colors.black.withValues(alpha: 0.13)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.8),
+      );
+      canvas.drawOval(
+        Rect.fromCenter(center: const Offset(69.4, 53.4), width: 7, height: 4.6),
+        Paint()
+          ..color = const Color(0xFFE0553F).withValues(alpha: 0.14)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.8),
+      );
+      canvas.drawPath(
+        Path()
+          ..moveTo(57.6, 57.4)
+          ..quadraticBezierTo(62, 62.4, 68.6, 60.8),
+        Paint()
+          ..color = Colors.black.withValues(alpha: 0.14)
+          ..strokeWidth = 1.4
+          ..style = PaintingStyle.stroke
+          ..strokeCap = StrokeCap.round
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.1),
+      );
+      canvas.drawOval(
+        Rect.fromCenter(center: const Offset(69.6, 58.6), width: 3.6, height: 2),
+        Paint()
+          ..color = Colors.white.withValues(alpha: 0.14)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1),
+      );
+      canvas.drawOval(
+        Rect.fromCenter(center: const Offset(67, 44.6), width: 7, height: 2.4),
+        Paint()
+          ..color = Colors.white.withValues(alpha: 0.12)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.2),
+      );
+      // The nostril, and the light down the bridge of the nose.
+      canvas.drawOval(
+        Rect.fromCenter(center: const Offset(74.6, 49.6), width: 1.6, height: 1),
+        Paint()
+          ..color = Colors.black.withValues(alpha: 0.22)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 0.5),
+      );
+      canvas.drawPath(
+        Path()
+          ..moveTo(72.4, 43.6)
+          ..quadraticBezierTo(75.2, 45.4, 76.2, 47.6),
+        Paint()
+          ..color = Colors.white.withValues(alpha: 0.16)
+          ..strokeWidth = 0.9
+          ..style = PaintingStyle.stroke
+          ..strokeCap = StrokeCap.round
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 0.7),
+      );
       canvas.restore();
     }
 
@@ -2607,14 +2782,45 @@ class _HeadPainter extends CustomPainter {
   void _features(Canvas canvas, Color shade) {
     // The eye, where the glasses' lens lands.
     const eye = Offset(67.3, 47.4);
-    canvas.drawOval(
-      Rect.fromCenter(center: eye, width: 4.6, height: 3.6),
-      Paint()..color = const Color(0xFFFAF7F2),
-    );
+    final socket = Path()
+      ..addOval(Rect.fromCenter(center: eye, width: 4.6, height: 3.6));
+    canvas.drawPath(socket, Paint()..color = const Color(0xFFFAF7F2));
+    // **AN EYE, not a dot.** An iris with a pupil in it and a catch of light,
+    // and the lid's shadow across the top of the white — a bead on a disc was
+    // most of why the face read as a mask.
+    canvas.save();
+    canvas.clipPath(socket);
     canvas.drawCircle(
       eye.translate(0.7, 0.25),
-      1.35,
-      Paint()..color = const Color(0xFF2A1F18),
+      1.55,
+      Paint()..color = const Color(0xFF6B4A2E),
+    );
+    canvas.drawCircle(
+      eye.translate(0.75, 0.3),
+      0.85,
+      Paint()..color = const Color(0xFF1C130E),
+    );
+    canvas.drawCircle(
+      eye.translate(0.25, -0.35),
+      0.42,
+      Paint()..color = Colors.white.withValues(alpha: 0.9),
+    );
+    canvas.drawRect(
+      Rect.fromLTWH(eye.dx - 3, eye.dy - 2, 6, 1.1),
+      Paint()..color = Colors.black.withValues(alpha: 0.16),
+    );
+    canvas.restore();
+    // The lower lid, a fine line under the eye.
+    canvas.drawArc(
+      Rect.fromCenter(center: eye, width: 4.8, height: 3.9),
+      _deg(20),
+      _deg(140),
+      false,
+      Paint()
+        ..color = Color.lerp(skin, Colors.black, 0.3)!
+        ..strokeWidth = 0.5
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round,
     );
 
     // **THE LID, CLIPPED TO THE EYE.** Drawn straight it is a skin-coloured
@@ -2663,15 +2869,25 @@ class _HeadPainter extends CustomPainter {
         ..strokeCap = StrokeCap.round,
     );
 
-    // A brow, and it is the one feature doing any acting.
-    canvas.drawLine(
-      const Offset(64.3, 43.4),
-      const Offset(70.2, 42.9),
-      Paint()
-        ..color = Colors.black.withValues(alpha: 0.55)
-        ..strokeWidth = 1.5
-        ..strokeCap = StrokeCap.round,
-    );
+    // **THE BROW, and it acts.** A tapered wedge rather than a line — thick
+    // toward the nose, fine at the temple — set by the mood: up and arched
+    // when it is going well, the inner end pulled down over the eye when it
+    // is not. A few tenths of a unit each way is a whole expression at this
+    // size.
+    final (rise, knit) = switch (mood) {
+      Mood.elated => (-1.1, -0.5),
+      Mood.pleased => (-0.5, -0.2),
+      Mood.neutral => (0.0, 0.0),
+      Mood.glum => (0.3, 0.9),
+      Mood.crushed => (0.5, 1.6),
+    };
+    final brow = Path()
+      ..moveTo(64.4, 43.6 + rise * 0.4)
+      ..quadraticBezierTo(67.4, 41.9 + rise, 70.4, 42.6 + rise * 0.5 + knit)
+      ..lineTo(70.6, 43.9 + rise * 0.5 + knit)
+      ..quadraticBezierTo(67.4, 43.4 + rise, 64.6, 44.3 + rise * 0.4)
+      ..close();
+    canvas.drawPath(brow, Paint()..color = Colors.black.withValues(alpha: 0.6));
     // **THE FAR EYE IS GONE, and it was the "ear that looks like an eye".** It was
     // a pale oval with a dark dot at x 59.6, meant as a hint of the eye on the
     // other side of the head. On a head drawn side-on there is no other side to
@@ -2685,7 +2901,8 @@ class _HeadPainter extends CustomPainter {
       old.skin != skin ||
       old.blink != blink ||
       old.features != features ||
-      old.soft != soft;
+      old.soft != soft ||
+      old.mood != mood;
 }
 
 /// Which arms a rig pass draws.
@@ -2919,7 +3136,7 @@ class _WalkerPainter extends CustomPainter {
     // **No rotation of its own.** The boot is drawn inside the shin's frame, so
     // zero is the JS's arrangement exactly: it points where the lower leg points,
     // and there is no toe left pointing at the end of the step.
-    const ankle = 0.0;
+    final ankle = standing ? 0.0 : walkerAnkleAngle(phase, near: near);
 
     final hip = Offset(x, _hipY);
     final knee = Offset(x, _hipY + walkerThigh);
@@ -3005,6 +3222,22 @@ class _WalkerPainter extends CustomPainter {
           far: !near,
           occlude: false,
         );
+        // **Socks with the kit.** Bare shins are the palette's zero point
+        // and stay so — this is paint over the lower shin, not a colour in
+        // the outfit — so a tracksuit or a suit, whose shin is cloth already,
+        // draws none.
+        if (outfit.shin == null) {
+          paintSock(
+            canvas,
+            Offset.lerp(knee, foot, 0.56)!,
+            foot,
+            7.8 * build.limb,
+            5.6,
+            kit: kit,
+            far: !near,
+            soft: soft,
+          );
+        }
         _about(canvas, foot, ankle, () {
           // The boot runs FORWARD from the ankle, so the heel sits under the leg
           // and the toe leads — a boot centred on the ankle pivots about its own
@@ -3032,6 +3265,14 @@ class _WalkerPainter extends CustomPainter {
     final flesh = near ? skin : _shade(skin);
     final posed = near ? pose?.armNear : pose?.armFar;
     final posedFore = near ? pose?.foreNear : pose?.foreFar;
+    // The shoulder itself moves with the swing — see [walkShoulderShift]. Only
+    // while the WALK owns the arm: a posed arm was solved against the pivot
+    // where the art draws it.
+    final shift = standing || posed != null
+        ? 0.0
+        : walkShoulderShift(t) * (near ? 1 : -1);
+    canvas.save();
+    canvas.translate(shift, 0);
     _about(
       canvas,
       armShoulder,
@@ -3052,6 +3293,24 @@ class _WalkerPainter extends CustomPainter {
           7.6 * build.arm,
           base: sleeve,
           far: !near,
+        );
+        // **A SLEEVE ENDS IN A CUFF.** A band a shade darker where the cloth
+        // stops and a pale hem line under it — without it the sleeve is a
+        // painted stripe that happens to stop at the elbow.
+        final cuffHalf = 3.9 * build.arm;
+        canvas.drawLine(
+          Offset(56 - cuffHalf, 79.4),
+          Offset(56 + cuffHalf, 79.4),
+          Paint()
+            ..color = _shade(sleeve).withValues(alpha: near ? 0.55 : 0.4)
+            ..strokeWidth = 1.7,
+        );
+        canvas.drawLine(
+          Offset(56 - cuffHalf + 0.6, 80.5),
+          Offset(56 + cuffHalf - 0.6, 80.5),
+          Paint()
+            ..color = _lift(sleeve, 0.3).withValues(alpha: 0.7)
+            ..strokeWidth = 0.55,
         );
         _about(
           canvas,
@@ -3094,6 +3353,7 @@ class _WalkerPainter extends CustomPainter {
         );
       },
     );
+    canvas.restore();
   }
 
   void _body(Canvas canvas) {
@@ -3127,6 +3387,47 @@ class _WalkerPainter extends CustomPainter {
           [0, 0.5, 1],
         ),
     );
+    // **A WAISTBAND and a crease.** The band is a paler strip along the top
+    // with a drawstring loop at the front; the crease is the fold the front
+    // of the shorts takes over a thigh coming forward. Both inside the
+    // garment's own path.
+    canvas.save();
+    canvas.clipPath(_shortsPath());
+    canvas.drawRect(
+      const Rect.fromLTWH(_shortsLeft, _shortsTop - 3, 20, 5.4),
+      Paint()..color = _lift(shortsColour, 0.16),
+    );
+    canvas.drawLine(
+      const Offset(_shortsLeft, _shortsTop + 2.4),
+      const Offset(_shortsRight, _shortsTop + 2.4),
+      Paint()
+        ..color = Colors.black.withValues(alpha: 0.18)
+        ..strokeWidth = 0.6,
+    );
+    canvas.drawPath(
+      Path()
+        ..moveTo(60.4, 88.2)
+        ..quadraticBezierTo(61.6, 90, 60.2, 91.6),
+      Paint()
+        ..color = _lift(shortsColour, 0.4)
+        ..strokeWidth = 0.55
+        ..style = PaintingStyle.stroke
+        ..strokeCap = StrokeCap.round,
+    );
+    if (soft) {
+      canvas.drawPath(
+        Path()
+          ..moveTo(63.4, 89)
+          ..quadraticBezierTo(60.4, 94, 62.6, 99.4),
+        Paint()
+          ..color = Colors.black.withValues(alpha: 0.16)
+          ..strokeWidth = 1.3
+          ..style = PaintingStyle.stroke
+          ..strokeCap = StrokeCap.round
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 0.9),
+      );
+    }
+    canvas.restore();
     canvas.restore();
 
     // **The shirt is a SILHOUETTE now, not a 15×32 rounded rectangle.** A man the
@@ -3186,26 +3487,25 @@ class _WalkerPainter extends CustomPainter {
 Widget cachedLayer(bool on, Widget child) =>
     on ? RepaintBoundary(child: child) : child;
 
-/// One mass of hair, hung off the crown and free to swing.
+/// One mass of hair, deformed rather than turned. See `hair_strands.dart`.
 ///
 /// **Its own raster, which is the point.** The head group is boundary-cached
-/// and only repaints on a blink or a change of look — see `_cached` — and a
-/// fringe turning inside that cache would drag the skull, the beard, the
-/// glasses and the hat into a repaint on every frame with it. Given a boundary
-/// of its own, a swinging fringe is a matrix applied to a picture that is
-/// already drawn: no painting, no SVG, no clip re-run.
-///
-/// It turns about the CROWN — the top of the skull — because that is where hair
-/// is attached. About the skull's centre it would slide the parting down the
-/// forehead; about the box it would swing the whole head.
+/// and only repaints on a blink or a change of look; a mass redrawn every
+/// frame inside that cache would drag the skull, the beard, the glasses and
+/// the hat into the repaint with it. On its own layer the head stays cached
+/// and only the hair pays for moving.
 class _Hair extends StatelessWidget {
   const _Hair({
-    required this.degrees,
+    required this.motion,
+    required this.front,
+    required this.soft,
     required this.animating,
     required this.layer,
   });
 
-  final double degrees;
+  final HairMotion motion;
+  final bool front;
+  final bool soft;
 
   /// Whether a boundary is worth its memory here — the same bargain the head
   /// group strikes. Twenty stills in a grid want a layer each about as much as
@@ -3215,15 +3515,19 @@ class _Hair extends StatelessWidget {
   final HeadLayer layer;
 
   @override
-  Widget build(BuildContext context) {
-    final art = _HeadArt(layer: layer);
-    if (degrees == 0) return art;
-    return Transform.rotate(
-      angle: degrees * math.pi / 180,
-      alignment: hairPivot,
-      child: cachedLayer(animating, art),
-    );
-  }
+  Widget build(BuildContext context) => cachedLayer(
+    animating && motion.amount > 0,
+    CustomPaint(
+      painter: HairPainter(
+        mass: HairMass.of(layer.svg, front: front),
+        motion: motion,
+        hideAbove: layer.hideAbove,
+        clipToSkull: layer.clipToSkull,
+        soft: soft,
+      ),
+      size: Size.infinite,
+    ),
+  );
 }
 
 /// The crown, as an `Alignment` in the walker's own box — where hair is
