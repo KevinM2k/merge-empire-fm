@@ -164,21 +164,24 @@ class PlayerNameCardState extends ConsumerState<PlayerNameCard> {
     return CoachCardFrame(
       title: t('rename.title'),
       body: t('rename.subtitle'),
+      // No Cancel: a tap anywhere off the box or Colin closes it.
+      dismissible: true,
       actions: [
-        CoachAction(
-          labelKey: 'common.cancel',
-          tone: CoachTone.decline,
-          onTap: () {},
-        ),
-        // Only when there is one to clear — a Reset on a card that has never
+        // Reset puts the default back — on a card never renamed that is just
+        // the field, and the sheet stays open. — a Reset on a card that has never
         // been renamed does nothing and says nothing.
-        if (_hasCustom)
-          CoachAction(
-            labelKey: 'rename.reset',
-            labelParams: {'name': _defaultName},
-            result: _defaultName,
-            onTap: _reset,
-          ),
+        CoachAction(
+          labelKey: 'rename.reset',
+          labelParams: {'name': _defaultName},
+          result: _defaultName,
+          dismisses: _hasCustom,
+          onTap: _hasCustom
+              ? _reset
+              : () => setState(() {
+                  _error = null;
+                  _field.text = _defaultName;
+                }),
+        ),
         CoachAction(
           labelKey: 'rename.confirm',
           tone: CoachTone.confirm,

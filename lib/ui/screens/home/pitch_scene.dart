@@ -38,10 +38,12 @@ library;
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart' show ValueListenable;
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:merge_empire_fc/data/manager_mood.dart';
 import 'package:merge_empire_fc/ui/screens/home/kenney_art.dart';
+import 'package:merge_empire_fc/ui/widgets/modular_figure.dart';
 import 'package:merge_empire_fc/ui/screens/home/manager_walker.dart'
     show
         walkerAnkle,
@@ -561,11 +563,12 @@ const double tuftFMax = 0.96;
 /// ground gets almost none. `_tuftBands` in `PitchScene.js`: sixteen at tier 0,
 /// eleven at tier 1, then `7 - tier` and nothing at all from Continental up.
 int tuftsPerBand(int tier) {
+  // A field is scruffy, the next ground less so, and a kept pitch has none.
   final total = tier == 0
-      ? 16
+      ? 9
       : tier == 1
-      ? 11
-      : math.max(0, 7 - tier);
+      ? 5
+      : 0;
   return (total / _tuftBands).ceil();
 }
 
@@ -759,7 +762,7 @@ class PitchScene extends StatelessWidget {
 
     // Kenney's sprites, decoded before any strip that snapshots them is built.
     return SpriteGate(
-      paths: kenneySceneSprites(tier),
+      paths: [...kenneySceneSprites(tier), ...parkSpectatorAssets(tier)],
       builder: (context, sprites) => LayoutBuilder(
       builder: (context, constraints) {
         final w = constraints.maxWidth;
@@ -859,40 +862,6 @@ class PitchScene extends StatelessWidget {
                           ),
                         ),
                 ),
-                // **THE TOWN STAYS.** The same trees and houses the park had,
-                // behind the stand once one is built: it is the same place with
-                // a stadium going up in it, so the ground grows in front of them
-                // and hides more as it rises. Always a child, empty when the
-                // park strip itself is drawing them.
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  top:
-                      horizon -
-                      (tier >= firstHoardingTier ? hoardingHeight : 0) -
-                      parkHeight,
-                  height: parkHeight,
-                  child: !sprites || tier < firstStandTier
-                      ? const SizedBox.shrink()
-                      : _GroundDrive(
-                          builder: (worldX) => _Scroller(
-                            key: const ValueKey('pitch-town'),
-                            stillKey: (haze, night),
-                            offsetPx: parallaxOffset(
-                              worldX,
-                              segmentWidth: farSegmentWidth,
-                              period: farPeriod,
-                              mood: mood,
-                            ),
-                            segmentWidth: farSegmentWidth,
-                            child: _ParkSegment(
-                              haze: haze,
-                              night: night,
-                              fence: false,
-                            ),
-                          ),
-                        ),
-                ),
                 // The pylons, on their OWN strip behind the stand and at the
                 // stand's own speed and period — so however tall they get they
                 // cannot drift against the terrace they are planted in. A tall
@@ -966,7 +935,9 @@ class PitchScene extends StatelessWidget {
                     builder: (beat, excitement) => _GroundDrive(
                       builder: (worldX) => _Scroller(
                         key: const ValueKey('pitch-stand'),
-                        live: excitement > 0,
+                        // A park's fans idle every frame; a stand's crowd only
+                        // when it is up.
+                        live: tier < firstStandTier ? sprites : excitement > 0,
                         stillKey: (kitColor, haze, tier, sprites, night),
                         offsetPx: parallaxOffset(
                           worldX,
@@ -976,7 +947,7 @@ class PitchScene extends StatelessWidget {
                         ),
                         segmentWidth: farSegmentWidth,
                         liveChild: tier < firstStandTier
-                            ? null
+                            ? (sprites ? _ParkFans(tier: tier) : null)
                             : _StandSegment(
                                 front: true,
                                 kitColor: kitColor,
@@ -1198,6 +1169,56 @@ class PitchScene extends StatelessWidget {
 /// stands taller than a park and shows above it.
 const double _hillsSegmentWidth = 720;
 
+/// Where the far village stands, per hill family: x across the tile, the foot
+/// as a fraction of the height (just under the ridge line measured off the
+/// sprite at that x), and how tall.
+typedef _Villager = ({String path, double x, double up, double height});
+
+List<_Villager> _villageFor(int tier) => tier < 4 ? _hillsVillage : _peaksVillage;
+
+const List<_Villager> _hillsVillage = [
+  // A copse on the left shoulder, three together and one strayed.
+  (path: 'assets/bg/kenney/treeSmall_green1.png', x: 0.035, up: 0.78, height: 0.15),
+  (path: 'assets/bg/kenney/treeSmall_green3.png', x: 0.055, up: 0.80, height: 0.12),
+  (path: 'assets/bg/kenney/treeSmall_green2.png', x: 0.070, up: 0.77, height: 0.16),
+  (path: 'assets/bg/kenney/treeSmall_green1.png', x: 0.125, up: 0.62, height: 0.11),
+  // A hamlet part way down the long slope.
+  (path: 'assets/bg/kenney/houseSmall1.png', x: 0.205, up: 0.44, height: 0.12),
+  (path: 'assets/bg/kenney/houseSmall2.png', x: 0.235, up: 0.42, height: 0.10),
+  (path: 'assets/bg/kenney/treeSmall_green3.png', x: 0.255, up: 0.46, height: 0.10),
+  // Singles in the valley and up the far side.
+  (path: 'assets/bg/kenney/treeSmall_green2.png', x: 0.335, up: 0.24, height: 0.13),
+  (path: 'assets/bg/kenney/treeSmall_green1.png', x: 0.415, up: 0.36, height: 0.10),
+  (path: 'assets/bg/kenney/treeSmall_green1.png', x: 0.465, up: 0.50, height: 0.14),
+  (path: 'assets/bg/kenney/treeSmall_green3.png', x: 0.485, up: 0.55, height: 0.11),
+  // A farm on the big hill's shoulder, and a pair on its crown.
+  (path: 'assets/bg/kenney/houseSmall2.png', x: 0.545, up: 0.66, height: 0.12),
+  (path: 'assets/bg/kenney/treeSmall_green2.png', x: 0.575, up: 0.70, height: 0.13),
+  (path: 'assets/bg/kenney/treeSmall_green1.png', x: 0.610, up: 0.90, height: 0.11),
+  (path: 'assets/bg/kenney/treeSmall_green3.png', x: 0.630, up: 0.92, height: 0.13),
+  // Down the right-hand slope, spread out.
+  (path: 'assets/bg/kenney/treeSmall_green2.png', x: 0.720, up: 0.68, height: 0.15),
+  (path: 'assets/bg/kenney/treeSmall_green1.png', x: 0.790, up: 0.46, height: 0.11),
+  (path: 'assets/bg/kenney/houseSmall1.png', x: 0.845, up: 0.38, height: 0.11),
+  (path: 'assets/bg/kenney/treeSmall_green3.png', x: 0.865, up: 0.40, height: 0.13),
+  (path: 'assets/bg/kenney/treeSmall_green2.png', x: 0.935, up: 0.58, height: 0.12),
+];
+
+const List<_Villager> _peaksVillage = [
+  (path: 'assets/bg/kenney/treeSmall_green1.png', x: 0.03, up: 0.12, height: 0.12),
+  (path: 'assets/bg/kenney/treeSmall_green3.png', x: 0.09, up: 0.40, height: 0.11),
+  (path: 'assets/bg/kenney/houseSmall1.png', x: 0.15, up: 0.30, height: 0.10),
+  (path: 'assets/bg/kenney/treeSmall_green2.png', x: 0.22, up: 0.50, height: 0.12),
+  (path: 'assets/bg/kenney/treeSmall_green1.png', x: 0.35, up: 0.56, height: 0.11),
+  (path: 'assets/bg/kenney/treeSmall_green3.png', x: 0.42, up: 0.16, height: 0.12),
+  (path: 'assets/bg/kenney/houseSmall2.png', x: 0.48, up: 0.42, height: 0.10),
+  (path: 'assets/bg/kenney/treeSmall_green2.png', x: 0.62, up: 0.30, height: 0.12),
+  (path: 'assets/bg/kenney/treeSmall_green1.png', x: 0.69, up: 0.18, height: 0.11),
+  (path: 'assets/bg/kenney/treeSmall_green3.png', x: 0.75, up: 0.52, height: 0.12),
+  (path: 'assets/bg/kenney/houseSmall1.png', x: 0.82, up: 0.75, height: 0.10),
+  (path: 'assets/bg/kenney/treeSmall_green2.png', x: 0.89, up: 0.34, height: 0.12),
+];
+
 /// One tile of Kenney's hills. The sprite is a near-white silhouette, so by
 /// day it is MULTIPLIED by a hill green — it read as cloud when only faded —
 /// and by night it is a black cut-out.
@@ -1218,58 +1239,205 @@ class _HillsSegment extends StatelessWidget {
     height: double.infinity,
     // Four points wider than its slot: the sprite's edge columns are half
     // transparent, and tiled edge to edge that was a hairline of sky.
+    // Two points wider than its slot: the sprite's edge columns are half
+    // transparent, and tiled edge to edge that was a hairline of sky, while
+    // four points doubled the edges into a visible join.
     child: OverflowBox(
-      minWidth: _hillsSegmentWidth + 4,
-      maxWidth: _hillsSegmentWidth + 4,
+      minWidth: _hillsSegmentWidth + 2,
+      maxWidth: _hillsSegmentWidth + 2,
       child: ColorFiltered(
+        // The night cut-out takes the village with it; the day green does not.
         colorFilter: night
             ? const ColorFilter.mode(Color(0xD9080C17), BlendMode.srcATop)
-            : const ColorFilter.mode(Color(0xFF8FBF7E), BlendMode.modulate),
+            : const ColorFilter.mode(Colors.transparent, BlendMode.srcATop),
         child: LayoutBuilder(
           builder: (context, box) {
             final h = box.maxHeight;
             final w = box.maxWidth;
-            // A far village on the lower slopes: the same trees and houses,
-            // a tenth of the size and in the hills' own tint, so distance
-            // does the fading rather than a second filter.
+            // A far village along the slopes and ridges: the same trees and
+            // houses, a tenth of the size, each standing just under the hill
+            // line at its x — see [_villageFor] — washed into the haze rather
+            // than tinted, so a house stays a house and not a green one.
             Widget far(String path, double x, double up, double height) =>
                 Positioned(
                   left: w * x,
                   bottom: h * up,
-                  child: Image.asset(
-                    path,
-                    height: h * height,
-                    filterQuality: FilterQuality.medium,
+                  child: Opacity(
+                    opacity: 0.5,
+                    child: ColorFiltered(
+                      colorFilter: ColorFilter.mode(
+                        haze.withValues(alpha: 0.35),
+                        BlendMode.srcATop,
+                      ),
+                      child: Image.asset(
+                        path,
+                        height: h * height,
+                        filterQuality: FilterQuality.medium,
+                      ),
+                    ),
                   ),
                 );
             return Stack(
               clipBehavior: Clip.none,
               children: [
                 Positioned.fill(
-                  child: Image.asset(
-                    kenneyHillsFor(tier),
-                    fit: BoxFit.fill,
-                    alignment: Alignment.bottomCenter,
-                    filterQuality: FilterQuality.medium,
+                  child: Opacity(
+                    opacity: 0.8,
+                    child: ColorFiltered(
+                      colorFilter: const ColorFilter.mode(
+                        Color(0xFF8FBF7E),
+                        BlendMode.modulate,
+                      ),
+                      child: Image.asset(
+                        kenneyHillsFor(tier),
+                        fit: BoxFit.fill,
+                        alignment: Alignment.bottomCenter,
+                        filterQuality: FilterQuality.medium,
+                      ),
+                    ),
                   ),
                 ),
-                far(kenneyTreesSmall[0], 0.06, 0.22, 0.16),
-                far(kenneyTreesSmall[2], 0.11, 0.18, 0.13),
-                far(kenneyHouses[2], 0.19, 0.16, 0.14),
-                far(kenneyTreesSmall[1], 0.27, 0.30, 0.15),
-                far(kenneyTreesSmall[0], 0.41, 0.14, 0.12),
-                far(kenneyHouses[3], 0.47, 0.20, 0.13),
-                far(kenneyTreesSmall[2], 0.53, 0.24, 0.14),
-                far(kenneyTreesSmall[1], 0.66, 0.12, 0.16),
-                far(kenneyHouses[2], 0.74, 0.26, 0.12),
-                far(kenneyTreesSmall[0], 0.80, 0.30, 0.13),
-                far(kenneyTreesSmall[2], 0.91, 0.16, 0.15),
+                for (final v in _villageFor(tier))
+                  far(v.path, v.x, v.up, v.height),
               ],
             );
           },
         ),
       ),
     ),
+  );
+}
+
+/// Who is watching from the park fence: a couple at the very first ground,
+/// a small crowd at the second, and from there the stand has them.
+List<int> parkSpectatorSeeds(int tier) => [
+  for (var i = 0; i < (tier == 0 ? 2 : (tier == 1 ? 7 : 0)); i++) 700 + i,
+];
+
+/// Every file the park's spectators draw, for the scene's gate.
+List<String> parkSpectatorAssets(int tier) => [
+  for (final seed in parkSpectatorSeeds(tier))
+    ...spectatorAssets(spectatorLook(seed)),
+];
+
+/// Across the segment, per head-count: a pair stands together, a small crowd
+/// is a knot of three, a couple and two on their own.
+const List<List<double>> _spectatorSpots = [
+  [],
+  [0.62],
+  [0.58, 0.64],
+  [0.12, 0.60, 0.66],
+  [0.08, 0.14, 0.60, 0.84],
+  [0.06, 0.24, 0.29, 0.63, 0.89],
+  [0.05, 0.19, 0.24, 0.52, 0.67, 0.86],
+  [0.04, 0.17, 0.22, 0.27, 0.58, 0.63, 0.91],
+];
+
+/// The fans, drawn LIVE over the still park so they can shift their weight.
+///
+/// Seven small paper dolls a frame is cheap; a still strip could not move
+/// them at all. Each idles on its own clock, so the knot of three never sways
+/// as one, and reduced motion stops the clock and leaves them standing.
+class _ParkFans extends StatefulWidget {
+  const _ParkFans({required this.tier});
+
+  final int tier;
+
+  @override
+  State<_ParkFans> createState() => _ParkFansState();
+}
+
+class _ParkFansState extends State<_ParkFans>
+    with SingleTickerProviderStateMixin {
+  final ValueNotifier<double> _t = ValueNotifier<double>(0);
+  late final Ticker _ticker = createTicker(
+    (elapsed) => _t.value = elapsed.inMicroseconds / 1e6,
+  );
+
+  void _sync() {
+    final run = !MediaQuery.of(context).disableAnimations;
+    if (run == _ticker.isActive) return;
+    if (run) {
+      _ticker.start();
+    } else {
+      _ticker.stop();
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _sync();
+  }
+
+  @override
+  void dispose() {
+    _ticker.dispose();
+    _t.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, box) {
+      final h = box.maxHeight;
+      const w = farSegmentWidth;
+      final seeds = parkSpectatorSeeds(widget.tier);
+      // Its own size, as every segment: a row of strips cannot size this.
+      return SizedBox(
+        width: w,
+        height: h,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            for (final (i, seed) in seeds.indexed)
+              Positioned(
+                left: w * _spectatorSpots[seeds.length][i],
+                bottom: 0,
+                // **THE FIGURE IS BUILT ONCE and only a transform moves.** Its
+                // fourteen images rebuilt every frame, times the tiles the
+                // strip draws, was the whole home page going slow.
+                child: _Shuffle(
+                  clock: _t,
+                  seed: seed,
+                  child: ModularFigure(
+                    look: spectatorLook(seed),
+                    height: h * (0.50 + (seed % 3) * 0.04),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      );
+    },
+  );
+}
+
+/// One fan's idle: a shift of weight on their own slow clock — a point or two
+/// of translation and a hair of lean over a figure that never rebuilds.
+class _Shuffle extends StatelessWidget {
+  const _Shuffle({required this.clock, required this.seed, required this.child});
+
+  final ValueListenable<double> clock;
+  final int seed;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => AnimatedBuilder(
+    animation: clock,
+    child: child,
+    builder: (context, figure) {
+      final phase = (clock.value / (3 + (seed % 5) * 0.5) + seed * 0.37) % 1;
+      final wave = math.sin(phase * 2 * math.pi);
+      return Transform.translate(
+        offset: Offset(wave * 0.8, -wave.abs() * 0.5),
+        child: Transform.rotate(
+          angle: wave * 0.025,
+          alignment: Alignment.bottomCenter,
+          child: figure!,
+        ),
+      );
+    },
   );
 }
 
@@ -1280,14 +1448,12 @@ class _ParkSegment extends StatelessWidget {
   const _ParkSegment({
     required this.haze,
     required this.night,
-    this.fence = true,
+    required this.tier,
   });
 
   final Color haze;
   final bool night;
-
-  /// A park has a fence; the same town behind a stadium has hoardings instead.
-  final bool fence;
+  final int tier;
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
@@ -1330,21 +1496,30 @@ class _ParkSegment extends StatelessWidget {
           at(kenneyBushes[2], w * 0.38, h * 0.22),
           at(kenneyBushes[1], w * 0.64, h * 0.26),
           at(kenneyBushes[3], w * 0.95, h * 0.22),
-          // The fence, tile by tile along the whole foot: 104×77 pieces.
-          if (fence) Positioned(
+          // The fence, tile by tile along the whole foot: 104×77 pieces,
+          // clipped at the segment's edge so its last post does not land on
+          // the next segment's first.
+          Positioned(
             left: 0,
             bottom: 0,
+            width: w,
             height: h * 0.34,
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                for (var i = 0; i < (w / (h * 0.34 * 104 / 77)).ceil() + 1; i++)
-                  Image.asset(
-                    kenneyFence,
-                    height: h * 0.34,
-                    filterQuality: FilterQuality.medium,
-                  ),
-              ],
+            child: ClipRect(
+              child: OverflowBox(
+                alignment: Alignment.bottomLeft,
+                maxWidth: double.infinity,
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    for (var i = 0; i < (w / (h * 0.34 * 104 / 77)).ceil() + 1; i++)
+                      Image.asset(
+                        kenneyFence,
+                        height: h * 0.34,
+                        filterQuality: FilterQuality.medium,
+                      ),
+                  ],
+                ),
+              ),
             ),
           ),
         ],
@@ -1874,7 +2049,7 @@ class _StandSegment extends StatelessWidget {
         // `size.height`, which is the horizon by construction. So the plate is
         // gone and nothing has replaced it.
         ? sprites
-              ? _ParkSegment(haze: haze, night: night)
+              ? _ParkSegment(haze: haze, night: night, tier: tier)
               : CustomPaint(painter: ParkPainter(haze: haze, tier: tier))
         : CustomPaint(
             painter: _StandPainter(
@@ -2846,7 +3021,7 @@ class _Turf extends StatelessWidget {
                     // from 6% to 80% up the pitch and rides them on the ground
                     // at their own depth, exactly as the tufts do.
                     if (tier < firstKeptPitchTier)
-                      for (var band = 0; band < _tuftBands; band++)
+                      for (var band = 0; band < _decoBands; band++)
                         Positioned.fill(
                           child: _Scroller(
                             offsetPx: atRow(_decoBandFraction(band)),
@@ -3162,8 +3337,12 @@ const double _decoFMax = 0.80;
 /// it is painted on drifts backwards against the stripes under it. Reported
 /// from the couch: the mud and the water on the tier-1 pitch moving slightly
 /// slower than the pitch behind them.
+/// The mud's own count of bands — three, as it always was — so doubling the
+/// tuft bands did not double the mud.
+const int _decoBands = 3;
+
 double _decoBandFraction(int band) =>
-    _decoFMin + (_decoFMax - _decoFMin) * (band + 0.5) / _tuftBands;
+    _decoFMin + (_decoFMax - _decoFMin) * (band + 0.5) / _decoBands;
 
 class _DecoPainter extends CustomPainter {
   const _DecoPainter({required this.band, required this.tier});

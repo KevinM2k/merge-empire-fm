@@ -212,15 +212,18 @@ void main() {
     expect(effectiveName(container), 'Rolled Name');
   });
 
-  testWidgets('RESET is offered only when there is one to clear', (
+  testWidgets('RESET on a card never renamed only puts the field back', (
     tester,
   ) async {
-    await pumpCard(tester);
+    final container = await pumpCard(tester);
+    await type(tester, 'Somebody Else');
+    await tapAction(tester, 'rename.reset');
+    expect(find.byKey(const ValueKey('player-name-field')), findsOneWidget, reason: 'the sheet closed');
     expect(
-      find.byKey(const ValueKey('coach-action-rename.reset')),
-      findsNothing,
-      reason: 'a Reset that does nothing was offered',
+      tester.widget<TextField>(find.byKey(const ValueKey('player-name-field'))).controller!.text,
+      'Rolled Name',
     );
+    expect(storedName(container), isNull);
   });
 
   testWidgets('and it puts the rolled name back', (tester) async {
@@ -276,10 +279,14 @@ void main() {
     }
   });
 
-  testWidgets('CANCEL changes nothing', (tester) async {
+  testWidgets('A TAP OUTSIDE THE BOX changes nothing — there is no Cancel', (
+    tester,
+  ) async {
     final container = await pumpCard(tester, customName: 'Ada Rovers');
     await type(tester, 'Somebody Else');
-    await tapAction(tester, 'common.cancel');
+    expect(find.byKey(const ValueKey('coach-action-common.cancel')), findsNothing);
+    await tester.tapAt(const Offset(5, 5));
+    await tester.pumpAndSettle();
     expect(storedName(container), 'Ada Rovers');
     expect(lastResult, isNull);
   });

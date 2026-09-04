@@ -3339,14 +3339,17 @@ class _WalkerPainter extends CustomPainter {
         far: !near,
       );
       if (bare) {
+        // Cloth, not skin: a good deal wider than the thigh inside it and
+        // barely tapering, so the leg of the shorts hangs off the leg rather
+        // than being the leg repainted.
         final hem = Offset(hip.dx, hip.dy + _shortsLeg);
         paintLimb(
           soft: soft,
           canvas,
           hip,
           hem,
-          12.4 * build.limb,
-          11 * build.limb,
+          15.6 * build.limb,
+          14.8 * build.limb,
           base: legs,
           far: !near,
         );
