@@ -245,7 +245,19 @@ class _ManagerCustomiserState extends ConsumerState<ManagerCustomiser> {
     super.didChangeDependencies();
     if (_filling) return;
     _filling = true;
-    _fillNextChip();
+    // After the sheet has landed: each chip is a rig rasterised once, and six
+    // of them under a rising sheet ran the rise at ~30fps.
+    final entrance = ModalRoute.of(context)?.animation;
+    if (entrance == null || entrance.isCompleted) {
+      _fillNextChip();
+      return;
+    }
+    void landed(AnimationStatus status) {
+      if (status != AnimationStatus.completed) return;
+      entrance.removeStatusListener(landed);
+      _fillNextChip();
+    }
+    entrance.addStatusListener(landed);
   }
 
   /// Reset when the axis changes: a new axis is a new grid of rigs, and

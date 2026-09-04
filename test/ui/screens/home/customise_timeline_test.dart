@@ -18,9 +18,12 @@
 ///   it dropped one wherever it went, and behind the route's animation it
 ///   dropped it at the moment the sheet LANDS.
 ///
-/// A chip fits. The assertion below is the structural half of that — the
-/// milliseconds are the machine's and would flake in CI, but "the grid is full
-/// before the sheet has finished travelling" is the same fact and is not.
+/// A chip fits — on the UI thread, which is all this harness can see. Profiled
+/// on the phone (2026-09-04) the RASTER thread paid 15-20ms for each chip's
+/// snapshot on top of a rising sheet's own frame, so filling during the slide
+/// ran the slide at ~30fps. The chips wait for the sheet to land now, then
+/// arrive one a frame while nothing else is moving. The assertion below is the
+/// structural half of that.
 library;
 
 import 'dart:async';
@@ -46,7 +49,7 @@ int _chipsBuilt() => find
 void main() {
   tearDown(resetLocale);
 
-  testWidgets('THE GRID IS FULL BEFORE THE SHEET LANDS', (tester) async {
+  testWidgets('THE GRID FILLS AFTER THE SHEET LANDS, a chip a frame', (tester) async {
     tester.view.physicalSize = const Size(390 * 3, 844 * 3);
     tester.view.devicePixelRatio = 3;
     addTearDown(tester.view.reset);
@@ -88,20 +91,20 @@ void main() {
         'frame $i: ${sw.elapsedMicroseconds / 1000}ms · '
         '${_chipsBuilt()} chips',
       );
-      if (route.animation!.isCompleted) landed = i;
+      if (route.animation!.isCompleted) {
+        landed = i;
+      } else {
+        expect(_chipsBuilt(), 0, reason: 'a chip rasterised under a moving sheet');
+      }
     }
     expect(landed, greaterThan(0), reason: 'the sheet never finished opening');
-
-    final atLanding = _chipsBuilt();
+    // Landed: now they come, one a frame, until the grid is full.
+    await tester.pump(const Duration(milliseconds: 16));
+    await tester.pump(const Duration(milliseconds: 16));
+    final early = _chipsBuilt();
+    expect(early, greaterThan(0), reason: 'nothing arrived once the sheet had landed');
     await tester.pumpAndSettle();
-    expect(
-      atLanding,
-      _chipsBuilt(),
-      reason:
-          'chips were still arriving after the sheet stopped moving — that is '
-          'the judder, and it is what filling a ROW at a time caused',
-    );
-    expect(atLanding, greaterThan(0));
+    expect(_chipsBuilt(), greaterThan(early), reason: 'the fill stopped short');
   });
 
   testWidgets('A CHIP ARRIVING DOES NOT REBUILD THE CHIPS ALREADY UP', (

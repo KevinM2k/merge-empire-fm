@@ -386,6 +386,9 @@ class NextMatchCard extends ConsumerWidget {
           // material was already written and had no caller — see [skyPaneTint],
           // which is the usual tell.
           tint: skyPaneTintFor(context),
+          // No backdrop blur: it is a smooth sky behind, and the blur was ~10ms
+          // of the first frame every time the tab came back.
+          blur: false,
           padding: const EdgeInsets.fromLTRB(8, 12, 8, 10),
           child: _body(context, ref, match),
         ),

@@ -186,7 +186,21 @@ final gridPendingProvider = StateProvider<Set<String>>((_) => const {});
 /// animating rather than sitting still — see `tutorial_overlay.dart`.
 final loanDepartingProvider = StateProvider<bool>((_) => false);
 
-final gridCellsProvider = Provider<List<GridCell>>((ref) {
+/// A save write that changed nothing in the picked value hands back the SAME
+/// list, so the grid's slots do not rebuild every second on idle income.
+Provider<T> _unlessSame<T>(T Function(Ref ref) compute) {
+  Object? last;
+  var seen = false;
+  return Provider<T>((ref) {
+    final next = compute(ref);
+    if (seen && samePickValue(last, next)) return last as T;
+    last = next;
+    seen = true;
+    return next;
+  });
+}
+
+final gridCellsProvider = _unlessSame<List<GridCell>>((ref) {
   ref.watch(saveRevisionProvider);
   final s = ref.watch(gameProvider).state ?? const <String, dynamic>{};
   final pending = ref.watch(gridPendingProvider);
@@ -232,7 +246,7 @@ final gridCellsProvider = Provider<List<GridCell>>((ref) {
 /// is a tutorial fact rather than a card fact — nothing else on the grid asks
 /// and the view already carries `onLoan` for the pill — so it stays out of the
 /// record every square in the game is built from and is asked for here instead.
-final loanCardIdsProvider = Provider<List<String>>((ref) {
+final loanCardIdsProvider = _unlessSame<List<String>>((ref) {
   ref.watch(saveRevisionProvider);
   final s = ref.watch(gameProvider).state;
   return [
