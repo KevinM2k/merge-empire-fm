@@ -88,6 +88,14 @@ typedef CupTie = ({
   int? ourGoals,
   int? theirGoals,
   bool won,
+
+  /// **How good they are, on the same terms as the league rows.** A tie had no
+  /// rating at all, in a list where every other line carries one; see
+  /// [cupRoundOpponentRating] for where the three answers come from. Null only
+  /// when the run is too broken to answer, which the row draws as a blank
+  /// rather than a zero.
+  int? rating,
+  bool ratingEstimated,
 });
 
 /// The ties in this season's run, in order.
@@ -141,6 +149,7 @@ final ourCupTiesProvider = savePick<List<CupTie>>((s) {
         final after = round < cupDueAfterMatches.length
             ? cupDueAfterMatches[round] - 1
             : matchesPerSeason - 1;
+        final oppRating = cupRoundOpponentRating(s, run, cup, round);
         return (
           afterMatch: after,
           competition: t('cup.${cup.id}') == 'cup.${cup.id}'
@@ -154,6 +163,8 @@ final ourCupTiesProvider = savePick<List<CupTie>>((s) {
           ourGoals: result == null ? null : _int(result['homeGoals']),
           theirGoals: result == null ? null : _int(result['awayGoals']),
           won: result?['won'] == true,
+          rating: oppRating?.rating.round(),
+          ratingEstimated: oppRating?.estimated ?? true,
         );
       }(),
   ];

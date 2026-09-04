@@ -1474,6 +1474,47 @@ void applyMatchRewards(Map<String, dynamic> state, MatchResult? result) {
   result['_rewardsApplied'] = true;
 }
 
+/// Our ATK and DEF **as the fixture is actually being played** — the pair the
+/// sim ran on, before the tactic's multipliers.
+///
+/// **`ourAttackRating` is the BASE split and nothing on the board said so.**
+/// The scoreboard printed it straight, so ATK and DEF visibly DROPPED the
+/// moment a match kicked off: the next-match card draws `preview.effAttack`,
+/// which carries home advantage, the stagnation buff and the relegation lift,
+/// and the board's figure carried none of the three. A 93/100 side walked out
+/// as an 89/97 one against the same opponent, with the sim quietly using the
+/// higher pair all along. Reported from the couch with the two screens side by
+/// side.
+///
+/// It is reconstructed here rather than stamped on the result because
+/// `match_orchestration_parity_test` compares that object against a node dump
+/// field for field — a field the JS has never heard of cannot live on it. Every
+/// input is already there: `homeAdvDisplay` is the same Fan-Zone-scaled bonus
+/// [homeAdvantageFor] returns, and the clamp order is the sim's own.
+///
+/// **A cup tie has none of them.** `prepareCupRound` plays on neutral ground
+/// and knows nothing of the league table, so its split is the base one — and
+/// its results carry `isHome: true` for every round, which is why the venue
+/// alone cannot be trusted here.
+({double attack, double defence}) ourMatchSplit(MatchResult result) {
+  final base = (
+    attack: _num(result['ourAttackRating'])?.toDouble() ?? 0,
+    defence: _num(result['ourDefenceRating'])?.toDouble() ?? 0,
+  );
+  if (_flag(result['isCup'])) return base;
+
+  final homeAdv = _flag(result['isHome'])
+      ? (_num(result['homeAdvDisplay'])?.toDouble() ?? 0)
+      : 0.0;
+  final stagnation = _num(result['stagnationBuff'])?.toDouble() ?? 0;
+  final relegation = _flag(result['playerInRelegationZone']) ? relegationBoost : 0;
+
+  return (
+    attack: math.min(base.attack + homeAdv, 100) + stagnation + relegation,
+    defence: math.min(base.defence + homeAdv, 100) + stagnation + relegation,
+  );
+}
+
 /// Re-simulates the remaining minutes under a new tactic.
 ///
 /// Rewrites the result's scoreline, outcome and payout in place, and returns the
@@ -1575,10 +1616,13 @@ List<Map<String, dynamic>> reSimulateRemainder(
   double adjAttack;
   double adjDefence;
   double adjSquad;
-  // The live pair on the SAME basis as `ourAttackRating`: straight off
-  // `computeSquadRatings`, before home advantage, stagnation or the tactic. The
-  // board applies the tactic itself, so handing it a post-tactic figure would
-  // apply the multipliers twice.
+  // **The live pair on the SAME basis as [ourMatchSplit], which is what the
+  // remainder is actually rolled with**: home advantage and the stagnation
+  // buff IN, the tactic still out. The board applies the tactic itself, so
+  // handing it a post-tactic figure would apply the multipliers twice — but it
+  // does not apply home advantage, so handing it the bare `computeSquadRatings`
+  // pair (which this did) made the board drop four points the moment anybody
+  // was booked. Same fault as the kickoff figures, one line further on.
   double liveBaseAttack;
   double liveBaseDefence;
   if (fixedRating) {
@@ -1645,8 +1689,8 @@ List<Map<String, dynamic>> reSimulateRemainder(
 
     adjAttack = math.max(1.0, applyTacticAtk(liveAttack, strat, oppAttackRatio));
     adjDefence = math.max(1.0, applyTacticDef(liveDefence, strat, oppAttackRatio));
-    liveBaseAttack = liveRatings.attack.toDouble();
-    liveBaseDefence = liveRatings.defence.toDouble();
+    liveBaseAttack = liveAttack.toDouble();
+    liveBaseDefence = liveDefence.toDouble();
 
     // A combined figure for the possession display. The multipliers are
     // near-zero-sum on the composite, so the tactic leaves it unchanged.

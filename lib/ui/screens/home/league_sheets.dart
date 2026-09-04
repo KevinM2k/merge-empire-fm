@@ -865,16 +865,69 @@ class _CupRow extends StatelessWidget {
                 ],
               ),
             ),
-            if (tie.played)
-              Text(
-                '${tie.ourGoals}-${tie.theirGoals}',
-                key: ValueKey('fixture-cup-score-${tie.afterMatch}'),
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w900,
-                  color: ink,
+            // **THEIR RATING, exactly as the league rows carry it.** A cup
+            // row had a round, a club and nothing else, in a list where every
+            // other line answers "how hard is this one" — and the cup is where
+            // a manager most wants to know, because the bracket is drawn out of
+            // the divisions ABOVE. Same tilde, same tooltip copy, same 34px
+            // slot; see `cupRoundOpponentRating` for where the number comes
+            // from.
+            if (tie.rating case final rating?) ...[
+              const SizedBox(width: 6),
+              SizedBox(
+                width: 34,
+                child: Tooltip(
+                  message: t(
+                    tie.ratingEstimated
+                        ? 'fixtures.opp_rating_est'
+                        : 'fixtures.opp_rating',
+                    {'rating': rating},
+                  ),
+                  child: Text(
+                    tie.ratingEstimated ? '~$rating' : '$rating',
+                    key: ValueKey('fixture-cup-rating-${tie.afterMatch}'),
+                    textAlign: TextAlign.right,
+                    style: TextStyle(color: kit.textMuted, fontSize: 12),
+                  ),
                 ),
               ),
+            ],
+            // A slot whether or not there is a score in it, so an unplayed
+            // round does not slide the dot beside it out of column.
+            SizedBox(
+              width: 42,
+              child: !tie.played
+                  ? null
+                  : Text(
+                      '${tie.ourGoals}-${tie.theirGoals}',
+                      key: ValueKey('fixture-cup-score-${tie.afterMatch}'),
+                      textAlign: TextAlign.right,
+                      style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w900,
+                        color: ink,
+                        fontFeatures: const [FontFeature.tabularFigures()],
+                      ),
+                    ),
+            ),
+            // **AND HOW IT WENT, as the dot every other row wears.** The tie's
+            // outcome was carried by the SCORE'S COLOUR alone — the same fault
+            // the league rows had, on the rows a cup run is remembered by. A
+            // knockout cannot end level: `commitCupRound` resolves a draw
+            // through the shootout and adds the winning goal, so there is no D
+            // to draw here, and the score beside it is the one after penalties.
+            SizedBox(
+              width: 24,
+              child: !tie.played
+                  ? null
+                  : Align(
+                      alignment: Alignment.centerRight,
+                      child: _FormDot(
+                        key: ValueKey('fixture-cup-result-${tie.afterMatch}'),
+                        result: tie.won ? 'W' : 'L',
+                      ),
+                    ),
+            ),
           ],
         ),
       ),
