@@ -52,6 +52,9 @@ Future<ProviderContainer> pumpFixtures(
     (save['progression'] as Map<String, dynamic>).remove('seasonOpponentRatings');
   }
   mutate?.call(save);
+  // A mutation that commits a cup round fires the wiring, which arms the save
+  // debounce; flush it here or the test ends with a timer still pending.
+  container.read(gameProvider).saveNow();
 
   await tester.pumpWidget(
     UncontrolledProviderScope(
