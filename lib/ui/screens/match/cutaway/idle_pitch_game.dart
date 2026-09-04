@@ -111,20 +111,21 @@ class IdlePitchGame extends FlameGame with HasTimeScale {
       ..anchor = Anchor.center;
 
     await preloadCutawaySprites();
-    final sprites = <String, Sprite>{
-      for (final path in cutawaySpritePaths())
-        path: Sprite(cutawayImages.fromCache(path)),
-    };
+    final sprites = cutawaySprites();
 
     for (var i = 0; i < idleShape.length; i++) {
       final us = Mover(
-        sprite: sprites['green_${(i % 10) + 1}.png']!,
+        sprite: sprites['green_${(i % 5) + 1}.png']!,
+        kit: Kit.green,
+        arm: sprites['green_${cutawayArmFor((i % 5) + 1)}.png'],
         start: _at(idleShape[i]),
         paceScale: 0.55 + _rng.nextDouble() * 0.2,
       );
       // Mirrored: their shape is ours seen from the other end.
       final them = Mover(
-        sprite: sprites['red_${(i % 10) + 1}.png']!,
+        sprite: sprites['red_${(i % 5) + 1}.png']!,
+        kit: Kit.red,
+        arm: sprites['red_${cutawayArmFor((i % 5) + 1)}.png'],
         start: _at((p: 1 - idleShape[i].p, q: 1 - idleShape[i].q)),
         paceScale: 0.55 + _rng.nextDouble() * 0.2,
       );

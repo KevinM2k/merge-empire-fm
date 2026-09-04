@@ -205,6 +205,7 @@ class SubsPanelState extends ConsumerState<SubsPanel> {
       heightFraction: 0.66,
       child: _BenchSheet(
         slotId: slotId,
+        sentOff: widget.sentOff,
         offId: offId,
         cautioned: widget.cautioned,
         spent: widget.withdrawn,
@@ -502,12 +503,16 @@ class _SubSlot extends ConsumerWidget {
 /// to a tap.
 class _BenchSheet extends ConsumerStatefulWidget {
   const _BenchSheet({
+    this.sentOff = const {},
     required this.slotId,
     required this.offId,
     required this.cautioned,
     required this.spent,
     required this.onChosen,
   });
+
+  /// Sent off this match — on no bench, whatever the lineup says.
+  final Set<String> sentOff;
 
   /// The slot being filled, or null when the manager is only LOOKING.
   ///
@@ -564,9 +569,15 @@ class _BenchSheetState extends ConsumerState<_BenchSheet> {
     // The hole's own line leads, and `ALL` is the fallback for a sheet opened
     // with nobody nominated — there is no position to pre-set to then.
     final line = _line ?? slotPosition ?? benchAllLines;
+    // **A MAN SENT OFF IS NOT ON THE BENCH.** The sending-off takes him out of
+    // the lineup so the side is a man short, and a bench that is "everyone not
+    // in the lineup" then offered him straight back — a duplicate of the red
+    // card on the bench who could be put on and sent off again.
     final bench = [
       for (final entry in all)
-        if (line == benchAllLines || entry.card.position == line) entry,
+        if ((line == benchAllLines || entry.card.position == line) &&
+            !widget.sentOff.contains(entry.instanceId))
+          entry,
     ];
 
     // **WHAT THE MAN COMING OFF IS WORTH**, so the bench can be read against

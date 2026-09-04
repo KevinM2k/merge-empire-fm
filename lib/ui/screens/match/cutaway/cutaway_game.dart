@@ -50,21 +50,92 @@ enum CutawayOutcome { goal, saved, post, wide, over, tackled }
 /// clearly apart from both.
 enum Kit { green, red, white }
 
-String _kitName(Kit kit) => switch (kit) {
-  Kit.green => 'green',
-  Kit.red => 'red',
-  Kit.white => 'white',
-};
 
 /// The sprite files this game needs, in Flame's `assets/images/`-relative form.
 ///
 /// Ten body variants per kit, plus the ball. Listed rather than globbed so a
 /// missing file fails at load with a name rather than at draw with a blank.
-List<String> cutawaySpritePaths() => [
-  for (final kit in Kit.values)
-    for (var i = 1; i <= 10; i++) '${_kitName(kit)}_$i.png',
-  'ball.png',
-];
+/// What the cache has to hold: ONE sheet for every figure, and the ball.
+///
+/// Thirty-one PNGs were decoded one by one on the first chance of a match;
+/// the pack ships them on a single 189×199 sheet, so it is one decode now and
+/// every figure is a rectangle of it — see [cutawaySprites].
+List<String> cutawaySpritePaths() => ['sheet_characters.png', 'ball.png'];
+
+/// Where each figure sits on the sheet, straight out of the pack's
+/// `sheet_characters.xml`: (x, y, width, height). 1–10 are bodies, five skin
+/// tones with the arms in and the same five with them out; 11–14 are loose
+/// arm-and-hand pieces in four tones, pointing forward from the sleeve.
+const Map<String, Map<int, (int, int, int, int)>> cutawaySheetFrames = {
+  'green': {
+    1: (105, 93, 21, 31),
+    2: (21, 155, 21, 31),
+    3: (63, 124, 21, 31),
+    4: (105, 155, 21, 31),
+    5: (84, 31, 21, 31),
+    6: (126, 0, 21, 31),
+    7: (126, 155, 21, 31),
+    8: (126, 124, 21, 31),
+    9: (147, 124, 21, 31),
+    10: (126, 62, 21, 31),
+    11: (168, 138, 19, 13),
+    12: (168, 125, 19, 13),
+    13: (168, 112, 19, 13),
+    14: (168, 99, 19, 13),
+  },
+  'red': {
+    1: (147, 93, 21, 31),
+    2: (147, 155, 21, 31),
+    3: (126, 31, 21, 31),
+    4: (168, 0, 21, 31),
+    5: (147, 62, 21, 31),
+    6: (147, 31, 21, 31),
+    7: (147, 0, 21, 31),
+    8: (63, 155, 21, 31),
+    9: (84, 0, 21, 31),
+    10: (168, 31, 21, 31),
+    11: (57, 186, 19, 13),
+    12: (38, 186, 19, 13),
+    13: (0, 186, 19, 13),
+    14: (19, 186, 19, 13),
+  },
+  'white': {
+    1: (84, 93, 21, 31),
+    2: (63, 93, 21, 31),
+    3: (63, 62, 21, 31),
+    4: (63, 31, 21, 31),
+    5: (63, 0, 21, 31),
+    6: (42, 155, 21, 31),
+    7: (42, 124, 21, 31),
+    8: (42, 93, 21, 31),
+    9: (42, 62, 21, 31),
+    10: (84, 62, 21, 31),
+    11: (114, 186, 19, 13),
+    12: (133, 186, 19, 13),
+    13: (152, 186, 19, 13),
+    14: (168, 62, 19, 13),
+  },
+};
+
+/// The arm piece whose skin matches body [body]: the five tones run light,
+/// ginger, brown, black, olive; the pieces run light, brown, dark, dark.
+int cutawayArmFor(int body) => const [11, 11, 12, 13, 11][(body - 1) % 5];
+
+/// Every figure and the ball as sprites, cut from the cached sheet. Keyed
+/// `green_1.png` … `white_14.png` and `ball.png`, the names the files had.
+Map<String, Sprite> cutawaySprites() {
+  final sheet = cutawayImages.fromCache('sheet_characters.png');
+  return {
+    for (final MapEntry(key: kit, value: frames) in cutawaySheetFrames.entries)
+      for (final MapEntry(key: i, value: (x, y, w, h)) in frames.entries)
+        '${kit}_$i.png': Sprite(
+          sheet,
+          srcPosition: Vector2(x.toDouble(), y.toDouble()),
+          srcSize: Vector2(w.toDouble(), h.toDouble()),
+        ),
+    'ball.png': Sprite(cutawayImages.fromCache('ball.png')),
+  };
+}
 
 /// ONE cache, for the whole match rather than for each chance.
 ///
@@ -100,6 +171,8 @@ class Mover extends PositionComponent {
     required Vector2 start,
     required this.paceScale,
     this.label,
+    this.kit,
+    this.arm,
   }) : super(
          position: start.clone(),
          size: Vector2(5.2, 5.2),
@@ -107,6 +180,13 @@ class Mover extends PositionComponent {
        );
 
   final Sprite sprite;
+
+  /// Which shirt, for whoever asks — the tests do.
+  final Kit? kit;
+
+  /// The loose arm piece in this body's skin, swung with the stride. Null
+  /// draws no arms: the arms-out bodies (6–10) carry their own.
+  final Sprite? arm;
 
   /// Individual pace, so a back four does not move as one object.
   ///
@@ -182,6 +262,9 @@ class Mover extends PositionComponent {
   /// sprinting one fast, without a second speed to keep in step.
   double _stride = 0;
 
+  /// Where the arms are in their swing, 0..1 — see the update.
+  double _armPhase = 0;
+
   /// Arms up. Set for the length of a celebration.
   bool celebrating = false;
 
@@ -251,6 +334,9 @@ class Mover extends PositionComponent {
     );
     // One stride per ~4.2 units covered.
     _stride = (_stride + step.length / 4.2) % 1;
+    // The gait — feet and arms swapping — is one cycle per ~12 units, far
+    // slower than the old body rock, which read as shaking.
+    _armPhase = (_armPhase + step.length / 12) % 1;
 
     final want = _lookAngle();
     if (!_facedOnce) {
@@ -295,9 +381,16 @@ class Mover extends PositionComponent {
 
   @override
   void render(Canvas canvas) {
-    final rock = math.sin(_stride * 2 * math.pi);
-    // Two strides per bob: the body rises on each footfall, not on each pair.
-    final bob = math.sin(_stride * 4 * math.pi);
+    // **THE RUN IS ONE FOOT FORWARD, ONE BACK, SWAPPED** — and the arms with
+    // them, the way a top-down runner reads. Not a sine: a near-square wave,
+    // so each swap is a step rather than a wobble. Still when he is. The old
+    // per-stride rock and bob read as the body shaking.
+    final moving = speed >= 0.4;
+    final swap = moving
+        ? (math.sin(_armPhase * 2 * math.pi) * 3).clamp(-1.0, 1.0)
+        : 0.0;
+    final rock = swap * 0.4;
+    const bob = 0.0;
     // **A CONTACT SHADOW.** The pitch is in perspective and the men standing on
     // it were flat sprites with nothing underneath — reported as the players
     // looking flat. Drawn before the rotate, so it stays on the GROUND while he
@@ -319,7 +412,39 @@ class Mover extends PositionComponent {
     final lift = 1 + bob * 0.035 + (celebrating ? 0.14 : 0);
     canvas.scale(lift);
     canvas.translate(-size.x / 2, -size.y / 2);
+    canvas.save();
+    canvas.scale(size.x / 21, size.y / 31);
+    // The feet, under the body's ends: the pack has none, so two dark ovals,
+    // the top one forward when the bottom one is back.
+    if (moving) {
+      final foot = Paint()..color = const Color(0xCC2A2622);
+      for (final (footY, sign) in const [(6.0, 1.0), (25.0, -1.0)]) {
+        canvas.drawOval(
+          Rect.fromCenter(
+            center: Offset(10.5 + swap * sign * 8, footY),
+            width: 6,
+            height: 4.2,
+          ),
+          foot,
+        );
+      }
+    }
+    canvas.restore();
     sprite.render(canvas, size: size);
+    final swing = arm;
+    if (swing != null) {
+      // One arm at each shoulder, pointing forward, the opposite one back —
+      // the loose arm-and-hand piece the pack ships.
+      canvas.scale(size.x / 21, size.y / 31);
+      for (final (shoulderY, sign) in const [(3.5, 1.0), (27.5, -1.0)]) {
+        canvas.save();
+        canvas.translate(10, shoulderY);
+        canvas.scale(1, sign);
+        canvas.rotate(-0.35 - swap * sign * 0.55);
+        swing.render(canvas, position: Vector2(0, -6.5), size: Vector2(19, 13));
+        canvas.restore();
+      }
+    }
     canvas.restore();
 
     // Under his feet, upright whichever way he is running. Drawn at four times
@@ -692,10 +817,7 @@ class CutawayGame extends FlameGame with HasTimeScale {
     // then on every path is already in [cutawayImages] and this returns without
     // touching the disk.
     await preloadCutawaySprites();
-    final sprites = <String, Sprite>{
-      for (final path in cutawaySpritePaths())
-        path: Sprite(cutawayImages.fromCache(path)),
-    };
+    final sprites = cutawaySprites();
 
     // Attackers: the carrier plus everyone a beat names a run for. Built from
     // the script so there are exactly as many bodies as the passage uses.
@@ -735,7 +857,9 @@ class CutawayGame extends FlameGame with HasTimeScale {
     for (var i = 0; i < starts.length; i++) {
       final number = '${attackerNumbers[i % attackerNumbers.length]}';
       final mover = Mover(
-        sprite: sprites['${attackKit}_${(i % 10) + 1}.png']!,
+        sprite: sprites['${attackKit}_${(i % 5) + 1}.png']!,
+        kit: ours ? Kit.green : Kit.red,
+        arm: sprites['${attackKit}_${cutawayArmFor((i % 5) + 1)}.png'],
         start: _at(starts[i]),
         paceScale: 0.9 + _rng.nextDouble() * 0.35,
         label: !ours
@@ -750,7 +874,9 @@ class CutawayGame extends FlameGame with HasTimeScale {
     for (var i = 0; i < defensiveBlock.length; i++) {
       final number = '${defenderNumbers[i % defenderNumbers.length]}';
       final mover = Mover(
-        sprite: sprites['${defenceKit}_${(i % 10) + 1}.png']!,
+        sprite: sprites['${defenceKit}_${(i % 5) + 1}.png']!,
+        kit: ours ? Kit.red : Kit.green,
+        arm: sprites['${defenceKit}_${cutawayArmFor((i % 5) + 1)}.png'],
         start: _at(defensiveBlock[i]),
         paceScale: 0.82 + _rng.nextDouble() * 0.3,
         label: ours ? number : nameOr(number),
@@ -762,6 +888,8 @@ class CutawayGame extends FlameGame with HasTimeScale {
 
     keeper = Mover(
       sprite: sprites['white_1.png']!,
+      kit: Kit.white,
+      arm: sprites['white_${cutawayArmFor(1)}.png'],
       start: _at((p: keeperP, q: 0.5)),
       paceScale: 0.7,
       label: 'GK',

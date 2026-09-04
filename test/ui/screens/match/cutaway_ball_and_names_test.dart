@@ -320,24 +320,23 @@ void main() {
     tester,
   ) async {
     final ourChance = await loaded(tester, ours: true);
+    expect(ourChance.attackers.first.kit, Kit.green);
+    expect(ourChance.defenders.first.kit, Kit.red);
+    // Every figure is a rectangle of ONE sheet now.
     expect(
       ourChance.attackers.first.sprite.image,
-      same(cutawayImages.fromCache('green_1.png')),
-    );
-    expect(
-      ourChance.defenders.first.sprite.image,
-      same(cutawayImages.fromCache('red_1.png')),
+      same(cutawayImages.fromCache('sheet_characters.png')),
     );
 
     final theirChance = await loaded(tester, ours: false);
     expect(
-      theirChance.attackers.first.sprite.image,
-      same(cutawayImages.fromCache('red_1.png')),
+      theirChance.attackers.first.kit,
+      Kit.red,
       reason: 'their attack was drawn in our green',
     );
     expect(
-      theirChance.defenders.first.sprite.image,
-      same(cutawayImages.fromCache('green_1.png')),
+      theirChance.defenders.first.kit,
+      Kit.green,
       reason: 'and our back line in their red',
     );
     // The labels were already right and stay so: our names, their numbers.

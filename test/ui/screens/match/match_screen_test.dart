@@ -1300,7 +1300,12 @@ void main() {
           }
         }
       });
-      final bench = container.read(benchProvider).first.instanceId;
+      // The first man on the bench who is not the one just sent off — he is
+      // in the raw bench now his row is empty, and the sheet must not show him.
+      final bench = container
+          .read(benchProvider)
+          .firstWhere((e) => e.instanceId != off.cardInstanceId)
+          .instanceId;
       var subbed = 0;
       // The scope goes OUTSIDE the app: the bench is a route, and a route
       // pushed from a scope nested inside `home` is built above it.
@@ -1324,6 +1329,9 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
+      // Every line: the first man available may not play his position.
+      await tester.tap(find.byKey(const ValueKey('subs-bench-filter-ALL')));
+      await tester.pumpAndSettle();
       await tester.tap(find.byKey(ValueKey('sub-bench-$bench')));
       await tester.pumpAndSettle();
       expect(
@@ -1336,6 +1344,73 @@ void main() {
         container.read(pitchSlotsProvider).map((s) => s.cardInstanceId),
         isNot(contains(bench)),
         reason: 'a red card was undone by a substitution',
+      );
+      await tester.tapAt(const Offset(8, 8));
+      await tester.pumpAndSettle();
+      await settleSave(tester);
+    });
+
+    testWidgets('AND HE IS NOT ON THE BENCH EITHER', (tester) async {
+      // The sending-off empties his lineup row so the side is a man short —
+      // and a bench that is "everyone not in the lineup" then offered the red
+      // card straight back, a duplicate of him who could be put on and sent
+      // off again. Reported from the couch, twice.
+      tester.view.physicalSize = const Size(420 * 3, 2000 * 3);
+      tester.view.devicePixelRatio = 3;
+      addTearDown(tester.view.reset);
+      final container = await pumpMatch(
+        tester,
+        matchResult(),
+        save: squadSave(),
+      );
+      final off = container
+          .read(pitchSlotsProvider)
+          .firstWhere((s) => s.cardInstanceId != null);
+      final offId = off.cardInstanceId!;
+      await tester.pump(minuteDurationFor(5));
+      container.read(gameProvider).update((s) {
+        for (final row in (s['squad'] as Map<String, dynamic>)['lineup']
+            as List) {
+          if (row is Map<String, dynamic> && row['slotId'] == off.slotId) {
+            row['cardInstanceId'] = null;
+          }
+        }
+      });
+      expect(
+        container.read(benchProvider).map((e) => e.instanceId),
+        contains(offId),
+        reason: 'the lineup no longer has him, so the raw bench does',
+      );
+      final other = container
+          .read(pitchSlotsProvider)
+          .firstWhere((s) => s.cardInstanceId != null && s.slotId != off.slotId);
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: MaterialApp(
+            theme: buildAppTheme(kitId: 'classic', light: false),
+            home: Scaffold(
+              body: SubsPanel(
+                used: 0,
+                withdrawn: const {},
+                onSub: (_) {},
+                // The bench for a DIFFERENT square, which is where the
+                // duplicate showed.
+                openOn: other.slotId,
+                sentOff: {offId},
+                sentOffSlots: {off.slotId: off},
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('subs-bench-filter-ALL')));
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(ValueKey('sub-bench-$offId')),
+        findsNothing,
+        reason: 'the man sent off was offered from the bench',
       );
       await tester.tapAt(const Offset(8, 8));
       await tester.pumpAndSettle();
