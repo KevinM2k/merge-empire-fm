@@ -314,6 +314,18 @@ void main() {
     });
 
 
+    /// **AND IT SAYS "UP TO".** The figure is a PERFECT run — every drill,
+    /// every shot — and quoted as a bare coin badge it read as the price of
+    /// playing rather than as a ceiling. Reported from the couch. The row
+    /// carried a note saying there was no catalogue key for the words and none
+    /// could be added from this repo; copy is written here now.
+    testWidgets('AND THE CEILING SAYS IT IS ONE', (tester) async {
+      await pumpTraining(tester, mutate: (s) => trainingTier(s, 6));
+      final badges = coinInks(tester).length;
+      expect(badges, greaterThan(0));
+      expect(find.text(t('training.up_to')), findsNWidgets(badges));
+    });
+
     testWidgets('and the little arrows are white in dark mode', (tester) async {
       await pumpTraining(
         tester,

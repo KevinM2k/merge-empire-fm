@@ -252,4 +252,16 @@ const Map<String, String> jaCopy = <String, String>{
       '{club}は終盤に向けて形を変え、その形のまま試合を終えた。|'
       '終盤の{club}の組み直しが、午後の終わり方を決めた。|'
       '{club}は残り時間に向けて並びを直し、そのやり方で試合を締めた。',
+
+  // The settings screen's small print — see `en_copy.dart`.
+  'settings.cutaways.hint':
+      'オンにした側にチャンスが訪れると、試合がピッチに切り替わってその場面を再現します。'
+          'あとから見直すこともできます。',
+  'settings.matchSpeed.auto': 'オート',
+  'settings.matchSpeed.hint':
+      'オートは2倍速で進み、コーチが話しかけてきたときだけ1倍速に戻ります。'
+          '読んで手を打つ時間ができます。',
+
+  // The training list's ceiling — see `en_copy.dart`.
+  'training.up_to': '最大',
 };

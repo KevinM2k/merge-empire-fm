@@ -274,4 +274,16 @@ const Map<String, String> arCopy = <String, String>{
       'يكلف ذلك {club} فارق {n} في الترتيب — المركز {pos} برصيد {pts} نقطة.|'
       'هبوطاً بفارق {n} إلى المركز {pos}، برصيد {pts} نقطة.|'
       'المركز {pos} وفي هبوط، بفارق {n} عن موقعه السابق، برصيد {pts} نقطة.',
+
+  // The settings screen's small print — see `en_copy.dart`.
+  'settings.cutaways.hint':
+      'عندما تسنح فرصة للفريق الذي فعّلته، تنتقل المباراة إلى الملعب وتعرض '
+          'اللقطة كاملة — ويمكنك إعادتها لاحقاً.',
+  'settings.matchSpeed.auto': 'تلقائي',
+  'settings.matchSpeed.hint':
+      'الوضع التلقائي يعمل بسرعة 2x ويعود إلى 1x كلما تحدث المدرب، حتى تجد '
+          'وقتاً لقراءة كلامه والتصرف بناءً عليه.',
+
+  // The training list's ceiling — see `en_copy.dart`.
+  'training.up_to': 'حتى',
 };

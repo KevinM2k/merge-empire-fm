@@ -160,6 +160,13 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
           key: const ValueKey('team-names-btn'),
           icon: 'shield',
           label: t('pyramid.title'),
+          // **"Team Names" is a destination, not a description.** The row gave
+          // no hint that behind it are all fifty-six clubs in the pyramid,
+          // renameable, and savable as a set to survive a New Team — so the
+          // sheet's own `pyramid.hint`, shipped in ten languages, was the first
+          // place any of that was said and only to somebody who had already
+          // guessed. Asked for from the couch.
+          note: t('pyramid.hint'),
           onTap: () => showPyramidEditor(context),
         ),
         // **THREE STATES, because a switch called "Light Mode" can only ever
@@ -451,10 +458,23 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
     ),
   ];
 
+  /// The pair behind the three-way speed segment.
+  ///
+  /// **Two keys rather than one tri-state**, because `matchSpeedFast` is the
+  /// key every existing save already carries and the only one `PlayMatchButton`
+  /// ever needed: Auto IS 2×, so a save on Auto is a save on fast and nothing
+  /// downstream has to learn a third value. Written together so the pair can
+  /// never disagree.
+  void _setSpeed({required bool fast, required bool auto}) {
+    writeSetting(ref, 'matchSpeedFast', fast);
+    writeSetting(ref, 'matchSpeedAuto', auto);
+  }
+
   List<Widget> _match() {
     final ours = ref.watch(settingPick<bool>('cutawayOurTeam', true));
     final opp = ref.watch(settingPick<bool>('cutawayOpponent', true));
     final fast = ref.watch(settingPick<bool>('matchSpeedFast', false));
+    final auto = ref.watch(settingPick<bool>('matchSpeedAuto', false));
     final hard = ref.watch(settingPick<bool>('hardMode', false));
     final proUnlocked = ref.watch(proModeUnlockedProvider);
     return [
@@ -473,6 +493,14 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
             // moment can be replayed afterwards. Reported from the couch: the
             // name describes something that is no longer a choice.
             label: t('settings.cutaways'),
+            // **AND IT SAYS WHAT A CUTAWAY IS.** The rename fixed a label that
+            // described something that is no longer a choice and left the row
+            // no clearer: "Chance Cutaways" is two words nobody has met before
+            // sat over a Yours/Opponent pair, and there was nothing on the
+            // screen saying which side's chances get retold on the pitch or
+            // that turning one off also takes away the replay. Asked for from
+            // the couch.
+            note: t('settings.cutaways.hint'),
             trailing: SettingsSegment(
               key: const ValueKey('setting-pitchView'),
               choices: [
@@ -494,19 +522,34 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
           SettingsRow(
             icon: 'bolt',
             label: t('settings.matchSpeed'),
+            // **AUTO NEEDS A SENTENCE OR IT IS A THIRD MYSTERY BUTTON.** The
+            // other two say what they do in one character each; this one is a
+            // rule, and a rule nobody can see is a rule nobody trusts.
+            note: t('settings.matchSpeed.hint'),
             trailing: SettingsSegment(
               key: const ValueKey('setting-matchSpeedFast'),
               choices: [
                 (
                   label: '1×',
                   on: !fast,
-                  onTap: () => writeSetting(ref, 'matchSpeedFast', false),
+                  onTap: () => _setSpeed(fast: false, auto: false),
                   locked: false,
                 ),
                 (
                   label: '2×',
-                  on: fast,
-                  onTap: () => writeSetting(ref, 'matchSpeedFast', true),
+                  on: fast && !auto,
+                  onTap: () => _setSpeed(fast: true, auto: false),
+                  locked: false,
+                ),
+                // **AUTO IS 2×, WITH ONE EXCEPTION.** Asked for from the couch,
+                // with the case that makes it: a player is booked, Colin says
+                // who could come on for him, and at 2× the sentence has not
+                // been read before the same player has been sent off. So the
+                // clock reads the bubble — see `MatchScreen.auto`.
+                (
+                  label: t('settings.matchSpeed.auto'),
+                  on: fast && auto,
+                  onTap: () => _setSpeed(fast: true, auto: true),
                   locked: false,
                 ),
               ],

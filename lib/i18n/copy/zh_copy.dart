@@ -209,4 +209,12 @@ const Map<String, String> zhCopy = <String, String>{
       '{club}为收官阶段换了个结构，并以这个结构踢完了比赛。|'
       '{club}在临近尾声的重新调整，决定了这个下午的收场方式。|'
       '{club}为剩下的时间重新摆了阵，也就这么把比赛带到了终点。',
+
+  // The settings screen's small print — see `en_copy.dart`.
+  'settings.cutaways.hint': '当你开启的一方获得机会时，比赛会切到球场上演这一幕——事后还可以回放。',
+  'settings.matchSpeed.auto': '自动',
+  'settings.matchSpeed.hint': '自动模式以 2 倍速进行，教练一开口就降回 1 倍速，让你有时间读完并做出调整。',
+
+  // The training list's ceiling — see `en_copy.dart`.
+  'training.up_to': '最多',
 };

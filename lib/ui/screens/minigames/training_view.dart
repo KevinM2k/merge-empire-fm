@@ -364,8 +364,13 @@ class _GameRow extends ConsumerWidget {
         // full-run target rather than going on for ever, so it has a perfect
         // score like the rest of them and was the one row quoting nothing.
         //
-        // A COIN AND A NUMBER, no copy: there is no catalogue key for "up to",
-        // and none can be added from this repo.
+        // **AND IT SAYS "UP TO", which it could not before.** The figure is a
+        // PERFECT run — every drill, every shot — and quoted as a bare coin
+        // badge it read as the price of playing rather than as a ceiling.
+        // Reported from the couch. This carried a note saying there was no
+        // catalogue key for the words and none could be added from this repo;
+        // `en_copy.dart` and `lib/i18n/copy/` are where copy is written now, so
+        // `training.up_to` is theirs and ships in all ten.
         subtitle: reason == null && best == null
             ? null
             : Row(
@@ -384,6 +389,11 @@ class _GameRow extends ConsumerWidget {
                   // `hudBadgeInk`, which is what the bar, the pack contents,
                   // the season quests and the session summary all wear.
                   if (best != null) ...[
+                    Text(
+                      t('training.up_to'),
+                      style: TextStyle(color: kit.textMuted, fontSize: 12),
+                    ),
+                    const SizedBox(width: 5),
                     _CoinBadge(amount: best),
                     if (reason != null)
                       Text(

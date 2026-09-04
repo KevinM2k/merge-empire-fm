@@ -331,4 +331,17 @@ const Map<String, String> deCopy = <String, String>{
       'Weiter Rang {pos}, jetzt mit einem Punktestand von {pts}.|'
       'Rang {pos}, unverändert, Punktestand {pts}.|'
       'Keine Bewegung — Rang {pos}, Punktestand {pts}.',
+
+  // The settings screen's small print — see `en_copy.dart`.
+  'settings.cutaways.hint':
+      'Fällt eine Chance an eine eingeschaltete Seite, blendet das Spiel auf '
+          'den Platz um und spielt den Moment aus — danach kannst du ihn '
+          'wiederholen.',
+  'settings.matchSpeed.auto': 'Auto',
+  'settings.matchSpeed.hint':
+      'Auto läuft mit 2x und fällt auf 1x zurück, sobald der Trainer etwas zu '
+          'sagen hat — Zeit genug, es zu lesen und zu reagieren.',
+
+  // The training list's ceiling — see `en_copy.dart`.
+  'training.up_to': 'Bis zu',
 };

@@ -280,4 +280,16 @@ const Map<String, String> koCopy = <String, String>{
       '늦은 시간 {club}의 재정비가 오후의 마무리를 결정했습니다.|'
       '{club}는 남은 시간에 맞춰 배치를 고치고 그 방식으로 경기를 '
           '마무리했습니다.',
+
+  // The settings screen's small print — see `en_copy.dart`.
+  'settings.cutaways.hint':
+      '켜 둔 쪽에 찬스가 오면 경기가 피치로 전환되어 그 장면을 보여 줍니다. '
+          '나중에 다시 볼 수도 있습니다.',
+  'settings.matchSpeed.auto': '자동',
+  'settings.matchSpeed.hint':
+      '자동은 2배속으로 진행하다가 코치가 할 말이 있을 때만 1배속으로 내려갑니다. '
+          '읽고 대응할 시간이 생깁니다.',
+
+  // The training list's ceiling — see `en_copy.dart`.
+  'training.up_to': '최대',
 };

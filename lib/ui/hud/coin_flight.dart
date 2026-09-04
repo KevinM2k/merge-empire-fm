@@ -17,6 +17,13 @@
 /// rather than a reward. The loop says so itself — `coins:idle` and
 /// `energy:idle` in `game_runner.dart` — and the bus is synchronous, so the
 /// pair is exact rather than a guess about timing.
+///
+/// **AND IT FLIES IN THE ROOT OVERLAY, over whatever is on screen.** It used to
+/// draw in the shell's own `Stack`, which is under every modal route in the
+/// game — so the rewards most worth animating were the ones that could never be
+/// seen: the daily reward sheet, the welcome-back card, a shop purchase, an ad
+/// payout. All of them hand over money from inside a route, and the coins flew
+/// behind it. Same answer, and the same reason, as `toast_host.dart`.
 library;
 
 import 'dart:math' as math;
@@ -24,7 +31,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart'
-    show coinsProvider;
+    show coinsProvider, energyProvider, gemsProvider;
 import 'package:merge_empire_fc/util/event_bus.dart';
 
 /// A handle on the HUD's coin chip, so the flight knows where it is going.
@@ -99,8 +106,9 @@ const int coinFlightSprites = 7;
 /// How long one coin takes to arrive.
 const Duration coinFlightDuration = Duration(milliseconds: 620);
 
-/// The layer the coins fly across. Wraps nothing — it goes in the shell's own
-/// `Stack`, above the HUD, so a coin passes over the glass rather than under it.
+/// The layer the coins fly across. Wraps nothing and draws nothing where it
+/// sits: the sprites go up in the ROOT overlay, so a coin passes over the HUD's
+/// glass AND over whatever sheet or card handed the money over.
 class CoinFlight extends ConsumerStatefulWidget {
   const CoinFlight({super.key});
 
@@ -125,17 +133,24 @@ class CoinFlightState extends ConsumerState<CoinFlight>
 
   final List<(String, BusHandler)> _subs = [];
 
+  /// The layer's own overlay entry, or null while nothing is in the air.
+  OverlayEntry? _entry;
+
   /// Test seam: how many sprites are in the air.
   int get flying => _flights.length;
 
   @override
   void initState() {
     super.initState();
-    // Only coins have a provider to read a starting balance from; the other two
-    // start unknown, and an unknown balance cannot have GONE UP — so the first
-    // announcement of each seeds rather than launches. That is right: it is the
-    // one that happens as the shell mounts.
+    // **ALL THREE BALANCES ARE SEEDED, from the save.** Only coins used to be,
+    // and the other two started unknown — so the FIRST announcement of each
+    // seeded instead of launching. Coins and energy get away with it because
+    // the loop announces them within a second of boot; gems do not move at all
+    // until something hands some over, which meant the first gem payout of
+    // every session was the one that flew nowhere.
     _last['coins:updated'] = ref.read(coinsProvider);
+    _last['gems:updated'] = ref.read(gemsProvider);
+    _last['energy:updated'] = ref.read(energyProvider);
     for (final wallet in flightWallets()) {
       final idle = wallet.idle;
       if (idle != null) {
@@ -167,7 +182,39 @@ class CoinFlightState extends ConsumerState<CoinFlight>
     for (final flight in _flights) {
       flight.controller.dispose();
     }
+    _entry?.remove();
+    _entry = null;
     super.dispose();
+  }
+
+  /// Put the sprites up, or tell the layer they moved.
+  ///
+  /// **Inserted fresh per throw rather than kept in place**, because `insert`
+  /// appends: an entry raised now sits above whatever routes are open NOW,
+  /// which is the whole point — the sheet handing the money over was opened
+  /// after the shell was built. The entry only exists while coins are in the
+  /// air, so the next throw gets a new one over whatever is open by then.
+  void _sync() {
+    if (!mounted) return;
+    if (_flights.isEmpty) {
+      _entry?.remove();
+      _entry = null;
+      setState(() {});
+      return;
+    }
+    final overlay = Overlay.maybeOf(context, rootOverlay: true);
+    if (overlay == null) {
+      // No Navigator above us — a widget test pumping this layer bare. Fall
+      // back to drawing in place so the sprites are still findable.
+      setState(() {});
+      return;
+    }
+    if (_entry != null) {
+      _entry!.markNeedsBuild();
+      return;
+    }
+    _entry = OverlayEntry(builder: (context) => _sprites());
+    overlay.insert(_entry!);
   }
 
   /// Where a coin is thrown from.
@@ -231,7 +278,8 @@ class CoinFlightState extends ConsumerState<CoinFlight>
       controller.addStatusListener((status) {
         if (status != AnimationStatus.completed) return;
         if (!mounted) return;
-        setState(() => _flights.remove(flight));
+        _flights.remove(flight);
+        _sync();
         controller.dispose();
         // The last one to land is what swells the figure.
         if (_flights.isEmpty && _swells(wallet)) {
@@ -239,12 +287,18 @@ class CoinFlightState extends ConsumerState<CoinFlight>
         }
       });
     }
-    setState(() {});
+    _sync();
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_flights.isEmpty) return const SizedBox.shrink();
+    // The sprites live in the overlay — see [_sync]. Drawing in place is only
+    // ever the fallback for a test pumping this layer with no Navigator above.
+    if (_entry != null || _flights.isEmpty) return const SizedBox.shrink();
+    return _sprites();
+  }
+
+  Widget _sprites() {
     return IgnorePointer(
       child: Stack(
         key: const ValueKey('coin-flight'),

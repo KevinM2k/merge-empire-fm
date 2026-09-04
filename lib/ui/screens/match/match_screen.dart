@@ -322,6 +322,7 @@ class MatchScreen extends ConsumerStatefulWidget {
     this.onFinished,
     this.onLeave,
     this.fast = false,
+    this.auto = false,
   });
 
   /// A finished match, from `simulateMatch`.
@@ -341,6 +342,12 @@ class MatchScreen extends ConsumerStatefulWidget {
   final void Function(BuildContext context)? onLeave;
 
   final bool fast;
+
+  /// **AUTO IS 2× THAT GETS OUT OF THE WAY WHEN THERE IS SOMETHING TO READ.**
+  /// It is a third setting rather than a variant of [fast]: the base speed is
+  /// still 2×, and [MatchScreenState.effectiveFast] is what drops to 1× for as
+  /// long as Colin has a line up.
+  final bool auto;
 
   @override
   ConsumerState<MatchScreen> createState() => MatchScreenState();
@@ -588,6 +595,23 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
   /// not get — it just halves the wait.
   late bool _fast = widget.fast;
 
+  /// **2× THAT SLOWS DOWN WHEN COLIN SPEAKS, AND SPEEDS BACK UP AFTER.**
+  ///
+  /// Reported from the couch, with the case that makes it: a player is booked,
+  /// Colin says who is on the bench who could replace him, and at 2× the
+  /// sentence has not been read before the same player has been sent off. The
+  /// manager wants the pace, not the pace at the one moment there is a decision
+  /// to make — so the clock reads the bubble rather than the manager having to
+  /// tap 1× and remember to tap it back.
+  late bool _auto = widget.auto;
+
+  /// The speed the clock is ACTUALLY running at.
+  ///
+  /// [_fast] is the setting; this is the setting with the auto-slow applied.
+  /// Everything that measures a minute has to ask this one — a stage animating
+  /// at 2× under a clock ticking at 1× is two speeds on one screen.
+  bool get effectiveFast => _fast && !(_auto && _coachLine != null);
+
   /// Where the two clubs stood when the whistle went.
   ///
   /// **A SNAPSHOT, not a watch.** `finalizeMatchOutcome` runs at full time with
@@ -724,7 +748,7 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
 
   void _startClock() {
     _timer?.cancel();
-    _timer = Timer.periodic(minuteDuration(fast: _fast), (_) => _tick());
+    _timer = Timer.periodic(minuteDuration(fast: effectiveFast), (_) => _tick());
   }
 
   /// Halve the wait, or put it back. The clock is restarted rather than
@@ -735,10 +759,25 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
   /// setting the settings screen already writes and `PlayMatchButton` now
   /// opens on, so the button and the segment are two doors onto one preference
   /// rather than two speeds that disagree.
+  /// **AND THERE ARE THREE OF THEM NOW: 1×, 2×, AUTO.** Auto is 2× with the
+  /// one exception the couch asked for — see [_auto]. It is stored as the pair
+  /// `matchSpeedFast` + `matchSpeedAuto` rather than as one tri-state, because
+  /// `matchSpeedFast` is the key every existing save carries and the only one
+  /// `PlayMatchButton` and this button ever needed: Auto is 2× that behaves,
+  /// so a save that has it set is a save that is on 2×.
   void toggleSpeed() {
     if (frame.finished) return;
-    setState(() => _fast = !_fast);
-    writeSetting(ref, 'matchSpeedFast', _fast);
+    final (fast, auto) = switch ((_fast, _auto)) {
+      (false, _) => (true, false),
+      (true, false) => (true, true),
+      _ => (false, false),
+    };
+    setState(() {
+      _fast = fast;
+      _auto = auto;
+    });
+    writeSetting(ref, 'matchSpeedFast', fast);
+    writeSetting(ref, 'matchSpeedAuto', auto);
     _startClock();
   }
 
@@ -1149,7 +1188,7 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
     }
     _lastCoachSuggestion = suggestion;
     _lastCoachMinute = _minute;
-    _say(
+    say(
       matchCoachOpinion(
         halftime: force,
         margin: margin,
@@ -1194,7 +1233,7 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
     // already picks the pool off the scoreline, so seeding the LINE on the
     // scoreline too meant every 2-1 he ever won said the same sentence. The
     // club is what makes one 2-1 a different afternoon from the next.
-    _say(
+    say(
       tPoolStable(key, 'ft-${f.ourGoals}-${f.theirGoals}-$opponent', {
         // `{us}`–`{them}` is the SCORELINE in our order, and `{opp}` is the
         // club. Not the venue ordering the scoreboard uses: "a 1-0 win over
@@ -1220,12 +1259,36 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
   }
 
   /// Put a line in his mouth, and take it away again after [_coachDwell].
-  void _say(String line) {
+  ///
+  /// Public, like [toggleSpeed] and [skipToEnd]: it is what the auto-speed test
+  /// drives, and there is nothing private about him having something to say.
+  ///
+  /// **And on Auto the clock goes with it.** See [_auto]: the bubble going up
+  /// is the signal to drop to 1×, and it coming down — dwelt out or dismissed —
+  /// is the signal to go back to 2×.
+  void say(String line) {
     _coachTimer?.cancel();
     setState(() => _coachLine = line);
+    _restartForCoach();
     _coachTimer = Timer(_coachDwell, () {
-      if (mounted) setState(() => _coachLine = null);
+      if (mounted) clearCoachLine();
     });
+  }
+
+  /// Take the bubble down, from the dwell timer or from a tap on it.
+  void clearCoachLine() {
+    if (_coachLine == null) return;
+    setState(() => _coachLine = null);
+    _restartForCoach();
+  }
+
+  /// Re-time the clock, but ONLY when the auto rule is what would change it.
+  /// Restarting a periodic timer resets its period, so a match not on Auto must
+  /// not have its minute stretched every time Colin opens his mouth.
+  void _restartForCoach() {
+    if (!_auto || !_fast) return;
+    if (frame.finished) return;
+    _startClock();
   }
 
   /// Cut to the manager, if the screen and the rules both allow it.
@@ -1803,7 +1866,7 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
     // and it clears itself after [_coachDwell]. The manager opens the subs
     // panel if they want to; the tip's job is to tell them there is a decision
     // to make, not to make it.
-    _say(
+    say(
       t('coach.booked.body', {
         'player': player,
         'rating': booked,
@@ -2408,7 +2471,7 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
                                 clip: _clip,
                                 // `2x` is the whole screen's speed, not just
                                 // the clock's.
-                                fast: _fast,
+                                fast: effectiveFast,
                                 // **The match, between the chances.** The stage
                                 // keeps twenty-two bodies on the grass and slides
                                 // their shape with the same figure the arrow
@@ -2747,7 +2810,15 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
                                       : null,
                                 ),
                                 onPressed: toggleSpeed,
-                                child: Text(_fast ? '2×' : '1×'),
+                                // Auto is lit like 2× because it IS 2×; what
+                                // the word says is that it will stand aside.
+                                child: Text(
+                                  _auto
+                                      ? t('settings.matchSpeed.auto')
+                                      : _fast
+                                      ? '2×'
+                                      : '1×',
+                                ),
                               ),
                               const SizedBox(width: 8),
                               // Subs before skip: one is a decision and the other is
@@ -2827,7 +2898,7 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
                   // while he says so — dimming the grass dimmed the one
                   // thing on the page still moving. Asked for directly.
                   litArea: _stageKey,
-                  onDismissed: () => setState(() => _coachLine = null),
+                  onDismissed: clearCoachLine,
                 ),
               ),
           ],

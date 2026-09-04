@@ -249,6 +249,14 @@ class PlayMatchButton extends ConsumerWidget {
   static bool _fast(WidgetRef ref) =>
       ref.read(settingPick<bool>('matchSpeedFast', false));
 
+  /// **Auto is 2× that stands aside when Colin has something to say.** Stored
+  /// alongside `matchSpeedFast` rather than as a tri-state, because Auto IS
+  /// 2×: a save on Auto is a save on fast, and everything that only cares
+  /// about the base speed reads the one key it always did. See
+  /// `MatchScreen.auto`.
+  static bool _auto(WidgetRef ref) =>
+      ref.read(settingPick<bool>('matchSpeedAuto', false));
+
   /// What holds the popup queue shut for the length of a match.
 
 
@@ -374,6 +382,7 @@ class PlayMatchButton extends ConsumerWidget {
         builder: (_) => MatchScreen(
           result: result,
           fast: _fast(ref),
+          auto: _auto(ref),
           // Full time, with the screen still up: commit the outcome so the
           // table and the season move on.
           //
@@ -474,6 +483,7 @@ class PlayMatchButton extends ConsumerWidget {
         builder: (_) => MatchScreen(
           result: tie.result,
           fast: _fast(ref),
+          auto: _auto(ref),
           // **NO `match:complete` HERE, and that is a decision rather than an
           // oversight.** A cup tie's result map carries the CUP's id in
           // `divisionId` (see `cup_launcher.dart`), and that field is what

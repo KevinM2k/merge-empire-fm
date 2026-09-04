@@ -8,9 +8,16 @@
 /// Deliberately NOT a fourth popup shape: a toast interrupts nothing, waits for
 /// nothing and is never the thing a player is answering. The three shapes are
 /// for things that need a decision.
+///
+/// **It is a band across the middle of the screen, and it strikes in from the
+/// left.** It used to be a rounded card 96pt off the bottom with a margin
+/// either side, appearing and disappearing outright — small, in the corner
+/// nobody watches, and with no motion to catch the eye on the way. Reported
+/// from the couch: the line kept being missed.
 library;
 
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -267,10 +274,27 @@ const List<String> toastEvents = [
 /// (`achievement_unlock.dart`): a reward that arrives where errors arrive is not
 /// a reward.
 
-/// How long a line is held. A gem payout gets longer: it happens a handful of
-/// times in a whole run, and the ordinary 2.6s is sized for lines that repeat.
+/// How long a line is held, once it has finished arriving. A gem payout gets
+/// longer: it happens a handful of times in a whole run, and the ordinary 2.6s
+/// is sized for lines that repeat.
 const Duration _hold = Duration(milliseconds: 2600);
 const Duration _gemHold = Duration(milliseconds: 3600);
+
+/// **A TOAST MOVES.** It used to be there and then not be there, which is the
+/// one thing a notification cannot do: a banner that simply appears in the
+/// middle of the screen reads as a rendering fault, and one that vanishes takes
+/// the sentence with it before the eye has found it.
+///
+/// It strikes in from the LEFT and closes back the same way — see the wipe in
+/// `_toastFace`. Out is a little slower than in, because a bolt arrives faster
+/// than it fades.
+const Duration _slideIn = Duration(milliseconds: 300);
+const Duration _slideOut = Duration(milliseconds: 260);
+
+/// **The strike, and it is fast.** Lightning that takes half a second is a
+/// curtain; the band has to be open before the eye has finished moving to it.
+/// Eased out, so the front of the bolt is quickest at the start.
+final Curve _sweepCurve = Curves.easeOutQuart;
 
 /// The currency's own colour, the achievement banner's gold. Not the kit's
 /// accent — see the border below.
@@ -286,7 +310,8 @@ class ToastHost extends ConsumerStatefulWidget {
   ConsumerState<ToastHost> createState() => ToastHostState();
 }
 
-class ToastHostState extends ConsumerState<ToastHost> {
+class ToastHostState extends ConsumerState<ToastHost>
+    with SingleTickerProviderStateMixin {
   final List<BusHandler> _handlers = [];
   Toast? _current;
   Timer? _clear;
@@ -294,12 +319,31 @@ class ToastHostState extends ConsumerState<ToastHost> {
   /// The line's own overlay entry, or null when nothing is being said.
   OverlayEntry? _entry;
 
+  /// In, held, out. Driven forward when a line arrives and reversed when its
+  /// time is up; the face reads [AnimationController.status] to know which way
+  /// it is going, because the band leaves in the direction it came from rather
+  /// than dropping back.
+  /// **Built in `initState`, not lazily.** A `late final` initialiser reaches
+  /// for `TickerMode` — and on a host that never said anything, `dispose` is
+  /// the first thing to touch the field, which looks up an ancestor of a widget
+  /// that is already being torn down.
+  late final AnimationController _move;
+
   /// Test seam.
   Toast? get current => _current;
 
   @override
   void initState() {
     super.initState();
+    _move = AnimationController(
+      vsync: this,
+      duration: _slideIn,
+      reverseDuration: _slideOut,
+    )..addStatusListener((status) {
+      // Dismissed is the END of the line, not a frame of it: the entry comes
+      // down only once nothing of the banner is left on screen.
+      if (status == AnimationStatus.dismissed && _current == null) _drop();
+    });
     for (final event in toastEvents) {
       void handler(Object? args) {
         final toast = toastFor(event, args);
@@ -320,15 +364,34 @@ class ToastHostState extends ConsumerState<ToastHost> {
     if (toast.gem) playSoundFrom(ref, 'newDiscovery');
     _current = toast;
     _raise();
+    // A second line replaces the first WITHOUT restarting the arrival: the band
+    // is already in place, so re-running the slide would look like the screen
+    // stuttering rather than like the words changing.
+    //
+    // Reduced motion still gets the line — it is the words that matter, and a
+    // player who has asked for no animation has not asked for no news.
+    if (_reducedMotion) {
+      _move.value = 1;
+    } else {
+      _move.forward();
+    }
     _clear?.cancel();
     // Long enough to read, short enough that two in a row both land — and
     // longer for gems, which turn up a handful of times in a whole run.
     _clear = Timer(toast.gem ? _gemHold : _hold, () {
       if (!mounted) return;
       _current = null;
-      _drop();
+      if (_reducedMotion) {
+        _move.value = 0;
+        _drop();
+      } else {
+        _move.reverse();
+      }
     });
   }
+
+  bool get _reducedMotion =>
+      MediaQuery.maybeOf(context)?.disableAnimations ?? false;
 
   /// **THE TOAST GOES IN THE OVERLAY, over whatever is on screen.**
   ///
@@ -374,6 +437,7 @@ class ToastHostState extends ConsumerState<ToastHost> {
   @override
   void dispose() {
     _clear?.cancel();
+    _move.dispose();
     _entry?.remove();
     _entry = null;
     for (var i = 0; i < toastEvents.length; i++) {
@@ -409,6 +473,15 @@ class ToastHostState extends ConsumerState<ToastHost> {
   /// whatever it said, so a refusal was green type inside a red box: the two
   /// halves of the same toast disagreeing about whether it was bad news.
   /// `readableInk` is what keeps a red legible on a daylit surface.
+  ///
+  /// **AND IT IS A BAND ACROSS THE MIDDLE, not a card near the foot.** It sat
+  /// 96pt off the bottom with a 16pt margin either side — the corner of the
+  /// screen nobody is looking at, under the tab bar's own furniture, at a size
+  /// that made it one more small thing among small things. Reported from the
+  /// couch: the line kept being missed. Full bleed and dead centre is the one
+  /// place on a phone that cannot be missed, and it costs nothing, because a
+  /// toast is never the thing being answered — it does not take the tap it is
+  /// sitting on.
   Widget _toastFace(BuildContext context) {
     final kit = Theme.of(context).extension<KitTheme>()!;
     final toast = _current;
@@ -426,59 +499,162 @@ class ToastHostState extends ConsumerState<ToastHost> {
         : toast.good
         ? kit.accentBright
         : dangerInk;
-    return Positioned(
-      left: 16,
-      right: 16,
-      bottom: 96,
+    return Positioned.fill(
       child: IgnorePointer(
-        child: Material(
-          color: Colors.transparent,
-          child: Container(
-            key: const ValueKey('toast'),
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            decoration: BoxDecoration(
-              // **IT WAS A HAIRLINE ROUND NOTHING.** `kit.surface` is the dark
-              // theme's 12%-lightness ground — the same value the page behind
-              // it is built from — so the box had no edge of its own and what
-              // was on screen was a red outline floating over the scene.
-              // Reported as "just a clear box with a red border".
+        child: Align(
+          alignment: Alignment.center,
+          child: AnimatedBuilder(
+            animation: _move,
+            builder: (context, child) {
+              // **IT STRIKES IN FROM THE LEFT AND CLOSES BACK THE SAME WAY.**
+              // A full-bleed band has one axis worth animating along: it
+              // already spans the screen, so sliding it up or fading it in is
+              // motion applied to the wrong dimension. Wiping it open left to
+              // right is the shape of the thing itself — and the sentence
+              // arrives with the wipe rather than under it, which is what makes
+              // it read as a strike rather than as a box growing.
               //
-              // The chips' own plate instead, tinted by the tone: near-black in
-              // the dark, a wash of the tone's hue in daylight, composited onto
-              // the surface so it is opaque either way and the pitch cannot
-              // come through it.
-              color: Color.alphaBlend(semanticPlate(context, tone), kit.surface),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: tone, width: 1.5),
-              boxShadow: [
-                // What actually lifts it off the page. The gem line keeps its
-                // glow on top of it.
-                BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.45),
-                  blurRadius: 18,
-                  offset: const Offset(0, 6),
-                ),
-                if (toast.gem)
-                  BoxShadow(
-                    color: _gemGold.withValues(alpha: 0.28),
-                    blurRadius: 16,
-                  ),
-              ],
-            ),
-            child: Text(
-              toast.text,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                // Taken down to read on the light plate; the dark one keeps the
-                // colour it was chosen at.
-                color: readableInk(context, tone),
-                fontSize: toast.gem ? 15 : 14,
-                fontWeight: toast.gem ? FontWeight.w800 : FontWeight.w600,
-              ),
-            ),
+              // The clip is what moves; the band is laid out full width
+              // underneath at every frame, so nothing reflows and the text
+              // never re-wraps mid-animation.
+              final t = _sweepCurve.transform(_move.value);
+              return Stack(
+                children: [
+                  ClipRect(clipper: _Wipe(t), child: child),
+                  // The bolt's own leading edge, and only while it is travelling
+                  // — parked at either end it would just be a stripe.
+                  if (t > 0.02 && t < 0.995)
+                    Positioned.fill(
+                      child: CustomPaint(painter: _Strike(t: t, tone: tone)),
+                    ),
+                ],
+              );
+            },
+            child: _band(context, toast, tone, kit),
           ),
         ),
       ),
     );
   }
+
+  /// Test seam: how far open the wipe is, 0 to 1.
+  double get sweep => _move.value;
+
+  /// The band itself: edge to edge, so there is no margin for the page to show
+  /// through at the sides and nothing to read as a floating card.
+  Widget _band(BuildContext context, Toast toast, Color tone, KitTheme kit) =>
+      Material(
+        color: Colors.transparent,
+        child: Container(
+          key: const ValueKey('toast'),
+          width: double.infinity,
+          // A little air above and below the sentence and no more: the band is
+          // wide enough already, and a tall one starts to read as a screen of
+          // its own rather than as something passing through.
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          decoration: BoxDecoration(
+            // **IT WAS A HAIRLINE ROUND NOTHING.** `kit.surface` is the dark
+            // theme's 12%-lightness ground — the same value the page behind
+            // it is built from — so the box had no edge of its own and what
+            // was on screen was a red outline floating over the scene.
+            // Reported as "just a clear box with a red border".
+            //
+            // The chips' own plate instead, tinted by the tone: near-black in
+            // the dark, a wash of the tone's hue in daylight, composited onto
+            // the surface so it is opaque either way and the pitch cannot
+            // come through it.
+            color: Color.alphaBlend(semanticPlate(context, tone), kit.surface),
+            // **NO CORNERS AND NO SIDES.** A full-bleed band is defined by the
+            // two edges it does have; rounding a box that runs off both sides
+            // of the screen just leaves four nicks in the middle of nothing.
+            border: Border(
+              top: BorderSide(color: tone, width: 1.5),
+              bottom: BorderSide(color: tone, width: 1.5),
+            ),
+            boxShadow: [
+              // What actually lifts it off the page. The gem line keeps its
+              // glow on top of it.
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.45),
+                blurRadius: 18,
+              ),
+              if (toast.gem)
+                BoxShadow(
+                  color: _gemGold.withValues(alpha: 0.28),
+                  blurRadius: 16,
+                ),
+            ],
+          ),
+          child: Text(
+            toast.text,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              // Taken down to read on the light plate; the dark one keeps the
+              // colour it was chosen at.
+              color: readableInk(context, tone),
+              // Bigger than it was, because the band is the width of the
+              // screen: a 14pt sentence in the middle of it reads as a caption
+              // for something that is not there.
+              fontSize: toast.gem ? 20 : 18,
+              height: 1.25,
+              fontWeight: toast.gem ? FontWeight.w800 : FontWeight.w700,
+            ),
+          ),
+        ),
+      );
+}
+
+/// The wipe: the band, laid out full width, revealed only as far as the strike
+/// has got. A clipper rather than a width, so nothing reflows and the sentence
+/// never re-wraps mid-animation.
+class _Wipe extends CustomClipper<Rect> {
+  const _Wipe(this.t);
+
+  final double t;
+
+  @override
+  Rect getClip(Size size) => Rect.fromLTWH(0, 0, size.width * t, size.height);
+
+  @override
+  bool shouldReclip(_Wipe old) => old.t != t;
+}
+
+/// The bolt's leading edge.
+///
+/// **A wipe on its own reads as a curtain, not as a strike.** What separates
+/// them is the front: a hot vertical edge at the point the reveal has reached,
+/// with a short tail smeared back along the way it came. Both are drawn in the
+/// line's own tone — the same one that decides the ink and the band's two
+/// edges — so a refusal strikes red and a gem payout strikes gold.
+class _Strike extends CustomPainter {
+  const _Strike({required this.t, required this.tone});
+
+  final double t;
+  final Color tone;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final x = size.width * t;
+    // The tail, smeared back behind the front and no longer than a fifth of the
+    // screen — a longer one stops being a bolt and becomes a gradient.
+    final tail = math.min(size.width * 0.2, 96.0);
+    canvas.drawRect(
+      Rect.fromLTRB(x - tail, 0, x, size.height),
+      Paint()
+        ..shader = LinearGradient(
+          colors: [tone.withValues(alpha: 0), tone.withValues(alpha: 0.55)],
+        ).createShader(Rect.fromLTRB(x - tail, 0, x, size.height)),
+    );
+    // And the front itself: white-hot rather than the tone, because the thing
+    // that reads as lightning is the blow-out at the tip.
+    canvas.drawRect(
+      Rect.fromLTRB(x - 2.5, 0, x + 1.5, size.height),
+      Paint()
+        ..color = Colors.white.withValues(alpha: 0.85)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
+    );
+  }
+
+  @override
+  bool shouldRepaint(_Strike old) => old.t != t || old.tone != tone;
 }

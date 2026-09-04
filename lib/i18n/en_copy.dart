@@ -683,4 +683,26 @@ const Map<String, String> enCopy = <String, String>{
           'looked like being enough.|'
       '{chaser} found one at the end of a long spell of pressure, by which time '
           '{holder} had done the hard part.',
+
+  // ── The settings screen's small print ────────────────────────────────────
+  //
+  // **Two rows whose names are not descriptions.** "Chance Cutaways" is two
+  // words nobody has met before sat over a Yours/Opponent pair, and Match Speed
+  // grew a third choice that is a RULE rather than a number. Both asked for
+  // from the couch. `pyramid.hint` needed no key of its own — it already ships
+  // in ten languages for the sheet the row opens.
+  'settings.cutaways.hint':
+      'When a chance falls to a side you have on, the match cuts to the pitch '
+          'and plays the moment out — and you can replay it afterwards.',
+  'settings.matchSpeed.auto': 'Auto',
+  'settings.matchSpeed.hint':
+      'Auto runs at 2x and drops back to 1x whenever the coach has something '
+          'to say, so there is time to read it and act on it.',
+
+  // **WHAT A PERFECT RUN PAYS, said as a ceiling.** The training list quotes
+  // `miniGameRewardBase` — every drill, every shot — and a bare coin badge read
+  // as the price of playing. Reported from the couch. The old note in
+  // `training_view.dart` said there was no key for the words and none could be
+  // added; there is now.
+  'training.up_to': 'Up to',
 };

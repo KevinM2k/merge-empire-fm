@@ -4,6 +4,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:merge_empire_fc/providers/game_providers.dart';
@@ -13,6 +14,22 @@ import 'package:merge_empire_fc/state/state_schema.dart';
 import 'package:merge_empire_fc/ui/hud/coin_counter.dart';
 import 'package:merge_empire_fc/ui/hud/coin_flight.dart';
 import 'package:merge_empire_fc/util/event_bus.dart';
+
+/// Where a widget sits in the order the frame is painted in. The overlay is one
+/// list, so "above the sheet" is "later in it".
+int _paintOrder(WidgetTester tester, Finder of) {
+  final target = tester.element(of);
+  var seen = 0;
+  var found = -1;
+  void walk(Element e) {
+    if (e == target) found = seen;
+    seen++;
+    e.visitChildren(walk);
+  }
+
+  walk(tester.binding.rootElement!);
+  return found;
+}
 
 /// A scope with a save behind it: the layer reads the balance it starts from,
 /// because `coins:updated` fires on a SPEND too and it has to know which way the
@@ -92,22 +109,20 @@ void main() {
     // energy landed silently. Reported from the couch.
     final state = await pumpFlight(tester);
 
-    // The FIRST announcement of a wallet with no starting balance seeds rather
-    // than launches: an unknown balance cannot have gone up.
+    // **AND THE FIRST GRANT OF THE SESSION FLIES.** All three balances are
+    // seeded from the SAVE now — a default one starts on no gems — so a gem
+    // payout no longer has to be the second one of the run to be animated.
+    // Coins and energy were only ever seeded by accident, by the loop
+    // announcing them within a second of boot; gems do not move at all until
+    // something hands some over.
     emit('gems:updated', 5);
-    await tester.pump();
-    expect(state.flying, 0);
-
-    emit('gems:updated', 9);
     await tester.pump();
     expect(state.flying, greaterThan(0));
     final gemSprites = state.flying;
     await tester.pumpAndSettle();
     expect(state.flying, 0);
 
-    emit('energy:updated', 3);
-    await tester.pump();
-    emit('energy:updated', 6);
+    emit('energy:updated', 999);
     await tester.pump();
     expect(state.flying, greaterThan(0));
     await tester.pumpAndSettle();
@@ -125,6 +140,7 @@ void main() {
     for (final event in ['gems:updated', 'energy:updated']) {
       emit(event, 10);
       await tester.pump();
+      await tester.pumpAndSettle();
       emit(event, 4);
       await tester.pump();
       expect(state.flying, 0, reason: event);
@@ -138,6 +154,7 @@ void main() {
     final state = await pumpFlight(tester);
     emit('energy:updated', 3);
     await tester.pump();
+    await tester.pumpAndSettle();
 
     emit('energy:idle', 1);
     emit('energy:updated', 4);
@@ -194,6 +211,41 @@ void main() {
     emit('coins:updated', 40);
     await tester.pump();
     expect(state.flying, 0);
+  });
+
+  testWidgets('AND THEY FLY OVER THE SHEET THAT HANDED THE MONEY OVER', (
+    tester,
+  ) async {
+    // The layer used to draw in the shell's own `Stack`, which is under every
+    // modal route in the game — so the rewards most worth animating were the
+    // ones that could never be seen: the daily reward sheet, the welcome-back
+    // card, a shop purchase, an ad payout. All of them pay out from inside a
+    // route.
+    final state = await pumpFlight(tester);
+    final context = tester.element(find.byType(CoinFlight));
+    unawaited(
+      showModalBottomSheet<void>(
+        context: context,
+        builder: (_) => const SizedBox(height: 300, child: Text('a sheet')),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('a sheet'), findsOneWidget);
+
+    emit('coins:updated', 90000);
+    await tester.pump();
+    expect(state.flying, coinFlightSprites);
+
+    // Painted after the route, which is what puts them on top of it.
+    final sprites = find.byKey(const ValueKey('coin-flight'));
+    expect(sprites, findsOneWidget);
+    expect(
+      _paintOrder(tester, sprites),
+      greaterThan(_paintOrder(tester, find.text('a sheet'))),
+    );
+
+    await tester.pump(const Duration(seconds: 2));
+    await tester.pumpAndSettle();
   });
 
   testWidgets('reduced motion takes the reward without the throw', (

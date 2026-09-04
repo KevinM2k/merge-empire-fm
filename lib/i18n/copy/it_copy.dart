@@ -330,4 +330,16 @@ const Map<String, String> itCopy = <String, String>{
       'Sempre {pos}, ora a quota {pts}.|'
       '{pos}, invariato, a quota {pts}.|'
       'Nessun movimento — {pos}, a quota {pts}.',
+
+  // The settings screen's small print — see `en_copy.dart`.
+  'settings.cutaways.hint':
+      'Quando capita un\'occasione a una squadra che hai attivato, la partita '
+          'stacca sul campo e gioca il momento — e poi puoi rivederlo.',
+  'settings.matchSpeed.auto': 'Auto',
+  'settings.matchSpeed.hint':
+      'Auto va a 2x e torna a 1x ogni volta che il mister ha qualcosa da dire, '
+          'così hai il tempo di leggerlo e intervenire.',
+
+  // The training list's ceiling — see `en_copy.dart`.
+  'training.up_to': 'Fino a',
 };

@@ -314,4 +314,16 @@ const Map<String, String> ptCopy = <String, String>{
       'Continua {pos}, agora com {pts} ponto{ps}.|'
       '{pos}, sem alteração, {pts} ponto{ps}.|'
       'Sem movimento — {pos} com {pts} ponto{ps}.',
+
+  // The settings screen's small print — see `en_copy.dart`.
+  'settings.cutaways.hint':
+      'Quando surge uma ocasião para um lado que tenhas ligado, o jogo corta '
+          'para o relvado e joga o lance — e podes revê-lo depois.',
+  'settings.matchSpeed.auto': 'Auto',
+  'settings.matchSpeed.hint':
+      'O Auto corre a 2x e volta a 1x sempre que o mister tem algo a dizer, '
+          'para teres tempo de ler e agir.',
+
+  // The training list's ceiling — see `en_copy.dart`.
+  'training.up_to': 'Até',
 };

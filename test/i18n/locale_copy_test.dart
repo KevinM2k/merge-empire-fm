@@ -125,9 +125,20 @@ void main() {
     // The write-up is seeded off the fixture and picks one variant per beat. A
     // pool of one is legal and means every match reads identically at that
     // sentence, which is what the pools exist to avoid.
+    //
+    // **A KEY THAT IS NOT A POOL IN ENGLISH IS NOT ONE HERE EITHER.** These
+    // files were written for the write-up, where every key is a pool, so the
+    // rule used to be "every value must have two variants" — which fails the
+    // moment a plain string needs the other nine locales, and plain strings are
+    // exactly what these files are also for: a settings hint has one wording,
+    // in every language. The invariant worth keeping is that a translation
+    // never NARROWS a pool to a single line.
     final thin = <String>[];
     localeCopy.forEach((id, copy) {
+      final generated = catalogs[id]!;
       copy.forEach((key, value) {
+        final source = generated[key] ?? englishCatalog[key] ?? '';
+        if (!source.contains('|')) return;
         if (value.split('|').length < 2) thin.add('$id: $key');
       });
     });

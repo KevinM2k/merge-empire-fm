@@ -501,6 +501,7 @@ class SettingsAction extends StatelessWidget {
     required this.label,
     required this.onTap,
     this.reason,
+    this.note,
   });
 
   final String icon;
@@ -510,6 +511,12 @@ class SettingsAction extends StatelessWidget {
   /// these are never hidden.
   final VoidCallback? onTap;
   final String? reason;
+
+  /// The small print under a LIVE row, for one whose name is a destination
+  /// rather than a description. Distinct from [reason], which explains why a
+  /// row cannot be pressed: a row can only ever be one or the other, and the
+  /// reason wins because a dead control has to say so first.
+  final String? note;
 
   @override
   Widget build(BuildContext context) {
@@ -539,9 +546,9 @@ class SettingsAction extends StatelessWidget {
                       color: pending ? kit.textMuted : null,
                     ),
                   ),
-                  if (reason != null)
+                  if ((reason ?? note) case final line?)
                     Text(
-                      reason!,
+                      line,
                       style: TextStyle(fontSize: 12, color: kit.textMuted),
                     ),
                 ],

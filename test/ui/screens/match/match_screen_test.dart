@@ -109,6 +109,7 @@ Future<ProviderContainer> pumpMatch(
   // that are pass `reduceMotion: false` and pump by hand.
   bool reduceMotion = true,
   bool fast = false,
+  bool auto = false,
   List<Override> overrides = const [],
 }) async {
   final container = ProviderContainer(
@@ -143,6 +144,7 @@ Future<ProviderContainer> pumpMatch(
                 key: ValueKey('match-$instance'),
                 result: result,
                 fast: fast,
+                auto: auto,
                 onFinished: onFinished,
               ),
             ),
@@ -2922,9 +2924,22 @@ void main() {
       await tester.pump();
       expect(stored(), isTrue);
 
+      // **AND THERE ARE THREE OF THEM NOW.** 2× is followed by Auto, which is
+      // still 2× — so `matchSpeedFast` stays set and `matchSpeedAuto` joins it.
+      bool autoStored() {
+        final settings = container.read(gameProvider).state?['settings'];
+        return settings is Map && settings['matchSpeedAuto'] == true;
+      }
+
+      await tester.tap(find.byKey(const ValueKey('match-speed')));
+      await tester.pump();
+      expect(stored(), isTrue, reason: 'Auto IS 2x');
+      expect(autoStored(), isTrue);
+
       await tester.tap(find.byKey(const ValueKey('match-speed')));
       await tester.pump();
       expect(stored(), isFalse, reason: 'and back down again');
+      expect(autoStored(), isFalse);
       stateOf(tester).skipToEnd();
       await tester.pumpAndSettle();
       await settleSave(tester);
@@ -2939,6 +2954,9 @@ void main() {
       await pumpMatch(tester, matchResult(), fast: true);
       expect(tester.widget<CutawayStage>(find.byType(CutawayStage)).fast, isTrue);
 
+      // Two taps, because Auto sits between 2× and 1× and Auto is still 2×.
+      await tester.tap(find.byKey(const ValueKey('match-speed')));
+      await tester.pump();
       await tester.tap(find.byKey(const ValueKey('match-speed')));
       await tester.pump();
       expect(
@@ -2949,6 +2967,53 @@ void main() {
       stateOf(tester).skipToEnd();
       await tester.pumpAndSettle();
       await settleSave(tester);
+    });
+
+    /// **AUTO IS 2× THAT GETS OUT OF THE WAY WHEN THERE IS SOMETHING TO READ.**
+    ///
+    /// Asked for from the couch, with the case that makes it: a player is
+    /// booked, Colin says who is on the bench who could replace him, and at 2×
+    /// the sentence has not been read before the same player has been sent off.
+    testWidgets('AND AUTO DROPS TO 1× WHILE COLIN IS TALKING', (tester) async {
+      await pumpMatch(tester, matchResult(), fast: true, auto: true);
+      final state = stateOf(tester);
+      expect(state.effectiveFast, isTrue, reason: 'nothing to read yet');
+      expect(find.text(t('settings.matchSpeed.auto')), findsOneWidget);
+
+      state.say('Get him off before he sees red.');
+      await tester.pump();
+      expect(
+        state.effectiveFast,
+        isFalse,
+        reason: 'the clock stands aside while there is a line up',
+      );
+      // And the pitch goes with it: two speeds on one screen is the fault this
+      // shares with the one above.
+      expect(
+        tester.widget<CutawayStage>(find.byType(CutawayStage)).fast,
+        isFalse,
+      );
+
+      // Dismissed, and it goes straight back up.
+      state.clearCoachLine();
+      await tester.pump();
+      expect(state.effectiveFast, isTrue);
+
+      state.skipToEnd();
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('and a match that is NOT on auto keeps its pace', (
+      tester,
+    ) async {
+      // Plain 2× is a manager who asked for 2×, whatever anybody has to say.
+      await pumpMatch(tester, matchResult(), fast: true);
+      final state = stateOf(tester);
+      state.say('Something worth reading.');
+      await tester.pump();
+      expect(state.effectiveFast, isTrue);
+      state.skipToEnd();
+      await tester.pumpAndSettle();
     });
   });
 

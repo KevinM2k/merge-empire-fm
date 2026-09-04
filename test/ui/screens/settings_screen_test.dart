@@ -455,6 +455,41 @@ void main() {
       expect(settingsOf(container)['matchSpeedFast'], isFalse);
     });
 
+    /// **AUTO IS 2× THAT GETS OUT OF THE WAY WHEN THERE IS SOMETHING TO READ.**
+    /// Asked for from the couch: a player is booked, Colin says who could come
+    /// on for him, and at 2× the sentence has not been read before the same
+    /// player has been sent off.
+    testWidgets('AND AUTO IS A THIRD CHOICE THAT WRITES BOTH KEYS', (
+      tester,
+    ) async {
+      final container = await pumpSettings(tester, SettingsTab.match);
+      await tester.tap(
+        find.byKey(ValueKey('segment-${t('settings.matchSpeed.auto')}')),
+      );
+      await tester.pumpAndSettle();
+      // Auto IS 2×, so the key every existing save carries stays set and
+      // nothing downstream has to learn a third value.
+      expect(settingsOf(container)['matchSpeedFast'], isTrue);
+      expect(settingsOf(container)['matchSpeedAuto'], isTrue);
+
+      // And picking a plain speed puts it away again — a pair that can
+      // disagree is a save that is on Auto at 1×.
+      await tester.tap(find.byKey(const ValueKey('segment-2×')));
+      await tester.pumpAndSettle();
+      await settleSave(tester);
+      expect(settingsOf(container)['matchSpeedFast'], isTrue);
+      expect(settingsOf(container)['matchSpeedAuto'], isFalse);
+    });
+
+    /// **THREE ROWS WHOSE NAMES ARE NOT DESCRIPTIONS**, all three asked for
+    /// from the couch. Auto is a rule rather than a number, "Chance Cutaways"
+    /// is two words nobody has met, and "Team Names" is a destination.
+    testWidgets('and the rows that need a sentence have one', (tester) async {
+      await pumpSettings(tester, SettingsTab.match);
+      expect(find.text(t('settings.matchSpeed.hint')), findsOneWidget);
+      expect(find.text(t('settings.cutaways.hint')), findsOneWidget);
+    });
+
     testWidgets('the pitch-view pair is two FLAGS, not one choice', (
       tester,
     ) async {
@@ -931,6 +966,22 @@ void main() {
     );
     expect(find.text('kevin'), findsOneWidget);
     expect(find.text(t('auth.sign_out')), findsOneWidget);
+  });
+
+  testWidgets('AND TEAM NAMES SAYS WHAT IS BEHIND IT', (tester) async {
+    // "Team Names" is a destination, not a description: behind it are all
+    // fifty-six clubs in the pyramid, renameable, and savable as a set that
+    // survives a New Team. `pyramid.hint` says so and ships in ten languages —
+    // it was only ever printed inside the sheet, to somebody who had already
+    // guessed. Asked for from the couch.
+    await pumpSettings(tester, SettingsTab.general);
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('team-names-btn')),
+        matching: find.text(t('pyramid.hint')),
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets('the entries the JS has that the port was missing are here', (

@@ -321,4 +321,16 @@ const Map<String, String> esCopy = <String, String>{
       'Sigue {pos}, ahora con {pts} punto{ps}.|'
       '{pos}, sin cambios, {pts} punto{ps}.|'
       'Sin movimiento: {pos} con {pts} punto{ps}.',
+
+  // The settings screen's small print — see `en_copy.dart`.
+  'settings.cutaways.hint':
+      'Cuando le cae una ocasión a un bando que tengas activado, el partido '
+          'corta al campo y juega el momento — y luego puedes repetirlo.',
+  'settings.matchSpeed.auto': 'Auto',
+  'settings.matchSpeed.hint':
+      'Auto va a 2x y baja a 1x en cuanto el entrenador tiene algo que decir, '
+          'para que te dé tiempo a leerlo y actuar.',
+
+  // The training list's ceiling — see `en_copy.dart`.
+  'training.up_to': 'Hasta',
 };

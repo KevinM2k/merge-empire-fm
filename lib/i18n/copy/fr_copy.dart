@@ -331,4 +331,17 @@ const Map<String, String> frCopy = <String, String>{
       'Toujours {pos}, désormais avec {pts} point{ps}.|'
       '{pos}, inchangé, {pts} point{ps}.|'
       'Aucun mouvement — {pos} avec {pts} point{ps}.',
+
+  // The settings screen's small print — see `en_copy.dart`.
+  'settings.cutaways.hint':
+      'Quand une occasion tombe pour un camp que vous avez activé, le match '
+          'bascule sur la pelouse et joue le moment — et vous pouvez le revoir '
+          'ensuite.',
+  'settings.matchSpeed.auto': 'Auto',
+  'settings.matchSpeed.hint':
+      'Auto tourne en 2x et redescend en 1x dès que le coach a quelque chose à '
+          'dire, le temps de le lire et d\'agir.',
+
+  // The training list's ceiling — see `en_copy.dart`.
+  'training.up_to': 'Jusqu\'à',
 };

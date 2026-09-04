@@ -315,8 +315,11 @@ void main() {
       expect(find.byKey(const ValueKey('toast')), findsOneWidget);
       expect(find.textContaining('The Cup'), findsOneWidget);
 
-      // And it clears itself.
+      // And it clears itself — after the slide out, which is why this settles
+      // rather than jumping the clock: a toast that simply stopped being there
+      // was the fault being fixed.
       await tester.pump(const Duration(seconds: 3));
+      await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('toast')), findsNothing);
     });
 
@@ -345,6 +348,7 @@ void main() {
       await tester.pump(const Duration(seconds: 3));
       expect(find.byKey(const ValueKey('toast')), findsOneWidget);
       await tester.pump(const Duration(seconds: 1));
+      await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('toast')), findsNothing);
     });
 
@@ -370,6 +374,7 @@ void main() {
       expect(find.byKey(const ValueKey('toast')), findsOneWidget);
       expect(find.textContaining('The Cup'), findsOneWidget);
       await tester.pump(const Duration(seconds: 3));
+      await tester.pumpAndSettle();
     });
 
     testWidgets('a silent event puts nothing up', (tester) async {
@@ -392,6 +397,7 @@ void main() {
         findsWidgets,
       );
       await tester.pump(const Duration(seconds: 3));
+      await tester.pumpAndSettle();
     });
 
     /// **IT WAS A HAIRLINE ROUND NOTHING** — reported as "just a clear box
@@ -421,10 +427,16 @@ void main() {
       expect(box.boxShadow, isNotNull);
       expect(box.boxShadow!, isNotEmpty);
 
-      // And the sentence wears the same colour the border does.
+      // And the sentence wears the same colour the band's edges do. Edges, not
+      // an outline: it runs off both sides of the screen, so the two it has are
+      // top and bottom and the sides are deliberately absent.
       expect(box.border, isA<Border>());
-      final edge = (box.border! as Border).top.color;
+      final border = box.border! as Border;
+      final edge = border.top.color;
       expect(edge, dangerInk);
+      expect(border.bottom.color, dangerInk);
+      expect(border.left, BorderSide.none);
+      expect(border.right, BorderSide.none);
       final text = tester.widget<Text>(
         find.descendant(
           of: find.byKey(const ValueKey('toast')),
@@ -438,6 +450,56 @@ void main() {
         reason: 'a refusal was printed in the kit accent',
       );
       await tester.pump(const Duration(seconds: 3));
+      await tester.pumpAndSettle();
+    });
+
+    /// **A BAND ACROSS THE MIDDLE, not a card near the foot.** It sat 96pt off
+    /// the bottom with a 16pt margin either side — the corner of the screen
+    /// nobody is looking at, under the tab bar's own furniture. Reported from
+    /// the couch: the line kept being missed.
+    testWidgets('IT RUNS EDGE TO EDGE, ACROSS THE MIDDLE', (tester) async {
+      await pumpToasts(tester);
+      emit('quests:swept', {'count': 2, 'coins': 100});
+      await tester.pumpAndSettle();
+
+      final screen = tester.getSize(find.byType(MaterialApp));
+      final band = tester.getRect(find.byKey(const ValueKey('toast')));
+      expect(band.left, 0);
+      expect(band.right, screen.width);
+      // Centred on the screen, not parked at the foot of it.
+      expect(band.center.dy, closeTo(screen.height / 2, 1));
+      // A little air above and below the sentence, and no more.
+      expect(band.height, lessThan(screen.height * 0.25));
+      await tester.pump(const Duration(seconds: 3));
+      await tester.pumpAndSettle();
+    });
+
+    /// **A toast MOVES.** It used to be there and then not be there, which
+    /// reads as a rendering fault rather than as a notification. It strikes in
+    /// from the left and closes back the same way.
+    testWidgets('IT STRIKES IN FROM THE LEFT AND CLOSES BACK', (tester) async {
+      await pumpToasts(tester);
+      final host = tester.state<ToastHostState>(find.byType(ToastHost));
+      emit('quests:swept', {'count': 2, 'coins': 100});
+      await tester.pump();
+
+      // Mid-strike: on screen, and only part of the way across.
+      await tester.pump(const Duration(milliseconds: 90));
+      expect(host.sweep, greaterThan(0));
+      expect(host.sweep, lessThan(1));
+      expect(find.byKey(const ValueKey('toast')), findsOneWidget);
+
+      // All the way over.
+      await tester.pumpAndSettle();
+      expect(host.sweep, 1);
+
+      // And it closes back the same way rather than being switched off.
+      await tester.pump(const Duration(milliseconds: 2700));
+      await tester.pump(const Duration(milliseconds: 120));
+      expect(host.sweep, lessThan(1));
+      expect(host.sweep, greaterThan(0));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('toast')), findsNothing);
     });
 
     testWidgets('it stops listening when it goes', (tester) async {
