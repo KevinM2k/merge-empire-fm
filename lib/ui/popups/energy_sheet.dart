@@ -60,7 +60,13 @@ Future<void> watchEnergyAd(WidgetRef ref) async {
     emit('toast:success', t('toast.energy_refilled'));
   } else {
     game.update((s) => onWatchAdComplete(s, 'energy'));
-    emit('toast:success', t('toast.energy_added', {'n': Energy.adReward}));
+    // **NO LINE FOR THIS ONE.** The pips land in the tank on the sheet the
+    // player is looking at, so a band across the middle of the screen says
+    // what the screen has already said. The Pro branch above keeps its line
+    // because squad fitness is NOT on this sheet — nothing there moves.
+    // Reported from the couch once the two channels started speaking at all:
+    // we probably do not need toasts for things that are already obvious.
+    // `toast.energy_added` is left in the catalogues with no caller.
   }
 }
 

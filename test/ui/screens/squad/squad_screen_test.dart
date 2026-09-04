@@ -1169,10 +1169,10 @@ void main() {
       // player is still watching.
       expect(
         tester
-            .widget<GestureDetector>(
+            .widget<ElevatedButton>(
               find.byKey(const ValueKey('detail-trait-roll')),
             )
-            .onTap,
+            .onPressed,
         isNull,
       );
 
@@ -1210,10 +1210,10 @@ void main() {
       );
       expect(
         tester
-            .widget<GestureDetector>(
+            .widget<ElevatedButton>(
               find.byKey(const ValueKey('detail-trait-roll')),
             )
-            .onTap,
+            .onPressed,
         isNull,
       );
       await settleSave(tester);
@@ -1562,6 +1562,34 @@ void main() {
       expect(find.byType(PitchToken), findsNWidgets(11));
     });
 
+    testWidgets('AND THE PICTURE IS NOT WIDER THAN THE NAME UNDER IT', (
+      tester,
+    ) async {
+      // **Reported from the couch, and reported as the pitch only.** The token
+      // used a `DecoratedBox`, which paints its decoration BEHIND the child
+      // and does not inset the child for the border — so the 2pt ring sat
+      // under the token's contents. The art band is opaque and full width and
+      // covered it; the name plate is 55% black and let it show through. The
+      // result is a coloured edge beside the NAME and not beside the PICTURE,
+      // which reads as the picture being a couple of points the wider of the
+      // two. The bench draws a `PlayerCard`, which has used a `Container` —
+      // whose child IS inset — all along.
+      await pumpSquad(tester);
+      final token = find.byType(PitchToken).first;
+      final art = tester.getRect(
+        find.descendant(of: token, matching: find.byKey(const ValueKey('token-art'))),
+      );
+      final name = tester.getRect(
+        find.descendant(of: token, matching: find.byKey(const ValueKey('token-name'))),
+      );
+      expect(art.left, name.left, reason: 'the picture overhangs to the left');
+      expect(art.right, name.right, reason: 'the picture overhangs to the right');
+      // And both are inside the ring rather than under it, which is the fix.
+      final whole = tester.getRect(token);
+      expect(art.left, greaterThan(whole.left));
+      expect(art.right, lessThan(whole.right));
+    });
+
     testWidgets('and the tokens do not overlap each other', (tester) async {
       await pumpSquad(tester);
       final boxes = [
@@ -1860,8 +1888,19 @@ void main() {
       // than among the record of what he has done.
       final container = await pumpSquad(tester);
       await openDetailOfFirst(tester, container);
-      expect(find.text('INJ'), findsOneWidget);
-      expect(find.textContaining('%'), findsWidgets);
+      // **`INJ%`, with the unit on the LABEL.** ATK and DEF beside it are bare
+      // numbers, so a `12%` under a bare `INJ` was the one value in the row
+      // with a unit stuck to it and read as a different kind of number. Asked
+      // for directly.
+      expect(find.text('INJ%'), findsOneWidget);
+      expect(find.text('INJ'), findsNothing);
+      // And the figure is bare, the same shape as the two beside it.
+      final plate = find.byKey(const ValueKey('detail-attributes'));
+      expect(
+        find.descendant(of: plate, matching: find.textContaining('%')),
+        findsOneWidget,
+        reason: 'the percent sign is on the figure as well as the label',
+      );
     });
 
     testWidgets('and CAREER STATS has no heading — a box per stat', (

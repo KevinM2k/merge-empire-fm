@@ -274,8 +274,33 @@ SeasonOutcome endSeason(Map<String, dynamic> state) {
   });
   prog['lastSeasonPayout'] = payout;
 
-  // The league trophy is for going up — a top-two finish in the division.
-  if (outcome == 'promoted') {
+  // A league title is going up — a top-two finish in the division — OR winning
+  // the top flight, which cannot go up.
+  //
+  // **WINNING THE WHOLE LADDER USED TO COUNT FOR NOTHING HERE.** Promotion was
+  // the only way a trophy was ever recorded and the Champions League is the
+  // last division, so `pos <= 2 && divIdx < divisions.length - 1` can never be
+  // true there: the title set `wonChampionsCup`, paid its gems, unlocked
+  // prestige, and put nothing on a shelf and nothing in the career. The trophy
+  // room's highest league shelf was Continental while
+  // `assets/trophies/champions_cup.png` sat shipped and unreachable, and the
+  // Champions CUP under the cups is a different competition — `world_club_cup`,
+  // which merely renders as a similar name. Reported from the couch. Repeatable
+  // by design: stay up, win it again, take another.
+  //
+  // **The JS has the same gap** — `progressionEngine.js`'s push is
+  // `outcome === 'promoted'` too — so this is a deliberate divergence, and it is
+  // in the engine rather than on a screen because a trophy and a career total
+  // are RECORDS of something that happened, not captions.
+  //
+  // **It moves a field the parity harness compares**, which is why the count is
+  // in the same branch as the trophy rather than beside it: `careerStats` is
+  // checked as a whole map, so `season_end_test.dart` states the delta — one
+  // per top-flight title, and nothing else — instead of the field being quietly
+  // excluded. The failure on `topFlightChampion` and `topFlightMid` is what
+  // found the line; read the note there before changing either.
+  final wonTopFlight = pos == 1 && divIdx == divisions.length - 1;
+  if (outcome == 'promoted' || wonTopFlight) {
     _list(prog, 'leagueTrophies').add(<String, dynamic>{
       'season': season,
       'division': divId,
@@ -767,6 +792,29 @@ PrestigeResult performPrestige(Map<String, dynamic> state, {bool toPro = false})
   prog['stagnationBuffs'] = <String, dynamic>{};
 
   state['definitionRatios'] = generateDefinitionRatios();
+
+  // **AND THE NEW ADVENTURE GETS A SEASON TO PLAY, which it did not.**
+  // Everything above tears the old run's league down — the pyramid, the
+  // schedule, the opponents and their ratings — and nothing built it back. The
+  // only other place that does is `game_runner.dart` at BOOT, so a fresh
+  // adventure was unplayable until the app was restarted: the fixture preview
+  // fell through to its literal "Opponent", there was no stored rating to print
+  // so the scoreline read "?", the fixtures list waited for a schedule that was
+  // never generated, and the table drew teams with an empty rating column.
+  // Reported from the couch, all four at once, immediately after prestiging.
+  //
+  // LAST, so everything it reads is already final — the division is
+  // `sunday_league`, `seasonCount` is back to 1 (which is what the rating keys
+  // are stamped with) and the pyramid is null, which is how
+  // `ensureLeaguePyramid` knows to build a new one.
+  //
+  // **`endSeason` has always done exactly this**, on the line after it nulls
+  // the schedule — see `_resetSeasonCounters`. This is the same line at the
+  // other season boundary, and the JS is missing it in the same place, so the
+  // prestige fixture pins `leaguePyramid: null`; `season_end_test.dart` states
+  // that divergence rather than dropping the key from the comparison.
+  initSeasonOpponents(state);
+
   emit('prestige:complete', {
     'level': newLevel,
     'multiplier': newMultiplier,

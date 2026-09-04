@@ -77,7 +77,9 @@ Future<(ProviderContainer, WidgetRef)> _wire(
 void main() {
   tearDown(clearBus);
 
-  testWidgets('a watched video adds pips, and says how many', (tester) async {
+  testWidgets('a watched video adds pips, and SAYS NOTHING about it', (
+    tester,
+  ) async {
     final ads = _Ads(AdOutcome.rewarded);
     final (c, ref) = await _wire(
       tester,
@@ -94,7 +96,12 @@ void main() {
       (c.read(gameProvider).state!['energy'] as Map)['current'],
       1 + Energy.adReward,
     );
-    expect(toasts, hasLength(1));
+    // **NO LINE.** The pips land in the tank on the sheet the player is
+    // looking at, so a band across the screen repeats what the screen already
+    // said. Reported from the couch once `toast:success` started being
+    // rendered at all — see the note in `watchEnergyAd`. The PRO branch still
+    // speaks, because nothing on that sheet shows squad fitness.
+    expect(toasts, isEmpty);
     // Every write arms the 2s debounced save; pump past it or the binding
     // rightly complains about a pending timer.
     await tester.pump(const Duration(milliseconds: saveDebounceMs + 100));

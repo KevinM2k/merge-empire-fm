@@ -350,7 +350,21 @@ ReportFacts? reportFactsFor(
   final row = at < 0 ? null : table[at];
   final was = row?.prevPos;
 
-  final preview = save == null ? null : previewFixture(save);
+  // **AND NOBODY IS NEXT ONCE THE SEASON IS OVER.** `previewFixture` indexes
+  // the schedule as `seasonMatchesPlayed % opponentsPerSeason`, so on the last
+  // match of a season that wraps to 0 and it reports the season's FIRST
+  // opponent — a fixture already played, in a season that has just ended — and
+  // the write-up ended by naming it as the next game. Reported from the couch.
+  //
+  // The wrap is the JS's own arithmetic and `fixture_preview_reference.json`
+  // compares that function field for field, so the guard is here rather than in
+  // the engine. `seasonComplete` is the right flag and not a count of its own:
+  // `simulateMatch` raises it at the final KICK-OFF and `endSeason` lowers it,
+  // which is exactly the window this card is on screen for. See
+  // `ReportFacts.nextOpponent`, which has always said null means the fixtures
+  // have run out — `oppNextOpponent` already goes null here on its own.
+  final seasonOver = _map(save?['progression'])?['seasonComplete'] == true;
+  final preview = save == null || seasonOver ? null : previewFixture(save);
 
   return (
     ours: ours,

@@ -27,6 +27,7 @@ import 'package:merge_empire_fc/ui/screens/minigames/goalkeeper_practice_screen.
 import 'package:merge_empire_fc/ui/screens/minigames/keeper_view.dart';
 import 'package:merge_empire_fc/ui/screens/minigames/penalty_view.dart'
     show backdropRectFor;
+import 'package:merge_empire_fc/ui/screens/minigames/minigame_countdown.dart';
 import 'package:merge_empire_fc/ui/screens/minigames/minigames_providers.dart';
 import 'package:merge_empire_fc/ui/screens/minigames/training_view.dart';
 import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
@@ -46,7 +47,15 @@ Map<String, dynamic> saveWith() {
 
 late int fakeNow;
 
-Future<ProviderContainer> pumpGame(WidgetTester tester) async {
+/// [counting] stops inside the 3-2-1 rather than running it out.
+///
+/// **THE SESSION IS BEHIND A COUNT NOW** — see `minigame_countdown.dart`. The
+/// watch bar, the schedule and `_startedAt` all begin on GO, so a test that
+/// plays a session has to get past it first, and every test here plays one.
+Future<ProviderContainer> pumpGame(
+  WidgetTester tester, {
+  bool counting = false,
+}) async {
   tester.view.physicalSize = const Size(420 * 3, 900 * 3);
   tester.view.devicePixelRatio = 3;
   addTearDown(tester.view.reset);
@@ -77,7 +86,22 @@ Future<ProviderContainer> pumpGame(WidgetTester tester) async {
     ),
   );
   await tester.pump();
+  if (!counting) await runCountIn(tester);
   return container;
+}
+
+/// Run the 3-2-1 out.
+///
+/// **PUMPED UNTIL THE SCREEN SAYS SO, not for [miniGameCountdownMs].** Each
+/// beat is restarted on the frame the last one finished, so a count pumped in
+/// 100ms steps takes a frame per beat longer than its own constant — and a
+/// fixed advance leaves the session's origin a couple of ticks adrift from
+/// whatever the test then measures against it.
+Future<void> runCountIn(WidgetTester tester) async {
+  for (var i = 0; i < 200 && stateOf(tester).counting; i++) {
+    await advance(tester, trainingTickMs);
+  }
+  expect(stateOf(tester).counting, isFalse, reason: 'the count never ended');
 }
 
 /// Advance the fake clock and the tick timer together. The session reads
@@ -257,16 +281,19 @@ void main() {
     // tap them.
     final container = await pumpGame(tester);
     final s = stateOf(tester);
-    final due = drillTimes(s.drillCount);
-    for (final at in due) {
-      while (fakeNow - DateTime.utc(2026, 3, 1).millisecondsSinceEpoch < at) {
+    // **WAIT FOR THE BUBBLE, do not compute when it is due.** This used to
+    // walk `drillTimes` against the wall clock, which pinned the test to the
+    // session's own origin — and the origin moved when the count-in went in
+    // front of it (`_kickOff` sets `_startedAt`, and a coarse-pumped count
+    // overruns `miniGameCountdownMs` by a frame per beat). Waiting for
+    // `drillUp` asks the question the test is actually about.
+    for (var i = 0; i < s.drillCount; i++) {
+      for (var guard = 0; guard < 300 && !s.drillUp; guard++) {
         await advance(tester, trainingTickMs);
       }
-      await advance(tester, trainingTickMs);
-      if (s.drillUp) {
-        await tester.tap(find.byKey(const ValueKey('train-bubble')));
-        await tester.pump();
-      }
+      expect(s.drillUp, isTrue, reason: 'drill $i never appeared');
+      await tester.tap(find.byKey(const ValueKey('train-bubble')));
+      await tester.pump();
     }
     expect(s.drillsHit, s.drillCount, reason: 'a drill was unreachable');
 
@@ -631,5 +658,45 @@ void main() {
     expect(art.path, backdropPath(Backdrop.forest));
     expect(art.path, isNot(backdropPath(Backdrop.grass)));
     await closeGame(tester);
+  });
+
+  group('THE COUNT IN', () {
+    testWidgets('holds the session — no ball is struck before GO', (
+      tester,
+    ) async {
+      // The watch bar and the shot schedule both run off `_startedAt`, and it
+      // used to be set in `initState` — so the first ball was in flight before
+      // the player had looked at the goal.
+      await pumpGame(tester, counting: true);
+      expect(find.byKey(const ValueKey('mg-countdown-3')), findsOneWidget);
+      await advance(tester, drillTimes(4).first + 500);
+      final s = stateOf(tester);
+      expect(s.counting, isTrue, reason: 'the count is not three seconds long');
+      expect(s.drillsAppeared, 0, reason: 'a shot came in during the count');
+      expect(s.drillUp, isFalse);
+      // And the bar has not started either.
+      expect(
+        tester
+            .widget<FractionallySizedBox>(
+              find.byKey(const ValueKey('train-bar-fill')),
+            )
+            .widthFactor,
+        0,
+      );
+
+      await runCountIn(tester);
+      await advance(tester, drillTimes(s.drillCount).first + trainingTickMs * 3);
+      expect(find.byKey(const ValueKey('mg-countdown-go')), findsNothing);
+      expect(s.drillsAppeared, greaterThan(0), reason: 'GO did not kick off');
+      await closeGame(tester);
+    });
+
+    testWidgets('and the GOAL is behind it, not replaced by it', (
+      tester,
+    ) async {
+      await pumpGame(tester, counting: true);
+      expect(find.byType(KeeperView), findsOneWidget);
+      await closeGame(tester);
+    });
   });
 }

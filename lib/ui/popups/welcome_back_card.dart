@@ -61,7 +61,13 @@ bool offlineWasCapped(int offlineMs) => offlineMs >= Idle.maxOfflineMs;
 /// window is measured, so a window that closes without paying has burned it —
 /// and a short absence now pays without a card at all. See
 /// [welcomeBackFloorMs].
-void collectOfflineEarnings(GameState game, int earned) {
+/// [idle] marks a payment the player did nothing for — see the note on the
+/// `coins:idle` announcement below.
+void collectOfflineEarnings(
+  GameState game,
+  int earned, {
+  bool idle = false,
+}) {
   if (earned <= 0) return;
   game.update((s) {
     final resources = s['resources'];
@@ -75,7 +81,23 @@ void collectOfflineEarnings(GameState game, int earned) {
   // payment in the game — a night's worth of income — landed with the counter
   // simply reading a bigger number. Reported from the couch. Every other reward
   // in the app announces itself the same way.
+  //
+  // **UNLESS IT IS THE TRICKLE BY ANOTHER ROUTE, and that was a coin flying
+  // out of a cancelled purchase.** The Google Play sheet backgrounds the app,
+  // so dismissing it is a RESUME — `_bankTimeAway` measures the four seconds
+  // the sheet was up, and below [welcomeBackFloorMs] the coins are paid
+  // straight in here rather than on a card. So cancelling an in-app purchase
+  // threw a handful of coins at the HUD for income the player had not done
+  // anything to earn, and reported as exactly that: idle income should only
+  // land on opening the app.
+  //
+  // The money is still owed — the loop was paused for those seconds and
+  // nothing else pays them — so it is paid and not animated. `coins:idle` is
+  // the signal that already exists for this: `CoinFlight` holds its throw for
+  // the one update that follows it. Same mechanism the per-second income has
+  // used since the layer was written.
   final resources = game.state?['resources'];
+  if (idle) emit('coins:idle', earned);
   emit(
     'coins:updated',
     resources is Map<String, dynamic> ? resources['fanCoins'] : null,

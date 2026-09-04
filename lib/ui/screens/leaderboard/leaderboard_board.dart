@@ -160,8 +160,15 @@ class _LeaderboardBoardState extends ConsumerState<LeaderboardBoard> {
                 // Prestige forces all-time, so the control has nothing to say —
                 // dead rather than hidden, because a control that vanishes reads
                 // as a missing feature.
+                //
+                // **AND IT DOES NOT EXPLAIN ITSELF UNDERNEATH.** It carried
+                // `leaderboard.prestige_hint` — "Prestige level — all-time
+                // rankings only" — which wrapped to two lines under a control
+                // in a three-across row, shoving the board down for a sentence
+                // that restated the greyed-out value above it. Reported from
+                // the couch: not sure what that means, and we do not need it.
+                // The dead control is the whole message.
                 value: prestige ? 'alltime' : _query.period,
-                note: prestige ? t('leaderboard.prestige_hint') : null,
                 options: [
                   for (final period in leaderboardPeriods)
                     (value: period, label: t('leaderboard.period_$period')),
@@ -182,7 +189,7 @@ class _LeaderboardBoardState extends ConsumerState<LeaderboardBoard> {
                 label: t('leaderboard.reach_label'),
                 value: _query.scope,
                 options: [
-                  for (final scope in leaderboardViewScopes)
+                  for (final scope in _offeredScopes)
                     (value: scope, label: _scopeLabel(scope)),
                 ],
                 onPick: (scope) => _pick((
@@ -236,6 +243,17 @@ class _LeaderboardBoardState extends ConsumerState<LeaderboardBoard> {
   /// The scope pill's own copy, which names the DIVISION and the REGION rather
   /// than the two enum halves — "Sunday League · GB" reads as a board and
   /// "division_regional" does not.
+  /// **WHAT THE PICKER OFFERS, which is not all four.**
+  ///
+  /// `leaderboardViewScopes` is the JS's own set and the policy still resolves
+  /// every one of them — the service is queried with them and
+  /// `leaderboard_policy_test` pins the four. What a PLAYER gets is the two
+  /// reaches: the division pair read "My Division" and "My Division · Global",
+  /// and the second is wider than a third of a phone, so it arrived as an
+  /// ellipsis with no way to tell what it was. Reported from the couch, and
+  /// then directly: we do not need those other two.
+  static const List<String> _offeredScopes = ['all_regional', 'all_global'];
+
   String _scopeLabel(String scope) {
     final view = parseLeaderboardScope(scope);
     return switch ((view.tier, view.reach)) {
@@ -264,7 +282,6 @@ class _Picker extends StatelessWidget {
     required this.value,
     required this.options,
     required this.onPick,
-    this.note,
   });
 
   final Key pickerKey;
@@ -272,7 +289,6 @@ class _Picker extends StatelessWidget {
   final String value;
   final List<PickerOption> options;
   final void Function(String)? onPick;
-  final String? note;
 
   @override
   Widget build(BuildContext context) {
@@ -338,14 +354,6 @@ class _Picker extends StatelessWidget {
             ),
           ),
         ),
-        if (note != null)
-          Padding(
-            padding: const EdgeInsets.only(top: 4),
-            child: Text(
-              note!,
-              style: TextStyle(color: kit.textMuted, fontSize: 12),
-            ),
-          ),
       ],
     );
   }

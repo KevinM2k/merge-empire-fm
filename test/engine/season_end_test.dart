@@ -3,6 +3,8 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:merge_empire_fc/data/config.dart';
+import 'package:merge_empire_fc/engine/match_tactics.dart'
+    show matchesPerSeason, opponentsPerSeason;
 import 'package:merge_empire_fc/engine/season_end.dart';
 import 'package:merge_empire_fc/util/event_bus.dart';
 import 'package:merge_empire_fc/util/random.dart' as seeded;
@@ -196,7 +198,24 @@ void main() {
 
         expect(state['resources']['fanCoins'], want['coins'], reason: label);
         expect(state['resources']['gems'], want['gems'], reason: label);
-        expect(state['careerStats'], want['careerStats'], reason: label);
+        // **ONE FIELD THE PORT DELIBERATELY DIVERGES ON, stated rather than
+        // excluded.** Winning the top flight counts as a league win here and
+        // does not in the JS — asked for directly — and the top division cannot
+        // be promoted out of, so the difference is exactly one per top-flight
+        // title. Everything else in the map is still compared as it was, so a
+        // drift anywhere near it still fails. See the note on the push in
+        // `season_end.dart`.
+        final wantCareer = want['careerStats'] as Map<String, dynamic>;
+        final topTitle =
+            w['position'] == 1 && w['oldDivision'] == 'champions_cup' ? 1 : 0;
+        expect(
+          state['careerStats'],
+          {
+            ...wantCareer,
+            'leagueWins': (wantCareer['leagueWins'] as num) + topTitle,
+          },
+          reason: label,
+        );
         expect(_strip(state['quests']), want['quests'], reason: label);
         expect(
           [
@@ -283,6 +302,20 @@ void main() {
 
       final wantProg = want['progression'] as Map<String, dynamic>;
       for (final key in wantProg.keys) {
+        // **ONE KEY THE PORT DELIBERATELY DIVERGES ON.** The fixture pins
+        // `leaguePyramid: null` because the JS tears the league down here and
+        // rebuilds it on its next BOOT — which left the new adventure with no
+        // opponents, no ratings and no schedule until the app was restarted.
+        // The port calls `initSeasonOpponents` at the end of `performPrestige`
+        // instead, so the pyramid is already built. Asserted rather than
+        // skipped: it has to be a pyramid holding the new division.
+        if (key == 'leaguePyramid') {
+          expect(wantProg[key], isNull, reason: 'the JS still leaves it null');
+          final pyramid = _prog(state)[key] as Map<String, dynamic>;
+          expect(pyramid['sunday_league'], isA<List<dynamic>>());
+          expect(pyramid['sunday_league'] as List, isNotEmpty);
+          continue;
+        }
         expect(_prog(state)[key], wantProg[key], reason: key);
       }
 
@@ -415,9 +448,50 @@ void main() {
     test('staying up lifts nothing', () {
       final state = _played('midTable');
       endSeason(state);
-      // The list isn't even created — it is written only on a promotion.
+      // The list isn't even created — mid-table in a division you can be
+      // promoted out of is neither a title nor a trophy.
       expect(_prog(state)['leagueTrophies'] ?? <dynamic>[], isEmpty);
       expect(state['careerStats']['leagueWins'], 0);
+    });
+
+    test('AND SO DOES WINNING THE TOP FLIGHT, which lifted nothing', () {
+      // Promotion was the only way a trophy was ever recorded and the
+      // Champions Cup is the last division in the ladder, so winning the whole
+      // thing left the trophy room's highest shelf at Continental — with
+      // `assets/trophies/champions_cup.png` shipped and unreachable. Reported
+      // from the couch.
+      final state = _played('topFlightChampion');
+      endSeason(state);
+      final trophies = _prog(state)['leagueTrophies'] as List;
+      expect(trophies, hasLength(1));
+      expect((trophies.single as Map)['division'], 'champions_cup');
+      expect((trophies.single as Map)['position'], 1);
+      // And it counts in the career, the same as going up does.
+      expect(state['careerStats']['leagueWins'], 1);
+      // Still where it was: there is nowhere above it to go.
+      expect(_prog(state)['currentDivision'], 'champions_cup');
+    });
+
+    test('and it is repeatable — stay up, win it again, take another', () {
+      final state = _played('topFlightChampion');
+      endSeason(state);
+      // A second title, a season later, off the same save.
+      final prog = _prog(state);
+      prog['seasonWins'] = 14;
+      prog['seasonDraws'] = 0;
+      prog['seasonLosses'] = 0;
+      prog['seasonComplete'] = true;
+      prog['seasonMatchesPlayed'] = matchesPerSeason;
+      prog['seasonAwardedPlayed'] = matchesPerSeason;
+      endSeason(state);
+      final trophies = _prog(state)['leagueTrophies'] as List;
+      expect(trophies, hasLength(2));
+      expect(
+        trophies.map((t) => (t as Map)['season']).toSet(),
+        hasLength(2),
+        reason: 'two titles in the same season would stack on one shelf',
+      );
+      expect(state['careerStats']['leagueWins'], 2);
     });
 
     test('winning the top flight unlocks prestige and pays a gem', () {
@@ -693,6 +767,53 @@ void main() {
       return state;
     }
 
+    test('THE NEW ADVENTURE IS PLAYABLE THE MOMENT IT STARTS', () {
+      // **IT WAS NOT.** `performPrestige` nulls the pyramid, the fixtures, the
+      // opponents and their ratings and stopped there — so the new run had no
+      // opponent (the preview fell back to its literal "Opponent"), no rating
+      // to print (a "?" scoreline and a table with a blank rating column) and
+      // no schedule (the fixtures list sat on "loading" for ever). Nothing
+      // rebuilt any of it until the next boot, which is the only other place
+      // `initSeasonOpponents` is called — `game_runner.dart`. Reported from the
+      // couch, all three symptoms at once, straight after prestiging.
+      //
+      // `endSeason` has always done this on the very next line after nulling
+      // the schedule; this is that line, at the other season boundary.
+      final state = championState();
+      performPrestige(state);
+      final prog = _prog(state);
+
+      expect(prog['currentDivision'], 'sunday_league');
+      expect(prog['seasonCount'], 1);
+
+      final opponents = prog['seasonOpponents'] as List;
+      expect(opponents, hasLength(opponentsPerSeason));
+      expect(
+        opponents.map((o) => '$o'),
+        everyElement(isNotEmpty),
+        reason: 'the preview falls back to the word "Opponent"',
+      );
+
+      // A rating for each, keyed to the NEW season.
+      final ratings = prog['seasonOpponentRatings'] as Map<String, dynamic>;
+      for (var i = 0; i < opponentsPerSeason; i++) {
+        expect(ratings['s1_o$i'], isA<num>(), reason: 'o$i has no rating');
+      }
+
+      expect(prog['seasonFixtures'], isA<List<dynamic>>());
+      expect(prog['seasonFixtures'] as List, isNotEmpty);
+
+      // And the table has a pyramid to draw, with the new division in it.
+      final pyramid = prog['leaguePyramid'] as Map<String, dynamic>;
+      final teams = pyramid['sunday_league'] as List;
+      expect(teams, isNotEmpty);
+      expect(
+        teams.map((t) => (t as Map)['rating']),
+        everyElement(isA<num>()),
+        reason: 'the table showed teams with no ratings beside them',
+      );
+    });
+
     test('is refused until the top flight is won', () {
       expect(canPrestige(_state()), isFalse);
       expect(performPrestige(_state()).ok, isFalse);
@@ -778,9 +899,16 @@ void main() {
       expect(_prog(state)['divisionsUnlocked'], ['sunday_league']);
     });
 
-    test('clears everything keyed by season number', () {
+    test('clears everything keyed by the FINISHED run\'s season number', () {
       // The counter restarts at one, so every season number in the new run is
-      // one the finished run already played.
+      // one the finished run already played — anything keyed by season has to
+      // go with it.
+      //
+      // **WHAT REPLACES IT IS THE NEW RUN'S OWN.** This asserted an empty
+      // ratings map and a null pyramid, which was the state that made a fresh
+      // adventure unplayable; the question is whether the OLD run's keys
+      // survive, not whether the map is empty. See the note on
+      // `initSeasonOpponents` in `performPrestige`.
       final state = championState();
       _prog(state)
         ..['fixtureResults'] = {'s3_m0': {'homeGoals': 2}}
@@ -788,8 +916,12 @@ void main() {
       performPrestige(state);
       expect(_prog(state)['seasonCount'], 1);
       expect(_prog(state)['fixtureResults'], isEmpty);
-      expect(_prog(state)['seasonOpponentRatings'], isEmpty);
-      expect(_prog(state)['leaguePyramid'], isNull);
+      expect(
+        (_prog(state)['seasonOpponentRatings'] as Map<String, dynamic>).keys
+            .where((k) => !k.startsWith('s1_')),
+        isEmpty,
+        reason: 'a rating from the finished run survived the reset',
+      );
       expect(_prog(state)['lastSeasonStatus'], isNull);
     });
 

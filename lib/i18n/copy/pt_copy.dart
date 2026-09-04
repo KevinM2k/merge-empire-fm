@@ -321,9 +321,23 @@ const Map<String, String> ptCopy = <String, String>{
           'para o relvado e joga o lance — e podes revê-lo depois.',
   'settings.matchSpeed.auto': 'Auto',
   'settings.matchSpeed.hint':
-      'O Auto corre a 2x e volta a 1x sempre que o mister tem algo a dizer, '
-          'para teres tempo de ler e agir.',
+      'O Auto corre a 2x e desce a meia velocidade sempre que o mister tem algo '
+          'a dizer, para teres tempo de ler e agir.',
 
   // The training list's ceiling — see `en_copy.dart`.
   'training.up_to': 'Até',
+
+  // O treino em descanso e a contagem decrescente — ver `en_copy.dart`.
+  'training.resting': 'Tempo de espera {time}',
+  'mg.countdown_go': 'VAI!',
+
+  // Loja: a prateleira já não é grátis, e as receitas saem dos reforços — ver
+  // `en_copy.dart`.
+  'shop.lucky_boot_name': 'Bota da sorte',
+  'shop.lucky_boot_desc': 'Próximo adversário {pct}% mais fraco (um jogo)',
+  'shop.section.income': 'Receitas',
+  'product.energy_director.desc': '+50 energia agora · Cap aumentado para 15 · recarga {energyPct}% mais rápida — para sempre, mesmo após resets!',
+
+  'shop.section.looks': 'Estilo do treinador',
+
 };

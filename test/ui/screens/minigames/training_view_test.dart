@@ -354,9 +354,18 @@ void main() {
       startMiniGame(s, MiniGameKind.penalty);
     });
     expect(
-      find.textContaining(t('play.cooldown', {'time': ''}).split('{')[0].trim()),
+      find.textContaining(
+        t('training.resting', {'time': ''}).split('{')[0].trim(),
+      ),
       findsWidgets,
       reason: 'no clock on a resting drill',
+    );
+    // **AND IT IS NOT THE PLAY BUTTON'S WORDS.** The row borrowed
+    // `play.cooldown` — "Coach cooldown" — which is about the manager waiting
+    // to pick a team, not a squad taking a breather.
+    expect(
+      find.textContaining(t('play.cooldown', {'time': ''}).split('{')[0].trim()),
+      findsNothing,
     );
     expect(formatDuration(0), isNotEmpty);
   });

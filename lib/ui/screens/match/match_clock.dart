@@ -261,6 +261,35 @@ MatchFrame frameAt(
 const int matchMinuteMs = 350;
 const int matchMinuteMsFast = 175;
 
+/// What AUTO drops to while Colin has a line up, and it is not 1×.
+///
+/// **1× WAS STILL QUICK.** Auto's whole job is to stand aside when there is
+/// something to read and a decision to make — and base speed is the pace the
+/// manager already found brisk enough to want 2× off, so dropping to it was
+/// not much of a stand-aside. Reported from the couch: it still moves pretty
+/// quick. Half of base, which is a quarter of the 2× the match was running at
+/// a moment earlier.
+const int matchMinuteMsAutoSlow = matchMinuteMs * 2;
+
+/// The three paces the clock runs at.
+///
+/// **A THIRD PACE MADE THIS AN ENUM.** It was the bool [minuteDuration] still
+/// takes, and a bool cannot say "slower than base" — so the auto-slow had
+/// nowhere to go but 1×. Everything that TIMES a minute asks this;
+/// `effectiveFast` stays a bool because the 2D pitch's own time scale is
+/// two-speed and a slow-motion passage is not what was asked for.
+enum MatchPace {
+  autoSlow(matchMinuteMsAutoSlow),
+  base(matchMinuteMs),
+  fast(matchMinuteMsFast);
+
+  const MatchPace(this.minuteMs);
+
+  final int minuteMs;
+
+  Duration get minute => Duration(milliseconds: minuteMs);
+}
+
 Duration minuteDuration({required bool fast}) =>
     Duration(milliseconds: fast ? matchMinuteMsFast : matchMinuteMs);
 

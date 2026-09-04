@@ -28,16 +28,51 @@ const int coachStickyMinutes = 25;
 /// himself. The JS's `PERIODIC_MINS`.
 const int coachPeriodicMinutes = 40;
 
+/// [coachShouldSpeak]'s `lastSpokeMinute` before he has said anything.
+///
+/// **NOT -1, and that was twenty-four minutes of silence.** The sticky check
+/// runs BEFORE the first-word check — the JS's order, and the right one — so a
+/// `lastSpokeMinute` of -1 makes `since` equal `minute + 1` and holds every
+/// word until minute 24. `MatchPopup.js` initialises `_lastBubbleMin` to -999
+/// for exactly this reason: it has to be a figure the sticky window cannot
+/// reach, not the minute before kick-off. Reported from the couch as the coach
+/// not advising a tactic change at all.
+const int coachNeverSpoke = -999;
+
 /// The earliest he will open his mouth.
 ///
 /// A bubble in the first minutes lands on top of the pre-match tip and
 /// contradicts it — the JS waits, and at 2× the first tick is 175ms in.
 const int coachFirstWordMinute = 5;
 
+/// How long he sits on a tactic the manager has ALREADY turned down.
+///
+/// **A first bubble that repeats the pre-match tip is nagging, not advice.**
+/// The pre-match tip names a tactic; a manager who kicks off playing something
+/// else has read it and declined it, and being told the same thing again at
+/// minute five is the game arguing with a decision that was just made.
+/// Reported from the couch in exactly those terms: starting a match having
+/// ignored the coach must not be met with an instant "change tactic to X".
+///
+/// So that particular ask has to be earned again. By the half-hour the
+/// scoreline and the clock are part of his case — `coachReadKey` is reading a
+/// different game by then — rather than it being the same read the manager
+/// already heard. Every OTHER suggestion is unaffected: this holds one tactic,
+/// not his mouth.
+const int coachDeclinedHoldMinutes = 30;
+
 /// The margin below which a tactic switch is not worth asking for.
 ///
-/// The JS's `MIN_TACTIC_GAIN`. Without it he asks for a change every time two
-/// tactics land a thousandth of a point apart.
+/// Without it he asks for a change every time two tactics land a thousandth of
+/// a point apart.
+///
+/// **HALF the JS's `MIN_TACTIC_GAIN`, which is 0.04**, and the note here used
+/// to claim it WAS the JS's. Nothing pins it — no fixture compares it — and
+/// the port is the more forthcoming of the two on purpose: the couch has asked
+/// twice for the coach to speak up about the tactics, and this is the dial that
+/// decides how often he has an opinion at all. Said plainly rather than left
+/// looking like parity, because the next person to read it against
+/// `MatchPopup.js` will find the two differ.
 const double coachMinTacticGain = 0.02;
 
 /// Which read of the game he gives, as a catalogue key.
@@ -185,17 +220,29 @@ String? matchCoachSuggestion({
 
 /// Whether he speaks at all this minute.
 ///
-/// [lastSpokeMinute] is negative before his first word. [force] is the half-time
-/// whistle and full time, which are moments rather than opinions.
+/// [lastSpokeMinute] is negative before his first word, and it has to be
+/// [coachNeverSpoke] rather than any old negative — see that constant. [force]
+/// is the half-time whistle and full time, which are moments rather than
+/// opinions.
 bool coachShouldSpeak({
   required int minute,
   required int lastSpokeMinute,
   required String activeStrategy,
   required String? suggestion,
   required String? lastSuggestion,
+
+  /// The tactic the PRE-MATCH tip asked for and the manager did not set, or
+  /// null when they took it — or when there was nothing to take. See
+  /// [coachDeclinedHoldMinutes].
+  String? declinedAtKickoff,
   bool force = false,
 }) {
   if (force) return true;
+  if (suggestion != null &&
+      suggestion == declinedAtKickoff &&
+      minute < coachDeclinedHoldMinutes) {
+    return false;
+  }
   final since = minute - lastSpokeMinute;
   if (since < coachStickyMinutes) return false;
   final nothingToAskFor = suggestion == null || suggestion == activeStrategy;

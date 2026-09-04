@@ -10,6 +10,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:merge_empire_fc/util/event_bus.dart';
 import 'package:merge_empire_fc/data/config.dart';
 import 'package:merge_empire_fc/engine/daily_reward_engine.dart';
 import 'package:merge_empire_fc/engine/idle_engine.dart';
@@ -278,6 +279,76 @@ void main() {
     // And the coins are still paid. `lastSeen` has already been stamped, so a
     // window that closes without paying has burned them.
     expect(container.read(coinsProvider), greaterThan(0));
+  });
+
+  testWidgets('AND A SHORT ABSENCE DOES NOT THROW COINS AT THE HUD', (
+    tester,
+  ) async {
+    // **Reported from the couch as a coin flying out of a cancelled
+    // purchase.** The Google Play sheet backgrounds the app, so dismissing it
+    // is a RESUME — `_bankTimeAway` measures the seconds the sheet was up, and
+    // below the floor the coins are paid straight in. So cancelling an in-app
+    // purchase threw a handful at the HUD for income nobody had done anything
+    // to earn. Paid, not animated: `coins:idle` is the signal that already
+    // exists for the trickle, and `CoinFlight` holds its throw for the one
+    // update that follows it.
+    final seen = <String>[];
+    void watch(Object? args) => seen.add('idle');
+    on('coins:idle', watch);
+    addTearDown(() => off('coins:idle', watch));
+
+    final container = await boot(
+      tester,
+      saveWith(
+        claimedToday: true,
+        withPlayers: true,
+        lastSeen: DateTime.now().millisecondsSinceEpoch - welcomeBackFloorMs ~/ 2,
+      ),
+    );
+    await settleSave(tester);
+    expect(container.read(coinsProvider), greaterThan(0));
+    expect(
+      seen,
+      isNotEmpty,
+      reason: 'the payment announced itself as a reward, so the coins flew',
+    );
+  });
+
+  testWidgets('BUT THE CARD\'S OWN COLLECT STILL THROWS THEM', (tester) async {
+    // **The rule as a pair, because the pair is the rule.** Asked for from the
+    // couch: unless the card comes up with the idle income on it, do not
+    // animate the coins. So the animation belongs to the CARD and to nothing
+    // else — a night away is the biggest single payment in the game and it
+    // used to land with the counter simply reading a bigger number, which is
+    // the report this half exists for.
+    final seen = <String>[];
+    void watch(Object? args) => seen.add('idle');
+    on('coins:idle', watch);
+    addTearDown(() => off('coins:idle', watch));
+
+    final container = await boot(
+      tester,
+      saveWith(
+        claimedToday: true,
+        withPlayers: true,
+        // Well past the floor: this is a night away, not an ad break.
+        lastSeen:
+            DateTime.now().millisecondsSinceEpoch - 4 * 60 * 60 * 1000,
+      ),
+    );
+    expect(find.byKey(const ValueKey('welcome-back')), findsOneWidget);
+    final before = container.read(coinsProvider);
+
+    await tester.tap(find.byKey(const ValueKey('welcome-back-collect')));
+    await settleSave(tester);
+    await tester.pumpAndSettle();
+
+    expect(container.read(coinsProvider), greaterThan(before));
+    expect(
+      seen,
+      isEmpty,
+      reason: 'the card\'s own payout was muted along with the trickle',
+    );
   });
 
   testWidgets('a club with no players is owed no offline earnings', (

@@ -89,16 +89,59 @@ void main() {
     }
 
     // **AND THE BOOSTS TAB IS SPELLED OUT**, because it is the one place the
-    // order is an argument rather than the enum's. Coin-bought rows first; then
-    // the FREE shelf — a quick-fire match and a lucky boot, which is what a
-    // non-payer opens the shop for; then the voucher ladder, which is eight
-    // tiles and would bury both of them. The free shelf was at the bottom of
-    // this tab and was asked to come up.
+    // order is an argument rather than the enum's. What fixes the squad, then
+    // what multiplies its income, then the voucher ladder — eight tiles, which
+    // buries whatever is under it. The quick-fire match and the lucky boot had
+    // a shelf between income and the vouchers; they are tiles on the Boosts
+    // grid now.
     expect(
       shopTabs
           .firstWhere((t) => t.titleKey == 'shop.section.boosts')
           .sections,
-      [ShopSectionId.boosts, ShopSectionId.free, ShopSectionId.vouchers],
+      [
+        ShopSectionId.boosts,
+        ShopSectionId.income,
+        ShopSectionId.vouchers,
+      ],
+    );
+  });
+
+  testWidgets('THE MATCH DAY ITEMS ARE ON THE BOOSTS SHELF, under its heading', (
+    tester,
+  ) async {
+    // They had a shelf and a heading of their own, directly under Boosts &
+    // Items and inside a tab named for it — one answer to "what can I buy that
+    // helps me" split across two headings. Asked for from the couch: the two
+    // items go under Boosts & Items and the heading goes.
+    await pumpShop(tester, (_) {});
+    await tester.tap(find.byKey(const ValueKey('shop-tab-boosts')));
+    await tester.pumpAndSettle();
+
+    final boosts = find.byKey(
+      const ValueKey('shop-section-boosts'),
+      skipOffstage: false,
+    );
+    expect(boosts, findsOneWidget);
+    for (final tile in ['ad-match-cooldown', 'ad-lucky-boot']) {
+      expect(
+        find.descendant(
+          of: boosts,
+          matching: find.byKey(
+            ValueKey('shop-tile-$tile'),
+            skipOffstage: false,
+          ),
+        ),
+        findsOneWidget,
+        reason: '$tile is not on the Boosts shelf',
+      );
+    }
+    // And no heading of their own anywhere on the tab.
+    expect(
+      find.byKey(
+        const ValueKey('shop-section-matchDay'),
+        skipOffstage: false,
+      ),
+      findsNothing,
     );
   });
 

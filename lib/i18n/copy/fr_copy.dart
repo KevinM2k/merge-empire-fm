@@ -339,9 +339,23 @@ const Map<String, String> frCopy = <String, String>{
           'ensuite.',
   'settings.matchSpeed.auto': 'Auto',
   'settings.matchSpeed.hint':
-      'Auto tourne en 2x et redescend en 1x dès que le coach a quelque chose à '
-          'dire, le temps de le lire et d\'agir.',
+      'Auto tourne en 2x et passe en vitesse réduite dès que le coach a quelque '
+          'chose à dire, le temps de le lire et d\'agir.',
 
   // The training list's ceiling — see `en_copy.dart`.
   'training.up_to': 'Jusqu\'à',
+
+  // La séance au repos et le décompte du coup d'envoi — voir `en_copy.dart`.
+  'training.resting': 'Délai {time}',
+  'mg.countdown_go': 'PARTEZ !',
+
+  // La boutique : le rayon n'est plus gratuit, et les revenus quittent les
+  // bonus — voir `en_copy.dart`.
+  'shop.lucky_boot_name': 'Botte porte-bonheur',
+  'shop.lucky_boot_desc': 'Prochain adversaire {pct}% plus faible (un match)',
+  'shop.section.income': 'Revenus',
+  'product.energy_director.desc': '+50 énergie immédiate · Plafond passé à 15 · recharge {energyPct}% plus rapide — à vie, même après les resets !',
+
+  'shop.section.looks': 'Style d\'entraîneur',
+
 };

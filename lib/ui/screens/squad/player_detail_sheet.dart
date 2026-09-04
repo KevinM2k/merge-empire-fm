@@ -60,6 +60,8 @@ import 'package:merge_empire_fc/state/card_instance.dart';
 import 'package:merge_empire_fc/ui/popups/bottom_sheet_popup.dart';
 import 'package:merge_empire_fc/ui/screens/grid/grid_providers.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
+import 'package:merge_empire_fc/ui/widgets/store_button.dart'
+    show mouldedButtonStyle;
 import 'package:merge_empire_fc/ui/widgets/art_image.dart';
 import 'package:merge_empire_fc/ui/widgets/card_glyph.dart';
 import 'package:merge_empire_fc/ui/popups/coach_card.dart';
@@ -570,7 +572,13 @@ class _Header extends StatelessWidget {
                 // the trait look like it did nothing — the one number it moves
                 // being the one number that did not move is the same defect
                 // `getCardStats` exists to prevent.
-                (label: 'INJ', value: '$injuryPct%', tint: null),
+                // **THE `%` RIDES ON THE LABEL, not on the figure.** ATK and
+                // DEF beside it are bare numbers, so `12%` under `INJ` was
+                // the one value in the row with a unit stuck to it and read as
+                // a different KIND of number at a glance. `INJ%` says what the
+                // column is and leaves the three figures the same shape.
+                // Asked for directly.
+                (label: 'INJ%', value: '$injuryPct', tint: null),
               ],
             ),
           ),
@@ -1017,14 +1025,29 @@ class _SlotActions extends StatelessWidget {
   }
 }
 
-/// One of the hero's two controls.
+/// One of the hero's two controls, and the trait roll.
 ///
-/// **A PILL, not a Material button.** They are the only buttons in the app that
-/// sit on ARTWORK rather than on a surface, and the theme's `ElevatedButton`
-/// brings a surface with it — so on the reference shot's dark portrait they read
-/// as two grey slabs where the design wants one light pill and one gold one. The
-/// pair also has to be legible whatever the man behind them is wearing, which is
-/// why both carry their own solid ground rather than a tint.
+/// **A MOULDED BUTTON, like everything else in the app.**
+///
+/// It was a hand-rolled 999-radius pill — one white, one gold, both with a soft
+/// drop shadow — and it was the only button language in the game: every
+/// Elevated/Filled/Outlined button wears `mouldedButtonStyle`, which is a
+/// 10-radius face over a hard three-point bottom edge that sinks when it is
+/// pressed. Reported from the couch: the three controls on this sheet are not
+/// uniform with the rest of the app.
+///
+/// **The old note said a Material button would not do, and the half of it that
+/// was right is kept.** Two things were true: the theme's `ElevatedButton`
+/// brings the club's own accent, which on half the kits in the game is a Replace
+/// button the same green as the shirt behind it; and the pair has to be legible
+/// whatever the man is wearing. The first is what `_SlotActions`' scrim already
+/// answers — see its own note — and the second is what a SOLID face answers,
+/// which is what `mouldedButtonStyle(face:)` paints. Neither of them argues for
+/// a different shape, which is all the couch was looking at.
+///
+/// So the affirmative one keeps its gold and the other takes the theme's own
+/// button outright; what changes is that both are now the shape the other
+/// eighty-odd buttons in the app are.
 class _HeroPill extends StatelessWidget {
   const _HeroPill({
     required this.buttonKey,
@@ -1056,74 +1079,64 @@ class _HeroPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const goldTop = Color(0xFFE8C877);
-    const goldBottom = Color(0xFFB98B31);
-    const goldInk = Color(0xFF3A2A08);
-    final ink = gold ? goldInk : const Color(0xFF3A2A08);
-    return Semantics(
-      button: true,
-      enabled: onTap != null,
-      label: label,
-      child: GestureDetector(
+    final kit = Theme.of(context).extension<KitTheme>()!;
+    return SizedBox(
+      height: 44,
+      child: ElevatedButton(
         key: buttonKey,
-        onTap: onTap,
-        child: Opacity(
-        opacity: onTap == null ? 0.45 : 1,
-        child: Container(
-          height: 44,
-          alignment: Alignment.center,
-          padding: const EdgeInsets.symmetric(horizontal: 10),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(999),
-            gradient: gold
-                ? const LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [goldTop, goldBottom],
-                  )
-                : const LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [Colors.white, Color(0xFFEFEFEF)],
-                  ),
-            border: Border.all(
-              color: goldBottom.withValues(alpha: gold ? 0.9 : 0.5),
-              width: 1.5,
+        onPressed: onTap,
+        // **THROUGH THE HELPER, because a moulded face cannot be coloured any
+        // other way.** The face is painted in a `backgroundBuilder` over a
+        // transparent Material, so `styleFrom(backgroundColor:)` would land
+        // UNDERNEATH it and `side:` would draw a second outline clear of the
+        // moulded one. Null for the other one on purpose: that IS the theme's
+        // `ElevatedButton`, which is the whole point of the change.
+        style: gold ? _goldMould(kit) : null,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // No colour: `GameIcon` falls back to the ambient
+            // `DefaultTextStyle`, which inside a button is the style's own
+            // resolved foreground — so the glyph greys out with the label
+            // rather than staying dark ink on the disabled face.
+            GameIcon(glyph, size: 15),
+            const SizedBox(width: 8),
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900),
+              ),
             ),
-            boxShadow: const [
-              BoxShadow(
-                color: Color(0x66000000),
-                blurRadius: 8,
-                offset: Offset(0, 3),
-              ),
-            ],
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              GameIcon(glyph, size: 15, color: ink),
-              const SizedBox(width: 8),
-              Flexible(
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w900,
-                    color: ink,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
+          ],
         ),
       ),
     );
   }
 }
+
+/// The gold face the affirmative controls wear.
+///
+/// Gold is the game's own "this is the thing to press", and it is not a colour
+/// of the kit — a club that plays in gold would otherwise have a Bench button
+/// indistinguishable from its Replace one — so the three tones are literals
+/// here the way `dangerInk` is a literal in `kit_theme_ext.dart`. The edge is
+/// the face's own shade, so the button is one object rather than a colour in a
+/// frame.
+ButtonStyle _goldMould(KitTheme kit) => mouldedButtonStyle(
+  face: heroGoldFace,
+  edge: heroGoldEdge,
+  ink: heroGoldInk,
+  dead: kit.surface2,
+  deadInk: kit.textMuted,
+  border: kit.border,
+);
+
+const Color heroGoldFace = Color(0xFFE8C877);
+const Color heroGoldEdge = Color(0xFF8F681F);
+const Color heroGoldInk = Color(0xFF3A2A08);
 
 /// Per-player fitness. PRO MODE ONLY — casual play has team energy pips, and a
 /// bar pinned at full for every casual player is a number that never moves.

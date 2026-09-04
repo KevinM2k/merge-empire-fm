@@ -339,9 +339,23 @@ const Map<String, String> deCopy = <String, String>{
           'wiederholen.',
   'settings.matchSpeed.auto': 'Auto',
   'settings.matchSpeed.hint':
-      'Auto läuft mit 2x und fällt auf 1x zurück, sobald der Trainer etwas zu '
-          'sagen hat — Zeit genug, es zu lesen und zu reagieren.',
+      'Auto läuft mit 2x und fällt auf halbe Geschwindigkeit, sobald der Trainer '
+          'etwas zu sagen hat — Zeit genug, es zu lesen und zu reagieren.',
 
   // The training list's ceiling — see `en_copy.dart`.
   'training.up_to': 'Bis zu',
+
+  // Die pausierende Einheit und der Anstoß-Countdown — siehe `en_copy.dart`.
+  'training.resting': 'Abklingzeit {time}',
+  'mg.countdown_go': 'LOS!',
+
+  // Shop: das Regal ist nicht mehr gratis, und die Einnahmen ziehen aus den
+  // Boosts aus — siehe `en_copy.dart`.
+  'shop.lucky_boot_name': 'Glücksschuh',
+  'shop.lucky_boot_desc': 'Nächster Gegner ein Spiel lang {pct}% schwächer',
+  'shop.section.income': 'Einnahmen',
+  'product.energy_director.desc': '+50 Energie sofort · Cap auf 15 · Aufladung {energyPct}% schneller — für immer, auch nach Resets!',
+
+  'shop.section.looks': 'Manager-Stil',
+
 };

@@ -6,7 +6,7 @@ because that is the part worth keeping.
 
 ## Where this queue stands
 
-**92 done, 5 open, and one feature parked.** None of the open rows is a fault.
+**107 done, 6 open, and one feature parked.** None of the open rows is a fault.
 One is a feature that was built, tried and turned down; one is a balance
 question rather than work; one is a survey to run before building; and one is
 **blocked on the spec repo** for the COMMENTARY, which is the row to read if the
@@ -1020,6 +1020,242 @@ a screen speaking in a voice that is not its own.
 
 ---
 
+## Ninth batch — a countdown, a frozen coin, and a coach who was gagged
+
+Reported in one sitting on 4 Sep 2026.
+
+- [x] **"On pitch invaders, highlight the boxes when you tap on them
+      correctly."** A tap moved a counter at the top of the page and the tile
+      the finger was on said nothing back, so catching the dog and clattering a
+      steward gave the same silence off the board. Asked for in three colours,
+      and the three exist already: the man rings the tile in the club's own
+      `accentBright`, the dog in the gold every bonus in the game is written in,
+      and the steward in `dangerInk` — the palette's own "something is wrong",
+      not a fourth red invented here. `whackFlashInk` is a pure function so the
+      three readings are pinned without waiting on the dog, which is a rarer
+      draw than a session is long. The ring is an `AnimatedContainer` that is
+      always mounted and animates to transparent, so it eases off the tile
+      rather than blinking out, and it comes down on its own after 380ms —
+      otherwise the next pop-up into that hole arrives wearing the last tap's
+      answer.
+
+- [x] **"For goalkeeper practice, pitch invaders, keepy uppys we need a 3
+      second countdown."** All three used to start while the player was still
+      finding the board: Pitch Invaders had a silent 600ms beat, Goalkeeper
+      Practice started its watch bar in `initState`, and Keepy Uppys dropped
+      the ball the frame after the arena was measured. `MiniGameCountdown` is
+      one widget for all three — 3, 2, 1, GO at 800/800/800/550, each glyph
+      rushing in oversized, settling and then shrinking away as it fades, with
+      a beep on the digits and the referee's whistle on GO. It lays OVER the
+      game area rather than replacing it: three seconds of an empty page is
+      three seconds of not knowing what is about to be asked of you.
+
+      **The lead-in is the count now, not `Whack.leadInMs`.** That constant
+      stays in `mini_games.dart` because `mini_games_test.dart` pins it against
+      the JS; what the SCREEN waits for is the count. And a test cannot wait a
+      fixed `miniGameCountdownMs` for it — each beat is restarted on the frame
+      the last one finished, so a coarse-pumped count overruns its own constant
+      by a frame per beat. All three suites wait on the screen's own `counting`
+      instead.
+
+- [x] **"We can't just have coins sat on the screen waiting to go up to the
+      HUD."** A yellow dot in the middle of the screen that nobody could
+      identify, which flew to the HUD on the way home. Two causes, both fixed
+      at source, and then a guarantee behind them.
+
+      The first is `TickerMode`. The sprites draw in the ROOT overlay so they
+      are over whatever sheet handed the money over, but the LAYER is mounted
+      in the shell — and a Navigator mutes `TickerMode` for everything under
+      the topmost route. So a reward paid from inside a mini-game or a shop
+      sheet put the handful up and froze it at the start of its arc until the
+      route was popped. **`TickerMode(enabled: true)` is not the fix**:
+      `_TickerModeState` computes `_effectiveMode = _ancestorTickerMode &&
+      widget.enabled`, so nesting an enabled one inside a muted one leaves it
+      muted. Wrapping the mounting in `app_shell.dart` looked like a fix and
+      changed nothing — the regression test is what said so. `CoinFlightState`
+      implements `TickerProvider` itself and hands out plain unmuted `Ticker`s.
+
+      The second is the stagger. Every sprite went onto the screen the instant
+      the reward landed and then waited out its own delay sitting at the throw
+      point, so the last of seven was parked in the middle of the screen for a
+      quarter of a second. A sprite is put up on the frame it starts flying now.
+
+      **And the backstop, asked for flat: the dot must never just sit there, no
+      matter where it is.** `coinFlightLifetime` is one flight plus the whole
+      stagger plus a beat, and anything still in the air past it is swept off
+      and the swell it was announcing is paid anyway — the money was never in
+      the flight, it is already in the save. Proving that took a seam: a single
+      `pump` across the lifetime fires the `Timer` while the controllers sit
+      where the last frame left them, and `swept` is what distinguishes a sweep
+      from a healthy landing. Without it the test passed on both branches.
+
+      **`ToastHost` had the same fault, found looking for this one.** A toast
+      fired from inside a route sat off-screen at the start of its slide until
+      the route was popped, and then arrived about something the player had
+      finished doing. Same answer.
+
+- [x] **"Training games shouldn't say 'Coach cooldown'."** The drill list
+      borrowed `play.cooldown` off the play button, which is about the manager
+      waiting to pick a team — the wrong words in the wrong place. `_GameRow`
+      has called the state resting all along; `training.resting` says so, in all
+      ten languages.
+
+- [x] **"When in auto mode, maybe the clock speed should be 0.5 rather than
+      1x."** Auto's whole job is to stand aside when there is a line to read
+      and a decision to make, and base speed is the pace the manager already
+      found brisk enough to want 2× off — so dropping to it was not much of a
+      stand-aside. It could not drop further, either: `effectiveFast` is a bool
+      and a bool cannot say "slower than base". `MatchPace` is the three paces
+      now, `autoSlow` is half of base, and `effectiveFast` stays a bool because
+      the 2D pitch's time scale is two-speed and a slow-motion passage is not
+      what was asked for.
+
+- [x] **"On squad, the cards with the picture are a little bigger than the box
+      where the name goes — only on the pitch, not on the bench."** The token
+      used a `DecoratedBox`, which paints its decoration BEHIND the child and
+      does not inset the child for the border, so the 2pt ring sat under the
+      contents: the art band is opaque and covered it, the name plate is 55%
+      black and let it show through. A coloured edge beside the NAME and not
+      beside the PICTURE, which is exactly a picture two points the wider. The
+      bench draws a `PlayerCard`, which has used a `Container` — whose child IS
+      inset — all along, and whose own comment names this class of fault.
+
+      The four points the ring now takes came out of the ART band rather than
+      out of the token: `pitchTokenHeight` is what `pitchTokenScale` divides the
+      pitch by, so a token that kept its 58-point art would have made every
+      token on a crowded formation smaller to fix a two-point border.
+
+- [x] **"The three buttons on the player popup are not uniform with the rest of
+      the app."** Swap, Bench and the trait roll were hand-rolled 999-radius
+      pills with a soft drop shadow, and they were the only button language in
+      the game: everything else wears `mouldedButtonStyle`. The old note said a
+      Material button would not do, and the half of it that was right is kept —
+      the club's own accent on a Replace button is green on green for half the
+      kits, and the pair has to read whatever the man is wearing. The scrim
+      answers the first and a solid face answers the second, and neither argues
+      for a different SHAPE, which is all the couch was looking at. Gold stays
+      gold; the other takes the theme's own button outright.
+
+- [x] **"The popup on a match modifier is white with black text in dark
+      mode."** Flutter's default `Tooltip` deliberately inverts the theme — a
+      desktop convention for a hover hint that has to shout over a document —
+      and these are TAPPED. Themed once in `buildAppTheme` rather than at the
+      eight call sites, because a bubble that matches on seven pages is worse
+      than one that matches on none.
+
+- [x] **"If the tactics I'm using are not the best to win the game, the coach
+      popup should advise us to change."** He already did, and one constant was
+      stopping him. `_lastCoachMinute` started at -1 and the sticky window is
+      measured against it, so `since` was `minute + 1` and every live word was
+      held until minute 24 — `MatchPopup.js` initialises `_lastBubbleMin` to
+      -999 for exactly this reason. Nobody had seen him ask for a tactic change
+      because he could not, before half time, in any match.
+
+      **And nothing recorded what he asked for.** `quest_match.dart`'s
+      `_defiedCoach` reads `coachAskedFor` and `coachSuggestedStrategy`;
+      `match_orchestration` initialises both and no code wrote either, so
+      defying the coach could never be done and the quest behind it could never
+      advance. The JS writes them in `_maybeShowCoachBubble` the moment it
+      computes a suggestion — before the cadence gate, because what he WANTED
+      is a different question from how often he says it out loud.
+
+      **"I don't want it instantly popping up saying change tactic to x."** The
+      pre-match tip names a tactic; a manager who kicks off playing something
+      else has read it and declined it, and hearing it again at minute five is
+      the game arguing with a decision just made.
+      `coachDeclinedHoldMinutes` sits on that one ask until the half-hour, by
+      which point the scoreline and the clock are part of his case. It holds one
+      tactic, not his mouth — any other suggestion lands on the usual cadence.
+
+      Noted while there: `coachMinTacticGain` is 0.02 and the JS's
+      `MIN_TACTIC_GAIN` is 0.04, and the port's note claimed it was the JS's.
+      Nothing pins it; the port is the more forthcoming of the two on purpose,
+      and it says so now.
+
+- [x] **"Tap anywhere in the match quests to minimise them — at the moment you
+      have to click in the banner."** The `InkWell` wrapped the heading row
+      alone, so shutting the panel meant finding a strip a dozen points tall at
+      the top of it while the three quest rows underneath — most of what is on
+      screen — did nothing at all. Safe to widen because nothing inside has a
+      gesture of its own: a quest row is a glyph, a sentence and a reward, and a
+      quest is not something you can act on from the home page. The test
+      MEASURES the collapse rather than counting rows, because
+      `AnimatedCrossFade` builds both children whatever it is showing.
+
+- [x] **"Put the % next to INJ, so it reads INJ%."** ATK and DEF beside it are
+      bare numbers, so a `12%` under a bare `INJ` was the one value in the row
+      with a unit stuck to it and read as a different kind of number at a
+      glance.
+
+- [x] **"Quick fire matches and lucky boot should cost gems rather than an ad —
+      maybe 2 gems each — and remove the word free."** Both were rewarded-video
+      tiles under a heading that said Free, which put the two controls with the
+      most effect on a match behind an advert and made the shelf's own name a
+      promise about a price rather than a description of what was on it.
+      `matchDayGemCost` is two, and it says why it is not one:
+      `Minigame.skipGemCost` clears a WAIT the player would have got for
+      nothing by coming back later, and these buy an advantage waiting does not
+      hand over.
+
+      The shelf is `matchDay` now — asked for as "keep the shelf, rename it" —
+      and `shop.section.free` is left in the generated catalogues because it is
+      simply not what this shelf is any more. The Lucky Boot's generated name
+      says "Free Lucky Boot" and its description opens "Watch an ad ·", so both
+      are replaced in the ten overlays.
+
+      **The ad gate went with them, and so did two AdMob placements.** It was
+      three rules stacked on one tile — the shared frequency gate, the day's
+      three cooldown videos, and whether a boot was already held — and two of
+      the three existed only because a video was involved. What survives is the
+      one about the GRANT: a boost already running has nothing to sell, and a
+      boot already on the shelf would be overwritten by a second. `match_cooldown`
+      and `lucky_boot` in `ad_units.dart` are no longer spent from anywhere.
+      **`canWatchMatchCooldownAd` is orphaned by that** — see Open.
+
+- [x] **"Maybe we need to split the top ones into things that are boosts and
+      things that are income?"** The Boosts shelf held both: a Magic Sponge and
+      an Energy Refill fix the squad, while a Kit Sponsor, a TV deal and Trophy
+      Polish multiply what it earns. One heading over both answered neither — a
+      player looking for income scanned past a bandage, and a player with three
+      injured men scanned past a TV deal. `incomeShelfIds` is the partition and
+      both shelves read that one set, so a tile is on exactly one of them and a
+      row added without touching it lands on Boosts: a boost on the wrong shelf
+      is misfiled, an income item on the wrong shelf is a claim about what it
+      does. Pinned as a partition, not as two lists.
+
+- [x] **"When I cancel a Google purchase I see the little coin popup fly up —
+      idle income should only ever fire on app open."** Right diagnosis. The
+      Play sheet backgrounds the app, so dismissing it is a RESUME:
+      `_bankTimeAway` measures the seconds the sheet was up, and below
+      `welcomeBackFloorMs` the coins are paid straight in by
+      `collectOfflineEarnings` — which announced them as a reward, so the
+      handful flew.
+
+      **And then: even on app open, no animation unless the card comes up with
+      the income on it.** That is the rule now, and it is one rule rather than
+      two: the flight belongs to the CARD. Under the floor there is no card, so
+      the payment goes out as `coins:idle` — the signal that already exists for
+      the per-second trickle — and `CoinFlight` holds its throw. The money is
+      still paid either way; the loop was paused for those seconds and nothing
+      else pays them. Pinned as a pair, because the pair is the rule: no card,
+      no coins; the card's own collect still throws them.
+
+- [x] **`tool/unreached.sh` WAS A SILENT NO-OP ON macOS, and that is the row to
+      read.** Found while checking what the shop change had orphaned. The
+      function-name parse needs `grep -oP`, macOS ships BSD grep, which has no
+      `-P` at all — so run under `bash` every extraction failed, the loop had
+      nothing to iterate, and the script printed nothing and exited 0. That
+      reads exactly like "no unreachable functions", and it was believed twice
+      in this session. It was not true: the shop change had just orphaned
+      `canWatchMatchCooldownAd` and the sweep said the tree was clean.
+
+      Same trap as the half-extracted SDK in `CLAUDE.md`, and the same answer.
+      It now finds a PCRE-capable grep (`ggrep`, `rg`, `ugrep`) for the parse
+      alone — the `-rlw --include` searches stay on the plain `grep`, because
+      `rg` does not take `--include` and mixing them made every search print a
+      usage error — and **exits 2 with an install line if there is none**,
+      rather than looking green.
+
 ## Features asked for, not yet built
 
 - [ ] **A NEWS section, Sky Sports style.** Full match reports of the whole
@@ -1035,6 +1271,21 @@ a screen speaking in a voice that is not its own.
 ---
 
 ## Open
+
+- [ ] **`canWatchMatchCooldownAd` is now unreachable from `lib/`.** The Match
+      Day shelf was its only caller and the shelf has no ad route any more, so
+      the day's-three cap it answers is a rule nothing can consult —
+      `matchCooldownAdCapPerDay` with it, and `grantMatchCooldownAd` still
+      writes a `matchCooldownAdCount` that nothing reads. Four tests in
+      `free_shelf_engine_test` pin the whole rule, including the wall-clock day
+      boundary and the day being re-read ON the grant rather than before the
+      video, so it is a working, proven mechanic rather than dead weight.
+
+      **Left in deliberately rather than deleted, because it is a call about
+      whether the ad route comes back.** If it does not, the honest tidy-up is
+      to delete the gate, the cap and the counter write and rename
+      `grantMatchCooldownAd` to drop the `Ad`. Not done on this pass: it is a
+      judgement about the shop's direction rather than a fault.
 
 - [ ] **`result['events']` and the match screen's timeline can disagree at
       full time.** Seen twice in one sitting: a 0-6 whose `homeGoals`/

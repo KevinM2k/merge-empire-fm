@@ -349,7 +349,9 @@ const List<GemItem> gemItems = [
   GemItem(id: 'energy_refill', cost: 5, permanent: false, live: true),
   GemItem(
     id: 'trophy_polish_gem',
-    cost: 8,
+    // FIVE, down from eight: it is a half-hour window, not a season, and at
+    // eight it was the dearest thing on the shelf for the shortest effect.
+    cost: 5,
     permanent: false,
     live: true,
     // The shop's "already active" and the multiplier that pays it out are one

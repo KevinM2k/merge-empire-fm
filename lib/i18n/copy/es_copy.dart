@@ -328,9 +328,23 @@ const Map<String, String> esCopy = <String, String>{
           'corta al campo y juega el momento — y luego puedes repetirlo.',
   'settings.matchSpeed.auto': 'Auto',
   'settings.matchSpeed.hint':
-      'Auto va a 2x y baja a 1x en cuanto el entrenador tiene algo que decir, '
-          'para que te dé tiempo a leerlo y actuar.',
+      'Auto va a 2x y baja a media velocidad en cuanto el entrenador tiene algo '
+          'que decir, para que te dé tiempo a leerlo y actuar.',
 
   // The training list's ceiling — see `en_copy.dart`.
   'training.up_to': 'Hasta',
+
+  // El entrenamiento en descanso y la cuenta atrás — ver `en_copy.dart`.
+  'training.resting': 'Enfriamiento {time}',
+  'mg.countdown_go': '¡YA!',
+
+  // Tienda: el estante ya no es gratis, y los ingresos salen de las mejoras —
+  // ver `en_copy.dart`.
+  'shop.lucky_boot_name': 'Bota de la suerte',
+  'shop.lucky_boot_desc': 'El próximo rival es un {pct}% más débil (un partido)',
+  'shop.section.income': 'Ingresos',
+  'product.energy_director.desc': '+50 energía ya · Capacidad subida a 15 · recarga {energyPct}% más rápida — para siempre, ¡incluso tras resets!',
+
+  'shop.section.looks': 'Estilo del entrenador',
+
 };

@@ -22,6 +22,7 @@ import 'package:merge_empire_fc/state/save_slots.dart';
 import 'package:merge_empire_fc/state/save_store.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
 import 'package:merge_empire_fc/ui/screens/minigames/keepy_uppys_screen.dart';
+import 'package:merge_empire_fc/ui/screens/minigames/minigame_countdown.dart';
 import 'package:merge_empire_fc/ui/screens/minigames/minigames_providers.dart';
 import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
 
@@ -37,7 +38,16 @@ Map<String, dynamic> saveWith() {
   return s;
 }
 
-Future<ProviderContainer> pumpGame(WidgetTester tester) async {
+/// [counting] stops inside the 3-2-1 rather than running it out.
+///
+/// **THE BALL HANGS STILL BEHIND THE COUNT NOW** — see
+/// `minigame_countdown.dart`. The sim is still built on the arena's first
+/// layout, because the ball is placed against it; what waits for GO is the
+/// ticker, so a test that wants a falling ball has to get past the count.
+Future<ProviderContainer> pumpGame(
+  WidgetTester tester, {
+  bool counting = false,
+}) async {
   tester.view.physicalSize = const Size(400 * 3, 900 * 3);
   tester.view.devicePixelRatio = 3;
   addTearDown(tester.view.reset);
@@ -67,7 +77,20 @@ Future<ProviderContainer> pumpGame(WidgetTester tester) async {
   // Two frames: one to lay the arena out, one for the sim it builds against it.
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 16));
+  if (!counting) await runCountIn(tester);
   return container;
+}
+
+/// Run the 3-2-1 out.
+///
+/// **PUMPED UNTIL THE SCREEN SAYS SO, not for [miniGameCountdownMs]**: each
+/// beat is restarted on the frame the last one finished, so a pumped count
+/// overruns its own constant by a frame per beat.
+Future<void> runCountIn(WidgetTester tester) async {
+  for (var i = 0; i < 400 && stateOf(tester).counting; i++) {
+    await tester.pump(const Duration(milliseconds: 16));
+  }
+  expect(stateOf(tester).counting, isFalse, reason: 'the count never ended');
 }
 
 KeepyUppysScreenState stateOf(WidgetTester tester) =>
@@ -246,5 +269,36 @@ void main() {
       1,
       reason: 'the run was banked twice',
     );
+  });
+
+  group('THE COUNT IN', () {
+    testWidgets('THE BALL HANGS STILL UNTIL GO', (tester) async {
+      // It used to drop the instant the arena had been measured, which is one
+      // frame after the screen opened — so the first fall was over before the
+      // player had a hand anywhere near it.
+      await pumpGame(tester, counting: true);
+      final s = stateOf(tester);
+      expect(find.byKey(const ValueKey('mg-countdown-3')), findsOneWidget);
+      // The sim still exists — the ball is placed against the arena, so it is
+      // built on that first layout; what waits is the ticker.
+      expect(s.sim, isNotNull);
+      final y = s.sim!.y;
+      for (var i = 0; i < 60; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      expect(s.counting, isTrue);
+      expect(s.sim!.y, y, reason: 'the ball fell during the count');
+
+      // And a tap on it during the count is not a keepy uppy.
+      await tapBall(tester);
+      expect(s.taps, 0, reason: 'the count was playable');
+
+      await runCountIn(tester);
+      for (var i = 0; i < 20; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      expect(s.sim!.y, isNot(y), reason: 'GO did not drop the ball');
+      await closeGame(tester);
+    });
   });
 }

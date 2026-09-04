@@ -69,6 +69,21 @@ Map<String, dynamic> matchResult({
   'events': events,
 };
 
+/// A fixture Colin has an OPINION about.
+///
+/// On flat 50s across the board `suggestTactic` comes back with the tactic
+/// already on the dial, which is him agreeing with you — and a coach who has
+/// nothing to ask for stays quiet by design. These ratings give him something
+/// to say: far stronger in attack than the opposition is in defence, with the
+/// game to play, and he asks the side to see it out.
+Map<String, dynamic> coachAsksResult() => {
+  ...matchResult(),
+  'ourAttackRating': 80,
+  'ourDefenceRating': 50,
+  'effOppAttackRating': 50,
+  'effOppDefenceRating': 40,
+};
+
 /// A save with a full squad and a bench, so the subs panel has both lists.
 Map<String, dynamic> squadSave() {
   final state = createDefaultState();
@@ -2974,10 +2989,13 @@ void main() {
     /// Asked for from the couch, with the case that makes it: a player is
     /// booked, Colin says who is on the bench who could replace him, and at 2×
     /// the sentence has not been read before the same player has been sent off.
-    testWidgets('AND AUTO DROPS TO 1× WHILE COLIN IS TALKING', (tester) async {
+    testWidgets('AND AUTO DROPS TO HALF SPEED WHILE COLIN IS TALKING', (
+      tester,
+    ) async {
       await pumpMatch(tester, matchResult(), fast: true, auto: true);
       final state = stateOf(tester);
       expect(state.effectiveFast, isTrue, reason: 'nothing to read yet');
+      expect(state.pace, MatchPace.fast);
       expect(find.text(t('settings.matchSpeed.auto')), findsOneWidget);
 
       state.say('Get him off before he sees red.');
@@ -2987,6 +3005,10 @@ void main() {
         isFalse,
         reason: 'the clock stands aside while there is a line up',
       );
+      // **AND IT GOES BELOW BASE.** It used to drop to 1×, and 1× was still
+      // quick enough that the line went by unread — reported from the couch.
+      expect(state.pace, MatchPace.autoSlow);
+      expect(state.autoSlowed, isTrue);
       // And the pitch goes with it: two speeds on one screen is the fault this
       // shares with the one above.
       expect(
@@ -2998,6 +3020,7 @@ void main() {
       state.clearCoachLine();
       await tester.pump();
       expect(state.effectiveFast, isTrue);
+      expect(state.pace, MatchPace.fast);
 
       state.skipToEnd();
       await tester.pumpAndSettle();
@@ -3012,6 +3035,7 @@ void main() {
       state.say('Something worth reading.');
       await tester.pump();
       expect(state.effectiveFast, isTrue);
+      expect(state.pace, MatchPace.fast);
       state.skipToEnd();
       await tester.pumpAndSettle();
     });
@@ -3049,6 +3073,70 @@ void main() {
         findsNothing,
         reason: 'a tap outside left it there',
       );
+    });
+
+    testWidgets('AND HE ASKS FOR A TACTIC CHANGE, LIVE, before half time', (
+      tester,
+    ) async {
+      // **He could not, and the reason was one constant.** `_lastCoachMinute`
+      // started at -1, and the sticky window is measured against it — so
+      // `since` was `minute + 1` and every live word was held until minute 24.
+      // `MatchPopup.js` uses -999. Reported from the couch as the coach not
+      // advising a tactic change at all.
+      // **A FIXTURE HE HAS SOMETHING TO SAY ABOUT.** He only interrupts when
+      // he wants a change, and on flat 50s across the board `suggestTactic`
+      // agrees with the dial — that is him having no opinion, which is a
+      // different silence from the one this test is about. A side far stronger
+      // in attack than the opposition is in defence is asked to see it out.
+      await pumpMatch(tester, coachAsksResult(), save: squadSave());
+      final state = stateOf(tester);
+      expect(state.pace, MatchPace.base);
+
+      // Walk the clock past his first-word minute and stop at the old gate.
+      for (var m = 0; m < 24; m++) {
+        await tester.pump(minuteDurationFor(1));
+        if (find.byKey(const ValueKey('match-coach-line')).evaluate().isNotEmpty) {
+          break;
+        }
+      }
+      await tester.pump();
+      expect(
+        find.byKey(const ValueKey('match-coach-line')),
+        findsOneWidget,
+        reason: 'he said nothing in the first twenty-four minutes',
+      );
+      await tester.tapAt(const Offset(20, 20));
+      await tester.pump();
+      state.skipToEnd();
+      await tester.pumpAndSettle();
+      await settleSave(tester);
+    });
+
+    testWidgets('AND WHAT HE ASKED FOR IS RECORDED, so it can be defied', (
+      tester,
+    ) async {
+      // `quest_match.dart`'s `_defiedCoach` reads `coachAskedFor` and
+      // `coachSuggestedStrategy`; `match_orchestration` initialises both and
+      // NOTHING wrote either, so the quest behind defying the coach could
+      // never advance. The JS writes them in `_maybeShowCoachBubble` the
+      // moment it computes a suggestion — before the cadence gate, because
+      // what he WANTED is a different question from how often he says it out
+      // loud.
+      final result = coachAsksResult();
+      await pumpMatch(tester, result, save: squadSave());
+      final state = stateOf(tester);
+      for (var m = 0; m < 40; m++) {
+        await tester.pump(minuteDurationFor(1));
+      }
+      await tester.pump();
+      expect(
+        result['coachSuggestedStrategy'],
+        isA<String>(),
+        reason: 'nothing recorded that he had an opinion',
+      );
+      state.skipToEnd();
+      await tester.pumpAndSettle();
+      await settleSave(tester);
     });
 
     testWidgets('AND THE PITCH STAYS LIT WHILE HE TALKS', (tester) async {

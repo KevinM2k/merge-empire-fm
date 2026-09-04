@@ -20,10 +20,12 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/sound_providers.dart';
 import 'package:merge_empire_fc/ui/popups/prestige_card.dart';
+import 'package:merge_empire_fc/ui/theme/app_theme.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/match_stat_rows.dart'
     show readableInk, semanticPlate;
@@ -55,11 +57,29 @@ Toast? toastFor(String event, Object? args) {
   final data = _map(args);
   switch (event) {
     // A line the UI raised itself, already localised. The engines all name their
-    // own event; this is for the handful of refusals that live in a widget and
-    // have nowhere else to say so — a locked kit swatch, for one.
+    // own event; these are for the things that live in a widget and have
+    // nowhere else to say so — a locked kit swatch, a purchase going through,
+    // a wallet that is short.
+    //
+    // **TWO OF THE THREE WERE SHOUTING INTO NOTHING.** `toast:success` and
+    // `toast:error` are emitted from thirteen places across the shop, the
+    // squad, the customiser, the energy sheet and the sign-in flow, and neither
+    // appeared in this switch or in [toastEvents] — so a completed purchase, a
+    // refused one, an energy refill, a healed player and both sign-in outcomes
+    // all said nothing whatsoever. Exactly the fault in this file's own header,
+    // one layer up: the callers were right and there was no listener.
+    //
+    // `info` and `error` render alike — the tone is the palette's "something
+    // is wrong" either way, because an info line here is a refusal too. They
+    // stay separate events because the CALLERS mean different things by them.
     case 'toast:info':
+    case 'toast:error':
       final text = args is String ? args : '${data?['text'] ?? ''}';
       return text.isEmpty ? null : _say(text, good: false);
+
+    case 'toast:success':
+      final text = args is String ? args : '${data?['text'] ?? ''}';
+      return text.isEmpty ? null : _say(text, good: true);
 
     // **Gems arrive from four faucets and not one of them said so.**
     // `gems:updated` carries a balance and nothing else, so no listener could
@@ -247,6 +267,9 @@ Toast? toastFor(String event, Object? args) {
 /// Every event the layer listens to.
 const List<String> toastEvents = [
   'toast:info',
+  // See the note on the case: these two were emitted and never subscribed.
+  'toast:success',
+  'toast:error',
   'player:renamed',
   'cup:won',
   'quest:completed',
@@ -311,7 +334,23 @@ class ToastHost extends ConsumerStatefulWidget {
 }
 
 class ToastHostState extends ConsumerState<ToastHost>
-    with SingleTickerProviderStateMixin {
+    implements TickerProvider {
+  /// An UNMUTED ticker, for the same reason `CoinFlight` provides its own.
+  ///
+  /// **THE BAND GOES UP IN THE ROOT OVERLAY and the HOST is under every route
+  /// in the game**, so a Navigator mutes its `TickerMode` and a toast fired
+  /// from inside a mini-game, a shop sheet or the settings screen never slid
+  /// in — it sat off-screen at the start of its own animation until the route
+  /// was popped, and then arrived, about something the player had finished
+  /// doing. Same fault as the frozen coin, found looking for it.
+  ///
+  /// `TickerMode(enabled: true)` is not the fix: it composes with its
+  /// ancestors, so nesting an enabled one inside a muted one leaves it muted —
+  /// and a `TickerMode` over the whole shell would un-mute every route in the
+  /// app. One controller, 200ms either way.
+  @override
+  Ticker createTicker(TickerCallback onTick) => Ticker(onTick);
+
   final List<BusHandler> _handlers = [];
   Toast? _current;
   Timer? _clear;
@@ -323,10 +362,12 @@ class ToastHostState extends ConsumerState<ToastHost>
   /// time is up; the face reads [AnimationController.status] to know which way
   /// it is going, because the band leaves in the direction it came from rather
   /// than dropping back.
-  /// **Built in `initState`, not lazily.** A `late final` initialiser reaches
-  /// for `TickerMode` — and on a host that never said anything, `dispose` is
-  /// the first thing to touch the field, which looks up an ancestor of a widget
-  /// that is already being torn down.
+  /// **Built in `initState`, not lazily.** A `late final` initialiser used to
+  /// reach for `TickerMode` — and on a host that never said anything, `dispose`
+  /// is the first thing to touch the field, which looks up an ancestor of a
+  /// widget that is already being torn down. The ticker is this host's own now
+  /// (see [createTicker]) so the lookup has gone, but eager is still right:
+  /// nothing should depend on when the field is first read.
   late final AnimationController _move;
 
   /// Test seam.
@@ -501,36 +542,50 @@ class ToastHostState extends ConsumerState<ToastHost>
         : dangerInk;
     return Positioned.fill(
       child: IgnorePointer(
-        child: Align(
-          alignment: Alignment.center,
-          child: AnimatedBuilder(
-            animation: _move,
-            builder: (context, child) {
-              // **IT STRIKES IN FROM THE LEFT AND CLOSES BACK THE SAME WAY.**
-              // A full-bleed band has one axis worth animating along: it
-              // already spans the screen, so sliding it up or fading it in is
-              // motion applied to the wrong dimension. Wiping it open left to
-              // right is the shape of the thing itself — and the sentence
-              // arrives with the wipe rather than under it, which is what makes
-              // it read as a strike rather than as a box growing.
-              //
-              // The clip is what moves; the band is laid out full width
-              // underneath at every frame, so nothing reflows and the text
-              // never re-wraps mid-animation.
-              final t = _sweepCurve.transform(_move.value);
-              return Stack(
-                children: [
-                  ClipRect(clipper: _Wipe(t), child: child),
-                  // The bolt's own leading edge, and only while it is travelling
-                  // — parked at either end it would just be a stripe.
-                  if (t > 0.02 && t < 0.995)
-                    Positioned.fill(
-                      child: CustomPaint(painter: _Strike(t: t, tone: tone)),
-                    ),
-                ],
-              );
-            },
-            child: _band(context, toast, tone, kit),
+        // **THE MIDDLE OF WHAT IS LEFT, not the middle of the screen.**
+        //
+        // It was a bare `Alignment.center`, so with a keyboard up the band
+        // landed across the bottom half of the visible strip — reported from
+        // the couch after prestige, where the gem line opened directly over
+        // the box the new club's name was about to be typed into. The middle
+        // is where it belongs and is where it stays; it just no longer counts
+        // the keyboard as screen it may use. With nothing up, `viewInsets` is
+        // zero and this is exactly the centre it always was.
+        child: Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.viewInsetsOf(context).bottom,
+          ),
+          child: Align(
+            alignment: Alignment.center,
+            child: AnimatedBuilder(
+              animation: _move,
+              builder: (context, child) {
+                // **IT STRIKES IN FROM THE LEFT AND CLOSES BACK THE SAME WAY.**
+                // A full-bleed band has one axis worth animating along: it
+                // already spans the screen, so sliding it up or fading it in is
+                // motion applied to the wrong dimension. Wiping it open left to
+                // right is the shape of the thing itself — and the sentence
+                // arrives with the wipe rather than under it, which is what makes
+                // it read as a strike rather than as a box growing.
+                //
+                // The clip is what moves; the band is laid out full width
+                // underneath at every frame, so nothing reflows and the text
+                // never re-wraps mid-animation.
+                final t = _sweepCurve.transform(_move.value);
+                return Stack(
+                  children: [
+                    ClipRect(clipper: _Wipe(t), child: child),
+                    // The bolt's own leading edge, and only while it is travelling
+                    // — parked at either end it would just be a stripe.
+                    if (t > 0.02 && t < 0.995)
+                      Positioned.fill(
+                        child: CustomPaint(painter: _Strike(t: t, tone: tone)),
+                      ),
+                  ],
+                );
+              },
+              child: _band(context, toast, tone, kit),
+            ),
           ),
         ),
       ),
@@ -550,8 +605,11 @@ class ToastHostState extends ConsumerState<ToastHost>
           width: double.infinity,
           // A little air above and below the sentence and no more: the band is
           // wide enough already, and a tall one starts to read as a screen of
-          // its own rather than as something passing through.
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          // its own rather than as something passing through. **Sixteen was
+          // still too much** — reported from the couch alongside the placement
+          // — and at [minFontSize] the line no longer needs air scaled to an
+          // 18pt sentence.
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
           decoration: BoxDecoration(
             // **IT WAS A HAIRLINE ROUND NOTHING.** `kit.surface` is the dark
             // theme's 12%-lightness ground — the same value the page behind
@@ -592,10 +650,15 @@ class ToastHostState extends ConsumerState<ToastHost>
               // Taken down to read on the light plate; the dark one keeps the
               // colour it was chosen at.
               color: readableInk(context, tone),
-              // Bigger than it was, because the band is the width of the
-              // screen: a 14pt sentence in the middle of it reads as a caption
-              // for something that is not there.
-              fontSize: toast.gem ? 20 : 18,
+              // **THE APP'S FLOOR, and it used to be 18 and 20.** The
+              // argument for big was that a full-bleed band makes a small
+              // sentence read as a caption for something that is not there —
+              // and a sentence big enough to answer that is a sentence big
+              // enough to be in the way, which is what it turned out to be.
+              // Asked for from the couch: the minimum size. The weight still
+              // separates a gem payout from a plain notice, and the tone still
+              // separates good news from a refusal.
+              fontSize: minFontSize,
               height: 1.25,
               fontWeight: toast.gem ? FontWeight.w800 : FontWeight.w700,
             ),

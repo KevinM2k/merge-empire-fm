@@ -287,9 +287,22 @@ const Map<String, String> koCopy = <String, String>{
           '나중에 다시 볼 수도 있습니다.',
   'settings.matchSpeed.auto': '자동',
   'settings.matchSpeed.hint':
-      '자동은 2배속으로 진행하다가 코치가 할 말이 있을 때만 1배속으로 내려갑니다. '
+      '자동은 2배속으로 진행하다가 코치가 할 말이 있을 때만 절반 속도로 내려갑니다. '
           '읽고 대응할 시간이 생깁니다.',
 
   // The training list's ceiling — see `en_copy.dart`.
   'training.up_to': '최대',
+
+  // 휴식 중인 훈련과 킥오프 카운트다운 — `en_copy.dart` 참고.
+  'training.resting': '쿨다운 {time}',
+  'mg.countdown_go': '시작!',
+
+  // 상점: 무료 진열대를 없애고, 수입을 부스트에서 분리 — `en_copy.dart` 참고.
+  'shop.lucky_boot_name': '행운의 부츠',
+  'shop.lucky_boot_desc': '다음 한 경기 상대 능력치 {pct}% 감소',
+  'shop.section.income': '수입',
+  'product.energy_director.desc': '에너지 +50 즉시 · 한도 15로 상향 · 충전 {energyPct}% 빨라짐 — 리셋 후에도 영구!',
+
+  'shop.section.looks': '감독 스타일',
+
 };

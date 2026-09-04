@@ -119,13 +119,28 @@ class _MatchQuestsBlockState extends ConsumerState<MatchQuestsBlock> {
         borderRadius: BorderRadius.circular(11),
         border: Border.all(color: glassInk(context).withValues(alpha: 0.12)),
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          InkWell(
-            key: const ValueKey('match-quests-toggle'),
-            onTap: () => setState(() => _collapsed = !_collapsed),
-            child: Row(
+      // **THE WHOLE BLOCK IS THE CONTROL, not just the header.**
+      //
+      // The `InkWell` used to wrap the heading row alone, so shutting the panel
+      // meant finding a strip a dozen points tall at the top of it while the
+      // three quest rows underneath — most of what is on screen — did nothing
+      // at all. Asked for directly: tap anywhere in the match quests to
+      // minimise them.
+      //
+      // Safe to widen because nothing inside has a gesture of its own:
+      // `_QuestTile` is a glyph, a sentence and a reward, and a quest is not
+      // something you can act on from here. The key stays on the tappable
+      // thing, which is now the block.
+      child: InkWell(
+        key: const ValueKey('match-quests-toggle'),
+        onTap: () => setState(() => _collapsed = !_collapsed),
+        // Rounded to the recess it fills, or the splash squares off the
+        // corners the border has just rounded.
+        borderRadius: BorderRadius.circular(11),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Row(
               children: [
                 GameIcon('target', size: 11, color: kit.accentBright),
                 const SizedBox(width: 5),
@@ -234,22 +249,22 @@ class _MatchQuestsBlockState extends ConsumerState<MatchQuestsBlock> {
                 ],
               ],
             ),
-          ),
-          AnimatedCrossFade(
-            duration: const Duration(milliseconds: 180),
-            crossFadeState: _collapsed
-                ? CrossFadeState.showFirst
-                : CrossFadeState.showSecond,
-            firstChild: const SizedBox(width: double.infinity),
-            secondChild: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const SizedBox(height: 4),
-                for (final row in rows) _QuestTile(row: row),
-              ],
+            AnimatedCrossFade(
+              duration: const Duration(milliseconds: 180),
+              crossFadeState: _collapsed
+                  ? CrossFadeState.showFirst
+                  : CrossFadeState.showSecond,
+              firstChild: const SizedBox(width: double.infinity),
+              secondChild: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const SizedBox(height: 4),
+                  for (final row in rows) _QuestTile(row: row),
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

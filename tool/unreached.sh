@@ -34,8 +34,41 @@
 # is the false positives above rather than a missed engine.
 set -u
 
+# **A CHECKER THAT PRINTS NOTHING MUST NOT BE READ AS A PASS.**
+#
+# The function-name extraction below needs `grep -oP`, and macOS ships BSD grep,
+# which has no `-P` at all. Run under `bash` on a Mac, every `grep -oP` failed,
+# the loop had nothing to iterate, and the script printed nothing and exited 0 —
+# which reads exactly like "no unreachable functions" and was believed. It was
+# not: `canWatchMatchCooldownAd` was orphaned by the shop's Match Day shelf
+# dropping its ad route, and the sweep said the tree was clean.
+#
+# Same trap as the half-extracted SDK in `CLAUDE.md`, and the same answer: find
+# a grep that can do the job, and DIE if there is none rather than looking green.
+# **ONE TOOL FOR THE PATTERN, THE PLAIN `grep` FOR THE SEARCHES.** Only the
+# declaration parse needs PCRE; `-rlw --include` is ordinary and BSD grep does
+# it, while `rg` — the fallback most likely to be installed — does not take
+# `--include` at all. Mixing them up made every search print a usage error.
+EXTRACT=grep
+if ! echo x | "$EXTRACT" -qP 'x' 2>/dev/null; then
+  for candidate in ggrep rg ugrep; do
+    if command -v "$candidate" >/dev/null 2>&1 &&
+      echo x | "$candidate" -qP 'x' 2>/dev/null; then
+      EXTRACT=$candidate
+      break
+    fi
+  done
+fi
+if ! echo x | "$EXTRACT" -qP 'x' 2>/dev/null; then
+  echo "unreached.sh: no grep with -P (PCRE) found." >&2
+  echo "  macOS ships BSD grep, which cannot run this sweep." >&2
+  echo "  brew install grep    # provides ggrep" >&2
+  echo "  brew install ripgrep # or rg, which this script also accepts" >&2
+  exit 2
+fi
+
 for f in $(ls lib/engine/*.dart lib/data/*.dart lib/state/*.dart | grep -v '\.g\.dart'); do
-  grep -oP '^[A-Za-z_][A-Za-z0-9_<>,\s\?\.\(\)\[\]]*?\b\K[a-z][A-Za-z0-9_]*(?=\()' "$f" 2>/dev/null |
+  "$EXTRACT" -oP '^[A-Za-z_][A-Za-z0-9_<>,\s\?\.\(\)\[\]]*?\b\K[a-z][A-Za-z0-9_]*(?=\()' "$f" 2>/dev/null |
     sort -u |
     while read -r fn; do
       case "$fn" in if|for|while|switch|return|assert|print|throw|catch|else|""|main) continue ;; esac

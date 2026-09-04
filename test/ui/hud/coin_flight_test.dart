@@ -82,6 +82,16 @@ Future<CoinFlightState> pumpFlight(WidgetTester tester) async {
   return tester.state<CoinFlightState>(find.byType(CoinFlight));
 }
 
+/// Wait out the stagger.
+///
+/// **A SPRITE IS ONLY PUT UP ON THE FRAME IT STARTS MOVING** — see
+/// `coin_flight.dart`'s header — so the whole handful is in the air a beat
+/// after the reward rather than on the frame of it. Anything asking "how many
+/// flew" has to wait for the last one to be thrown.
+Future<void> pumpStagger(WidgetTester tester) => tester.pump(
+  const Duration(milliseconds: coinFlightStaggerMs * coinFlightSprites),
+);
+
 void main() {
   tearDown(clearBus);
 
@@ -95,6 +105,7 @@ void main() {
 
     emit('coins:updated', 90000);
     await tester.pump();
+    await pumpStagger(tester);
     expect(state.flying, coinFlightSprites);
     expect(find.byKey(const ValueKey('coin-flight')), findsOneWidget);
 
@@ -117,6 +128,7 @@ void main() {
     // something hands some over.
     emit('gems:updated', 5);
     await tester.pump();
+    await pumpStagger(tester);
     expect(state.flying, greaterThan(0));
     final gemSprites = state.flying;
     await tester.pumpAndSettle();
@@ -124,6 +136,7 @@ void main() {
 
     emit('energy:updated', 999);
     await tester.pump();
+    await pumpStagger(tester);
     expect(state.flying, greaterThan(0));
     await tester.pumpAndSettle();
     expect(state.flying, 0);
@@ -164,6 +177,7 @@ void main() {
     // And the flag is spent: the next real one still flies.
     emit('energy:updated', 5);
     await tester.pump();
+    await pumpStagger(tester);
     expect(state.flying, greaterThan(0));
     await tester.pumpAndSettle();
   });
@@ -192,6 +206,7 @@ void main() {
 
     emit('coins:updated', 91000);
     await tester.pump();
+    await pumpStagger(tester);
     expect(state.flying, coinFlightSprites);
     await tester.pump(const Duration(seconds: 2));
     await tester.pumpAndSettle();
@@ -204,6 +219,7 @@ void main() {
     final state = await pumpFlight(tester);
     emit('coins:updated', 91000);
     await tester.pump();
+    await pumpStagger(tester);
     expect(state.flying, coinFlightSprites);
     await tester.pump(const Duration(seconds: 2));
     await tester.pumpAndSettle();
@@ -234,6 +250,7 @@ void main() {
 
     emit('coins:updated', 90000);
     await tester.pump();
+    await pumpStagger(tester);
     expect(state.flying, coinFlightSprites);
 
     // Painted after the route, which is what puts them on top of it.
@@ -246,6 +263,149 @@ void main() {
 
     await tester.pump(const Duration(seconds: 2));
     await tester.pumpAndSettle();
+  });
+
+  group('A SPRITE IS NEVER ON SCREEN WITHOUT MOVING', () {
+    testWidgets('AND A FULL-SCREEN ROUTE DOES NOT FREEZE THE THROW', (
+      tester,
+    ) async {
+      // **The reported fault, and it is a `TickerMode` one.** The sprites draw
+      // in the ROOT overlay so they are over the route — but the LAYER is
+      // mounted in the shell, and a Navigator mutes `TickerMode` for
+      // everything under the topmost route. So a reward paid from inside a
+      // mini-game or a shop sheet put the handful up in the middle of the
+      // screen and left it there, frozen at the start of its arc, until the
+      // route was popped. Reported from the couch: a yellow dot in the middle
+      // of the screen that nobody could identify, which flew to the HUD on the
+      // way home.
+      //
+      // The existing sheet test does not catch it — a modal bottom sheet is
+      // not opaque, so what is underneath keeps its clock. A pushed page is.
+      final state = await pumpFlight(tester);
+      final navigator = Navigator.of(tester.element(find.byType(CoinFlight)));
+      unawaited(
+        navigator.push(
+          MaterialPageRoute<void>(
+            builder: (_) => const Scaffold(body: Text('a whole screen')),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('a whole screen'), findsOneWidget);
+
+      emit('coins:updated', 90000);
+      await tester.pump();
+      await pumpStagger(tester);
+      expect(state.flying, coinFlightSprites);
+
+      // The clock is the point: a muted layer reads as every sprite stuck on
+      // zero, which is what the dot in the middle of the screen WAS.
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(
+        state.progress,
+        everyElement(greaterThan(0.0)),
+        reason: 'the throw is frozen under the route',
+      );
+      expect(state.progress, isNotEmpty);
+      await tester.pump(const Duration(seconds: 2));
+      await tester.pumpAndSettle();
+      expect(state.flying, 0, reason: 'a sprite never arrived');
+    });
+
+    testWidgets('and a HEALTHY throw never reaches the backstop', (
+      tester,
+    ) async {
+      // Frame by frame, the way a device runs it: the last sprite is thrown at
+      // `coinFlightStaggerMs * (coinFlightSprites - 1)` and lands
+      // `coinFlightMs` later, well inside `coinFlightLifetime`. The backstop
+      // must not be culling throws that were going to land.
+      final state = await pumpFlight(tester);
+      emit('coins:updated', 90000);
+      for (
+        var t = 0;
+        t < coinFlightLifetime.inMilliseconds + 200;
+        t += 16
+      ) {
+        await tester.pump(const Duration(milliseconds: 16));
+      }
+      expect(state.flying, 0);
+      expect(state.swept, 0, reason: 'the backstop swept a healthy throw');
+    });
+
+    testWidgets('AND A STALLED THROW IS SWEPT, wherever it stalled', (
+      tester,
+    ) async {
+      // The backstop, not the fix. **A sprite that is not moving is not an
+      // animation, it is litter** — asked for flat: the dot must never just
+      // sit there, no matter where it is. So whatever stalls a throw next, the
+      // sprites come down rather than parking. Simulated by taking the frames
+      // away, which is what a muted clock did.
+      final state = await pumpFlight(tester);
+      emit('coins:updated', 90000);
+      await tester.pump();
+      await pumpStagger(tester);
+      expect(state.flying, coinFlightSprites);
+
+      // **ONE pump across the whole lifetime, which is the stall.** The test
+      // binding elapses the fake clock — firing `Timer`s — and only THEN draws
+      // a single frame, so at the moment the backstop's timer goes off the
+      // controllers are still sitting wherever the last frame left them. That
+      // is a layer getting no frames, which is what the muted clock was.
+      await tester.pump(coinFlightLifetime + const Duration(milliseconds: 50));
+      expect(state.swept, 1, reason: 'the backstop never fired');
+      expect(
+        state.flying,
+        0,
+        reason: 'a sprite outlived its own flight and stayed on screen',
+      );
+      expect(find.byKey(const ValueKey('coin-flight')), findsNothing);
+    });
+
+    testWidgets('and the sweep still pays the swell it was announcing', (
+      tester,
+    ) async {
+      // The money was never in the flight — it is already in the save — so a
+      // sweep costs the animation and nothing else.
+      final state = await pumpFlight(tester);
+      final container = ProviderScope.containerOf(
+        tester.element(find.byType(CoinFlight)),
+      );
+      final before = container.read(coinRewardProvider);
+      emit('coins:updated', 90000);
+      await tester.pump();
+      await pumpStagger(tester);
+      await tester.pump(coinFlightLifetime + const Duration(milliseconds: 50));
+      expect(state.swept, 1);
+      expect(state.flying, 0);
+      expect(container.read(coinRewardProvider), greaterThan(before));
+    });
+
+    testWidgets('and none of them WAITS at the throw point', (tester) async {
+      // The stagger is what makes a handful of change out of one thick coin,
+      // and every sprite used to be drawn at the throw point for the length of
+      // its own delay — so the last of seven sat in the middle of the screen
+      // for a quarter of a second before it went anywhere. Asked for in one
+      // sentence: as soon as they appear they fly up, otherwise they should
+      // not be there.
+      final state = await pumpFlight(tester);
+      emit('coins:updated', 90000);
+      // Walked frame by frame across the whole stagger: at no point is there a
+      // sprite on screen that has not started moving.
+      for (var i = 0; i < 30; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+        // At most the one just thrown, which has not had a tick yet. Before
+        // the fix all seven sat here on the first frame and the last of them
+        // for a quarter of a second.
+        expect(
+          state.progress.where((p) => p == 0).length,
+          lessThanOrEqualTo(1),
+          reason: 'sprites were parked at the throw point on frame $i',
+        );
+      }
+      expect(state.flying, coinFlightSprites);
+      await tester.pump(const Duration(seconds: 2));
+      await tester.pumpAndSettle();
+    });
   });
 
   testWidgets('reduced motion takes the reward without the throw', (

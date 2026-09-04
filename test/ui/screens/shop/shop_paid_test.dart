@@ -24,7 +24,6 @@ import 'package:merge_empire_fc/ui/screens/shop/shop_tiles.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 import 'package:merge_empire_fc/ui/screens/shop/currency_sheet.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_copy.dart';
-import 'package:merge_empire_fc/ui/screens/shop/shop_free.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_art.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_paid.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_spend.dart';
@@ -497,7 +496,7 @@ void main() {
       'lib/ui/screens/shop/shop_copy.dart',
       'lib/ui/screens/shop/coin_cluster.dart',
       'lib/ui/screens/shop/currency_sheet.dart',
-      'lib/ui/screens/shop/shop_free.dart',
+      'lib/ui/screens/shop/shop_match_day.dart',
       'lib/ui/screens/shop/shop_looks.dart',
       'lib/ui/screens/shop/shop_screen.dart',
     ]) {
@@ -514,33 +513,46 @@ void main() {
     }
   });
 
-  group('the free shelf', () {
-    testWidgets('shows both rows, AND THEY CAN BE WATCHED NOW', (tester) async {
-      // **This assertion has been inverted, and the inversion is the news.** It
-      // used to say every button on the shelf was dead, because there was no
-      // AdMob behind it; `services/admob_ads.dart` is that AdMob, so the two
-      // tiles pay out again. What decides whether one is live is the GATE and
-      // the cap, which is what the rest of this group covers.
-      await pumpShopWidget(tester, (_) {}, FreeShelfSection.new);
-      expect(find.text(t('shop.lucky_boot_ad_name')), findsOneWidget);
+  group('the Match Day shelf', () {
+    // **THE SHELF USED TO BE "FREE" AND ITS TILES USED TO BE VIDEOS.** Both
+    // cost gems now — see `shop_match_day_test.dart`, which is
+    // where the grants and the charges are pinned. What is left here is the
+    // shelf's place among the PAID sections: it is not one, and no button on
+    // it goes through a store.
+    testWidgets('shows both rows, and neither asks for a video', (
+      tester,
+    ) async {
+      await pumpShopWidget(tester, (s) {
+        final resources = s['resources'];
+        if (resources is Map<String, dynamic>) resources['gems'] = 20;
+      }, MatchDayTilesHarness.new);
+      expect(find.text(t('shop.lucky_boot_name')), findsOneWidget);
       expect(find.text(t('shop.match_cooldown_ad_name')), findsOneWidget);
       for (final b in tester.widgetList<StoreButton>(
         find.byType(StoreButton),
       )) {
         expect(b.onTap, isNotNull);
+        expect(b.tone, StoreTone.gem);
       }
     });
 
-    testWidgets('a spent daily cap reads as a cap, not as ready', (
-      tester,
-    ) async {
-      // The gate is real even though the button is not.
+    testWidgets('AND THE VIEW CAP NO LONGER REACHES IT', (tester) async {
+      // The shared frequency gate was the shelf's only reason to read "Daily
+      // cap", and a gem price is not rationed by how many videos the day has
+      // left. A save that has spent the whole allowance still buys.
       await pumpShopWidget(tester, (s) {
+        final resources = s['resources'];
+        if (resources is Map<String, dynamic>) resources['gems'] = 20;
         for (var i = 0; i < 20; i++) {
           recordPackAd(s);
         }
-      }, FreeShelfSection.new);
-      expect(find.text(t('shop.daily_cap')), findsWidgets);
+      }, MatchDayTilesHarness.new);
+      expect(find.text(t('shop.daily_cap')), findsNothing);
+      for (final b in tester.widgetList<StoreButton>(
+        find.byType(StoreButton),
+      )) {
+        expect(b.onTap, isNotNull);
+      }
     });
   });
   testWidgets('THE THREE OFFERS LOOK LIKE OFFERS', (tester) async {

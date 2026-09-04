@@ -337,9 +337,23 @@ const Map<String, String> itCopy = <String, String>{
           'stacca sul campo e gioca il momento — e poi puoi rivederlo.',
   'settings.matchSpeed.auto': 'Auto',
   'settings.matchSpeed.hint':
-      'Auto va a 2x e torna a 1x ogni volta che il mister ha qualcosa da dire, '
-          'così hai il tempo di leggerlo e intervenire.',
+      'Auto va a 2x e scende a metà velocità ogni volta che il mister ha '
+          'qualcosa da dire, così hai il tempo di leggerlo e intervenire.',
 
   // The training list's ceiling — see `en_copy.dart`.
   'training.up_to': 'Fino a',
+
+  // L'allenamento a riposo e il conto alla rovescia — vedi `en_copy.dart`.
+  'training.resting': 'Cooldown {time}',
+  'mg.countdown_go': 'VIA!',
+
+  // Negozio: il ripiano non è più gratis, e le entrate escono dai bonus —
+  // vedi `en_copy.dart`.
+  'shop.lucky_boot_name': 'Scarpa fortunata',
+  'shop.lucky_boot_desc': 'Prossimo avversario {pct}% più debole (una partita)',
+  'shop.section.income': 'Entrate',
+  'product.energy_director.desc': '+50 energia subito · Cap a 15 · ricarica {energyPct}% più rapida — per sempre, anche dopo i reset!',
+
+  'shop.section.looks': 'Stile allenatore',
+
 };

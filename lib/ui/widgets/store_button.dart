@@ -176,6 +176,14 @@ class _StoreButtonState extends State<StoreButton> {
 
   void _press() {
     if (widget.onTap == null) return;
+    // **ITS OWN CLICK, because it has no ink to hang one off.** Every Material
+    // button gets the press cue from the splash factory — see [TapSoundSplash]
+    // — and this one is a raw gesture state machine, so it asks the theme for
+    // the same cue rather than taking a dependency on the sound engine. A
+    // theme built without one (which is every test that builds one directly)
+    // stays silent.
+    final splash = Theme.of(context).splashFactory;
+    if (splash is TapSoundSplash) splash.onPress();
     setState(() => _down = true);
     if (widget.onHold == null) return;
     _repeated = false;

@@ -122,23 +122,28 @@ Future<int?> showPrestigeOffer(BuildContext context, WidgetRef ref) async {
 
   final mult = formatPrestigeMultiplier(nextPrestigeMultiplier(game.state));
   final pro = ref.read(hardModeProvider);
+  // **The pro line changes with what the save already is.** `body_pro_hint`
+  // invites a player into Pro mode; on a save that is ALREADY in it that
+  // sentence is an invitation to somewhere they are standing. `pro_note` is
+  // the same fact told the other way round — what the new career will be —
+  // and both were translated ten times over with no caller.
+  final proLine = t(pro ? 'prestige.pro_note' : 'prestige.body_pro_hint');
+
   final answer = await showCoachCard<_Route>(
     context,
     titleKey: 'prestige.title',
     bodyKey: 'prestige.body',
-    bodyParams: {'mult': mult},
-    // **The pro line changes with what the save already is.** `body_pro_hint`
-    // invites a player into Pro mode; on a save that is ALREADY in it that
-    // sentence is an invitation to somewhere they are standing. `pro_note` is
-    // the same fact told the other way round — what the new career will be —
-    // and both were translated ten times over with no caller.
-    extraLines: [
-      (
-        key: pro ? 'prestige.pro_note' : 'prestige.body_pro_hint',
-        params: const {},
-        strong: false,
-      ),
-    ],
+    // **HE SAYS BOTH SENTENCES, so he TYPES both.** The pro line was an
+    // `extraLines` entry, which is a static row under the body — so the card
+    // opened with the second half of what he had to say already sitting there
+    // while the typewriter was still working through the first. Reported from
+    // the couch. `extraLines` is for TERMS a card is asking you to agree to;
+    // this is Colin talking, and it belongs in the body.
+    //
+    // Resolved here rather than through `bodyKey` because it is two catalogue
+    // entries. `speaks` is not set on this card, so the clip key the body key
+    // would have carried is unused either way.
+    body: '${t('prestige.body', {'mult': mult})}\n\n$proLine',
     // **THE SECOND DOOR INTO PRO MODE, and the JS has had it all along.**
     // `_showPrestigeColin` offers ONE button on a save already in Pro and TWO
     // on one that is not — the standard reset and `champ.pro_cta` — which is

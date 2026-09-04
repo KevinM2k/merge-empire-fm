@@ -25,6 +25,7 @@ import 'package:merge_empire_fc/data/achievements.dart';
 import 'package:merge_empire_fc/data/art_paths.dart';
 import 'package:merge_empire_fc/data/cups.dart';
 import 'package:merge_empire_fc/data/divisions.dart';
+import 'package:merge_empire_fc/ui/widgets/section_heading.dart';
 import 'package:merge_empire_fc/engine/achievement_engine.dart';
 import 'package:merge_empire_fc/engine/badge_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
@@ -208,14 +209,26 @@ class _TrophyRoom extends ConsumerWidget {
           _BadgeRow(equipped: view.equippedBadgeId),
           if (hasSessionTrophies) ...[
             const SizedBox(height: 16),
-            _SectionLabel(t('trophy.session_label'), muted: true),
+            _SectionLabel(
+              t('trophy.session_label'),
+              icon: Icons.shield_moon,
+              ink: kit.textMuted,
+            ),
           ],
           if (view.league.isNotEmpty) ...[
-            _SectionLabel(t('trophy.league_count', {'n': view.league.length})),
+            _SectionLabel(
+              t('trophy.league_count', {'n': view.league.length}),
+              icon: Icons.emoji_events,
+              ink: trophyGold,
+            ),
             _TrophyGrid(trophies: view.league),
           ],
           if (view.cups.isNotEmpty) ...[
-            _SectionLabel(t('trophy.cup_count', {'n': view.cups.length})),
+            _SectionLabel(
+              t('trophy.cup_count', {'n': view.cups.length}),
+              icon: Icons.workspace_premium,
+              ink: trophySilver,
+            ),
             _TrophyGrid(trophies: view.cups),
           ],
           if (!hasSessionTrophies) ...[
@@ -232,7 +245,8 @@ class _TrophyRoom extends ConsumerWidget {
               'done': view.unlockedIds.length,
               'total': achievements.length,
             }),
-            muted: true,
+            icon: Icons.military_tech,
+            ink: kit.textMuted,
           ),
           for (final category in achievementCategories)
             ..._categorySection(category, view),
@@ -254,35 +268,69 @@ class _TrophyRoom extends ConsumerWidget {
       return const [];
     }
     return [
-      _SectionLabel(_categoryLabel(category)),
+      _SectionLabel(_categoryLabel(category), icon: _categoryIcon(category)),
       _AchievementGrid(items: items, view: view),
     ];
   }
 }
 
+/// Silver, for the cup shelf standing next to a gold one.
+///
+/// Two shelves of trophies in the same [trophyGold] read as one long shelf, and
+/// the whole point of a heading with its own colour is that you can find your
+/// way back to it — see [SectionHeading].
+const Color trophySilver = Color(0xFFC7D0DC);
+
+/// A heading in the trophy room.
+///
+/// **THE SHOP'S TREATMENT, asked for from the couch.** These were bare
+/// uppercase runs of text — no glyph, no rule — in a sheet that scrolls through
+/// twelve of them, while the shop next door gave every shelf a glyph, a colour
+/// and a rule out to the edge. See [SectionHeading].
+///
+/// The two TROPHY shelves take a colour each, because they are the two things a
+/// player opens this sheet to compare. The eight achievement categories take
+/// the club's accent and are told apart by their glyphs: a fresh palette of
+/// eight would be a colour scheme rather than a signal, and they are a series
+/// to read down rather than a menu to navigate.
 class _SectionLabel extends StatelessWidget {
-  const _SectionLabel(this.text, {this.muted = false});
+  const _SectionLabel(this.text, {required this.icon, this.ink});
 
   final String text;
-  final bool muted;
+  final IconData icon;
+
+  /// Null takes the club's accent.
+  final Color? ink;
 
   @override
   Widget build(BuildContext context) {
     final kit = Theme.of(context).extension<KitTheme>()!;
     return Padding(
       padding: const EdgeInsets.only(top: 16, bottom: 8),
-      child: Text(
-        text.toUpperCase(),
-        style: TextStyle(
-          fontSize: minFontSize,
-          fontWeight: muted ? FontWeight.w700 : FontWeight.w800,
-          letterSpacing: muted ? 0.5 : 1,
-          color: muted ? kit.textMuted : kit.accentBright,
-        ),
+      child: SectionHeading(
+        title: text,
+        icon: icon,
+        ink: ink ?? kit.accentBright,
       ),
     );
   }
 }
+
+/// The glyph for an achievement category. Line art, one per category, so the
+/// eight of them are told apart without eight colours.
+IconData _categoryIcon(String cat) => switch (cat) {
+  'progression' => Icons.trending_up,
+  'seasons' => Icons.emoji_events,
+  'merges' => Icons.auto_awesome,
+  'squad' => Icons.groups,
+  'weird' => Icons.bolt,
+  'hardmode' => Icons.local_fire_department,
+  'reset' => Icons.star_rounded,
+  'events' => Icons.event,
+  // A category added to the data file without a glyph here still gets a
+  // heading rather than nothing.
+  _ => Icons.military_tech,
+};
 
 /// "Your Badge" — the one thing every player has set, so it sits above the
 /// lists rather than under them. It is READ here and chosen from an

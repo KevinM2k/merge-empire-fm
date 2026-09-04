@@ -15,6 +15,7 @@
 /// save would actually be paid.
 library;
 
+import 'package:merge_empire_fc/data/config.dart';
 import 'package:merge_empire_fc/engine/energy_engine.dart';
 import 'package:merge_empire_fc/engine/iap_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
@@ -41,9 +42,25 @@ String productDesc(
   Map<String, dynamic>? state,
   bool hardMode = false,
 }) {
+  // **THE ENERGY FIGURES COME OFF THE CONSTANTS, and they had to.** The English
+  // desc said "refills 33% faster" and the other nine said "+1 every 7.5 min
+  // (was 10)" — both typed in. Changing `Energy.regenMs` from ten minutes to
+  // fifteen made the English understate the upgrade (it halves the wait now,
+  // not a third off) and made all nine translations quote a default that no
+  // longer exists. Reported from the couch on the 33%. Only the two integers
+  // are placeholders: the 7.5 has not moved, and it is written with a comma in
+  // half these languages, which a number substituted here could not know.
+  //
+  // **ALL TEN QUOTE THE PERCENTAGE NOW.** The nine translations described the
+  // upgrade as "+1 every 7.5 min (was 10)", which is the same fact told in a
+  // way that goes stale whenever the default moves — and `locale_copy_test`
+  // will not let an overlay carry a placeholder English does not, which is what
+  // caught the first attempt at fixing them separately.
+  final pct = ((1 - Energy.regenMsUpgraded / Energy.regenMs) * 100).round();
   String fill(String s) => s
       .replaceAll('{coins}', formatCoins(getProductGrantCoins(state, product)))
-      .replaceAll('{gems}', '${product.gems ?? ''}');
+      .replaceAll('{gems}', '${product.gems ?? ''}')
+      .replaceAll('{energyPct}', '$pct');
 
   if (hardMode && product.descHard != null) {
     return fill(

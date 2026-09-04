@@ -32,10 +32,18 @@ void main() {
   });
 
   group('the cap and the rate', () {
-    test('default to ten pips every ten minutes', () {
+    test('default to ten pips every FIFTEEN minutes', () {
+      // Fifteen, not the JS's ten — asked for directly, so that the Energy
+      // Director halves the wait rather than trimming a third off it. See
+      // `Energy.regenMs`, and `config_test.dart` for the invariant that pulled
+      // Pro mode's fitness regen along with it.
       final state = _state();
       expect(getEnergyMax(state), 10);
-      expect(getEnergyRegenMs(state), 10 * 60 * 1000);
+      expect(getEnergyRegenMs(state), 15 * 60 * 1000);
+    });
+
+    test('and the upgrade is exactly twice the rate', () {
+      expect(Energy.regenMs, Energy.regenMsUpgraded * 2);
     });
 
     test('the Energy Director raises the cap and shortens the wait', () {

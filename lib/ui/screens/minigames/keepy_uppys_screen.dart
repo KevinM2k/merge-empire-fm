@@ -24,6 +24,7 @@ import 'package:merge_empire_fc/state/game_state.dart';
 import 'package:merge_empire_fc/state/game_tick.dart';
 import 'package:merge_empire_fc/ui/hud/hud.dart' show hudCoinInk;
 import 'package:merge_empire_fc/ui/screens/minigames/keepy_uppys_sim.dart';
+import 'package:merge_empire_fc/ui/screens/minigames/minigame_countdown.dart';
 import 'package:merge_empire_fc/ui/screens/minigames/minigame_header.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/util/format.dart';
@@ -60,6 +61,14 @@ class KeepyUppysScreenState extends ConsumerState<KeepyUppysScreen>
 
   KeepyUppysSim? _sim;
   Duration _lastTick = Duration.zero;
+
+  /// **THE BALL USED TO DROP THE INSTANT THE ARENA HAD BEEN MEASURED**, which
+  /// is one frame after the screen opened — so the first fall was over before
+  /// the player had a hand anywhere near it. The sim is still built on that
+  /// first layout, because the ball is placed against the arena; what waits for
+  /// GO is the TICKER. So the ball hangs where it starts for the length of the
+  /// count, which is the picture the count wants behind it.
+  bool _counting = true;
   bool _over = false;
   bool _banked = false;
   int _coins = 0;
@@ -68,6 +77,7 @@ class KeepyUppysScreenState extends ConsumerState<KeepyUppysScreen>
   /// Test seams.
   KeepyUppysSim? get sim => _sim;
   bool get over => _over;
+  bool get counting => _counting;
   int get coinsWon => _coins;
   int get taps => _sim?.taps ?? 0;
 
@@ -100,7 +110,23 @@ class KeepyUppysScreenState extends ConsumerState<KeepyUppysScreen>
       arenaH: arena.height,
       random: _rng.nextDouble,
     );
+    if (!_counting) _start();
+  }
+
+  /// GO — or the arena finally being measured, whichever lands second.
+  void _start() {
+    if (_sim == null || _over) return;
+    // The frame the count ended on is not a frame of play: `_onTick` reads
+    // `elapsed` off the ticker, so the first dt has to be measured from here
+    // or the ball teleports by however long the count took.
+    _lastTick = Duration.zero;
     if (!_ticker.isActive) _ticker.start();
+  }
+
+  void _kickOff() {
+    if (!mounted) return;
+    setState(() => _counting = false);
+    _start();
   }
 
   void _onTick(Duration elapsed) {
@@ -137,7 +163,9 @@ class KeepyUppysScreenState extends ConsumerState<KeepyUppysScreen>
 
   void _tapArena(Offset at) {
     final sim = _sim;
-    if (sim == null || _over || sim.missed || sim.bonus) return;
+    // The ball is on screen and hangs still through the count, so it is a live
+    // target unless the count says otherwise — the overlay ignores pointers.
+    if (sim == null || _counting || _over || sim.missed || sim.bonus) return;
     if (!sim.tap(at.dx, at.dy)) return;
     unawaited(ref.read(soundServiceProvider).play('tap'));
     setState(() {});
@@ -229,12 +257,22 @@ class KeepyUppysScreenState extends ConsumerState<KeepyUppysScreen>
               const SizedBox(height: 10),
               SizedBox(
                 height: keepyArenaHeight,
-                child: _Arena(
-                  kit: kit,
-                  sim: sim,
-                  onLayout: _ensureSim,
-                  onTap: _tapArena,
-                  showHint: (sim?.taps ?? 0) == 0,
+                child: Stack(
+                  children: [
+                    Positioned.fill(
+                      child: _Arena(
+                        kit: kit,
+                        sim: sim,
+                        onLayout: _ensureSim,
+                        onTap: _tapArena,
+                        showHint: !_counting && (sim?.taps ?? 0) == 0,
+                      ),
+                    ),
+                    if (_counting)
+                      Positioned.fill(
+                        child: MiniGameCountdown(onDone: _kickOff),
+                      ),
+                  ],
                 ),
               ),
               const SizedBox(height: 10),

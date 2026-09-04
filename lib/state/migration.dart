@@ -96,6 +96,9 @@ Map<String, dynamic>? migrate(Map<String, dynamic>? data) {
   migrateAgeVerification(data);
   migrateWeather(data);
   backfillCareerCounters(data);
+  // After `migrateProgression`, which is what guarantees `leagueTrophies` and
+  // `seasonHistory` are lists to read.
+  backfillChampionsTitle(data);
   migrateQuests(data);
 
   return data;

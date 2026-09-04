@@ -25,15 +25,20 @@ void main() {
   tearDown(resetLocale);
 
   test('the section order is the one the JS ships', () {
-    // Offers first (the highest-converting slot), then the free shelf (why a
-    // non-payer opens the shop at all), then hard currency before soft, then
-    // what those currencies buy, then cosmetics.
+    // Offers first (the highest-converting slot), then hard currency before
+    // soft, then what those currencies buy, then cosmetics.
+    //
+    // `income` sits straight after `boosts` because it came OUT of it — the
+    // old shelf mixed things that fix the squad with things that multiply what
+    // it earns, and one heading over both answered neither. There was a Match
+    // Day shelf between Offers and the currencies; its two tiles are on the end
+    // of the Boosts grid now and it has no heading of its own.
     expect(shopSectionOrder, [
       ShopSectionId.offers,
-      ShopSectionId.free,
       ShopSectionId.gems,
       ShopSectionId.coins,
       ShopSectionId.boosts,
+      ShopSectionId.income,
       ShopSectionId.vouchers,
       ShopSectionId.looks,
     ]);

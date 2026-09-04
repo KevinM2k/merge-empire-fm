@@ -24,11 +24,25 @@
 /// seen: the daily reward sheet, the welcome-back card, a shop purchase, an ad
 /// payout. All of them hand over money from inside a route, and the coins flew
 /// behind it. Same answer, and the same reason, as `toast_host.dart`.
+///
+/// **A SPRITE IS NEVER ON SCREEN WITHOUT MOVING**, which is two fixes and one
+/// rule. Every sprite used to go into [CoinFlightState._flights] — and so onto
+/// the screen — the instant the reward landed, and then wait out its stagger
+/// sitting at the throw point; and the layer is mounted in the shell, so a
+/// Navigator muted its `TickerMode` and a reward paid from inside a route
+/// froze the whole handful in the middle of the screen until the route was
+/// popped. Reported from the couch as an unidentifiable yellow dot that flew
+/// to the HUD on the way home. The `TickerMode` is fixed where the layer is
+/// mounted, in `app_shell.dart`; the stagger is fixed here — a sprite is put
+/// up on the frame it starts flying and not before. Asked for in one sentence:
+/// as soon as they appear they fly up, otherwise they should not be there.
 library;
 
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart'
     show coinsProvider, energyProvider, gemsProvider;
@@ -104,11 +118,48 @@ class CoinReward extends Notifier<int> {
 const int coinFlightSprites = 7;
 
 /// How long one coin takes to arrive.
-const Duration coinFlightDuration = Duration(milliseconds: 620);
+const int coinFlightMs = 620;
+const Duration coinFlightDuration = Duration(milliseconds: coinFlightMs);
+
+/// The gap between one sprite being thrown and the next. What makes a handful
+/// of change out of one thick coin.
+const int coinFlightStaggerMs = 45;
+
+/// How long a sprite is ALLOWED to exist: its own flight, plus the whole
+/// stagger ahead of it, plus a beat of slack.
+///
+/// **ANYTHING STILL ON SCREEN PAST THIS IS PARKED, NOT FLYING**, whatever the
+/// cause — a muted clock, a stalled frame, the app coming back from the
+/// background mid-throw — and it gets swept off. This is the backstop behind
+/// the two actual causes that were found and fixed; the requirement it exists
+/// for was stated flat: the dot must never just sit there, no matter where it
+/// is. See [CoinFlightState._sweepStalled].
+const Duration coinFlightLifetime = Duration(
+  milliseconds:
+      coinFlightMs + coinFlightStaggerMs * coinFlightSprites + 250,
+);
 
 /// The layer the coins fly across. Wraps nothing and draws nothing where it
 /// sits: the sprites go up in the ROOT overlay, so a coin passes over the HUD's
 /// glass AND over whatever sheet or card handed the money over.
+///
+/// **AND IT KEEPS ITS OWN CLOCK, which is why it provides its own tickers.**
+/// The layer is mounted in the shell and a Navigator mutes `TickerMode` for
+/// everything under the topmost route, so a reward paid from inside a route
+/// froze the whole handful at the throw point until the route was popped.
+///
+/// **`TickerMode(enabled: true)` DOES NOT UNDO THAT.** It composes with its
+/// ancestors — `_TickerModeState` computes `_effectiveMode = _ancestorTickerMode
+/// && widget.enabled` — so nesting an enabled one inside a muted one leaves it
+/// muted, and wrapping the mounting in `app_shell.dart` would have looked like
+/// a fix and changed nothing. Tried, and the regression test below is what said
+/// so. So [CoinFlightState] implements [TickerProvider] itself rather than
+/// taking the mixin, and hands out plain unmuted [Ticker]s.
+///
+/// The exposure that buys is bounded: a flight is 620ms and its controller is
+/// disposed the moment it lands, `disableAnimations` is honoured before
+/// anything is created, and nothing else in the tree is affected — which is
+/// the reason this is not a `TickerMode` over the shell.
 class CoinFlight extends ConsumerStatefulWidget {
   const CoinFlight({super.key});
 
@@ -117,7 +168,16 @@ class CoinFlight extends ConsumerStatefulWidget {
 }
 
 class CoinFlightState extends ConsumerState<CoinFlight>
-    with TickerProviderStateMixin {
+    implements TickerProvider {
+  /// An UNMUTED ticker, deliberately — see the note on [CoinFlight].
+  ///
+  /// Not tracked: every controller this layer creates is disposed either when
+  /// it lands or, for one still waiting out its stagger, by its own delayed
+  /// callback finding the layer gone — and `AnimationController.dispose`
+  /// disposes the ticker with it.
+  @override
+  Ticker createTicker(TickerCallback onTick) => Ticker(onTick);
+
   final List<_Flight> _flights = [];
 
   /// The next `<wallet>:updated` is the loop's trickle, not a reward. Per
@@ -136,8 +196,32 @@ class CoinFlightState extends ConsumerState<CoinFlight>
   /// The layer's own overlay entry, or null while nothing is in the air.
   OverlayEntry? _entry;
 
+  /// The backstop's timer — see [coinFlightLifetime] and [_sweepStalled].
+  ///
+  /// A `Timer` and not a frame callback, deliberately: what it is guarding
+  /// against includes a layer that is getting no frames.
+  Timer? _sweep;
+
   /// Test seam: how many sprites are in the air.
   int get flying => _flights.length;
+
+  /// Test seam: how many throws the backstop has had to sweep off the screen.
+  ///
+  /// Zero on every healthy run — the last sprite lands at
+  /// `coinFlightStaggerMs * (coinFlightSprites - 1) + coinFlightMs`, which is
+  /// well inside [coinFlightLifetime]. A test that sees this move has watched
+  /// the guarantee do its job.
+  int get swept => _swept;
+  int _swept = 0;
+
+  /// Test seam: how far each sprite in the air has flown, 0..1.
+  ///
+  /// A layer whose clock has been muted reads as every sprite stuck on zero,
+  /// which is what a frozen dot in the middle of the screen IS — see the
+  /// header.
+  List<double> get progress => [
+    for (final flight in _flights) flight.controller.value,
+  ];
 
   @override
   void initState() {
@@ -176,6 +260,7 @@ class CoinFlightState extends ConsumerState<CoinFlight>
 
   @override
   void dispose() {
+    _sweep?.cancel();
     for (final (event, handler) in _subs) {
       off(event, handler);
     }
@@ -234,6 +319,28 @@ class CoinFlightState extends ConsumerState<CoinFlight>
   /// Only the coin counter swells; the other two chips are plain figures.
   bool _swells(FlightWallet wallet) => wallet.chip == coinChipKey;
 
+  /// Take everything that has outlived its flight off the screen.
+  ///
+  /// **A SPRITE THAT IS NOT MOVING IS NOT AN ANIMATION, it is litter**, and
+  /// the two ways it happened — a `TickerMode` a Navigator had muted, and a
+  /// sprite drawn while it waited out its stagger — are both fixed at source.
+  /// This is the guarantee rather than the fix: whatever stalls a throw next,
+  /// the sprites come down instead of parking. The money itself was never in
+  /// the flight — it is already in the save — so sweeping costs the animation
+  /// and nothing else, and the swell it was announcing is still paid.
+  void _sweepStalled() {
+    _sweep = null;
+    if (_flights.isEmpty) return;
+    _swept++;
+    final swell = _flights.any((flight) => flight.swells);
+    for (final flight in _flights) {
+      flight.controller.dispose();
+    }
+    _flights.clear();
+    _sync();
+    if (swell) ref.read(coinRewardProvider.notifier).land();
+  }
+
   void _launch(FlightWallet wallet) {
     if (!mounted) return;
     if (MediaQuery.of(context).disableAnimations) {
@@ -265,15 +372,22 @@ class CoinFlightState extends ConsumerState<CoinFlight>
             Offset((rng.nextDouble() - 0.5) * 150, -30 - rng.nextDouble() * 90),
         from: from,
         to: to,
-        delay: i * 45,
+        delay: i * coinFlightStaggerMs,
+        swells: _swells(wallet),
       );
-      _flights.add(flight);
+      // **PUT UP ON THE FRAME IT STARTS MOVING**, not now. The stagger is what
+      // makes a handful of change out of one thick coin, and every sprite used
+      // to be drawn at the throw point for the length of its own delay — so
+      // the last of seven sat in the middle of the screen for a quarter of a
+      // second before it went anywhere. See the header.
       Future<void>.delayed(Duration(milliseconds: flight.delay), () {
         if (!mounted) {
           controller.dispose();
           return;
         }
+        _flights.add(flight);
         controller.forward();
+        _sync();
       });
       controller.addStatusListener((status) {
         if (status != AnimationStatus.completed) return;
@@ -287,7 +401,12 @@ class CoinFlightState extends ConsumerState<CoinFlight>
         }
       });
     }
-    _sync();
+    // Armed per throw rather than per sprite: one timer past the last possible
+    // landing is all the backstop needs.
+    _sweep?.cancel();
+    _sweep = Timer(coinFlightLifetime, () {
+      if (mounted) _sweepStalled();
+    });
   }
 
   @override
@@ -344,6 +463,7 @@ class _Flight {
     required this.via,
     required this.to,
     required this.delay,
+    required this.swells,
   });
 
   final AnimationController controller;
@@ -354,6 +474,10 @@ class _Flight {
   final Offset via;
   final Offset to;
   final int delay;
+
+  /// Whether this sprite's arrival is what swells the coin counter. Carried on
+  /// the flight so [CoinFlightState._sweepStalled] can still pay it.
+  final bool swells;
 }
 
 /// The sprite. A disc rather than the glyph: at 18px a stroked coin is a

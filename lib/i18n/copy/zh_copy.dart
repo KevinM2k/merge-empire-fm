@@ -213,8 +213,21 @@ const Map<String, String> zhCopy = <String, String>{
   // The settings screen's small print — see `en_copy.dart`.
   'settings.cutaways.hint': '当你开启的一方获得机会时，比赛会切到球场上演这一幕——事后还可以回放。',
   'settings.matchSpeed.auto': '自动',
-  'settings.matchSpeed.hint': '自动模式以 2 倍速进行，教练一开口就降回 1 倍速，让你有时间读完并做出调整。',
+  'settings.matchSpeed.hint': '自动模式以 2 倍速进行，教练一开口就降到半速，让你有时间读完并做出调整。',
 
   // The training list's ceiling — see `en_copy.dart`.
   'training.up_to': '最多',
+
+  // 休息中的训练与开场倒数 — 见 `en_copy.dart`。
+  'training.resting': '冷却中 {time}',
+  'mg.countdown_go': '开始！',
+
+  // 商店：货架不再免费，收入从加成中分出 — 见 `en_copy.dart`。
+  'shop.lucky_boot_name': '幸运球靴',
+  'shop.lucky_boot_desc': '下一场比赛对手能力下降{pct}%',
+  'shop.section.income': '收入',
+  'product.energy_director.desc': '立即 +50 能量 · 上限提至 15 · 充能速度提升 {energyPct}%——永久，重置后仍保留！',
+
+  'shop.section.looks': '主教练风格',
+
 };

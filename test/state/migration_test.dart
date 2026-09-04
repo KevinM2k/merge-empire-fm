@@ -42,6 +42,122 @@ void main() {
     seeded.setSeed(12345);
   });
 
+  group('THE CHAMPIONS LEAGUE TITLE WON BEFORE THERE WAS A SHELF', () {
+    // `endSeason` writes the trophy at full time, so a save that had already
+    // won the top flight had prestige unlocked, the gems paid, and a cabinet
+    // whose highest league shelf was Continental. Asked directly: will it
+    // backport? See `backfillChampionsTitle`.
+    List<dynamic> shelfOf(Map<String, dynamic>? save) =>
+        ((save!['progression'] as Map)['leagueTrophies'] as List);
+
+    Map<String, dynamic> won({
+      int prestigeLevel = 0,
+      List<Map<String, dynamic>> history = const [
+        {
+          'season': 6,
+          'division': 'champions_cup',
+          'position': 1,
+          'outcome': 'stayed',
+        },
+      ],
+      List<Map<String, dynamic>> trophies = const [],
+    }) => _legacy({
+      'progression': {
+        'wonChampionsCup': true,
+        'currentDivision': 'champions_cup',
+        'seasonCount': 6,
+        'seasonHistory': history,
+        'leagueTrophies': trophies,
+      },
+      'prestige': {'level': prestigeLevel},
+      'careerStats': {'leagueWins': 3, 'cupWins': 1},
+    });
+
+    test('it lands on the shelf, stamped with the season it was won', () {
+      final save = migrate(won());
+      final shelf = shelfOf(save);
+      expect(shelf, hasLength(1));
+      expect(shelf.single, {
+        'season': 6,
+        'division': 'champions_cup',
+        'position': 1,
+      });
+      // And it counts, the same as the engine now counts it.
+      expect((save!['careerStats'] as Map)['leagueWins'], 4);
+    });
+
+    test('a save that never won it gets nothing', () {
+      final save = migrate(
+        _legacy({
+          'progression': {
+            'wonChampionsCup': false,
+            'seasonHistory': <dynamic>[],
+            'leagueTrophies': <dynamic>[],
+          },
+          'careerStats': {'leagueWins': 3, 'cupWins': 1},
+        }),
+      );
+      expect(shelfOf(save), isEmpty);
+      expect((save!['careerStats'] as Map)['leagueWins'], 3);
+    });
+
+    test('nor does one that already has the trophy', () {
+      final save = migrate(
+        won(
+          trophies: const [
+            {'season': 6, 'division': 'champions_cup', 'position': 1},
+          ],
+        ),
+      );
+      expect(shelfOf(save), hasLength(1));
+      expect((save!['careerStats'] as Map)['leagueWins'], 3);
+    });
+
+    test('TWO titles in one run both land', () {
+      final save = migrate(
+        won(
+          history: const [
+            {'season': 4, 'division': 'champions_cup', 'position': 1},
+            {'season': 5, 'division': 'champions_cup', 'position': 3},
+            {'season': 6, 'division': 'champions_cup', 'position': 1},
+          ],
+        ),
+      );
+      expect(
+        shelfOf(save).map((t) => (t as Map)['season']).toList(),
+        [4, 6],
+        reason: 'a third-place season is not a title',
+      );
+      expect((save!['careerStats'] as Map)['leagueWins'], 5);
+    });
+
+    test('BUT A PRESTIGED SAVE ONLY GETS THE CURRENT RUN\'S', () {
+      // Prestige clears `leagueTrophies` and `wonChampionsCup` and restarts
+      // `seasonCount` at 1 — but it does NOT clear `seasonHistory`, so those
+      // older rows are titles whose trophies prestige deliberately wiped, and
+      // their season numbers collide with this run's. Only the newest row can
+      // be attributed, so only it is given.
+      final save = migrate(
+        won(
+          prestigeLevel: 2,
+          history: const [
+            {'season': 4, 'division': 'champions_cup', 'position': 1},
+            {'season': 6, 'division': 'champions_cup', 'position': 1},
+          ],
+        ),
+      );
+      expect(shelfOf(save).map((t) => (t as Map)['season']).toList(), [6]);
+      expect((save!['careerStats'] as Map)['leagueWins'], 4);
+    });
+
+    test('and it runs ONCE — a second load hands out no second trophy', () {
+      final once = migrate(won())!;
+      final twice = migrate(_clone(once))!;
+      expect(shelfOf(twice), hasLength(1));
+      expect((twice['careerStats'] as Map)['leagueWins'], 4);
+    });
+  });
+
   group('version gating', () {
     test('a null save migrates to null', () {
       expect(migrate(null), isNull);
@@ -119,6 +235,9 @@ void main() {
         '_ratingBandsReseed2026',
         '_fatigueTwoLayerReseed',
         '_prestigePoints2026',
+        // The one-off shelf for a Champions League title won before there was
+        // one — see `backfillChampionsTitle`.
+        '_championsTitleTrophy2026',
       });
     });
   });

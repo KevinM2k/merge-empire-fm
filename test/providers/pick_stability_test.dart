@@ -45,7 +45,7 @@ import 'package:merge_empire_fc/ui/screens/match/play_button.dart';
 import 'package:merge_empire_fc/ui/screens/minigames/minigames_providers.dart';
 import 'package:merge_empire_fc/ui/screens/quests/quests_sheet.dart';
 import 'package:merge_empire_fc/ui/screens/season/season_end_screen.dart';
-import 'package:merge_empire_fc/ui/screens/shop/shop_free.dart';
+import 'package:merge_empire_fc/ui/screens/shop/shop_match_day.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_providers.dart';
 import 'package:merge_empire_fc/ui/screens/squad/squad_pickers.dart';
 import 'package:merge_empire_fc/ui/screens/squad/squad_providers.dart';
@@ -161,8 +161,7 @@ void main() {
     'skipsLeftToday': skipsLeftTodayProvider,
     'matchBlocked': matchBlockedProvider,
     'cupRound': cupRoundProvider,
-    'adGate': adGateProvider,
-    'freeShelf': freeShelfProvider,
+    'matchDay': matchDayProvider,
     'trophyRoom': trophyRoomProvider,
     'consumableTiles': consumableTilesProvider,
     'paidTiles': paidTilesProvider,

@@ -12,7 +12,6 @@ library;
 import 'package:flutter/material.dart';
 import 'package:merge_empire_fc/ui/hud/hud.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:merge_empire_fc/ui/screens/shop/shop_free.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_looks.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_paid.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_section.dart';
@@ -77,10 +76,10 @@ class ShopScreenState extends ConsumerState<ShopScreen> {
 
   Widget _shelf(ShopSectionId id) => switch (id) {
     ShopSectionId.offers => const OffersSection(),
-    ShopSectionId.free => const FreeShelfSection(),
     ShopSectionId.gems => const GemPacksSection(),
     ShopSectionId.coins => const CoinPacksSection(),
     ShopSectionId.boosts => const BoostsSection(),
+    ShopSectionId.income => const IncomeSection(),
     ShopSectionId.vouchers => const VouchersSection(),
     ShopSectionId.looks => const LooksSection(),
   };

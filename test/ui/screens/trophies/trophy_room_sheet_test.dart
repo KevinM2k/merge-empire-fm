@@ -116,6 +116,46 @@ void main() {
   });
 
   group('trophies', () {
+    testWidgets('THE CHAMPIONS LEAGUE IS A LEAGUE TITLE, not the cup', (
+      tester,
+    ) async {
+      // **TWO COMPETITIONS, ADJACENT NAMES.** `division.champions_cup` reads
+      // "Champions League" and is the top of the ladder; the CUP that reads
+      // "Champions Cup" is `world_club_cup`. Winning the division recorded no
+      // trophy at all — see the note in `season_end.dart` — and the cabinet's
+      // highest league shelf was Continental while a Champions Cup sat under
+      // the cups. Reported from the couch, in exactly those terms.
+      await pumpRoom(
+        tester,
+        _stateWith(
+          trophies: [
+            {'season': 6, 'division': 'champions_cup', 'position': 1},
+            {'season': 4, 'division': 'world_club_cup', 'cup': true},
+          ],
+        ),
+      );
+      expect(
+        find.byKey(const ValueKey('trophy-champions_cup-6')),
+        findsOneWidget,
+      );
+      // One each, in the two different lists.
+      expect(t('trophy.league_count', {'n': 1}).toUpperCase(), isNotEmpty);
+      expect(
+        find.text(t('trophy.league_count', {'n': 1}).toUpperCase()),
+        findsOneWidget,
+      );
+      expect(
+        find.text(t('trophy.cup_count', {'n': 1}).toUpperCase()),
+        findsOneWidget,
+      );
+      // And they are named apart.
+      expect(find.text(tName('division', 'champions_cup')), findsOneWidget);
+      expect(
+        tName('division', 'champions_cup'),
+        isNot(tName('cup', 'world_club_cup')),
+      );
+    });
+
     testWidgets('a league title draws its division art', (tester) async {
       await pumpRoom(
         tester,

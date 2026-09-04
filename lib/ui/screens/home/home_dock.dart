@@ -25,7 +25,7 @@ import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/ui/hud/hud.dart' show energyMaxProvider;
 import 'package:merge_empire_fc/ui/popups/coach_card.dart'
-    show CoachAlertBadge, CoachFace;
+    show CoachAlertBadge, CoachFace, coachAlertDotInset;
 import 'package:merge_empire_fc/ui/popups/prestige_card.dart';
 import 'package:merge_empire_fc/ui/popups/quick_nav_menu.dart';
 import 'package:merge_empire_fc/ui/screens/home/coach_bubble.dart';
@@ -70,7 +70,7 @@ class DockButton extends StatelessWidget {
         onTap: onTap,
         child: SizedBox(
           key: anchorKey,
-          width: 54,
+          width: dockOrbSize,
           child: Stack(
             clipBehavior: Clip.none,
             children: [
@@ -78,8 +78,8 @@ class DockButton extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Container(
-                    width: 54,
-                    height: 54,
+                    width: dockOrbSize,
+                    height: dockOrbSize,
                     clipBehavior: Clip.antiAlias,
                     decoration: BoxDecoration(
                       // **A CIRCLE, like the floating coach's head.** These were
@@ -135,23 +135,42 @@ class DockButton extends StatelessWidget {
                   // ground; it needs its own.
                   const SizedBox(height: 3),
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 6,
-                      vertical: 1,
-                    ),
+                    // **A FIXED HEIGHT, so a scaled caption cannot move the
+                    // orb.** The docks are bottom-aligned in their slots — see
+                    // `home_screen.dart`'s rail — so the caption's height is
+                    // what decides how high the disc above it sits, and
+                    // `scaleDown` shrinks BOTH axes: "Coach" is wider than the
+                    // 54 orb and came out 11.6 tall where "Menu" fits at 14.5,
+                    // which dropped Colin three points below the burger. They
+                    // were only ever level by every label happening to have the
+                    // same line metrics; this makes it structural.
+                    height: dockCaptionHeight,
+                    alignment: Alignment.center,
+                    padding: const EdgeInsets.symmetric(horizontal: 6),
                     decoration: BoxDecoration(
                       color: Colors.black.withValues(alpha: 0.55),
                       borderRadius: BorderRadius.circular(999),
                     ),
-                    child: Text(
-                      label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.3,
-                        color: Colors.white,
+                    // **THE WORD GIVES, IT DOES NOT GET CUT OFF.** The orb is
+                    // 54 and "Prestige" at 12/w800 is wider than that once the
+                    // capsule's padding is paid for, so the caption came out as
+                    // an ellipsis on the home page. Reported from the couch.
+                    // `scaleDown` rather than a smaller font for every orb:
+                    // "Menu" and "Coach" fit at 12 and keep it, and it is the
+                    // page's own answer to a tight caption already — the
+                    // fixture line and the next-match card both use it.
+                    child: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(
+                        label,
+                        maxLines: 1,
+                        softWrap: false,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.3,
+                          color: Colors.white,
+                        ),
                       ),
                     ),
                   ),
@@ -159,9 +178,14 @@ class DockButton extends StatelessWidget {
               ),
               if (dot)
                 Positioned(
-                  right: -3,
-                  top: -4,
-                  child: CoachAlertBadge(dotKey: dotKey),
+                  // On the orb's rim, not off its corner — see
+                  // [coachAlertDotInset].
+                  right: coachAlertDotInset(dockOrbSize),
+                  top: coachAlertDotInset(dockOrbSize),
+                  // Plain: a dot, not an exclamation mark. These orbs are on
+                  // the page the player is already looking at — see
+                  // [CoachAlertBadge.plain].
+                  child: CoachAlertBadge(dotKey: dotKey, plain: true),
                 ),
             ],
           ),
@@ -229,6 +253,16 @@ class PrestigeDock extends ConsumerWidget {
     );
   }
 }
+
+/// The orb's diameter. The dot is placed off it — see [coachAlertDotInset].
+const double dockOrbSize = 54;
+
+/// The caption capsule's height — see the note in [DockButton].
+///
+/// The 12/w800 label lays out 14.5 tall and the capsule carried a point of
+/// padding either side of it, so this is what the pill already measured, named
+/// and rounded up a half so a descender has somewhere to go.
+const double dockCaptionHeight = 17;
 
 /// The burger, bottom right.
 class MenuDock extends ConsumerWidget {

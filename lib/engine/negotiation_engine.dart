@@ -46,6 +46,11 @@ typedef Offer = Map<String, dynamic>;
 
 Map<String, dynamic>? _map(Object? v) => v is Map<String, dynamic> ? v : null;
 num? _num(Object? v) => v is num ? v : null;
+/// Pro mode, which decides whether the trait pool includes the stamina ones —
+/// see [rollDealCard].
+bool _hardMode(Map<String, dynamic>? s) =>
+    _map(s?['settings'])?['hardMode'] == true;
+
 
 /// JS `Math.round` — halves go up, not to even.
 int _jsRound(num v) => (v + 0.5).floor();
@@ -243,7 +248,16 @@ List<CardInstance> usableCards(Map<String, dynamic>? state) => [
 /// trait-chance roll are seeded gameplay, while the variant, the rating spread,
 /// the ATK/DEF ratio and the trait itself come off `dart:math` inside
 /// [createInstance] and [rollTrait].
-CardInstance? rollDealCard(PlayerDef? def) {
+///
+/// **[hardMode] IS WHY THE POOL IS PASSED A FLAG.** Stamina traits — Iron Lungs
+/// — are Pro-mode only, filtered out of `getTraitPoolForPosition` otherwise,
+/// and this rolled with the flag defaulted to false. So in Pro mode a signing
+/// could never carry one, only a paid re-roll could, which is the sentence
+/// above being false: a trait that arrives on a signing was NOT worth what one
+/// you rolled would be. It also left `hard_marathon` — "have an Iron Lungs
+/// player in your squad" — reachable by exactly one route. Asked about from the
+/// couch: is that even unlockable?
+CardInstance? rollDealCard(PlayerDef? def, {bool hardMode = false}) {
   if (def == null) return null;
   final female = seeded.random() < 0.5;
   final card = createInstance(def.id, preferredFemale: female);
@@ -253,7 +267,7 @@ CardInstance? rollDealCard(PlayerDef? def) {
     female: female,
   );
   if (seeded.random() < traitChanceForTier(def.tier)) {
-    applyTrait(card, rollTrait(def.position));
+    applyTrait(card, rollTrait(def.position, hardMode: hardMode));
   }
   return card;
 }
@@ -263,11 +277,11 @@ double traitChanceForTier([int tier = 1]) =>
     math.min(0.68, 0.04 + 0.08 * math.max(0, tier - 1));
 
 /// A pre-rolled card at [tier], for players the AI offers us.
-CardInstance? _rollCard(int tier) {
+CardInstance? _rollCard(int tier, {bool hardMode = false}) {
   final t = math.max(1, math.min(maxDealTier, tier));
   final pool = getPlayersByTier(t);
   if (pool.isEmpty) return null;
-  return rollDealCard(seeded.pickRandom(pool));
+  return rollDealCard(seeded.pickRandom(pool), hardMode: hardMode);
 }
 
 /// How many incoming players a swap can actually deliver: the empty grid cells,
@@ -314,7 +328,10 @@ Offer buildRivalOffer(
   void addOne() {
     if (incoming.length >= room) return;
     final offset = seeded.pickRandom(incomingTierOffset);
-    final card = _rollCard(targetDef.tier + offset);
+    final card = _rollCard(
+      targetDef.tier + offset,
+      hardMode: _hardMode(state),
+    );
     if (card != null) incoming.add(card);
   }
 

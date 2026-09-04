@@ -69,7 +69,20 @@ class Energy {
 
   static const int max = 10;
   static const int maxUpgraded = 15;
-  static const int regenMs = 10 * 60 * 1000;
+
+  /// **FIFTEEN MINUTES A PIP, and the JS's is ten.** A deliberate divergence,
+  /// asked for directly. Ten put a full tank back in an hour and forty and made
+  /// the Energy Director — which also shortens this — worth a third more
+  /// throughput; at fifteen the upgrade is worth exactly DOUBLE, which is a
+  /// clearer thing to sell and a slower default to sell it against.
+  ///
+  /// `energyEngine.js` reads its own `ENERGY.REGEN_MS`, so nothing the parity
+  /// harness compares moves: the regen is credited off elapsed wall clock and
+  /// no fixture carries a duration.
+  static const int regenMs = 15 * 60 * 1000;
+
+  /// The Energy Director's, left where it was — so the upgrade halves the wait
+  /// rather than trimming it.
   static const int regenMsUpgraded = 450000; // 7.5 minutes
 
   /// Pips a rewarded video pays. Three, not five: five was half a tank for 30
@@ -106,9 +119,21 @@ class PlayerEnergy {
   static const double inMatchDipPct = 0.16;
 
   /// Wall-clock to recover an empty bar 0->100%.
-  static const int fitnessFullRegenMs = 110 * 60 * 1000;
+  ///
+  /// **PINNED TO CASUAL'S PIP, not chosen on its own.** `config.js` calibrates
+  /// Pro's games-per-hour against the Casual pool so the mode you pick changes
+  /// the DIFFICULTY and not the pacing — one full 90 costs
+  /// [matchFitnessCostPct] of the bar, so a match's drain has to come back in
+  /// about one pip's worth of wall clock. It was 110 minutes against a ten-
+  /// minute pip; [Energy.regenMs] is fifteen now, so this follows it up to 165.
+  /// Leaving it would have made Pro the FASTER mode to grind, which is backwards
+  /// for the harder one. `config_test.dart` states the invariant and is what
+  /// catches this pair drifting apart.
+  static const int fitnessFullRegenMs = 165 * 60 * 1000;
 
-  /// Energy Director: ~33% faster.
+  /// Energy Director, left where it was — so, like the Casual pip it is pinned
+  /// against, the upgrade now roughly HALVES the wait rather than trimming a
+  /// third off it. 75 minutes against a 7.5-minute pip: the same invariant.
   static const int fitnessFullRegenMsUpgraded = 75 * 60 * 1000;
 
   /// Players above the fit threshold needed to field a side.
@@ -202,6 +227,32 @@ class Minigame {
   static const int skipCapPerDay = 3;
   static const int skipGemCost = 1;
 }
+
+/// Quick Fire Matches, on the Match Day shelf.
+///
+/// **IT COSTS GEMS NOW, NOT A VIDEO.** Both tiles on that shelf were
+/// rewarded-ad grants under a heading that said "Free", which made the two
+/// things that most change how a match goes the two things a player could only
+/// get by watching an advert. Asked for directly: two gems, and drop the word
+/// free.
+///
+/// Two rather than [Minigame.skipGemCost]'s one, and the difference is what is
+/// being bought: one gem clears a WAIT, which the player would have got for
+/// nothing by coming back later. This buys an advantage in the next match that
+/// waiting does not hand over.
+const int matchDayGemCost = 2;
+
+/// The Lucky Boot, which is the dearer of the two.
+///
+/// **ONE PRICE USED TO COVER BOTH TILES**, and it undersold this one. Quick
+/// Fire Matches shortens a cooldown — the same thing the player gets free by
+/// coming back later, only sooner. The Boot changes how the next match goes and
+/// nothing else in the game hands that over at any price, which is a premium
+/// item sitting at a convenience item's two gems. Asked for from the couch.
+///
+/// Five, level with the Energy Refill and the Trophy Polish: the shelf's own
+/// upper price, rather than a number of its own.
+const int luckyBootGemCost = 5;
 
 class Idle {
   const Idle._();

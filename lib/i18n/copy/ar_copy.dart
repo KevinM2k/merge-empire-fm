@@ -281,9 +281,23 @@ const Map<String, String> arCopy = <String, String>{
           'اللقطة كاملة — ويمكنك إعادتها لاحقاً.',
   'settings.matchSpeed.auto': 'تلقائي',
   'settings.matchSpeed.hint':
-      'الوضع التلقائي يعمل بسرعة 2x ويعود إلى 1x كلما تحدث المدرب، حتى تجد '
-          'وقتاً لقراءة كلامه والتصرف بناءً عليه.',
+      'الوضع التلقائي يعمل بسرعة 2x ويهبط إلى نصف السرعة كلما تحدث المدرب، حتى '
+          'تجد وقتاً لقراءة كلامه والتصرف بناءً عليه.',
 
   // The training list's ceiling — see `en_copy.dart`.
   'training.up_to': 'حتى',
+
+  // التدريب في فترة الراحة والعدّ التنازلي للانطلاق — انظر `en_copy.dart`.
+  'training.resting': 'وقت الانتظار {time}',
+  'mg.countdown_go': 'انطلق!',
+
+  // المتجر: الرفّ لم يبقَ مجانياً، والإيرادات انفصلت عن التعزيزات — انظر
+  // `en_copy.dart`.
+  'shop.lucky_boot_name': 'الحذاء المحظوظ',
+  'shop.lucky_boot_desc': 'الخصم القادم أضعف بنسبة {pct}% في مباراة واحدة',
+  'shop.section.income': 'الإيرادات',
+  'product.energy_director.desc': '+50 طاقة فوراً · رفع السقف إلى 15 · إعادة الشحن أسرع بنسبة {energyPct}% — للأبد، حتى بعد إعادة التعيين!',
+
+  'shop.section.looks': 'أسلوب المدير',
+
 };

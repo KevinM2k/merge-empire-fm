@@ -74,6 +74,7 @@ void main() {
       String? suggestion = 'highPress',
       String? lastSuggestion,
       String active = 'balanced',
+      String? declined,
       bool force = false,
     }) => coachShouldSpeak(
       minute: minute,
@@ -81,6 +82,7 @@ void main() {
       activeStrategy: active,
       suggestion: suggestion,
       lastSuggestion: lastSuggestion,
+      declinedAtKickoff: declined,
       force: force,
     );
 
@@ -91,13 +93,98 @@ void main() {
     });
 
     test('his first word waits, and has to be worth saying', () {
-      expect(speak(minute: 3, last: -1), isFalse, reason: 'too early');
       expect(
-        speak(minute: 30, last: -1, suggestion: 'balanced'),
+        speak(minute: 3, last: coachNeverSpoke),
+        isFalse,
+        reason: 'too early',
+      );
+      expect(
+        speak(minute: 30, last: coachNeverSpoke, suggestion: 'balanced'),
         isFalse,
         reason: 'he is agreeing with the dial',
       );
-      expect(speak(minute: 30, last: -1), isTrue);
+      expect(speak(minute: 30, last: coachNeverSpoke), isTrue);
+    });
+
+    test('AND IT IS NOT HELD BY THE STICKY WINDOW, which it was', () {
+      // **-1 WAS TWENTY-FOUR MINUTES OF SILENCE.** The sticky check runs
+      // before the first-word check — the JS's order — so a `lastSpokeMinute`
+      // of -1 makes `since` equal `minute + 1` and holds every word until
+      // minute 24. `MatchPopup.js` initialises `_lastBubbleMin` to -999 for
+      // exactly this reason. Reported from the couch as the coach not advising
+      // a tactic change at all.
+      expect(
+        speak(minute: coachFirstWordMinute, last: coachNeverSpoke),
+        isTrue,
+        reason: 'his first word is still behind the sticky window',
+      );
+      expect(
+        speak(minute: coachFirstWordMinute, last: -1),
+        isFalse,
+        reason: 'this is the bug, and it is what the constant is for',
+      );
+    });
+
+    group('BUT HE DOES NOT NAG ABOUT A TACTIC ALREADY TURNED DOWN', () {
+      // **Asked for from the couch, as the one thing not wanted.** The
+      // pre-match tip names a tactic; a manager who kicks off playing
+      // something else has read it and declined it, and being told the same
+      // thing again at minute five is the game arguing with a decision that
+      // was just made.
+      test('so the declined ask waits for the half-hour', () {
+        expect(
+          speak(
+            minute: coachFirstWordMinute,
+            last: coachNeverSpoke,
+            declined: 'highPress',
+          ),
+          isFalse,
+          reason: 'he restated the tip the manager had just declined',
+        );
+        expect(
+          speak(
+            minute: coachDeclinedHoldMinutes - 1,
+            last: coachNeverSpoke,
+            declined: 'highPress',
+          ),
+          isFalse,
+        );
+        // By then the scoreline and the clock are part of his case rather than
+        // it being the same read again.
+        expect(
+          speak(
+            minute: coachDeclinedHoldMinutes,
+            last: coachNeverSpoke,
+            declined: 'highPress',
+          ),
+          isTrue,
+        );
+      });
+
+      test('and it holds ONE tactic, not his mouth', () {
+        // Any other ask is a fresh case and lands on the usual cadence.
+        expect(
+          speak(
+            minute: coachFirstWordMinute,
+            last: coachNeverSpoke,
+            suggestion: 'parkTheBus',
+            declined: 'highPress',
+          ),
+          isTrue,
+        );
+      });
+
+      test('and half time is a moment, so it says its piece', () {
+        expect(
+          speak(
+            minute: 45,
+            last: coachNeverSpoke,
+            declined: 'highPress',
+            force: true,
+          ),
+          isTrue,
+        );
+      });
     });
 
     test('and he does not repeat the same ask', () {

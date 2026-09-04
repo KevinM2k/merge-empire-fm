@@ -46,6 +46,8 @@ import 'package:merge_empire_fc/ui/popups/coach_card.dart'
         CoachBubbleTail,
         CoachFace,
         CoachSpeechBubble,
+        coachAlert,
+        coachAlertDotInset,
         coachBubbleEdge,
         coachBubbleTextStyle,
         coachLabelStyle,
@@ -323,9 +325,17 @@ class _CoachCornerState extends State<CoachCorner> {
                     child: Padding(
                       // **The POINT over the middle of the head below it**,
                       // which is the wedge's [coachTailTipX] rather than its
-                      // box — the disc is 44 across and its middle is 22 in, so
-                      // the box starts at 22 minus the tip's own offset.
-                      padding: const EdgeInsets.only(left: 22 - coachTailTipX),
+                      // box — so the box starts at his face minus the tip's own
+                      // offset.
+                      //
+                      // **Off HIS geometry, not a number.** It was a literal 22
+                      // from when the disc was 44 across; the head had already
+                      // grown to 56 and the tail was pointing twelve points wide
+                      // of his face, and growing him again would have made it
+                      // eighteen. See [_CoachHead._faceX].
+                      padding: const EdgeInsets.only(
+                        left: _CoachHead._faceX - coachTailTipX,
+                      ),
                       child: CustomPaint(
                         key: ValueKey('${widget.idPrefix}-tail'),
                         size: coachTailSize,
@@ -366,13 +376,37 @@ class _CoachHead extends StatefulWidget {
 
   final bool pulse;
 
+  /// **BIGGER, AND THE RING IS RED.** He was 56 with the club's accent
+  /// expanding 12 points off him at 55% — on a page the player came to do
+  /// something else on, that is a soft glow in a corner in a colour the rest of
+  /// the screen is already painted in, and a CONTINUOUS loop is exactly what an
+  /// eye tunes out. Reported from the couch: easy to miss.
+  ///
+  /// So the standing state is louder rather than the behaviour being changed —
+  /// he still says nothing until he is tapped, which is the whole character of
+  /// the thing. [coachAlert] rather than the kit accent because it is the one
+  /// ink on the screen that cannot be a club colour, and it matches the badge
+  /// already pinned to his ear.
+  static const double _size = 68;
+
+  /// How far the ring travels off him before it fades out.
+  static const double _ring = 20;
+
+  /// Where the unread dot goes: his box is the RING's, so the inset is the gap
+  /// down to his head — half the ring's travel — plus the head's own. See
+  /// [coachAlertDotInset].
+  static final double _dotInset = _ring / 2 + coachAlertDotInset(_size);
+
+  /// His box, and where his face is across it — the bubble's tail points HERE.
+  static const double _box = _size + _ring;
+  static const double _faceX = _box / 2;
+
   @override
   State<_CoachHead> createState() => _CoachHeadState();
 }
 
 class _CoachHeadState extends State<_CoachHead>
     with SingleTickerProviderStateMixin {
-  static const double _size = 56;
 
   late final AnimationController _pulse = AnimationController(
     vsync: this,
@@ -411,8 +445,8 @@ class _CoachHeadState extends State<_CoachHead>
       builder: (context, _) {
         final t = _pulse.value;
         return SizedBox(
-          width: _size + 12,
-          height: _size + 12,
+          width: _CoachHead._box,
+          height: _CoachHead._box,
           child: Stack(
             alignment: Alignment.center,
             children: [
@@ -421,17 +455,17 @@ class _CoachHeadState extends State<_CoachHead>
               Opacity(
                 opacity: (1 - t) * 0.55,
                 child: Container(
-                  width: _size + t * 12,
-                  height: _size + t * 12,
+                  width: _CoachHead._size + t * _CoachHead._ring,
+                  height: _CoachHead._size + t * _CoachHead._ring,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    border: Border.all(color: kit.accent, width: 2),
+                    border: Border.all(color: coachAlert, width: 2),
                   ),
                 ),
               ),
               Container(
-                width: _size,
-                height: _size,
+                width: _CoachHead._size,
+                height: _CoachHead._size,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: kit.surface,
@@ -449,9 +483,19 @@ class _CoachHeadState extends State<_CoachHead>
                 // one box cannot do both.
                 child: const CoachFace(),
               ),
-              // The badge. A single character, because a count would imply
-              // there is a list of them — and it is the DOCK's badge, shared,
-              // because there were two of these and only the dock's moved.
+              // The badge, and it is the DOCK's badge — shared, because there
+              // were two of these and only the dock's moved.
+              //
+              // **THE PLAIN DOT, the same one the dock wears.** It was an
+              // exclamation mark on a bounce loop; asked for from the couch as
+              // a red dot, the way a phone marks an unread, on every window it
+              // appears in. What makes him hard to miss here is the head and
+              // the red ring around it — see [_CoachHead] — not a character
+              // 11 points across.
+              //
+              // Inset onto his rim rather than pinned to the corner: the box is
+              // the RING's, wider than his head, so a corner offset left the
+              // dot floating in the ring's air with nothing under it.
               //
               // **On the same switch as the ring**, and for the same reason: an
               // unread mark on a line the player opened a list to see is a
@@ -459,10 +503,10 @@ class _CoachHeadState extends State<_CoachHead>
               // bounces on a loop of its own, so it is also the second thing a
               // `pumpAndSettle` in a sheet's test would hang on.
               if (widget.pulse)
-                const Positioned(
-                  right: 0,
-                  top: 0,
-                  child: CoachAlertBadge(),
+                Positioned(
+                  right: _CoachHead._dotInset,
+                  top: _CoachHead._dotInset,
+                  child: const CoachAlertBadge(plain: true),
                 ),
             ],
           ),

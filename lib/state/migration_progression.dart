@@ -362,6 +362,87 @@ void scrubTeamNames(Map<String, dynamic> data) {
   }
 }
 
+// ── The Champions League title that was never recorded ──────────────────────
+
+/// Puts the top-flight title on the shelf for a save that won it before there
+/// was a shelf for it.
+///
+/// **THE TROPHY IS WRITTEN AT FULL TIME, so a title already won is a title with
+/// nothing to show.** `endSeason` only ever recorded a league trophy on a
+/// promotion, and the Champions League cannot be promoted out of — see the note
+/// on the push in `engine/season_end.dart`. A player who had already won it had
+/// `wonChampionsCup` set, prestige unlocked, the gems paid, and a cabinet whose
+/// highest league shelf was Continental. Without this they would have to win it
+/// AGAIN to see one. Reported from the couch, and asked directly: will it
+/// backport?
+///
+/// **`wonChampionsCup` is the run-scoped signal and that is why it is the
+/// gate.** Prestige sets it false and restarts `seasonCount` at 1, but it does
+/// NOT clear `seasonHistory` — so the history carries rows from careers whose
+/// trophies prestige deliberately wiped, and their season numbers collide with
+/// this run's. Hence the two cases below: an un-prestiged save can attribute
+/// every title row to this run, and a prestiged one can only be sure of the
+/// most recent.
+///
+/// Once, guarded by its own flag, like [backfillCareerCounters] — a second pass
+/// would hand out a second trophy for the same title.
+void backfillChampionsTitle(Map<String, dynamic> data) {
+  if (data['_championsTitleTrophy2026'] == true) return;
+  data['_championsTitleTrophy2026'] = true;
+
+  final prog = _map(data['progression']);
+  if (prog == null || prog['wonChampionsCup'] != true) return;
+
+  final trophies = prog['leagueTrophies'];
+  if (trophies is! List) return;
+  // Already on the shelf — a save that won it after the fix, or one this has
+  // somehow run against before.
+  final has = trophies.any((t) {
+    final tr = _map(t);
+    return tr != null &&
+        tr['cup'] != true &&
+        '${tr['division']}' == _topDivisionId;
+  });
+  if (has) return;
+
+  final history = prog['seasonHistory'];
+  final titles = <int>[
+    if (history is List)
+      for (final row in history)
+        if (_map(row) case final r?)
+          if ('${r['division']}' == _topDivisionId &&
+              (_num(r['position'])?.toInt() ?? 0) == 1)
+            _num(r['season'])?.toInt() ?? 0,
+  ];
+
+  // A save with the flag set and no matching row still won it — the flag is
+  // only ever written beside that row — so it gets the one trophy, stamped with
+  // whatever season the save is on.
+  final prestiged = (_num(_map(data['prestige'])?['level'])?.toInt() ?? 0) > 0;
+  final seasons = titles.isEmpty
+      ? <int>[_num(prog['seasonCount'])?.toInt() ?? 1]
+      : prestiged
+      ? <int>[titles.last]
+      : titles;
+
+  for (final season in seasons) {
+    trophies.add(<String, dynamic>{
+      'season': season,
+      'division': _topDivisionId,
+      'position': 1,
+    });
+  }
+
+  // The career counts it too, the same as the engine now does.
+  final career = _ensureMap(data, 'careerStats');
+  career['leagueWins'] =
+      (_num(career['leagueWins'])?.toInt() ?? 0) + seasons.length;
+}
+
+/// The top of the ladder. Its id reads like a cup and is not one: the CUP that
+/// renders as "Champions Cup" is `world_club_cup`.
+const String _topDivisionId = 'champions_cup';
+
 // ── Career counters ─────────────────────────────────────────────────────────
 
 /// Lifetime career counters, which survive prestige.

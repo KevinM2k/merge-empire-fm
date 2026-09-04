@@ -51,7 +51,7 @@ void main() {
     test('values', () {
       expect(Energy.max, 10);
       expect(Energy.maxUpgraded, 15);
-      expect(Energy.regenMs, 600000);
+      expect(Energy.regenMs, 900000);
       expect(Energy.regenMsUpgraded, 450000);
       expect(Energy.adReward, 3);
       expect(Energy.matchCost, 1);
@@ -75,7 +75,7 @@ void main() {
     test('values', () {
       expect(PlayerEnergy.matchFitnessCostPct, 0.09);
       expect(PlayerEnergy.inMatchDipPct, 0.16);
-      expect(PlayerEnergy.fitnessFullRegenMs, 6600000);
+      expect(PlayerEnergy.fitnessFullRegenMs, 9900000);
       expect(PlayerEnergy.fitnessFullRegenMsUpgraded, 4500000);
       expect(PlayerEnergy.minFitToField, 11);
       expect(PlayerEnergy.fitThresholdPct, 0.10);
@@ -101,10 +101,15 @@ void main() {
       expect(PlayerEnergy.strategyDrainMult['balanced'], 1.0);
     });
 
-    test('the throughput invariant: ~one match of drain back per ~10 minutes', () {
-      // config.js pins Pro's games/hour to Casual's pip pool. One full 90
-      // costs 9% of the bar, and the bar refills 0->100% in 110 minutes, so a
-      // match's drain comes back in ~9.9 minutes — Casual's REGEN_MS is 10.
+    test('the throughput invariant: one match of drain back per pip', () {
+      // config.js pins Pro's games/hour to Casual's pip pool, so the mode you
+      // pick changes the DIFFICULTY and not the pacing. One full 90 costs 9% of
+      // the bar, and the bar refills 0->100% in 165 minutes, so a match's drain
+      // comes back in ~14.85 minutes — Casual's pip is 15.
+      //
+      // **THIS TEST IS THE POINT OF THE PAIR.** The pip went 10 -> 15 and this
+      // failed, which is how the Pro side got moved with it; leaving Pro at 110
+      // would have made the harder mode the faster one to grind.
       final msPerMatchDrain =
           PlayerEnergy.fitnessFullRegenMs * PlayerEnergy.matchFitnessCostPct;
       expect(msPerMatchDrain, closeTo(Energy.regenMs, Energy.regenMs * 0.05));

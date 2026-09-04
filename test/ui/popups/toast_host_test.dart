@@ -1,6 +1,8 @@
 /// The layer that makes the engines audible.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -21,6 +23,93 @@ Future<void> pumpToasts(WidgetTester tester) => tester.pumpWidget(
 );
 
 void main() {
+  group('THE UI\'S OWN THREE CHANNELS ALL SPEAK', () {
+    // **TWO OF THE THREE WERE SHOUTING INTO NOTHING.** `toast:info` was
+    // handled and listed; `toast:success` and `toast:error` were emitted from
+    // thirteen places and appeared in neither the switch nor [toastEvents], so
+    // every purchase confirmation, every "not enough gems", every energy
+    // refill, both sign-in outcomes and healing a player said nothing at all.
+    // The same class of bug this file's header was written about, one layer up.
+    test('success is a good line', () {
+      final toast = toastFor('toast:success', 'bought it');
+      expect(toast, isNotNull);
+      expect(toast!.text, 'bought it');
+      expect(toast.good, isTrue);
+      expect(toast.gem, isFalse);
+    });
+
+    test('error is not', () {
+      final toast = toastFor('toast:error', 'not enough gems');
+      expect(toast, isNotNull);
+      expect(toast!.text, 'not enough gems');
+      expect(toast.good, isFalse);
+    });
+
+    test('and an empty line still says nothing', () {
+      expect(toastFor('toast:success', ''), isNull);
+      expect(toastFor('toast:error', ''), isNull);
+    });
+
+    test('all three are subscribed, or the host never hears them', () {
+      // The switch answering is only half of it — `toastEvents` is what the
+      // host actually listens to, and that is where these two were missing.
+      expect(
+        toastEvents,
+        containsAll(<String>['toast:info', 'toast:success', 'toast:error']),
+      );
+    });
+
+    testWidgets('a purchase confirmation reaches the screen', (tester) async {
+      await pumpToasts(tester);
+      emit('toast:success', 'bought it');
+      await tester.pump();
+      expect(find.byKey(const ValueKey('toast')), findsOneWidget);
+      expect(find.text('bought it'), findsOneWidget);
+      await tester.pump(const Duration(seconds: 3));
+      await tester.pumpAndSettle();
+    });
+  });
+
+  group('IT KEEPS OUT OF THE KEYBOARD\'S WAY', () {
+    // A full-bleed band centred on the whole screen landed across the bottom
+    // half of the visible strip whenever a keyboard was up — reported from the
+    // couch after prestige, where the gem line opened over the box the new
+    // club's name was about to be typed into. Centred still, in the space the
+    // keyboard leaves.
+    testWidgets('with no keyboard it is dead centre', (tester) async {
+      await pumpToasts(tester);
+      // The very line that was reported: the new adventure's own toast, up
+      // while the club-name card is asking for a name.
+      emit('prestige:complete', {'level': 1, 'multiplier': 1.1, 'season': 1});
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      final band = tester.getRect(find.byKey(const ValueKey('toast')));
+      final screen = tester.getRect(find.byType(MaterialApp));
+      expect(band.center.dy, closeTo(screen.center.dy, 1));
+    });
+
+    testWidgets('and with one up it sits clear of it', (tester) async {
+      tester.view.viewInsets = const FakeViewPadding(bottom: 600);
+      addTearDown(tester.view.resetViewInsets);
+      await pumpToasts(tester);
+      // The very line that was reported: the new adventure's own toast, up
+      // while the club-name card is asking for a name.
+      emit('prestige:complete', {'level': 1, 'multiplier': 1.1, 'season': 1});
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      final band = tester.getRect(find.byKey(const ValueKey('toast')));
+      final screen = tester.getRect(find.byType(MaterialApp));
+      final keyboardTop =
+          screen.bottom - 600 / tester.view.devicePixelRatio;
+      expect(
+        band.bottom,
+        lessThanOrEqualTo(keyboardTop + 1),
+        reason: 'the band is over the keyboard',
+      );
+    });
+  });
+
+
   tearDown(() {
     clearBus();
     resetLocale();
@@ -532,5 +621,44 @@ void main() {
       expect(toastFor('quest:capstone', {'divisionId': 'sunday_league'}), isNull);
       expect(toastFor('quest:capstone', null), isNull);
     });
+  });
+
+  testWidgets('AND A FULL-SCREEN ROUTE DOES NOT FREEZE THE STRIKE', (
+    tester,
+  ) async {
+    // **The band goes up in the ROOT overlay and the HOST is under every route
+    // in the game**, so a Navigator mutes its `TickerMode` and a toast fired
+    // from inside a mini-game, a shop sheet or the settings screen never slid
+    // in: it sat off-screen at the start of its own animation until the route
+    // was popped, and then arrived, about something the player had finished
+    // doing. Same fault as the frozen coin sprite, found looking for it.
+    //
+    // `TickerMode(enabled: true)` is NOT the fix — it composes with its
+    // ancestors — so the host provides its own ticker. See `createTicker`.
+    await pumpToasts(tester);
+    final host = tester.state<ToastHostState>(find.byType(ToastHost));
+    final navigator = Navigator.of(tester.element(find.byType(ToastHost)));
+    unawaited(
+      navigator.push(
+        MaterialPageRoute<void>(
+          builder: (_) => const Scaffold(body: Text('a whole screen')),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('a whole screen'), findsOneWidget);
+
+    emit('quests:swept', {'count': 2, 'coins': 100});
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 90));
+    expect(
+      host.sweep,
+      greaterThan(0),
+      reason: 'the strike is frozen under the route',
+    );
+    await tester.pumpAndSettle();
+    expect(host.sweep, 1);
+    await tester.pump(const Duration(seconds: 3));
+    await tester.pumpAndSettle();
   });
 }

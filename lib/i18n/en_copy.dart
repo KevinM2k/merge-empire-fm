@@ -696,8 +696,8 @@ const Map<String, String> enCopy = <String, String>{
           'and plays the moment out — and you can replay it afterwards.',
   'settings.matchSpeed.auto': 'Auto',
   'settings.matchSpeed.hint':
-      'Auto runs at 2x and drops back to 1x whenever the coach has something '
-          'to say, so there is time to read it and act on it.',
+      'Auto runs at 2x and drops to half speed whenever the coach has '
+          'something to say, so there is time to read it and act on it.',
 
   // **WHAT A PERFECT RUN PAYS, said as a ceiling.** The training list quotes
   // `miniGameRewardBase` — every drill, every shot — and a bare coin badge read
@@ -705,4 +705,51 @@ const Map<String, String> enCopy = <String, String>{
   // `training_view.dart` said there was no key for the words and none could be
   // added; there is now.
   'training.up_to': 'Up to',
+
+  // **THE ROW AND THE BUTTON OVER IT NAME THE SAME WAIT.** `_SkipAll` sits at
+  // the top of the training list reading "Skip all cooldowns" and the rows
+  // under it said "Resting" — one clock with two words for it, and nothing
+  // saying that the button clears exactly what the rows are counting down.
+  // Reported from the couch. Every locale takes the noun from its OWN
+  // `minigame.skip_all_ad` rather than a translation of this one.
+  //
+  // Still not `play.cooldown`: that reads "Coach cooldown" and is the play
+  // button's, the manager waiting to pick a team again. Same word, different
+  // clock, so it keeps its own key.
+  'training.resting': 'Cooldown {time}',
+
+  // The kick-off every drill counts in to. See `minigame_countdown.dart`.
+  'mg.countdown_go': 'GO!',
+
+  'shop.lucky_boot_name': 'Lucky Boot',
+  // **WHAT IT DOES, IN A NUMBER.** It read "Opponent far below their level
+  // next match", which is flavour where a price tag needs a figure — a player
+  // deciding whether five gems is worth it cannot tell whether "far below"
+  // means a nudge or a walkover. Reported from the couch: say what percentage.
+  //
+  // `{pct}` comes off `luckyBootPct` at the call site rather than being typed
+  // here, for the reason the relegation chip does the same — see
+  // `next_match_card.dart`, where a hardcoded lift claimed four times the
+  // engine's and was reported as a number that looked wrong.
+  'shop.lucky_boot_desc': 'Next opponent is {pct}% weaker for one match',
+
+  // **AND THE BOOSTS SHELF WAS TWO SHELVES.** A Magic Sponge and an Energy
+  // Refill fix the squad; a Kit Sponsor, a TV deal and Trophy Polish multiply
+  // what it earns. Asked for from the couch: split the boosts from the income.
+  'shop.section.income': 'Income',
+  // **THE UPGRADE HALVES THE WAIT, so it may not say a third.** The generated
+  // English said "refills 33% faster", true against a ten-minute pip and wrong
+  // the moment `Energy.regenMs` went to fifteen. Reported from the couch.
+  // `{energyPct}` and `{energyMins}` are filled from the constants in
+  // `shop_copy.dart` so neither figure can rot again — the nine translations
+  // quote the OLD default rather than a percentage, and every one of them said
+  // "was 10".
+  'product.energy_director.desc': 'Never wait on energy again — +50 now · bigger 15-cap tank · refills {energyPct}% faster · permanent, even after resets!',
+
+  // **"MANAGER CUSTOMISATIONS" DID NOT FIT.** It wrapped to two lines in the
+  // shop and broke "Customisations" across them. Asked for from the couch, and
+  // named there: Manager Style. Shorter in all ten, which the long-language
+  // sweep wanted anyway — the German was already the widest heading in the app.
+  'shop.section.looks': 'Manager Style',
+
 };

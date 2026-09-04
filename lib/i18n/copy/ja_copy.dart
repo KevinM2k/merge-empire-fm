@@ -259,9 +259,22 @@ const Map<String, String> jaCopy = <String, String>{
           'あとから見直すこともできます。',
   'settings.matchSpeed.auto': 'オート',
   'settings.matchSpeed.hint':
-      'オートは2倍速で進み、コーチが話しかけてきたときだけ1倍速に戻ります。'
+      'オートは2倍速で進み、コーチが話しかけてきたときだけ半分の速さに落ちます。'
           '読んで手を打つ時間ができます。',
 
   // The training list's ceiling — see `en_copy.dart`.
   'training.up_to': '最大',
+
+  // 休憩中のドリルとキックオフのカウントダウン — `en_copy.dart` を参照。
+  'training.resting': 'クールダウン {time}',
+  'mg.countdown_go': 'スタート！',
+
+  // ショップ：無料棚をやめ、収入をブーストから分けた — `en_copy.dart` を参照。
+  'shop.lucky_boot_name': 'ラッキーブーツ',
+  'shop.lucky_boot_desc': '次の1試合、相手の能力が{pct}%低下',
+  'shop.section.income': '収入',
+  'product.energy_director.desc': 'エネルギー+50 · 上限15に拡張 · 回復が{energyPct}%高速化 — リセット後も永続！',
+
+  'shop.section.looks': '監督のスタイル',
+
 };

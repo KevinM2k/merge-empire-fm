@@ -22,6 +22,7 @@ import 'package:merge_empire_fc/ui/hud/hud.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 import 'package:merge_empire_fc/ui/screens/shop/purchase_flow.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_copy.dart';
+import 'package:merge_empire_fc/ui/screens/shop/shop_match_day.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_providers.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_section.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_tiles.dart';
@@ -80,22 +81,78 @@ const Map<String, String> gemItemIcons = {
 Widget _icon(String name, Color colour) =>
     GameIcon(name, size: 32, color: colour);
 
+/// The items on this tab that multiply what the club EARNS, rather than fixing
+/// or freshening the squad.
+///
+/// **ONE SET, read by both shelves.** The split is a partition — a tile is in
+/// exactly one of them — so a single membership test is what guarantees that
+/// nothing is drawn twice and nothing falls between them. Adding a consumable
+/// or a gem item without touching this set puts it on the Boosts shelf, which
+/// is the safer default: a boost on the wrong shelf is misfiled, and an income
+/// item on the wrong shelf is a claim about what it does.
+///
+/// `kit_sponsor` is ×1.25 income for a season, `match_rev` is the TV deal, and
+/// `trophy_polish_gem` is "doubles EVERYTHING you earn — idle and matchday".
+/// The Magic Sponge heals and the Energy Refill refills; neither pays anything.
+const Set<String> incomeShelfIds = {
+  'kit_sponsor',
+  'match_rev',
+  'trophy_polish_gem',
+};
+
+/// The two shelves the old Boosts shelf became.
+///
+/// **A Magic Sponge and a Kit Sponsor answer different questions**, and one
+/// heading over both of them answered neither: a player looking for income
+/// scanned past a bandage, and a player with three injured men scanned past a
+/// TV deal. Asked for from the couch: split the boosts from the income. The
+/// tiles, the prices and the buy flow are identical on both — what differs is
+/// which side of [incomeShelfIds] a row falls on, so there is one widget and a
+/// flag rather than two shelves to keep in step.
 class BoostsSection extends ConsumerWidget {
   const BoostsSection({super.key});
 
   @override
+  Widget build(BuildContext context, WidgetRef ref) =>
+      const _SpendShelf(income: false);
+}
+
+class IncomeSection extends ConsumerWidget {
+  const IncomeSection({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) =>
+      const _SpendShelf(income: true);
+}
+
+class _SpendShelf extends ConsumerWidget {
+  const _SpendShelf({required this.income});
+
+  /// Which side of [incomeShelfIds] this shelf draws.
+  final bool income;
+
+  @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final coins = ref.watch(consumableTilesProvider);
-    final gems = ref.watch(gemItemTilesProvider);
+    final coins = ref
+        .watch(consumableTilesProvider)
+        .where((row) => incomeShelfIds.contains(row.id) == income);
+    final gems = ref
+        .watch(gemItemTilesProvider)
+        .where((tile) => incomeShelfIds.contains(tile.item.id) == income);
     final game = ref.read(gameProvider);
     final settings = game.state?['settings'];
     final hardMode =
         settings is Map<String, dynamic> && settings['hardMode'] == true;
 
     return ShopSectionFrame(
-      id: ShopSectionId.boosts,
+      id: income ? ShopSectionId.income : ShopSectionId.boosts,
       child: ShopGrid(
         children: [
+          // The two Match Day items, on the end of THIS shelf — they had a
+          // heading of their own directly under this one and it was a
+          // subdivision of a tab already named for this shelf. See
+          // [matchDayTiles].
+          if (!income) ...matchDayTiles(ref),
           for (final row in coins)
             ShopTile(
               tileKey: 'coin-${row.id}',

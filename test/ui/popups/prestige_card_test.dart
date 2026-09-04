@@ -18,6 +18,7 @@ import 'package:merge_empire_fc/data/achievements.dart';
 import 'package:merge_empire_fc/engine/season_end.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
+import 'package:merge_empire_fc/ui/popups/coach_card.dart' show CoachStandee;
 import 'package:merge_empire_fc/state/game_state.dart';
 import 'package:merge_empire_fc/state/save_slots.dart';
 import 'package:merge_empire_fc/state/save_store.dart';
@@ -157,8 +158,11 @@ void main() {
       // asserting the one place it does not appear. `coach_card_test` makes
       // the same call about its own title; this one was left behind.
       expect(find.text(withoutEmoji(t('prestige.title'))), findsOneWidget);
+      // `textContaining`, because the pro line is part of the same body now —
+      // he types both sentences rather than one appearing under the other. See
+      // `showPrestigeOffer`.
       expect(
-        find.text(t('prestige.body', {'mult': '1.1'})),
+        find.textContaining(t('prestige.body', {'mult': '1.1'})),
         findsOneWidget,
         reason: 'the headline is the multiplier the reset will actually pay',
       );
@@ -321,11 +325,74 @@ void main() {
     });
   });
 
+  group('A TAP OFF THE CARD IS A CANCEL', () {
+    // **THE DIALOG IS THE WHOLE SCREEN**, bottom-aligned and transparent with
+    // Colin standing in the empty half of it — so the barrier only ever got the
+    // strip outside the inset padding and a tap beside his shoulder did
+    // nothing. Reported from the couch twice: that the card would not close,
+    // and then precisely that tapping above him worked and beside him did not.
+    // See `CoachStage.dismissible`.
+    Finder title() => find.text(withoutEmoji(t('prestige.title')));
+
+    testWidgets('beside him closes it, and nothing is written', (tester) async {
+      final c = await pumpFlow(tester);
+      expect(title(), findsOneWidget);
+
+      final him = tester.getRect(find.byType(CoachStandee));
+      await tester.tapAt(Offset(him.right + 20, him.center.dy));
+      await tester.pumpAndSettle();
+
+      expect(title(), findsNothing);
+      expect(lastResult, isNull);
+      expect(prestigeLevel(c.read(gameProvider).state), 0);
+      expect(c.read(hardModeProvider), isFalse);
+    });
+
+    testWidgets('and so does above him, which always worked', (tester) async {
+      await pumpFlow(tester);
+      await tester.tapAt(const Offset(5, 5));
+      await tester.pumpAndSettle();
+      expect(title(), findsNothing);
+      expect(lastResult, isNull);
+    });
+
+    testWidgets('but ON HIM does not — that is the card', (tester) async {
+      await pumpFlow(tester);
+      await tester.tapAt(tester.getCenter(find.byType(CoachStandee)));
+      await tester.pumpAndSettle();
+      expect(title(), findsOneWidget, reason: 'tapping the man closed it');
+    });
+
+    testWidgets('nor does the box he is saying it out of', (tester) async {
+      await pumpFlow(tester);
+      await tester.tapAt(
+        tester.getCenter(find.byKey(const ValueKey('coach-card-body'))),
+      );
+      await tester.pumpAndSettle();
+      expect(title(), findsOneWidget, reason: 'tapping the card closed it');
+    });
+  });
+
   group('THE PRO LINE CHANGES WITH THE SAVE', () {
+    // **AND IT IS PART OF WHAT HE SAYS, not a row under it.** It was an
+    // `extraLines` entry, so the second half of his line was on screen before
+    // the typewriter had finished the first. `textContaining` is what asks the
+    // question now: one body, both sentences, typed.
+    //
+    // Through `withoutEmoji`, for the reason the title is: the card takes the
+    // pictograph off every string it TYPES, so the hint's 🔥 goes the way
+    // `prestige.title`'s 🌟 already did. The `extraLines` row it left was the
+    // one place on this card that kept one.
     testWidgets('a casual save is INVITED into Pro mode', (tester) async {
       await pumpFlow(tester);
-      expect(find.text(t('prestige.body_pro_hint')), findsOneWidget);
-      expect(find.text(t('prestige.pro_note')), findsNothing);
+      expect(
+        find.textContaining(withoutEmoji(t('prestige.body_pro_hint'))),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining(withoutEmoji(t('prestige.pro_note'))),
+        findsNothing,
+      );
     });
 
     testWidgets('and one already in it is told what it is starting', (
@@ -334,8 +401,24 @@ void main() {
       // An invitation to somewhere the player is standing is not an
       // invitation.
       await pumpFlow(tester, hardMode: true);
-      expect(find.text(t('prestige.pro_note')), findsOneWidget);
-      expect(find.text(t('prestige.body_pro_hint')), findsNothing);
+      expect(
+        find.textContaining(withoutEmoji(t('prestige.pro_note'))),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining(withoutEmoji(t('prestige.body_pro_hint'))),
+        findsNothing,
+      );
+    });
+
+    testWidgets('and there is no second Text under the body at all', (
+      tester,
+    ) async {
+      await pumpFlow(tester);
+      expect(
+        find.byKey(const ValueKey('coach-line-prestige.body_pro_hint')),
+        findsNothing,
+      );
     });
   });
 }

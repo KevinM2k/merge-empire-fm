@@ -79,6 +79,25 @@ void main() {
     }
   });
 
+  testWidgets('THE SCOPE PICKER OFFERS THE TWO REACHES, and no more', (
+    tester,
+  ) async {
+    // The division pair read "My Division" and "My Division · Global", and the
+    // second is wider than a third of a phone — so it arrived as an ellipsis
+    // with no way to tell what it was. Reported from the couch, then directly:
+    // we do not need those other two. The policy still resolves all four, and
+    // `leaderboard_policy_test` still pins the JS's set at four.
+    await pumpBoard(tester);
+    final scope = tester.widget<DropdownButton<String>>(
+      find.descendant(
+        of: find.byKey(const ValueKey('leaderboard-scope')),
+        matching: find.byType(DropdownButton<String>),
+      ),
+    );
+    expect(scope.items, hasLength(2));
+    expect(scope.items!.map((i) => i.value), ['all_regional', 'all_global']);
+  });
+
   testWidgets('PRESTIGE FORCES ALL-TIME, and the period says so', (
     tester,
   ) async {
@@ -90,7 +109,11 @@ void main() {
     await tester.tap(find.text(t('leaderboard.metric_prestige')).last);
     await tester.pumpAndSettle();
 
-    expect(find.text(t('leaderboard.prestige_hint')), findsOneWidget);
+    // **AND IT SAYS SO BY BEING DEAD, not by explaining itself underneath.**
+    // `leaderboard.prestige_hint` wrapped to two lines under a control in a
+    // three-across row and restated the greyed-out value above it. Reported
+    // from the couch as not knowing what it meant and not needing it.
+    expect(find.text(t('leaderboard.prestige_hint')), findsNothing);
     final period = tester.widget<DropdownButton<String>>(
       find.descendant(
         of: find.byKey(const ValueKey('leaderboard-period')),

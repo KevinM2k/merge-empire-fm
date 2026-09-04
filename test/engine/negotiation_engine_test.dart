@@ -50,6 +50,42 @@ Map<String, dynamic> _state({int cards = 8, int tier = 4}) => {
 };
 
 void main() {
+  group('A PRO-MODE SIGNING CAN CARRY A STAMINA TRAIT', () {
+    // **IT COULD NOT, AND THE FLAG IS WHY.** `rollDealCard` rolled with
+    // `hardMode` defaulted to false, so `getTraitPoolForPosition` filtered the
+    // stamina traits out of every signing and Deadline Day offer even in Pro
+    // mode — which made the function's own promise false ("a trait that
+    // arrives on a signing is worth exactly what one you rolled would be") and
+    // left `hard_marathon`, "have an Iron Lungs player in your squad",
+    // reachable only by paying for a re-roll. Asked about from the couch: is
+    // that even unlockable?
+    setUp(() {
+      seeded.setSeed(4242);
+      setTraitRandom(math.Random(99));
+    });
+    tearDown(resetTraitRandom);
+
+    /// Traits seen over enough T8 rolls to clear the 68% trait chance.
+    Set<String> rolledTraits({required bool hardMode}) {
+      final def = getPlayersByTier(8).first;
+      final seen = <String>{};
+      for (var i = 0; i < 400; i++) {
+        final card = rollDealCard(def, hardMode: hardMode);
+        final id = (card?.raw['trait'] as Map?)?['id'];
+        if (id is String) seen.add(id);
+      }
+      return seen;
+    }
+
+    test('in Pro mode, Iron Lungs is in the pool a signing draws from', () {
+      expect(rolledTraits(hardMode: true), contains('iron_lungs'));
+    });
+
+    test('and outside it, never', () {
+      expect(rolledTraits(hardMode: false), isNot(contains('iron_lungs')));
+    });
+  });
+
   setUp(() {
     setClock(() => _now);
     seeded.setSeed(1);

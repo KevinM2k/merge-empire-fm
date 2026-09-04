@@ -103,7 +103,11 @@ void queueOfflineEarnings({
 }) {
   if (offline.earned <= 0) return;
   if (offline.offlineMs < welcomeBackFloorMs) {
-    collectOfflineEarnings(game, offline.earned.floor());
+    // **`idle: true`, so it does not throw coins at the HUD.** A window this
+    // short is not a night away — it is a rewarded ad, a purchase sheet, a
+    // glance at a notification — and the player did nothing to earn it. See
+    // the note in `collectOfflineEarnings`.
+    collectOfflineEarnings(game, offline.earned.floor(), idle: true);
     return;
   }
   enqueuePopup(

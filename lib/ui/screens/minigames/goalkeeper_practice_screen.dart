@@ -36,6 +36,7 @@ import 'package:merge_empire_fc/state/game_tick.dart';
 import 'package:merge_empire_fc/ui/hud/hud.dart'
     show hudBadgeColour, hudBadgeInk, hudCoinInk, hudEnergyInk;
 import 'package:merge_empire_fc/ui/screens/minigames/keeper_view.dart';
+import 'package:merge_empire_fc/ui/screens/minigames/minigame_countdown.dart';
 import 'package:merge_empire_fc/ui/screens/minigames/minigame_header.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
@@ -129,6 +130,12 @@ class GoalkeeperPracticeScreenState
   /// '✓', '✗' or null.
   String? _flash;
   bool _flashGood = false;
+
+  /// **THE SESSION DOES NOT START UNTIL THE COUNT DOES.** The watch bar and
+  /// the shot schedule both run off [_startedAt], and it used to be set in
+  /// `initState` — so the first ball was in flight before the player had
+  /// looked at the goal. See `MiniGameCountdown`.
+  bool _counting = true;
   bool _done = false;
   bool _banked = false;
   int _coins = 0;
@@ -139,6 +146,7 @@ class GoalkeeperPracticeScreenState
   int get drillCount => _drillCount;
   bool get done => _done;
   bool get drillUp => _drill != null;
+  bool get counting => _counting;
   int get coinsWon => _coins;
 
   @override
@@ -150,12 +158,6 @@ class GoalkeeperPracticeScreenState
     _drillCount = difficulty.drills;
     _windowMs = difficulty.windowMs;
     _due = drillTimes(_drillCount);
-
-    _startedAt = now();
-    _ticker = Timer.periodic(
-      const Duration(milliseconds: trainingTickMs),
-      (_) => _tick(),
-    );
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -169,6 +171,20 @@ class GoalkeeperPracticeScreenState
       // farm the reward timer.
       _game.update((s) => startMiniGame(s, MiniGameKind.training));
     });
+  }
+
+  /// GO. Everything the session measures starts from here.
+  void _kickOff() {
+    if (!mounted) return;
+    setState(() {
+      _counting = false;
+      _startedAt = now();
+      _elapsed = 0;
+    });
+    _ticker = Timer.periodic(
+      const Duration(milliseconds: trainingTickMs),
+      (_) => _tick(),
+    );
   }
 
   void _tick() {
@@ -374,15 +390,30 @@ class GoalkeeperPracticeScreenState
                         child: Center(
                           child: AspectRatio(
                             aspectRatio: keeperStageAspect,
-                            child: _Stage(
-                              kit: kit,
-                              drill: _drill,
-                              flash: _flash,
-                              flashGood: _flashGood,
-                              idleText: _appeared == 0
-                                  ? t('mg.warming_up')
-                                  : t('mg.keep_going'),
-                              onHit: _hitDrill,
+                            // The count goes over the GOAL, which is what the
+                            // player has to have found before the first ball
+                            // is struck.
+                            child: Stack(
+                              children: [
+                                Positioned.fill(
+                                  child: _Stage(
+                                    kit: kit,
+                                    drill: _drill,
+                                    flash: _flash,
+                                    flashGood: _flashGood,
+                                    idleText: _appeared == 0
+                                        ? t('mg.warming_up')
+                                        : t('mg.keep_going'),
+                                    onHit: _hitDrill,
+                                  ),
+                                ),
+                                if (_counting)
+                                  Positioned.fill(
+                                    child: MiniGameCountdown(
+                                      onDone: _kickOff,
+                                    ),
+                                  ),
+                              ],
                             ),
                           ),
                         ),

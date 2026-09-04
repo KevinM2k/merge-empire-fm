@@ -283,6 +283,62 @@ const double minFontSize = 12;
 /// those three defo not being `w600`.
 ///
 /// So this names both, every time, and [uiBaseWeight] is the floor.
+/// A splash that also CLICKS.
+///
+/// **THE BUTTONS WERE SILENT, and they always had been.** `'tap'` is in
+/// `sound_defs.dart` — a 50ms blip — and the only things that ever played it
+/// were the five mini-games. Reported from the couch as having been lost;
+/// nothing was lost, it was never wired. Behind the sound toggle by
+/// construction: `SoundService.play` returns early unless it is on.
+///
+/// **ON THE SPLASH FACTORY rather than on eighty call sites.** Material makes
+/// exactly one of these per press, for every button and every `InkWell` in the
+/// app, which is the same set as "things that visibly respond to a press" — so
+/// the framework decides what counts as a button rather than a list of widgets
+/// somebody has to keep up to date. It delegates the ink itself, so the splash
+/// looks exactly as it did.
+///
+/// A raw `GestureDetector` has no ink and so gets no click; [StoreButton] asks
+/// for its own.
+class TapSoundSplash extends InteractiveInkFeatureFactory {
+  const TapSoundSplash({required this.ink, required this.onPress});
+
+  /// The real splash, which draws the thing.
+  final InteractiveInkFeatureFactory ink;
+
+  final VoidCallback onPress;
+
+  @override
+  InteractiveInkFeature create({
+    required MaterialInkController controller,
+    required RenderBox referenceBox,
+    required Offset position,
+    required Color color,
+    required TextDirection textDirection,
+    bool containedInkWell = false,
+    RectCallback? rectCallback,
+    BorderRadius? borderRadius,
+    ShapeBorder? customBorder,
+    double? radius,
+    VoidCallback? onRemoved,
+  }) {
+    onPress();
+    return ink.create(
+      controller: controller,
+      referenceBox: referenceBox,
+      position: position,
+      color: color,
+      textDirection: textDirection,
+      containedInkWell: containedInkWell,
+      rectCallback: rectCallback,
+      borderRadius: borderRadius,
+      customBorder: customBorder,
+      radius: radius,
+      onRemoved: onRemoved,
+    );
+  }
+}
+
 TextStyle controlTextStyle({
   required double size,
   FontWeight weight = FontWeight.w900,
@@ -336,7 +392,15 @@ TextTheme _atBaseWeight(TextTheme base) {
   );
 }
 
-ThemeData buildAppTheme({required String kitId, required bool light}) {
+ThemeData buildAppTheme({
+  required String kitId,
+  required bool light,
+  /// The press cue, or null for a silent theme — see [TapSoundSplash].
+  ///
+  /// Optional so the several dozen tests that build a theme directly get the
+  /// stock splash and no sound engine, which is what they want.
+  VoidCallback? onPress,
+}) {
   final s = buildKitSurfaces(kitId: kitId, light: light);
   final kit = KitTheme(
     bg: cssColor(s.bg),
@@ -354,6 +418,10 @@ ThemeData buildAppTheme({required String kitId, required bool light}) {
   );
   final brightness = light ? Brightness.light : Brightness.dark;
   final theme = ThemeData(
+    // Every button and every `InkWell` clicks — see [TapSoundSplash].
+    splashFactory: onPress == null
+        ? null
+        : TapSoundSplash(ink: InkSparkle.splashFactory, onPress: onPress),
     useMaterial3: true,
     brightness: brightness,
     // **ONE PLACE, and it reaches every `Text` in the app.** A bare
@@ -385,6 +453,47 @@ ThemeData buildAppTheme({required String kitId, required bool light}) {
       brightness: brightness,
     ),
     extensions: [kit],
+    // **A TOOLTIP IS THE APP'S BUBBLE, NOT MATERIAL'S INVERTED ONE.**
+    //
+    // Flutter's default deliberately inverts the theme — a dark app gets a
+    // WHITE bubble with black text, a light app a dark grey one — which is a
+    // desktop convention for a hover hint that has to shout over a document.
+    // In here it reads as a stray piece of another app: the modifier tips on
+    // the next-match card are tapped, not hovered, and they sat white-on-black
+    // in the middle of a dark page. Reported from the couch, with the fix
+    // named: inverse it.
+    //
+    // Set here rather than on the call sites because there are eight of them —
+    // the kit picker, three in the league sheets, the subs panel, the squad
+    // page, the merge grid and the modifier tips — and a bubble that matches on
+    // seven pages is worse than one that matches on none.
+    tooltipTheme: TooltipThemeData(
+      decoration: BoxDecoration(
+        // The page's own surface. In DARK it is lifted a little off the card
+        // it floats over, so the bubble has a body of its own; in light there
+        // is nowhere to lift TO — the surface is already near white — and
+        // darkening it instead would be the inversion this is here to undo, so
+        // the border and the shadow do that job on their own.
+        color: light
+            ? kit.surface
+            : Color.alphaBlend(
+                Colors.white.withValues(alpha: 0.07),
+                kit.surface,
+              ),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: kit.border),
+        boxShadow: const [
+          BoxShadow(color: Color(0x59000000), blurRadius: 10, offset: Offset(0, 3)),
+        ],
+      ),
+      textStyle: TextStyle(
+        fontSize: 12,
+        height: 1.35,
+        fontWeight: FontWeight.w600,
+        color: light ? const Color(0xFF1A1F26) : Colors.white,
+      ),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+    ),
     // **EVERY BUTTON WEARS THE SHOP'S FACE.** Reported as the shop's controls
     // being moulded and nothing else in the app being — see
     // [mouldedButtonStyle]. Set here so it reaches all eighty-odd Material

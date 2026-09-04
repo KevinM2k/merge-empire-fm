@@ -158,6 +158,16 @@ const double _coachStageGap = 12;
 /// effectively all of it to his right.
 const Alignment coachStandeeSide = Alignment(-0.95, 1);
 
+/// The cutout's width over its height — `assets/ui/coach_cutout.png` is
+/// 450x487.
+///
+/// **His BOX used to be the whole width of the stage** with the art merely
+/// `contain`ed and aligned inside it, so three quarters of it was empty picture
+/// that hit-tested as him. That is what stopped a tap beside him closing the
+/// card. Sized to his own shape, "on him" and "next to him" are different
+/// places. See [CoachStage].
+const double coachStandeeAspect = 450 / 487;
+
 /// His height on THIS screen.
 double coachStandeeHeightOn(BuildContext context) => math.min(
   coachStandeeHeight,
@@ -487,6 +497,7 @@ Future<T?> showCoachCard<T>(
       bodyKey: bodyKey,
       body: body,
       bodyParams: bodyParams,
+      dismissible: barrierDismissible,
       extraLines: extraLines,
       extraTexts: extraTexts,
       coins: coins,
@@ -505,6 +516,7 @@ class _CoachCard<T> extends StatelessWidget {
     required this.bodyKey,
     required this.body,
     required this.bodyParams,
+    required this.dismissible,
     required this.extraLines,
     required this.extraTexts,
     required this.coins,
@@ -526,6 +538,12 @@ class _CoachCard<T> extends StatelessWidget {
   final String bodyKey;
   final String? body;
   final Map<String, Object?> bodyParams;
+
+  /// The dialog's own `barrierDismissible`, handed to the scene so a tap
+  /// beside him does what a tap on the barrier does — see
+  /// [CoachStage.dismissible].
+  final bool dismissible;
+
   final List<CoachLine> extraLines;
   final List<String> extraTexts;
   final int? coins;
@@ -535,6 +553,7 @@ class _CoachCard<T> extends StatelessWidget {
   Widget build(BuildContext context) => CoachCardFrame(
     title: t(titleKey, titleParams),
     body: body ?? t(bodyKey, bodyParams),
+    dismissible: dismissible,
     extraLines: extraLines,
     extraTexts: extraTexts,
     coins: coins,
@@ -635,7 +654,15 @@ class CoachTypewriter extends ConsumerStatefulWidget {
   const CoachTypewriter({
     required this.text,
     this.style,
-    this.textAlign = TextAlign.center,
+    // **LEFT, and that is the default rather than a per-card opt-in.** This is
+    // Colin TALKING — two or three lines of prose — and centred prose gives
+    // every line a different left edge, so the eye has to hunt for where the
+    // next one starts. The static lines under the body were fixed first and
+    // the typed body was left centred, which put a ragged-left paragraph
+    // directly above a flush-left one on the same card. Asked for from the
+    // couch, for every one of his popups. The card's TITLE stays centred: a
+    // heading is the case centring is for.
+    this.textAlign = TextAlign.start,
     this.textKey,
     this.speaks = false,
     this.speaksKey = '',
@@ -884,6 +911,7 @@ class CoachStage extends StatefulWidget {
     required this.child,
     this.dialogKey,
     this.minimisable = false,
+    this.dismissible = false,
     this.avoid,
     super.key,
   });
@@ -896,6 +924,27 @@ class CoachStage extends StatefulWidget {
 
   /// See [CoachCardFrame.minimisable].
   final bool minimisable;
+
+  /// **WHETHER A TAP ON THE SCENE CLOSES THE CARD**, which is what the barrier
+  /// under it would have done.
+  ///
+  /// **THE DIALOG IS THE WHOLE SCREEN.** It is bottom-aligned with a transparent
+  /// background and he stands in the empty top half of it, so the barrier only
+  /// ever got the strip outside the inset padding — a tap beside his shoulder
+  /// or in the space to his right landed on the dialog's own Material and did
+  /// nothing at all. The comment on the skip detector claimed such a tap "falls
+  /// through to the barrier the way it always has"; it did not. Reported from
+  /// the couch twice: first that the card would not close, then, precisely,
+  /// that tapping ABOVE him worked and beside him did not.
+  ///
+  /// So the scene closes it and the two things that are the CARD do not: a tap
+  /// on the box still finishes his line, and a tap on the figure — sized to his
+  /// own silhouette, see [coachStandeeAspect] — does too. Off by default, so
+  /// every screen that builds a [CoachCardFrame] behind its own `showDialog`
+  /// keeps whatever its own barrier does; [showCoachCard] passes its
+  /// `barrierDismissible` straight through, so a tutorial step that may not be
+  /// dismissed still may not be.
+  final bool dismissible;
 
   /// See [CoachCardFrame.avoid].
   final Rect? avoid;
@@ -911,6 +960,15 @@ class _CoachStageState extends State<CoachStage> {
   void dispose() {
     _skips.dispose();
     super.dispose();
+  }
+
+  /// Where the figure's box starts, which is where `BoxFit.contain` and
+  /// [coachStandeeSide] used to put the art inside a full-width band — so
+  /// narrowing the box to his own shape does not move him a pixel.
+  double _figureLeft(BuildContext context, EdgeInsets insets, double standee) {
+    final stage = MediaQuery.sizeOf(context).width - insets.horizontal;
+    final figure = standee * coachStandeeAspect;
+    return math.max(0, (stage - figure) * (1 + coachStandeeSide.x) / 2);
   }
 
   /// The room the card is given on this screen, and where in it the card sits.
@@ -1012,13 +1070,27 @@ class _CoachStageState extends State<CoachStage> {
           child: Stack(
             clipBehavior: Clip.none,
             children: [
+              // **THE SCENE, and tapping it closes the card** — see
+              // [CoachStage.dismissible]. First in the stack, so everything
+              // that IS the card is hit-tested before it.
+              if (widget.dismissible)
+                Positioned.fill(
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => Navigator.of(context).maybePop(),
+                  ),
+                ),
               // Nothing of him when there is not room for a figure — see
               // [_standee].
+              //
+              // **HIS OWN SHAPE, not the width of the stage.** Opaque, so a tap
+              // on the man finishes his line the way a tap on the box does
+              // rather than closing the card out from under him.
               if (standee > 0)
                 Positioned(
                   top: 0,
-                  left: 0,
-                  right: 0,
+                  left: _figureLeft(context, insets, standee),
+                  width: standee * coachStandeeAspect,
                   height: standee,
                   // **AND NOTHING BESIDE HIM.** A milestone tip used to hang
                   // its subject emoji in the air over his shoulder — a
@@ -1026,7 +1098,11 @@ class _CoachStageState extends State<CoachStage> {
                   // is a man standing behind a box reads as a sticker floating
                   // in the room. Asked for from the couch. The subject is in
                   // the title he is saying it under; it does not need a mascot.
-                  child: const CoachStandee(),
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: () => _skips.value++,
+                    child: const CoachStandee(),
+                  ),
                 ),
               // **HIS NAME IS OUT ON THE SCENE, not the first line inside the
               // box.** It sat above the title in the club's accent, which
@@ -1173,10 +1249,14 @@ class CoachCardFrame extends StatelessWidget {
     this.coins,
     this.actions = const [],
     this.minimisable = false,
+    this.dismissible = false,
     this.footer,
     this.speaks = false,
     this.speaksKey = '',
   });
+
+  /// See [CoachStage.dismissible].
+  final bool dismissible;
 
   /// Whether what he says is also SAID OUT LOUD.
   ///
@@ -1272,6 +1352,7 @@ class CoachCardFrame extends StatelessWidget {
     return CoachStage(
       dialogKey: const ValueKey('coach-card'),
       minimisable: minimisable,
+      dismissible: dismissible,
       avoid: avoid,
       // **THE READING MATTER SCROLLS; THE ANSWERS DO NOT.**
       //
@@ -1564,10 +1645,39 @@ class _CoachButton extends StatelessWidget {
 /// whose entire job is to be noticed, in the one colour that cannot be. Red is
 /// not the club's to choose, and a mark that moves is seen without being looked
 /// for.
+/// The plain dot's diameter — see [CoachAlertBadge.plain].
+const double coachAlertDotSize = 11;
+
+/// How far in from a [disc]-wide box's top-right corner the dot goes, so it
+/// sits ON the rim at 45° rather than floating off the corner in mid-air.
+///
+/// **IT WAS TWO HAND-PICKED NEGATIVE OFFSETS** (`right: -3, top: -4`), tuned
+/// when the badge was 18 across and carried a character. At 11 the same offsets
+/// push a smaller dot further out than the old one ever sat, and on the floating
+/// coach — whose box is his pulse ring's, wider than his head — a corner offset
+/// of zero left it out in the ring's empty air. Reported from the couch, on the
+/// dock, as being too far from the button. Off the geometry now, so it lands the
+/// same way on a 54 orb and a 68 head.
+double coachAlertDotInset(double disc) =>
+    disc / 2 * (1 - math.sqrt1_2) - coachAlertDotSize / 2;
+
 class CoachAlertBadge extends StatefulWidget {
-  const CoachAlertBadge({super.key, this.dotKey});
+  const CoachAlertBadge({super.key, this.dotKey, this.plain = false});
 
   final Key? dotKey;
+
+  /// **A BARE DOT, the way a phone marks an unread.**
+  ///
+  /// The exclamation mark reads as loud over a dock orb — a control the player
+  /// is looking straight at on the home page, with nothing on the screen
+  /// competing for the corner. Reported from the couch. So the dock takes the
+  /// quiet form: smaller, no character in it, and it holds still, because a
+  /// notification dot that hops is a notification dot asking twice.
+  ///
+  /// The floating coach keeps the mark. He is in the corner of a page the
+  /// player came to do something else on, which is the opposite problem — see
+  /// `coach_floating.dart`.
+  final bool plain;
 
   @override
   State<CoachAlertBadge> createState() => _CoachAlertBadgeState();
@@ -1582,7 +1692,11 @@ class _CoachAlertBadgeState extends State<CoachAlertBadge> with SingleTickerProv
   void _sync() {
     // A badge that never stops moving is exactly what reduce-motion is asking
     // us not to run. It stays — red on its own still reads — it just holds
-    // still.
+    // still. The plain dot never hops in the first place.
+    if (widget.plain) {
+      if (_bounce.isAnimating) _bounce.stop();
+      return;
+    }
     if (MediaQuery.of(context).disableAnimations) {
       if (_bounce.isAnimating) _bounce.stop();
       return;
@@ -1615,8 +1729,11 @@ class _CoachAlertBadgeState extends State<CoachAlertBadge> with SingleTickerProv
       },
       child: Container(
         key: widget.dotKey,
-        width: 18,
-        height: 18,
+        // Smaller with nothing in it — see [CoachAlertBadge.plain]. Still
+        // ringed in white and still shadowed: it sits over a dark glass orb on
+        // a lit pitch, and red on green is the one pairing that needs an edge.
+        width: widget.plain ? coachAlertDotSize : 18,
+        height: widget.plain ? coachAlertDotSize : 18,
         alignment: Alignment.center,
         decoration: BoxDecoration(
           color: coachAlert,
@@ -1630,15 +1747,17 @@ class _CoachAlertBadgeState extends State<CoachAlertBadge> with SingleTickerProv
             ),
           ],
         ),
-        child: const Text(
-          '!',
-          style: TextStyle(
-            fontSize: 12,
-            height: 1,
-            fontWeight: FontWeight.w900,
-            color: Colors.white,
-          ),
-        ),
+        child: widget.plain
+            ? null
+            : const Text(
+                '!',
+                style: TextStyle(
+                  fontSize: 12,
+                  height: 1,
+                  fontWeight: FontWeight.w900,
+                  color: Colors.white,
+                ),
+              ),
       ),
     );
   }

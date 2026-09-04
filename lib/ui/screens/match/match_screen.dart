@@ -345,7 +345,7 @@ class MatchScreen extends ConsumerStatefulWidget {
 
   /// **AUTO IS 2× THAT GETS OUT OF THE WAY WHEN THERE IS SOMETHING TO READ.**
   /// It is a third setting rather than a variant of [fast]: the base speed is
-  /// still 2×, and [MatchScreenState.effectiveFast] is what drops to 1× for as
+  /// still 2×, and [MatchScreenState.pace] is what drops to HALF speed for as
   /// long as Colin has a line up.
   final bool auto;
 
@@ -529,7 +529,10 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
   /// `coach.match.*` strings, translated ten times over, and not one caller —
   /// see `engine/match_coach.dart`.
   String? _coachLine;
-  int _lastCoachMinute = -1;
+  /// **[coachNeverSpoke], not -1.** The sticky window is measured against
+  /// this, so any near-zero value holds his first word for twenty-five
+  /// minutes — see the constant.
+  int _lastCoachMinute = coachNeverSpoke;
   String? _lastCoachSuggestion;
   Timer? _coachTimer;
 
@@ -550,6 +553,15 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
   /// pick mid-match is what sets `followedCoachSuggestion`, which is the whole
   /// of one achievement and one quest.
   String? _coachSuggestion;
+
+  /// The pre-match ask the manager DECLINED, captured at kick-off.
+  ///
+  /// Null when they took it, or when he had nothing to ask for. It is what
+  /// stops his first live word being the same sentence the manager just read
+  /// and acted against — see [coachDeclinedHoldMinutes]. Captured once,
+  /// because `_strategy` moves during the match and the question is what was
+  /// on the dial when the whistle went.
+  String? _declinedAtKickoff;
 
   /// A second's grace after a change, so the strip cannot be strummed.
   bool _tacticCooldown = false;
@@ -605,12 +617,27 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
   /// tap 1× and remember to tap it back.
   late bool _auto = widget.auto;
 
-  /// The speed the clock is ACTUALLY running at.
+  /// Whether the auto rule is standing the clock down right now.
+  bool get autoSlowed => _fast && _auto && _coachLine != null;
+
+  /// The pace the CLOCK is actually running at.
+  ///
+  /// **THE AUTO DROP GOES BELOW BASE.** It used to be [effectiveFast] going
+  /// false, which is 1× — and 1× was still quick enough that a line went by
+  /// unread. See [MatchPace.autoSlow].
+  MatchPace get pace => autoSlowed
+      ? MatchPace.autoSlow
+      : _fast
+      ? MatchPace.fast
+      : MatchPace.base;
+
+  /// The speed the PITCH is actually running at.
   ///
   /// [_fast] is the setting; this is the setting with the auto-slow applied.
-  /// Everything that measures a minute has to ask this one — a stage animating
-  /// at 2× under a clock ticking at 1× is two speeds on one screen.
-  bool get effectiveFast => _fast && !(_auto && _coachLine != null);
+  /// A stage animating at 2× under a clock ticking at 1× is two speeds on one
+  /// screen — but the stage's own time scale is two-speed, so it goes to base
+  /// for the auto-slow rather than into slow motion. See [pace] for the clock.
+  bool get effectiveFast => !autoSlowed && _fast;
 
   /// Where the two clubs stood when the whistle went.
   ///
@@ -728,6 +755,10 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
     // Read ONCE, before the first minute: it is derived from the save, and the
     // save moves under a long match.
     _coachSuggestion = ref.read(coachSuggestedTacticProvider);
+    final preMatch = _coachSuggestion;
+    _declinedAtKickoff = preMatch != null && preMatch != _strategy
+        ? preMatch
+        : null;
     _standings = _standingsAtKickoff();
     _kickoffLineup = _lineupSnapshot();
     _startClock();
@@ -748,7 +779,7 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
 
   void _startClock() {
     _timer?.cancel();
-    _timer = Timer.periodic(minuteDuration(fast: effectiveFast), (_) => _tick());
+    _timer = Timer.periodic(pace.minute, (_) => _tick());
   }
 
   /// Halve the wait, or put it back. The clock is restarted rather than
@@ -1175,12 +1206,37 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
       injuryCost: injuryCostPoints(state, theirAtk, theirDef),
       oppAttackRatio: (widget.result['oppAttackRatio'] as num?)?.toDouble(),
     );
+    // **RECORDED BEFORE THE CADENCE GATE, which is where the JS records it.**
+    // `_maybeShowCoachBubble` writes `coachSuggestedStrategy` and
+    // `coachAskedFor` onto the result the moment it computes a suggestion, and
+    // the port wrote neither: `quest_match.dart`'s `_defiedCoach` reads both,
+    // finds an empty list and returns false, so defying the coach could never
+    // be done and the quest behind it could never advance. `unreached.sh`'s
+    // question asked of a FIELD rather than a function.
+    //
+    // Before the gate because the two say different things: `coachAskedFor` is
+    // what he WANTED, and holding the floor for the sticky window is about how
+    // often he says it out loud, not about whether he thought it. The JS's own
+    // comment makes the other half of the rule — only a suggestion that asks
+    // for a CHANGE is something to defy, because he regularly comes round to
+    // the tactic already on the dial and counting that as advice taken failed
+    // the quest for players who had ignored him all afternoon.
+    if (suggestion != null) {
+      widget.result['coachSuggestedStrategy'] = suggestion;
+      if (suggestion != _strategy) {
+        final asked = widget.result['coachAskedFor'];
+        final list = asked is List ? asked : <Object?>[];
+        if (!list.contains(suggestion)) list.add(suggestion);
+        widget.result['coachAskedFor'] = list;
+      }
+    }
     if (!coachShouldSpeak(
       minute: _minute,
       lastSpokeMinute: _lastCoachMinute,
       activeStrategy: _strategy,
       suggestion: suggestion,
       lastSuggestion: _lastCoachSuggestion,
+      declinedAtKickoff: _declinedAtKickoff,
       force: force,
     )) {
       _lastCoachSuggestion = suggestion;
@@ -1264,8 +1320,8 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
   /// drives, and there is nothing private about him having something to say.
   ///
   /// **And on Auto the clock goes with it.** See [_auto]: the bubble going up
-  /// is the signal to drop to 1×, and it coming down — dwelt out or dismissed —
-  /// is the signal to go back to 2×.
+  /// is the signal to drop to half speed, and it coming down — dwelt out or
+  /// dismissed — is the signal to go back to 2×.
   void say(String line) {
     _coachTimer?.cancel();
     setState(() => _coachLine = line);

@@ -21,8 +21,10 @@ import 'package:merge_empire_fc/state/game_state.dart';
 import 'package:merge_empire_fc/state/save_slots.dart';
 import 'package:merge_empire_fc/state/save_store.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
+import 'package:merge_empire_fc/ui/screens/minigames/minigame_countdown.dart';
 import 'package:merge_empire_fc/ui/screens/minigames/minigames_providers.dart';
 import 'package:merge_empire_fc/ui/screens/minigames/pitch_invaders_screen.dart';
+import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
 import 'package:merge_empire_fc/util/time.dart';
 
@@ -137,11 +139,14 @@ void main() {
     expect(playableMiniGames, contains(MiniGameKind.whack));
   });
 
-  testWidgets('THE LEAD-IN COMES FIRST, and nothing pops before it', (
+  testWidgets('THE COUNT COMES FIRST, and nothing pops before GO', (
     tester,
   ) async {
+    // **THE LEAD-IN IS THE 3-2-1 NOW**, not the JS's silent 600ms — see
+    // `minigame_countdown.dart`. `Whack.leadInMs` is still pinned against the
+    // JS in `mini_games_test.dart`; what the SCREEN waits for is the count.
     await pumpGame(tester);
-    await advance(tester, Whack.leadInMs - 100);
+    await advance(tester, miniGameCountdownMs - 100);
     final s = stateOf(tester);
     expect(s.running, isFalse, reason: 'the session started early');
     expect(s.holes.every((h) => h == null), isTrue);
@@ -157,7 +162,7 @@ void main() {
     // Walking out during the lead-in has cost nothing, so the cooldown must
     // not have started.
     final container = await pumpGame(tester);
-    await advance(tester, Whack.leadInMs - 100);
+    await advance(tester, miniGameCountdownMs - 100);
     expect(
       miniGameReady(container.read(gameProvider).state!, MiniGameKind.whack),
       isTrue,
@@ -173,7 +178,7 @@ void main() {
 
   testWidgets('an INVADER is a catch and a STEWARD is a foul', (tester) async {
     await pumpGame(tester);
-    await advance(tester, Whack.leadInMs + 100);
+    await advance(tester, miniGameCountdownMs + 100);
     final s = stateOf(tester);
 
     // Wait for something to be up, then tap whatever it is and check the
@@ -210,7 +215,7 @@ void main() {
     tester,
   ) async {
     await pumpGame(tester);
-    await advance(tester, Whack.leadInMs + 100);
+    await advance(tester, miniGameCountdownMs + 100);
     final s = stateOf(tester);
     var index = -1;
     for (var i = 0; i < 40 && index < 0; i++) {
@@ -234,7 +239,7 @@ void main() {
     // the right time remaining rather than five free seconds. Here the frames
     // stop and the clock does not, which is exactly that.
     await pumpGame(tester);
-    await advance(tester, Whack.leadInMs + 100);
+    await advance(tester, miniGameCountdownMs + 100);
     final s = stateOf(tester);
     expect(s.over, isFalse);
 
@@ -252,7 +257,7 @@ void main() {
     tester,
   ) async {
     final container = await pumpGame(tester);
-    await advance(tester, Whack.leadInMs + 100);
+    await advance(tester, miniGameCountdownMs + 100);
     final s = stateOf(tester);
     fakeNow += Whack.durationMs;
     await tester.pump(const Duration(milliseconds: 16));
@@ -279,7 +284,7 @@ void main() {
 
   testWidgets('LEAVING BEFORE KICK-OFF banks nothing at all', (tester) async {
     final container = await pumpGame(tester);
-    await advance(tester, Whack.leadInMs - 100);
+    await advance(tester, miniGameCountdownMs - 100);
     final before = jsonEncode(container.read(gameProvider).state!['stats']);
     await closeGame(tester);
     expect(
@@ -291,7 +296,7 @@ void main() {
 
   testWidgets('but leaving MID-SESSION banks it, once', (tester) async {
     final container = await pumpGame(tester);
-    await advance(tester, Whack.leadInMs + 100);
+    await advance(tester, miniGameCountdownMs + 100);
     final s = stateOf(tester);
     for (var i = 0; i < 30; i++) {
       final index = s.holes.indexWhere((h) => h != null);
@@ -389,7 +394,7 @@ void main() {
     // was painted across his shins. What that reads as is the hole being in
     // front of the thing in it. Reported from the couch in those words.
     await pumpGame(tester);
-    await advance(tester, Whack.leadInMs + 100);
+    await advance(tester, miniGameCountdownMs + 100);
     final s = stateOf(tester);
     var up = -1;
     for (var i = 0; i < 60 && up < 0; i++) {
@@ -434,7 +439,7 @@ void main() {
     // harmlessly underneath. The cut is a clip on the figure now, so the hole
     // is drawn once and drawn first.
     await pumpGame(tester);
-    await advance(tester, Whack.leadInMs + 100);
+    await advance(tester, miniGameCountdownMs + 100);
     final s = stateOf(tester);
     var up = -1;
     for (var i = 0; i < 60 && up < 0; i++) {
@@ -456,19 +461,28 @@ void main() {
       findsOneWidget,
       reason: 'the figure is not the thing being clipped',
     );
-    // And he is LAST in the tile's stack, so there is nothing left to paint
-    // over him.
+    // And he is the last of the SCENE in the tile's stack, so there is nothing
+    // of the hole left to paint over him. The one layer after him is the tap
+    // ring, which is a frame round the whole tile rather than part of the hole
+    // and is meant to be over the top — see `whackFlash`.
     final stack = tester.widget<Stack>(
       find.descendant(of: hole, matching: find.byType(Stack)).first,
     );
+    final figure = stack.children.indexWhere(
+      (c) => c is Positioned && c.child is ClipPath,
+    );
+    expect(figure, greaterThanOrEqualTo(0), reason: 'the figure is not clipped');
     expect(
-      stack.children.last,
-      isA<Positioned>().having(
-        (p) => p.child,
-        'child',
-        isA<ClipPath>(),
+      stack.children.length - figure,
+      2,
+      reason: 'something of the scene is drawn after the figure',
+    );
+    expect(
+      find.descendant(
+        of: hole,
+        matching: find.byKey(ValueKey('pi-flash-$up')),
       ),
-      reason: 'something is drawn after the figure',
+      findsOneWidget,
     );
     await closeGame(tester);
   });
@@ -486,7 +500,7 @@ void main() {
     // The rule is one sentence and this is it: below the waist, the only thing
     // visible is what is inside the mouth.
     await pumpGame(tester);
-    await advance(tester, Whack.leadInMs + 100);
+    await advance(tester, miniGameCountdownMs + 100);
     final s = stateOf(tester);
     var up = -1;
     for (var i = 0; i < 60 && up < 0; i++) {
@@ -557,5 +571,194 @@ void main() {
     // should not be much less.
     expect(tile.width, greaterThan(board.width / 3 - 6));
     expect(tile.width * 3, greaterThan(board.width * 0.9));
+  });
+
+  group('A TAP GETS AN ANSWER ON THE TILE', () {
+    test('THE DOG IS GOLD and a STEWARD IS RED', () {
+      // Three readings, not one — that is the whole point of the feedback. The
+      // man is the club's own accent, so a catch is drawn in the kit; the dog
+      // is the gold every bonus in the game wears, which is what makes the
+      // rarer, bigger catch land harder; the steward is the red a goal against
+      // is drawn in, because it is the one tap that took something away.
+      //
+      // **A UNIT TEST, because the dog is a rarer draw than a session is
+      // long.** An integration test that waits for one fails on a bad roll.
+      const kit = KitTheme(
+        bg: Color(0xFF000000),
+        surface: Color(0xFF111111),
+        surface2: Color(0xFF222222),
+        border: Color(0xFF333333),
+        textMuted: Color(0xFF888888),
+        accent: Color(0xFF00A0FF),
+        accentBright: Color(0xFF40D0FF),
+        accentBrightInk: Color(0xFF000000),
+        accentInk: Color(0xFFFFFFFF),
+        background: BoxDecoration(color: Color(0xFF000000)),
+      );
+      expect(whackFlashInk(kit, Invader.invader), kit.accentBright);
+      expect(whackFlashInk(kit, Invader.dog), whackDogInk);
+      // The palette's own danger, not a red this screen invented.
+      expect(whackFlashInk(kit, Invader.steward), dangerInk);
+      // And no two of them are the same colour, which is the requirement.
+      expect(
+        {
+          for (final what in Invader.values) whackFlashInk(kit, what),
+        },
+        hasLength(Invader.values.length),
+      );
+    });
+
+    // **The board said nothing back.** The figure dropped, a number at the top
+    // of the page moved, and nothing where the player was actually looking
+    // told them which of the three things they had just hit. Asked for from
+    // the couch, in three colours: the man, the better one, and the mistake.
+    Future<int> waitForOne(
+      WidgetTester tester,
+      PitchInvadersScreenState s, {
+      required bool Function(Invader) want,
+    }) async {
+      for (var i = 0; i < 200; i++) {
+        final index = s.holes.indexWhere((h) => h != null && want(h));
+        if (index >= 0) return index;
+        await advance(tester, 60);
+      }
+      return -1;
+    }
+
+    Future<Color?> ringInk(WidgetTester tester, int index) async {
+      final box = tester.widget<AnimatedContainer>(
+        find.byKey(ValueKey('pi-flash-$index')),
+      );
+      final decoration = box.decoration! as BoxDecoration;
+      return decoration.border?.top.color;
+    }
+
+    testWidgets('and NOTHING is ringed before a tap', (tester) async {
+      await pumpGame(tester);
+      await advance(tester, miniGameCountdownMs + 100);
+      for (var i = 0; i < Whack.holes; i++) {
+        expect(await ringInk(tester, i), Colors.transparent);
+      }
+      expect(stateOf(tester).flashes, isEmpty);
+      await closeGame(tester);
+    });
+
+    testWidgets('a MAN rings the tile in the club\'s own accent', (
+      tester,
+    ) async {
+      await pumpGame(tester);
+      await advance(tester, miniGameCountdownMs + 100);
+      final s = stateOf(tester);
+      final index = await waitForOne(
+        tester,
+        s,
+        want: (h) => h == Invader.invader,
+      );
+      expect(index, greaterThanOrEqualTo(0), reason: 'no invader ever came up');
+      await tester.tap(find.byKey(ValueKey('pi-hole-$index')));
+      await tester.pump();
+
+      expect(s.flashes[index], Invader.invader);
+      final kit = Theme.of(
+        tester.element(find.byKey(const ValueKey('pi-board'))),
+      ).extension<KitTheme>()!;
+      expect(await ringInk(tester, index), kit.accentBright);
+      expect(await ringInk(tester, (index + 1) % Whack.holes), Colors.transparent,
+          reason: 'the ring is on the wrong tile, or on all of them');
+      await closeGame(tester);
+    });
+
+    testWidgets('and the ring comes back down on its own', (tester) async {
+      // Otherwise the next pop-up into that hole arrives wearing the last
+      // tap's answer.
+      await pumpGame(tester);
+      await advance(tester, miniGameCountdownMs + 100);
+      final s = stateOf(tester);
+      final index = await waitForOne(tester, s, want: (_) => true);
+      expect(index, greaterThanOrEqualTo(0));
+      await tester.tap(find.byKey(ValueKey('pi-hole-$index')));
+      await tester.pump();
+      expect(s.flashes.containsKey(index), isTrue);
+
+      await advance(tester, whackFlash.inMilliseconds + 100);
+      expect(s.flashes.containsKey(index), isFalse);
+      await closeGame(tester);
+    });
+
+    testWidgets('and full time takes every ring down with the board', (
+      tester,
+    ) async {
+      await pumpGame(tester);
+      await advance(tester, miniGameCountdownMs + 100);
+      final s = stateOf(tester);
+      final index = await waitForOne(tester, s, want: (_) => true);
+      expect(index, greaterThanOrEqualTo(0));
+      await tester.tap(find.byKey(ValueKey('pi-hole-$index')));
+      await tester.pump();
+      expect(s.flashes, isNotEmpty);
+
+      fakeNow += Whack.durationMs;
+      await tester.pump(const Duration(milliseconds: 16));
+      expect(s.over, isTrue);
+      expect(s.flashes, isEmpty, reason: 'a ring outlived the session');
+      await tester.pumpAndSettle();
+      await closeGame(tester);
+    });
+  });
+
+  group('THE COUNT IN', () {
+    testWidgets('is 3, 2, 1 and then GO', (tester) async {
+      await pumpGame(tester);
+      // **WATCHED RATHER THAN CLOCKED.** Each beat is restarted on the frame
+      // the last one finished, so advancing exactly `countdownBeatMs` lands a
+      // frame either side of the change; what the test is about is the order
+      // of the four, and that nothing is running behind them.
+      final seen = <String>[];
+      for (var i = 0; i < 300; i++) {
+        for (final label in [...countdownBeats, 'go']) {
+          final found = find
+              .byKey(ValueKey('mg-countdown-$label'))
+              .evaluate()
+              .isNotEmpty;
+          if (found && (seen.isEmpty || seen.last != label)) seen.add(label);
+        }
+        if (!stateOf(tester).counting) break;
+        expect(stateOf(tester).running, isFalse, reason: 'it started early');
+        await advance(tester, 60);
+      }
+      expect(seen, [...countdownBeats, 'go']);
+
+      await advance(tester, 100);
+      expect(stateOf(tester).counting, isFalse);
+      expect(stateOf(tester).running, isTrue, reason: 'GO did not kick off');
+      expect(find.byKey(const ValueKey('mg-countdown-go')), findsNothing);
+      expect(find.text(t('mg.countdown_go')), findsNothing);
+      await closeGame(tester);
+    });
+
+    testWidgets('AND THE BOARD IS BEHIND IT, not replaced by it', (
+      tester,
+    ) async {
+      // Three seconds of an empty page is three seconds of not knowing what is
+      // about to be asked of you.
+      await pumpGame(tester);
+      expect(stateOf(tester).counting, isTrue);
+      expect(find.byKey(const ValueKey('pi-board')), findsOneWidget);
+      expect(find.byKey(const ValueKey('pi-hole-4')), findsOneWidget);
+      await closeGame(tester);
+    });
+
+    testWidgets('and leaving during it banks nothing — GO spends the attempt', (
+      tester,
+    ) async {
+      final container = await pumpGame(tester);
+      await advance(tester, countdownBeatMs);
+      expect(
+        miniGameReady(container.read(gameProvider).state!, MiniGameKind.whack),
+        isTrue,
+        reason: 'the count spent the session',
+      );
+      await closeGame(tester);
+    });
   });
 }

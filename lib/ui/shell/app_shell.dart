@@ -300,6 +300,15 @@ class AppShellState extends ConsumerState<AppShell>
             // UNDER the HUD disappears a third of the way through the throw,
             // which reads as the animation being broken rather than as money
             // arriving.
+            //
+            // **AND ITS CLOCK IS ITS OWN, which is why nothing is needed here.**
+            // A Navigator mutes `TickerMode` for everything under the topmost
+            // route, so a reward paid from inside a mini-game or a shop sheet
+            // used to put a sprite up in the middle of the screen and leave it
+            // there, frozen at the start of its arc, until the route was
+            // popped. `CoinFlight` provides its own unmuted tickers — a
+            // `TickerMode` wrapped round this mounting would NOT have worked,
+            // because `TickerMode` composes with its ancestors. See its note.
             const Positioned.fill(
               key: ValueKey('coin-flight-layer'),
               child: CoinFlight(),

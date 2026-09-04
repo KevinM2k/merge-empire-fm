@@ -130,6 +130,79 @@ void main() {
       }
     });
 
+    group('THE SHELF IS TWO SHELVES', () {
+      // **A Magic Sponge and a Kit Sponsor answer different questions.** One
+      // heading over both of them answered neither: a player looking for
+      // income scanned past a bandage, and a player with three injured men
+      // scanned past a TV deal. Asked for from the couch: split the boosts from
+      // the income. See `incomeShelfIds`.
+      testWidgets('and BOOSTS keeps what fixes the squad', (tester) async {
+        await pumpShopWidget(tester, (_) {}, BoostsSection.new);
+        expect(
+          find.byKey(const ValueKey('shop-tile-coin-magic_sponge')),
+          findsOneWidget,
+        );
+        for (final id in incomeShelfIds) {
+          expect(
+            find.byKey(ValueKey('shop-tile-coin-$id')),
+            findsNothing,
+            reason: '$id is income and is still on the boosts shelf',
+          );
+          expect(find.byKey(ValueKey('shop-tile-gem-$id')), findsNothing);
+        }
+      });
+
+      testWidgets('and INCOME takes what multiplies the earnings', (
+        tester,
+      ) async {
+        await pumpShopWidget(tester, (_) {}, IncomeSection.new);
+        expect(
+          find.byKey(const ValueKey('shop-tile-coin-kit_sponsor')),
+          findsOneWidget,
+        );
+        expect(
+          find.byKey(const ValueKey('shop-tile-coin-magic_sponge')),
+          findsNothing,
+          reason: 'a bandage does not pay anything',
+        );
+      });
+
+      testWidgets('and it is a PARTITION — nothing is drawn twice', (
+        tester,
+      ) async {
+        // The two shelves read one membership test, so a tile is on exactly
+        // one of them. A row added without touching `incomeShelfIds` lands on
+        // Boosts, which is the safer default: a boost on the wrong shelf is
+        // misfiled, and an income item on the wrong shelf is a claim about
+        // what it does.
+        Future<Set<String>> tilesOf(Widget Function() build) async {
+          await pumpShopWidget(tester, (_) {}, build);
+          return {
+            for (final el in find
+                .byWidgetPredicate(
+                  (w) =>
+                      w.key is ValueKey<String> &&
+                      (w.key! as ValueKey<String>).value.startsWith(
+                        'shop-tile-',
+                      ),
+                )
+                .evaluate())
+              ((el.widget.key! as ValueKey<String>).value),
+          };
+        }
+
+        final boosts = await tilesOf(BoostsSection.new);
+        final income = await tilesOf(IncomeSection.new);
+        expect(boosts, isNotEmpty);
+        expect(income, isNotEmpty);
+        expect(
+          boosts.intersection(income),
+          isEmpty,
+          reason: 'a tile is on both shelves',
+        );
+      });
+    });
+
     testWidgets('a gem purchase never fires when the row is blocked', (
       tester,
     ) async {
@@ -139,13 +212,18 @@ void main() {
       expect(container.read(gemsProvider), before);
     });
 
+    // **THE KIT SPONSOR IS ON THE INCOME SHELF NOW.** It is ×1.25 income for a
+    // season, and the old Boosts shelf mixed that in with a bandage and an
+    // energy refill — see `incomeShelfIds`. The tile, the price and the buy
+    // flow are the same widget either side of the split; what changed is which
+    // shelf draws it.
     testWidgets('buying a season boost debits the coins and arms it', (
       tester,
     ) async {
       final container = await pumpShopWidget(
         tester,
         (s) => (s['resources'] as Map<String, dynamic>)['fanCoins'] = 999999,
-        BoostsSection.new,
+        IncomeSection.new,
       );
       final before = container.read(coinsProvider);
 
@@ -165,7 +243,7 @@ void main() {
         (s['resources'] as Map<String, dynamic>)['fanCoins'] = 999999;
         (s['boosts'] as Map<String, dynamic>)['kitSponsorSeason'] =
             (s['progression'] as Map<String, dynamic>)['seasonCount'];
-      }, BoostsSection.new);
+      }, IncomeSection.new);
       expect(
         tester
             .widget<StoreButton>(

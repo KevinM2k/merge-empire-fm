@@ -257,4 +257,37 @@ void main() {
       expect(container.read(kitIdProvider), defaultKitColor);
     });
   });
+
+  group('A TOOLTIP IS THE APP\'S BUBBLE, not Material\'s inverted one', () {
+    // Flutter's default inverts the theme — a dark app gets a WHITE bubble with
+    // black text — which is a desktop convention for a hover hint over a
+    // document. In here it reads as a stray piece of another app: the modifier
+    // tips on the next-match card are TAPPED, and they sat white-on-black in
+    // the middle of a dark page. Reported from the couch.
+    for (final (name, light) in [('dark', false), ('light', true)]) {
+      test('and in $name mode it goes WITH the page', () {
+        final theme = buildAppTheme(kitId: '#4caf50', light: light);
+        final kit = theme.extension<KitTheme>()!;
+        final tip = theme.tooltipTheme;
+        final ground = (tip.decoration! as BoxDecoration).color!;
+        final ink = tip.textStyle!.color!;
+
+        // The bubble sits on the page's own surface, lifted a little so it has
+        // an edge; the ink reads on that rather than against it.
+        expect(
+          ground.computeLuminance(),
+          closeTo(kit.surface.computeLuminance(), 0.08),
+          reason: 'the bubble is not the colour of the page it floats over',
+        );
+        expect(
+          (ink.computeLuminance() - ground.computeLuminance()).abs(),
+          greaterThan(0.4),
+          reason: 'the text does not read on the bubble',
+        );
+        // And it is the right way round: light ink on a dark page, dark ink on
+        // a light one — which is the whole of the report.
+        expect(ink.computeLuminance() > ground.computeLuminance(), !light);
+      });
+    }
+  });
 }

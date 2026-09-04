@@ -1,6 +1,9 @@
 /// The live theme, derived from the save.
 library;
 
+import 'dart:async';
+
+import 'package:merge_empire_fc/providers/sound_providers.dart';
 import 'dart:ui' show PlatformDispatcher;
 
 import 'package:flutter/material.dart';
@@ -73,9 +76,14 @@ final forcedDarkProvider = StateProvider<bool>((ref) => false);
 
 final appThemeProvider = Provider<ThemeData>((ref) {
   final forcedDark = ref.watch(forcedDarkProvider);
+  // **THE PRESS CUE IS WIRED HERE**, which is the only place that has both the
+  // theme and the sound engine. `read`, not `watch`: the service is a singleton
+  // and watching it would rebuild the whole theme for nothing.
+  final sound = ref.read(soundServiceProvider);
   return buildAppTheme(
     kitId: ref.watch(kitIdProvider),
     light: forcedDark ? false : ref.watch(lightModeProvider),
+    onPress: () => unawaited(sound.play('tap')),
   );
 });
 

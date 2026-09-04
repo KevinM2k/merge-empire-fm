@@ -146,6 +146,19 @@ void main() {
       expect(whole, greaterThan(const Duration(seconds: 25)));
       expect(whole, lessThan(const Duration(seconds: 40)));
     });
+
+    test('AND AUTO DROPS BELOW BASE, not back to it', () {
+      // **1× was still quick.** Auto's job is to stand aside when there is a
+      // line to read and a decision to make, and base speed is the pace the
+      // manager already found brisk enough to want 2× off — so dropping to it
+      // was not much of a stand-aside. Reported from the couch.
+      expect(MatchPace.autoSlow.minuteMs, greaterThan(matchMinuteMs));
+      expect(MatchPace.autoSlow.minute, minuteDuration(fast: false) * 2);
+      // A quarter of the 2× the match was running at a moment earlier.
+      expect(MatchPace.autoSlow.minuteMs, matchMinuteMsFast * 4);
+      expect(MatchPace.base.minute, minuteDuration(fast: false));
+      expect(MatchPace.fast.minute, minuteDuration(fast: true));
+    });
   });
 
   group('THE COMMENTARY AND THE PITCH NAME THE SAME MAN', () {

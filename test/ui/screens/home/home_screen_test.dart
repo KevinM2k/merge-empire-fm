@@ -1096,6 +1096,49 @@ void main() {
         );
       }
     });
+
+    testWidgets('AND A TAP ANYWHERE IN IT MINIMISES IT', (tester) async {
+      // The `InkWell` wrapped the heading row alone, so shutting the panel
+      // meant finding a strip a dozen points tall at the top of it while the
+      // quest rows underneath — most of what is on screen — did nothing.
+      // Asked for directly.
+      await pumpHome(
+        tester,
+        mutate: (st) {
+          readyToPlay(st);
+          ensureMatchQuests(st);
+        },
+      );
+      final rows = find.descendant(
+        of: find.byKey(const ValueKey('match-quests')),
+        matching: find.byWidgetPredicate(
+          (w) => w.key is ValueKey<String> &&
+              (w.key! as ValueKey<String>).value.startsWith('match-quest-'),
+        ),
+      );
+      expect(rows, findsWidgets);
+      final aRow = rows.evaluate().first.widget;
+      // **MEASURED, not counted.** `AnimatedCrossFade` builds both children
+      // whatever it is showing, so the rows are in the tree either way — what
+      // collapsing does is take their height back.
+      final block = find.byKey(const ValueKey('match-quests'));
+      final open = tester.getSize(block).height;
+
+      // A tap on a QUEST, not on the header.
+      await tester.tap(find.byWidget(aRow));
+      await tester.pumpAndSettle();
+      expect(
+        tester.getSize(block).height,
+        lessThan(open),
+        reason: 'tapping a quest row did not shut the panel',
+      );
+
+      // And it opens again from the header — the block is one control, so it
+      // works from either end.
+      await tester.tap(find.byKey(const ValueKey('match-quests-header-total')));
+      await tester.pumpAndSettle();
+      expect(tester.getSize(block).height, open);
+    });
   });
 
   group('the fixture caption', () {

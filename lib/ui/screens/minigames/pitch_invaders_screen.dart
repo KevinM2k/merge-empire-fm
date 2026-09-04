@@ -34,6 +34,7 @@ import 'package:merge_empire_fc/providers/sound_providers.dart';
 import 'package:merge_empire_fc/state/game_state.dart';
 import 'package:merge_empire_fc/state/game_tick.dart';
 import 'package:merge_empire_fc/ui/hud/hud.dart' show hudCoinInk;
+import 'package:merge_empire_fc/ui/screens/minigames/minigame_countdown.dart';
 import 'package:merge_empire_fc/ui/screens/minigames/minigame_header.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/util/format.dart';
@@ -161,6 +162,54 @@ const LinearGradient tileDish = LinearGradient(
   stops: [0, 0.07, 0.7, 1],
 );
 
+/// What a tapped tile flashes, by what was in it.
+///
+/// **A TAP HAD NO ANSWER AT ALL.** The figure dropped, the counter moved and
+/// nothing on the tile said which of the three things had just been hit — so a
+/// player who caught the dog and a player who clattered a steward got the same
+/// silence off the board, and had to read a number at the top of the page to
+/// find out which. Asked for from the couch, and asked for in three colours
+/// rather than one, because the three taps do not mean the same thing.
+///
+/// The man is the club's own accent — a catch, in the kit. The dog is the gold
+/// every bonus in the game is written in, which is what makes the rarer, bigger
+/// catch land harder than the ordinary one. The steward is [dangerInk], which
+/// is the palette's own "something is wrong" and not a red of this screen's:
+/// clattering a steward is the one tap that took something away.
+///
+/// One constant and not three, because the other two already exist — the man's
+/// comes off [KitTheme] where a colour of the club belongs. See
+/// [whackFlashInk].
+const Color whackDogInk = Color(0xFFFBBF24);
+
+/// How long a figure takes to leave the hole — struck, and ducking on its own.
+const Duration whackStruckDrop = Duration(milliseconds: 110);
+const Duration whackDuck = Duration(milliseconds: 150);
+
+/// How long the ring stays up: exactly as long as the man it is drawn round.
+///
+/// **IT USED TO OUTLIVE HIM.** 380ms of ring over a 110ms drop, and the gap
+/// between pop-ups is [WhackDifficulty.spawnMs] — 420ms at the top divisions —
+/// so the tile was still framed when the next figure came out of it, and the
+/// ring read as being about him rather than about the tap before. Reported from
+/// the couch. It now comes down with the figure, and [PitchInvadersScreenState]
+/// clears it outright on a pop-up so a ring can never survive into the next
+/// one.
+const Duration whackFlash = whackStruckDrop;
+
+/// The ring itself: a border on the tile, not a wash over it. A filled tile
+/// would hide the hole the figure just went back down.
+const double whackFlashWidth = 3;
+
+/// Public so the three readings can be pinned without waiting on the dog: it
+/// is a rarer draw than a whole session is long, so an integration test that
+/// waits for one is a test that fails on a bad roll.
+Color whackFlashInk(KitTheme kit, Invader what) => switch (what) {
+  Invader.invader => kit.accentBright,
+  Invader.dog => whackDogInk,
+  Invader.steward => dangerInk,
+};
+
 /// The turf band's own `inset 0 -8px 12px rgba(0,0,0,0.45)`.
 const LinearGradient bandFoot = LinearGradient(
   begin: Alignment.topCenter,
@@ -196,7 +245,15 @@ class PitchInvadersScreenState extends ConsumerState<PitchInvadersScreen>
   /// Which hole was just hit, so it drops with the shrink rather than the walk.
   final Set<int> _struck = <int>{};
 
-  Timer? _leadIn;
+  /// What each hole was flashing for, and the timer that takes it back down.
+  ///
+  /// **A SECOND MAP RATHER THAN A FLAG ON [_struck]**, because the two are on
+  /// different clocks: `_struck` lives until something else pops out of that
+  /// hole, which may be seconds away or may be never, and a ring that sits
+  /// there until the next pop-up is not feedback on a tap. See [whackFlash].
+  final Map<int, Invader> _flash = <int, Invader>{};
+  final List<Timer?> _flashOff = List<Timer?>.filled(Whack.holes, null);
+
   Timer? _spawn;
 
   /// One wall-clock deadline, read every frame. `now()` rather than
@@ -220,6 +277,7 @@ class PitchInvadersScreenState extends ConsumerState<PitchInvadersScreen>
   bool get running => _running;
   int get coinsWon => _coins;
   List<Invader?> get holes => List.unmodifiable(_holes);
+  Map<int, Invader> get flashes => Map.unmodifiable(_flash);
 
   @override
   void initState() {
@@ -229,9 +287,11 @@ class PitchInvadersScreenState extends ConsumerState<PitchInvadersScreen>
     _difficulty = whackDifficulty(currentDivisionIndex(_game.state));
     _ticker = createTicker(_onFrame);
 
-    // A "here they come" beat, so the first pop-up does not land before the
-    // player's eyes have found the board.
-    _leadIn = Timer(const Duration(milliseconds: Whack.leadInMs), _begin);
+    // **THE LEAD-IN IS THE COUNTDOWN NOW.** It was a silent 600ms beat
+    // (`Whack.leadInMs`, the JS's) and it was not long enough to be read as
+    // anything — the first pop-up simply arrived. `MiniGameCountdown` calls
+    // [_begin] on GO. `Whack.leadInMs` stays in `mini_games.dart` because
+    // `mini_games_test.dart` pins it against the JS.
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
@@ -244,8 +304,15 @@ class PitchInvadersScreenState extends ConsumerState<PitchInvadersScreen>
     });
   }
 
+  /// Whether the count is still running. Nothing pops and nothing scores while
+  /// it is — the tiles are live widgets behind the overlay.
+  bool _counting = true;
+
+  bool get counting => _counting;
+
   void _begin() {
     if (!mounted) return;
+    setState(() => _counting = false);
     // The attempt is spent HERE — at the kick-off, not at the payout — so a
     // player who walks out at second three has still used the session.
     _game.update((s) => startMiniGame(s, MiniGameKind.whack));
@@ -274,6 +341,8 @@ class PitchInvadersScreenState extends ConsumerState<PitchInvadersScreen>
     // Every hole busy is a no-op, not a queue: the board is as full as it gets.
     if (free.isEmpty) return;
     final index = free[_rng.nextInt(free.length)];
+    _flashOff[index]?.cancel();
+    _flashOff[index] = null;
     final what = pickInvader(
       _rng.nextDouble(),
       _difficulty.stewardPct,
@@ -283,6 +352,8 @@ class PitchInvadersScreenState extends ConsumerState<PitchInvadersScreen>
     setState(() {
       _holes[index] = what;
       _struck.remove(index);
+      // The ring belongs to the tap before this one — see [whackFlash].
+      _flash.remove(index);
     });
     // Ducks back down on its own if nobody taps it. A missed invader costs
     // nothing but the catch you did not get — no lives, no fail state.
@@ -302,7 +373,16 @@ class PitchInvadersScreenState extends ConsumerState<PitchInvadersScreen>
   void _tapHole(int index) {
     final what = _holes[index];
     if (!_running || _over || what == null) return;
-    setState(() => _struck.add(index));
+    setState(() {
+      _struck.add(index);
+      // The answer to the tap, on the tile that was tapped — see [_flashInk].
+      _flash[index] = what;
+    });
+    _flashOff[index]?.cancel();
+    _flashOff[index] = Timer(whackFlash, () {
+      if (!mounted) return;
+      setState(() => _flash.remove(index));
+    });
     _clear(index);
 
     final sound = ref.read(soundServiceProvider);
@@ -342,10 +422,15 @@ class PitchInvadersScreenState extends ConsumerState<PitchInvadersScreen>
       _ducks[i]?.cancel();
       _ducks[i] = null;
     }
+    for (var i = 0; i < _flashOff.length; i++) {
+      _flashOff[i]?.cancel();
+      _flashOff[i] = null;
+    }
     setState(() {
       _running = false;
       _over = true;
       _msLeft = 0;
+      _flash.clear();
       _holes.setAll(0, List<Invader?>.filled(Whack.holes, null));
     });
     unawaited(ref.read(soundServiceProvider).play('whistle'));
@@ -398,10 +483,12 @@ class PitchInvadersScreenState extends ConsumerState<PitchInvadersScreen>
 
   @override
   void dispose() {
-    _leadIn?.cancel();
     _spawn?.cancel();
     for (final duck in _ducks) {
       duck?.cancel();
+    }
+    for (final off in _flashOff) {
+      off?.cancel();
     }
     _ticker.dispose();
     super.dispose();
@@ -474,51 +561,64 @@ class PitchInvadersScreenState extends ConsumerState<PitchInvadersScreen>
                 ),
               ),
               const SizedBox(height: 12),
-              DecoratedBox(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(14),
-                  gradient: const LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [Color(0xFF0D4A1C), Color(0xFF0A3614)],
+              // **THE COUNT GOES OVER THE BOARD, not in place of it.** Three
+              // seconds of an empty page is three seconds of not knowing what
+              // is about to be asked of you; the nine holes are what the
+              // player needs to have found by GO.
+              Stack(
+                children: [
+                  DecoratedBox(
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(14),
+                      gradient: const LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: [Color(0xFF0D4A1C), Color(0xFF0A3614)],
+                      ),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(6),
+                      // Laid out in full rather than in a lazy grid: nine holes the
+                      // player cannot all see is not a board.
+                      child: Column(
+                        key: const ValueKey('pi-board'),
+                        children: [
+                          for (var row = 0; row < 3; row++)
+                            Padding(
+                              padding: EdgeInsets.only(top: row == 0 ? 0 : 6),
+                              // **THE GUTTER IS BETWEEN THE COLUMNS, not inside
+                              // them.** It was `Padding(left: 8)` inside each
+                              // `Expanded`, so the first column's tile was eight
+                              // points wider than the other two — and the tile is an
+                              // `AspectRatio`, so it was eight points TALLER as
+                              // well. Reported as the left boxes being bigger than
+                              // the rest.
+                              child: Row(
+                                children: [
+                                  for (var col = 0; col < 3; col++) ...[
+                                    if (col > 0) const SizedBox(width: 6),
+                                    Expanded(
+                                      child: _Hole(
+                                        index: row * 3 + col,
+                                        occupant: _holes[row * 3 + col],
+                                        struck: _struck.contains(row * 3 + col),
+                                        flash: _flash[row * 3 + col],
+                                        onTap: _tapHole,
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
                   ),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(6),
-                  // Laid out in full rather than in a lazy grid: nine holes the
-                  // player cannot all see is not a board.
-                  child: Column(
-                    key: const ValueKey('pi-board'),
-                    children: [
-                      for (var row = 0; row < 3; row++)
-                        Padding(
-                          padding: EdgeInsets.only(top: row == 0 ? 0 : 6),
-                          // **THE GUTTER IS BETWEEN THE COLUMNS, not inside
-                          // them.** It was `Padding(left: 8)` inside each
-                          // `Expanded`, so the first column's tile was eight
-                          // points wider than the other two — and the tile is an
-                          // `AspectRatio`, so it was eight points TALLER as
-                          // well. Reported as the left boxes being bigger than
-                          // the rest.
-                          child: Row(
-                            children: [
-                              for (var col = 0; col < 3; col++) ...[
-                                if (col > 0) const SizedBox(width: 6),
-                                Expanded(
-                                  child: _Hole(
-                                    index: row * 3 + col,
-                                    occupant: _holes[row * 3 + col],
-                                    struck: _struck.contains(row * 3 + col),
-                                    onTap: _tapHole,
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
+                  if (_counting)
+                    Positioned.fill(
+                      child: MiniGameCountdown(onDone: _begin),
+                    ),
+                ],
               ),
               const SizedBox(height: 14),
               if (_over) ...[
@@ -633,12 +733,17 @@ class _Hole extends StatelessWidget {
     required this.index,
     required this.occupant,
     required this.struck,
+    required this.flash,
     required this.onTap,
   });
 
   final int index;
   final Invader? occupant;
   final bool struck;
+
+  /// What this tile was tapped on, while the ring is up. Null the rest of the
+  /// time — see [whackFlash].
+  final Invader? flash;
   final void Function(int) onTap;
 
   @override
@@ -654,6 +759,10 @@ class _Hole extends StatelessWidget {
         builder: (context, box) {
           final h = box.maxHeight;
           final w = box.maxWidth;
+          final f = flash;
+          final ink = f == null
+              ? null
+              : whackFlashInk(Theme.of(context).extension<KitTheme>()!, f);
           return ClipRRect(
             borderRadius: BorderRadius.circular(12),
             child: Stack(
@@ -717,11 +826,11 @@ class _Hole extends StatelessWidget {
                       offset: occupant == null
                           ? const Offset(0, 0.8)
                           : Offset.zero,
-                      duration: Duration(milliseconds: struck ? 110 : 150),
+                      duration: struck ? whackStruckDrop : whackDuck,
                       curve: Curves.easeOut,
                       child: AnimatedScale(
                         scale: struck && occupant == null ? 0.7 : 1,
-                        duration: const Duration(milliseconds: 110),
+                        duration: whackStruckDrop,
                         child: Builder(
                           builder: (context) {
                             // It stands IN the mouth, so it is sized off the
@@ -737,6 +846,31 @@ class _Hole extends StatelessWidget {
                             );
                           },
                         ),
+                      ),
+                    ),
+                  ),
+                ),
+                // 4. THE ANSWER TO THE TAP — over everything, because it is a
+                // frame round the whole tile and not part of the scene in it.
+                //
+                // Always mounted and animated to transparent rather than added
+                // and removed, so the ring eases off the tile in the ~120ms
+                // after the flash instead of blinking out of existence. The
+                // fill is faint: a wash heavy enough to notice on its own
+                // would hide the hole the figure has just dropped back into.
+                Positioned.fill(
+                  child: IgnorePointer(
+                    child: AnimatedContainer(
+                      key: ValueKey('pi-flash-$index'),
+                      duration: const Duration(milliseconds: 120),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: ink ?? Colors.transparent,
+                          width: whackFlashWidth,
+                        ),
+                        color:
+                            ink?.withValues(alpha: 0.18) ?? Colors.transparent,
                       ),
                     ),
                   ),

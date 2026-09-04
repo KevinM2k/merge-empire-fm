@@ -63,6 +63,11 @@ const int maxMarketTier = 8;
 
 Map<String, dynamic>? _map(Object? v) => v is Map<String, dynamic> ? v : null;
 num? _num(Object? v) => v is num ? v : null;
+/// Pro mode, which decides whether the trait pool includes the stamina ones —
+/// see `rollDealCard`.
+bool _hardMode(Map<String, dynamic>? s) =>
+    _map(s?['settings'])?['hardMode'] == true;
+
 bool _flag(Object? v) => v == true;
 
 /// JS `Math.round` — halves go up, not to even.
@@ -376,7 +381,7 @@ Listing? _buildSigning(
   final pool = getPlayersByTier(tier);
   if (pool.isEmpty) return null;
   final def = seeded.pickRandom(pool);
-  final card = rollDealCard(def);
+  final card = rollDealCard(def, hardMode: _hardMode(state));
   if (card == null) return null;
   final askingPrice = _signingPrice(state, def, marquee, gap);
   final listingId = 'dd_sign_${spawnAt}_${seeded.randomInt(0, 9999)}';
@@ -419,7 +424,7 @@ Listing? _buildLoan(Session s, Map<String, dynamic> state, int spawnAt) {
   if (!canLoan(state).ok) return null;
   final def = pickLoanee(state);
   if (def == null) return null;
-  final card = rollDealCard(def);
+  final card = rollDealCard(def, hardMode: _hardMode(state));
   if (card == null) return null;
 
   final listingId = 'dd_loan_${spawnAt}_${seeded.randomInt(0, 9999)}';

@@ -508,7 +508,7 @@ void main() {
     });
 
     test('the trophy polish is stamped with a HALF-HOUR DEADLINE', () {
-      // It used to be stamped with the SEASON, so what eight gems bought
+      // It used to be stamped with the SEASON, so what the gems bought
       // depended on how much of the season happened to be left.
       setClock(() => 1000);
       addTearDown(resetClock);
@@ -529,7 +529,7 @@ void main() {
       final second = buyGemItem(state, 'trophy_polish_gem');
       expect(second.ok, isFalse);
       expect(second.reason, 'already_held');
-      expect(getGems(state), 32);
+      expect(getGems(state), 40 - getGemItem('trophy_polish_gem')!.cost);
     });
 
     test('an unknown item is refused before any debit', () {

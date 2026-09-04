@@ -167,7 +167,7 @@ class _SkipAllState extends ConsumerState<_SkipAll> {
   /// one: `EnergyBar._onSkipAll` runs `showRewardedAd(..., 'skip_cooldown')`
   /// and only clears the board in the reward callback.
   ///
-  /// The placement was there and spoken for: `shop_free.dart` had the shop's
+  /// The placement was there and spoken for: `shop_match_day.dart` had the shop's
   /// match-cooldown tile pointed at `'skip_cooldown'`, which is the JS's name
   /// for THIS button. Both ids are in `ad_units.dart` and the shop has its own.
   Future<void> _watchThenSkip() async {
@@ -270,8 +270,13 @@ class _GameRow extends ConsumerWidget {
           '${t('club.tier_n', {'n': game.unlocksAtTier})}';
     }
     if (!game.playable) return t('settings.comingSoon');
+    // **THE WORD IS THE ONE [_SkipAll] USES**, because that button is what
+    // clears this clock — "Skip all cooldowns" over rows that said "Resting"
+    // left the two unconnected. Reported from the couch. Still its own key and
+    // not `play.cooldown`: that one is the PLAY BUTTON's, the manager waiting
+    // to pick a team again, and it reads "Coach cooldown".
     if (!game.ready) {
-      return t('play.cooldown', {'time': formatDuration(game.waitMs)});
+      return t('training.resting', {'time': formatDuration(game.waitMs)});
     }
     return null;
   }

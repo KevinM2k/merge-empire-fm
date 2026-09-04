@@ -230,7 +230,27 @@ class PitchToken extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          DecoratedBox(
+          // **`Container`, NOT `DecoratedBox`, and that is the whole of "the
+          // picture is wider than the name".**
+          //
+          // A `DecoratedBox` paints its decoration BEHIND the child and does
+          // not inset the child for the border, so the 2pt ring sat UNDER the
+          // token's contents. The art band is opaque and full width, so it
+          // covered the ring completely; the name plate is `0x8C000000` — 55%
+          // black — so the ring showed through underneath it. The result is a
+          // coloured edge that runs beside the NAME and not beside the
+          // PICTURE, and what that reads as is the picture being a couple of
+          // points wider than the box under it. Reported from the couch in
+          // exactly those terms, and reported as being the pitch only: the
+          // bench draws a `PlayerCard`, which has used a `Container` all along
+          // — and whose own comment names this class of fault.
+          //
+          // `Container` applies `decoration.padding`, which for a
+          // `BoxDecoration` is the border's dimensions — so the contents now
+          // start inside the ring and the ring is visible all the way round.
+          // The `ClipRRect` below is already `10 - 2`, the curve of the hole
+          // the child is sitting in.
+          Container(
             decoration: BoxDecoration(
               color: cssColor(body.stops.last.$1),
               borderRadius: const BorderRadius.all(Radius.circular(10)),
@@ -269,7 +289,19 @@ class PitchToken extends StatelessWidget {
                     ),
                   ),
                   SizedBox(
-                    height: 58,
+                    key: const ValueKey('token-art'),
+                    // **54, NOT 58, and the four points went to the border.**
+                    // The `Container` above insets its child by the ring — see
+                    // the note on it — which is two points at the top and two
+                    // at the foot, so a token that kept a 58-point art band
+                    // grew to 104 and [pitchTokenHeight] with it. That is the
+                    // figure `pitchTokenScale` divides the pitch by, so every
+                    // token on a crowded formation would have come out
+                    // smaller to fix a two-point border — and the pitch is
+                    // already three points tighter than it was for the sake of
+                    // a readable name. The art is `BoxFit.cover`, so what this
+                    // costs is a slightly deeper crop and nothing else.
+                    height: 54,
                     child: Stack(
                       fit: StackFit.expand,
                       children: [
@@ -429,6 +461,7 @@ class PitchToken extends StatelessWidget {
                     ),
                   ),
                   Container(
+                    key: const ValueKey('token-name'),
                     width: double.infinity,
                     color: plate,
                     padding: const EdgeInsets.fromLTRB(2, 2, 2, 3),
