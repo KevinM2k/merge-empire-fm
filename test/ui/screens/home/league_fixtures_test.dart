@@ -276,6 +276,99 @@ void main() {
     );
   });
 
+  testWidgets('A CUP TIE CARRIES A RATING AND A RESULT, like every other row', (
+    tester,
+  ) async {
+    // **Reported from the couch: "in fixtures, you don\'t show the result for a
+    // cup game — we need the W D L badge next to it just like any other game.
+    // Should also show the opponent rating."** Both were missing on the one
+    // kind of row a cup run is remembered by: the outcome was carried by the
+    // score\'s colour alone, exactly the fault the league rows had before the
+    // form dot went in, and there was no rating column at all.
+    final container = await pumpFixtures(tester, mutate: cupRunOver);
+    final ties = container.read(ourCupTiesProvider);
+    expect(ties, hasLength(2));
+
+    // Round one was won, round two lost — one dot each, and they say so.
+    for (final tie in ties) {
+      final dot = find.byKey(ValueKey('fixture-cup-result-${tie.afterMatch}'));
+      expect(
+        dot,
+        findsOneWidget,
+        reason: 'the ${tie.roundName} has no result badge',
+      );
+      expect(
+        find.descendant(of: dot, matching: find.text(tie.won ? 'W' : 'L')),
+        findsOneWidget,
+      );
+    }
+
+    // A played tie reports what it was ACTUALLY played at, off its own result
+    // rather than off the bracket, and does not call that an estimate.
+    for (final tie in ties) {
+      expect(tie.rating, isNotNull);
+      expect(tie.ratingEstimated, isFalse);
+      final rating = find.byKey(
+        ValueKey('fixture-cup-rating-${tie.afterMatch}'),
+      );
+      expect(rating, findsOneWidget);
+      expect(tester.widget<Text>(rating).data, '${tie.rating}');
+    }
+  });
+
+  testWidgets('AND AN UNPLAYED ONE STILL DOES, off the drawn bracket', (
+    tester,
+  ) async {
+    // The rating is the reason to open the sheet on a cup week — the bracket is
+    // drawn out of the divisions ABOVE, so "how hard is this one" is a question
+    // the league column never has to answer. `opponentMeta` has held the drawn
+    // club\'s real rating since `startCup` built it.
+    final container = await pumpFixtures(tester, mutate: cupDueNext);
+    final ties = container.read(ourCupTiesProvider);
+    expect(ties, hasLength(cups.first.rounds.length));
+    expect(ties.every((t) => !t.played), isTrue);
+    expect(ties.every((t) => t.rating == 60), isTrue);
+    expect(ties.every((t) => !t.ratingEstimated), isTrue);
+    expect(
+      find.byKey(ValueKey('fixture-cup-rating-${ties.first.afterMatch}')),
+      findsOneWidget,
+    );
+    // Nothing has been played, so nothing wears a badge.
+    expect(
+      find.byKey(ValueKey('fixture-cup-result-${ties.first.afterMatch}')),
+      findsNothing,
+    );
+  });
+
+  testWidgets('and a bracket with no meta says its number is a guess', (
+    tester,
+  ) async {
+    // A run drawn before `opponentMeta` existed has nothing to read, and the
+    // tie jitters ±4 around `squadRating + bump` at kickoff — which a sheet may
+    // not draw for. It shows the midpoint the jitter is centred on and wears
+    // the tilde the league rows use for the same admission.
+    final container = await pumpFixtures(tester, mutate: (save) {
+      cupDueNext(save);
+      (activeCup(save)!)['opponentMeta'] = <dynamic>[];
+    });
+    final ties = container.read(ourCupTiesProvider);
+    expect(ties, isNotEmpty);
+    expect(ties.every((t) => t.ratingEstimated), isTrue);
+    // The bumps rise round on round, so the estimates never fall. Not strictly:
+    // a fresh save's squad is weak enough that the low clamp catches the early
+    // rounds, and 20 is the floor a cup opponent is allowed.
+    expect(ties.first.rating! <= ties.last.rating!, isTrue);
+    expect(ties.every((t) => t.rating! >= 20), isTrue);
+    final shown = tester.widget<Text>(
+      find.byKey(ValueKey('fixture-cup-rating-${ties.first.afterMatch}')),
+    );
+    expect(
+      shown.data,
+      '~${ties.first.rating}',
+      reason: 'an estimate must wear the tilde the league rows use',
+    );
+  });
+
   testWidgets('and it is in the player\'s language', (tester) async {
     setLocale('de');
     await pumpFixtures(tester);

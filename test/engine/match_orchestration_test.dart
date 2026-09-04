@@ -12,7 +12,12 @@ import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:merge_empire_fc/data/club_assets.dart' show AssetCategory;
 import 'package:merge_empire_fc/data/formations.dart';
+import 'package:merge_empire_fc/engine/fixture_preview.dart'
+    show fixtureIsHome, previewFixture;
+import 'package:merge_empire_fc/engine/match_tactics.dart'
+    show opponentsPerSeason, relegationBoost;
 import 'package:merge_empire_fc/engine/lineup_engine.dart';
 import 'package:merge_empire_fc/engine/match_events.dart';
 import 'package:merge_empire_fc/engine/booking_engine.dart'
@@ -432,6 +437,147 @@ void main() {
         reSimulateRemainder(result, 45, 'balanced', 0, 0, state);
         expect(result['drawn'], isFalse, reason: 'seed $seed');
       }
+    });
+
+    group('WHAT THE BOARD IS ALLOWED TO PRINT', () {
+      /// A save whose Fan Zone actually pays a home advantage, so a modifier
+      /// that is zero either way cannot be mistaken for a passing test.
+      Map<String, dynamic> withCrowd({int tier = 8}) {
+        final state = _state();
+        (state['clubAssets'] as Map<String, dynamic>)[AssetCategory.fanzone] = {
+          'owned': true,
+          'tier': tier,
+        };
+        return state;
+      }
+
+      test('OUR SPLIT IS THE ONE THE SIM RAN ON, home advantage and all', () {
+        // **Reported from the couch with both screens photographed: "soon as I
+        // started the game my stats had already dropped."** The next-match card
+        // draws `preview.effAttack`, which carries home advantage; the
+        // scoreboard drew `result['ourAttackRating']`, which is the BASE split
+        // and carries none of it. Same fixture, same squad, 93/100 on one
+        // screen and 89/97 on the other — and the sim had been using the
+        // higher pair the whole time.
+        seeded.setSeed(11);
+        final state = withCrowd();
+        // A HOME fixture, or the bonus under test is not in play.
+        final prog = state['progression'] as Map<String, dynamic>;
+        var m = (prog['seasonMatchesPlayed'] as num).toInt();
+        while (!fixtureIsHome(3, m % opponentsPerSeason, m)) {
+          m++;
+        }
+        prog['seasonMatchesPlayed'] = m;
+
+        // Taken BEFORE the whistle: the sim injures people and injured men
+        // score zero, so a preview read afterwards is of a different squad.
+        final preview = previewFixture(state)!;
+
+        final result = simulateMatch(state, 'regional_league');
+        expect(result['isHome'], isTrue, reason: 'not a home game after all');
+        final adv = result['homeAdvDisplay'] as num;
+        expect(adv, greaterThan(0), reason: 'the Fan Zone paid nothing');
+
+        final split = ourMatchSplit(result);
+        expect(split.attack, (result['ourAttackRating'] as num) + adv);
+        expect(split.defence, (result['ourDefenceRating'] as num) + adv);
+
+        // And it is the SAME pair the next-match card drew for the fixture that
+        // was about to be played, which is the whole complaint.
+        expect(split.attack, preview.effAttack);
+        expect(split.defence, preview.effDefence);
+      });
+
+      test('an away day gets none of it, and neither does a cup tie', () {
+        seeded.setSeed(11);
+        final state = withCrowd();
+        final prog = state['progression'] as Map<String, dynamic>;
+        var m = (prog['seasonMatchesPlayed'] as num).toInt();
+        while (fixtureIsHome(3, m % opponentsPerSeason, m)) {
+          m++;
+        }
+        prog['seasonMatchesPlayed'] = m;
+        final away = simulateMatch(state, 'regional_league');
+        expect(away['isHome'], isFalse);
+        expect(ourMatchSplit(away).attack, away['ourAttackRating']);
+
+        // A cup result carries `isHome: true` for every round — the tie is
+        // played on neutral ground and `prepareCupRound` gives neither side a
+        // bonus — so the venue alone cannot decide this.
+        final tie = <String, dynamic>{
+          'isCup': true,
+          'isHome': true,
+          'homeAdvDisplay': 4,
+          'ourAttackRating': 70,
+          'ourDefenceRating': 72,
+        };
+        expect(ourMatchSplit(tie).attack, 70);
+        expect(ourMatchSplit(tie).defence, 72);
+      });
+
+      test('the stagnation buff and the relegation lift are in it too', () {
+        // Both are already inside the numbers the sim rolled with — see the
+        // `effAttack` block — so a board that drops them is describing a
+        // different match from the one being played.
+        final result = <String, dynamic>{
+          'isHome': false,
+          'ourAttackRating': 60,
+          'ourDefenceRating': 64,
+          'stagnationBuff': 3,
+          'playerInRelegationZone': true,
+        };
+        final split = ourMatchSplit(result);
+        expect(split.attack, 60 + 3 + relegationBoost);
+        expect(split.defence, 64 + 3 + relegationBoost);
+      });
+
+      test('and the ceiling is still a hundred before the buffs land', () {
+        // The sim clamps the home bonus at 100 and then ADDS the buffs, so a
+        // maxed side does not lose its stagnation buff to the cap.
+        final result = <String, dynamic>{
+          'isHome': true,
+          'homeAdvDisplay': 4,
+          'ourAttackRating': 99,
+          'ourDefenceRating': 99,
+          'stagnationBuff': 2,
+        };
+        final split = ourMatchSplit(result);
+        expect(split.attack, 102);
+        expect(split.defence, 102);
+      });
+
+      test('AND A RE-SIM HANDS BACK THE SAME BASIS, not the bare squad', () {
+        // The live pair is what the remainder was actually rolled with, and the
+        // board prints it in place of the kickoff one — so handing back
+        // `computeSquadRatings` made the four points vanish the moment anybody
+        // was booked, which is the same bug arriving by a second route.
+        seeded.setSeed(11);
+        final state = withCrowd();
+        final prog = state['progression'] as Map<String, dynamic>;
+        var m = (prog['seasonMatchesPlayed'] as num).toInt();
+        while (!fixtureIsHome(3, m % opponentsPerSeason, m)) {
+          m++;
+        }
+        prog['seasonMatchesPlayed'] = m;
+        final result = simulateMatch(state, 'regional_league');
+        expect(result['isHome'], isTrue);
+
+        final out = <String, dynamic>{};
+        seeded.setSeed(11);
+        reSimulateRemainder(
+          result,
+          45,
+          'balanced',
+          0,
+          0,
+          state,
+          liveRatingsOut: out,
+        );
+        // Nobody was booked and nobody came off, so a clean re-sim re-rolls
+        // with exactly what kicked off.
+        expect(out['liveAttackRating'], ourMatchSplit(result).attack);
+        expect(out['liveDefenceRating'], ourMatchSplit(result).defence);
+      });
     });
 
     group('THE REFEREE REACHES THE MATHS', () {

@@ -30,7 +30,8 @@ import 'package:merge_empire_fc/ui/screens/home/next_match_card.dart'
 import 'package:merge_empire_fc/ui/screens/home/home_screen.dart' show playPageGap;
 import 'package:merge_empire_fc/ui/screens/match/match_screen.dart';
 import 'package:merge_empire_fc/ui/theme/glass.dart';
-import 'package:merge_empire_fc/ui/widgets/match_stat_rows.dart' show MatchRow;
+import 'package:merge_empire_fc/ui/widgets/match_stat_rows.dart'
+    show MatchRow, MatchStatRows;
 import 'package:merge_empire_fc/ui/screens/match/subs_panel.dart';
 import 'package:merge_empire_fc/ui/widgets/player_card.dart';
 import 'package:merge_empire_fc/ui/screens/squad/pitch_token.dart';
@@ -3400,4 +3401,57 @@ void main() {
     });
   });
 
+
+  testWidgets('THE BOARD OPENS ON THE FIGURES THE SIM ACTUALLY RAN ON', (
+    tester,
+  ) async {
+    // **Reported from the couch with the two screens photographed: "soon as I
+    // started the game my stats had already dropped."** The next-match card
+    // read 93/100 and the scoreboard 89/97 for the same fixture, because the
+    // card draws `preview.effAttack` — home advantage in — and the board drew
+    // `result['ourAttackRating']`, which is the BASE split. The sim had been
+    // using the higher pair all along; only the board disagreed.
+    //
+    // Balanced multiplies by exactly one, so these are the arithmetic and not
+    // a tactic's read of it.
+    await pumpMatch(tester, {
+      ...matchResult(),
+      'ourAttackRating': 89,
+      'ourDefenceRating': 96,
+      'homeAdvDisplay': 4,
+      'effOppAttackRating': 75,
+      'effOppDefenceRating': 77,
+      'effectiveSquadRating': 92,
+      'effectiveOppRating': 77,
+      'oppAttackRatio': 0.5,
+    });
+    final rows = tester.widget<MatchStatRows>(find.byType(MatchStatRows));
+    // Home, so we are the LEFT side of the board.
+    expect(rows.left.atk, 93, reason: 'the crowd stopped counting at kickoff');
+    expect(rows.left.def, 100);
+    // And theirs is untouched — the fault was ours only.
+    expect(rows.right.atk, 75);
+    expect(rows.right.def, 77);
+  });
+
+  testWidgets('and a ground with no crowd behind it still reads straight', (
+    tester,
+  ) async {
+    // The other half of the same assertion: nothing is being ADDED to a side
+    // that has not earned it. A Fan Zone that pays nothing pays nothing.
+    await pumpMatch(tester, {
+      ...matchResult(),
+      'ourAttackRating': 89,
+      'ourDefenceRating': 96,
+      'homeAdvDisplay': 0,
+      'effOppAttackRating': 75,
+      'effOppDefenceRating': 77,
+      'effectiveSquadRating': 88,
+      'effectiveOppRating': 77,
+      'oppAttackRatio': 0.5,
+    });
+    final rows = tester.widget<MatchStatRows>(find.byType(MatchStatRows));
+    expect(rows.left.atk, 89);
+    expect(rows.left.def, 96);
+  });
 }

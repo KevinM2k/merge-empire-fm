@@ -1103,6 +1103,67 @@ void _liftTheTrophy(
 Map<String, dynamic>? activeCup(Map<String, dynamic>? state) =>
     _map(_map(_map(state?['progression'])?['cups'])?['active']);
 
+/// How good the club in one round of a run is, and whether that is an estimate.
+///
+/// **The fixture list had no number for a cup tie at all.** Every league row
+/// carries the opponent's rating — it is the column a manager reads down to see
+/// where the season gets hard — and the cup rows in the same list carried a
+/// round name, a club and nothing else, on the fixtures a player is most likely
+/// to be worried about. Reported from the couch.
+///
+/// Three sources, in the order they become true:
+///   • A PLAYED round stores what it was actually played at, jitter and Lucky
+///     Boot and all. That is the honest number and it outranks the bracket.
+///   • An unplayed round drawn since `startCup` has `opponentMeta` — the real
+///     club, pulled out of the pyramid, exactly as [previewCupTie] reads it.
+///   • A legacy run drawn before `opponentMeta` existed has neither, so the
+///     tie's own `squadRating + bump` is all there is. That is jittered by ±4
+///     on a seeded draw at kickoff and this may not draw, so it reports the
+///     midpoint the jitter is centred on and flags itself an ESTIMATE.
+///
+/// The Lucky Boot is deliberately NOT applied to an unplayed round: a schedule
+/// says who you are drawn against, and the league rows beside it read
+/// `seasonOpponentRatings` raw for the same reason.
+({num rating, bool estimated})? cupRoundOpponentRating(
+  Map<String, dynamic>? state,
+  Map<String, dynamic>? run,
+  Cup cup,
+  int round,
+) {
+  if (state == null || run == null || round < 0) return null;
+
+  final results = run['results'];
+  final played = (results is List && round < results.length)
+      ? _map(results[round])
+      : null;
+  final actual = _num(played?['opponentRating']);
+  if (actual != null) return (rating: actual.round(), estimated: false);
+
+  final metaRaw = run['opponentMeta'];
+  final meta = (metaRaw is List && round < metaRaw.length)
+      ? _map(metaRaw[round])
+      : null;
+  final real = _num(meta?['rating']);
+  if (real != null) {
+    return (rating: math.min(100, math.max(20, real.round())), estimated: false);
+  }
+
+  final bump = round < cup.opponentRatingBump.length
+      ? cup.opponentRatingBump[round]
+      : 10;
+  final lineup = _lineup(state);
+  final squadRating = computeSquadRating(
+    _cells(state),
+    lineup: lineup.length == 11 ? lineup : null,
+    definitionRatios: _map(state['definitionRatios']) ?? const {},
+    fatigue: _map(state['settings'])?['hardMode'] == true,
+  );
+  return (
+    rating: math.min(100, math.max(20, squadRating + bump)),
+    estimated: true,
+  );
+}
+
 List<dynamic> cupHistory(Map<String, dynamic>? state) {
   final history = _map(_map(state?['progression'])?['cups'])?['history'];
   return history is List ? history : const [];

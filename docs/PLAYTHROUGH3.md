@@ -6,7 +6,7 @@ because that is the part worth keeping.
 
 ## Where this queue stands
 
-**89 done, 5 open, and one feature parked.** None of the open rows is a fault.
+**91 done, 5 open, and one feature parked.** None of the open rows is a fault.
 One is a feature that was built, tried and turned down; one is a balance
 question rather than work; one is a survey to run before building; and one is
 **blocked on the spec repo** for the COMMENTARY, which is the row to read if the
@@ -931,6 +931,65 @@ a screen speaking in a voice that is not its own.
       in `test/ui/shell/quick_nav_live_test.dart`, which spends eight of ten
       pips with the phone open and watches it go 100% → 20%; it fails against
       the snapshot.
+
+---
+
+## Eighth batch — the board and the card describing different matches
+
+- [x] **"Soon as I started the game my stats had already dropped."** Two
+      screenshots, seconds apart: the next-match card read ATK 93 / DEF 100 and
+      the scoreboard at the 13th minute read 89 / 97, same fixture, same squad,
+      nobody booked. The card was right and the sim agreed with it.
+
+      `buildMatchResult` computes `effAttack` — `min(base + homeAdv, 100) +
+      stagnation + relegationLift` — and runs the whole ninety minutes on it,
+      then stamps `ourAttackRating: baseRatings.attack`, which is the BASE
+      split with none of the three in it. That field cannot be changed:
+      `match_orchestration_parity_test` compares the result object against a
+      node dump field for field. The board was simply printing the wrong one of
+      the two numbers the result carries, and the asymmetry is what hid it —
+      the OPPONENT's `effOppAttackRating` is the effective figure, so their side
+      of the board was right the whole time.
+
+      `ourMatchSplit(result)` reconstructs it from what is already stamped:
+      `homeAdvDisplay` is the same Fan-Zone-scaled bonus `homeAdvantageFor`
+      returns, `stagnationBuff` and `playerInRelegationZone` are both there, and
+      a cup tie is excluded by `isCup` rather than by venue, because a cup
+      result carries `isHome: true` for every round while `prepareCupRound`
+      plays on neutral ground.
+
+      **And the live pair had the same fault by a second route.**
+      `reSimulateRemainder` hands the board what the remainder was rolled with,
+      and it was handing back `computeSquadRatings` — pre-home-advantage — while
+      rolling on `liveAttack`, which has it. So a booking made the four points
+      vanish a second time, on a card that had just been shown to move the
+      numbers. Both now report the same basis. Pinned in
+      `match_orchestration_test` (`WHAT THE BOARD IS ALLOWED TO PRINT`) and on
+      the screen in `match_screen_test`.
+
+- [x] **"In fixtures, you don't show the result for a cup game — we need the
+      W D L badge next to it just like any other game. Should also show the
+      opponent rating."** Both were missing from `_CupRow` alone. The league
+      rows grew a form dot when the same complaint was made about them — the
+      outcome carried by the score's COLOUR is a hue read off two digits — and
+      the cup rows, which are the rows a season's run is remembered by, kept it.
+      They also had no rating column at all, in a list where every other line
+      carries one, and the cup is where the number matters most: the bracket is
+      drawn out of the divisions ABOVE, so "how hard is this one" is a question
+      the league column never has to answer.
+
+      A knockout cannot end level — `commitCupRound` resolves a draw through the
+      shootout and adds the winning goal — so the badge is W or L and the score
+      beside it is the one after penalties. `cupRoundOpponentRating` answers the
+      number from three sources in the order they become true: a played round's
+      own `opponentRating`, then the bracket's `opponentMeta` (drawn at
+      `startCup`, so it is there from the moment the tie is), then, for a legacy
+      run with neither, `squadRating + bump` — jittered ±4 at kickoff, so it
+      wears the tilde and `fixtures.opp_rating_est`, the same admission the
+      league rows make. The Lucky Boot is deliberately not applied to an
+      unplayed round: a schedule says who you are drawn against, and the league
+      rows read `seasonOpponentRatings` raw for the same reason. Pinned in
+      `league_fixtures_test`.
 
 ---
 

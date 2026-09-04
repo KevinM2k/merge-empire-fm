@@ -43,7 +43,7 @@ import 'package:merge_empire_fc/engine/booking_engine.dart';
 import 'package:merge_empire_fc/ui/screens/match/goal_replay.dart'
     show conceded;
 import 'package:merge_empire_fc/engine/match_orchestration.dart'
-    show reSimulateRemainder;
+    show ourMatchSplit, reSimulateRemainder;
 import 'package:merge_empire_fc/ui/screens/home/coach_bubble.dart'
     show coachSuggestedTacticProvider;
 import 'package:merge_empire_fc/ui/screens/home/league_providers.dart'
@@ -3345,9 +3345,18 @@ class _Scoreboard extends StatelessWidget {
     num liveOr(String liveKey, String kickoffKey) =>
         asNum(live[liveKey] ?? result[kickoffKey]);
 
+    // **THE KICKOFF PAIR IS [ourMatchSplit], not the raw `ourAttackRating`.**
+    // That field is the BASE split — no home advantage, no stagnation buff, no
+    // relegation lift — while the next-match card draws `preview.effAttack`,
+    // which carries all three. So the same fixture read 93/100 on the card you
+    // accepted it from and 89/97 on the board the moment it kicked off, and
+    // the sim had been using the higher pair the whole time. Reported from the
+    // couch with both screens photographed: "soon as I started the game my
+    // stats had already dropped."
+    final kickoff = ourMatchSplit(result);
     final ourFifa = fifaSplitTactic(
-      liveOr('liveAttackRating', 'ourAttackRating'),
-      liveOr('liveDefenceRating', 'ourDefenceRating'),
+      asNum(live['liveAttackRating'] ?? kickoff.attack),
+      asNum(live['liveDefenceRating'] ?? kickoff.defence),
       mult.atk,
       mult.def,
     );
