@@ -800,6 +800,42 @@ void main() {
     });
   });
 
+  group("KENNEY'S COUNTRY", () {
+    testWidgets('the park is built from sprites once they have decoded, with hills behind', (
+      tester,
+    ) async {
+      await pumpScene(tester, tier: 0);
+      // Until the decode lands the painter draws, and nothing snapshots a blank.
+      expect(find.byKey(const ValueKey('pitch-hills')), findsNothing);
+      expect(
+        find.byWidgetPredicate((w) => w is CustomPaint && w.painter is ParkPainter),
+        findsWidgets,
+      );
+      // The decode is real I/O, so it needs the real event loop.
+      await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 400)));
+      await tester.pump();
+      await tester.pump();
+      expect(find.byKey(const ValueKey('pitch-hills')), findsOneWidget);
+      expect(
+        find.byWidgetPredicate((w) => w is CustomPaint && w.painter is ParkPainter),
+        findsNothing,
+        reason: 'the sprites should have taken over from the painter',
+      );
+      final stand = find.byKey(const ValueKey('pitch-stand'));
+      expect(
+        find.descendant(of: stand, matching: find.byType(Image)),
+        findsWidgets,
+        reason: 'no Kenney pieces in the park',
+      );
+      final fences = find.descendant(
+        of: stand,
+        matching: find.byWidgetPredicate(
+          (w) => w is Image && w.image is AssetImage && (w.image as AssetImage).assetName.endsWith('fence.png'),
+        ),
+      );
+      expect(fences.evaluate().length, greaterThan(4), reason: 'the fence should run the whole foot');
+    });
+  });
 }
 
 /// The gradient the scene actually painted its sky with — the first full-bleed

@@ -41,6 +41,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:merge_empire_fc/data/manager_mood.dart';
+import 'package:merge_empire_fc/ui/screens/home/kenney_art.dart';
 import 'package:merge_empire_fc/ui/screens/home/manager_walker.dart'
     show
         walkerAnkle,
@@ -74,7 +75,10 @@ Duration grassDuration(Mood mood) => Duration(
 );
 
 /// How many depth bands the tufts are spread across.
-const int _tuftBands = 3;
+/// Six, not three: every tuft in a band travels at the band's ONE row speed,
+/// so a band's tufts must sit on that row — the spread within a wide band was
+/// tufts sliding against the grass they stood on.
+const int _tuftBands = 6;
 
 /// The middle of one band's slice of the tuft range, as a fraction up the pitch
 /// box — the same placement `_TuftPainter` scatters within.
@@ -568,6 +572,47 @@ int tuftsPerBand(int tier) {
 /// How much bigger and longer the blades are down the bottom. The spec's
 /// `sizeBoost` and `lengthBoost`: a rough pitch is rough in the grass first.
 double tuftSizeBoost(int tier) => tier == 0 ? 2.1 : (tier == 1 ? 1.5 : 1.0);
+
+/// One tuft: where it stands across the segment, its row, its size.
+typedef TuftPlacement = ({
+  double x,
+  double f,
+  double depth,
+  double w,
+  double tall,
+  double lean,
+});
+
+/// Where a band's tufts are — one list the blades and the sprites both read,
+/// so a field is the same field either way. [x] is a fraction of the width;
+/// the row is the band's own, with a jitter of a quarter of the band.
+List<TuftPlacement> tuftPlacements(int band, int tier) {
+  final rng = math.Random(31 + band);
+  final span = (tuftFMax - tuftFMin) / _tuftBands;
+  final count = tuftsPerBand(tier);
+  final sizeBoost = tuftSizeBoost(tier);
+  final lengthBoost = tuftLengthBoost(tier);
+  return [
+    for (var i = 0; i < count; i++)
+      () {
+        final f =
+            tuftBandFraction(band) + (rng.nextDouble() - 0.5) * span * 0.25;
+        final depth = (f - tuftFMin) / (tuftFMax - tuftFMin);
+        final w = math.max(
+          4.0,
+          (9 + rng.nextDouble() * 7) * (1 - depth * 0.55) * sizeBoost,
+        );
+        return (
+          x: rng.nextDouble(),
+          f: f,
+          depth: depth,
+          w: w,
+          tall: w * lengthBoost,
+          lean: rng.nextDouble() * 8 - 4,
+        );
+      }(),
+  ];
+}
 double tuftLengthBoost(int tier) =>
     tier == 0 ? 1.25 : (tier == 1 ? 1.05 : 0.85);
 
@@ -712,7 +757,10 @@ class PitchScene extends StatelessWidget {
     final haze = skyHaze(brightness: brightness, tier: tier);
     final pylons = floodlightCount(tier);
 
-    return LayoutBuilder(
+    // Kenney's sprites, decoded before any strip that snapshots them is built.
+    return SpriteGate(
+      paths: kenneySceneSprites(tier),
+      builder: (context, sprites) => LayoutBuilder(
       builder: (context, constraints) {
         final w = constraints.maxWidth;
         final h = constraints.maxHeight;
@@ -774,6 +822,76 @@ class PitchScene extends StatelessWidget {
                 Positioned.fill(
                   key: const ValueKey('pitch-weather-sky'),
                   child: WeatherSky(condition: condition),
+                ),
+                // **THE COUNTRY BEHIND THE GROUND.** Kenney's hills, faded into
+                // the haze by day and a black cut-out by night, crawling at a
+                // sixth of the stand's pace. Their feet are on the stand's own
+                // foot line, so a taller ground hides more of them — by design.
+                // **ALWAYS A CHILD HERE, empty until the sprites land.** The
+                // siblings carry no keys, so a child that came and went shifted
+                // them all and rebuilt the crowd, the weather and the walker.
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  top:
+                      horizon -
+                      (tier >= firstHoardingTier ? hoardingHeight : 0) -
+                      _hillsSegmentWidth / kenneyHillsAspect(tier),
+                  height: _hillsSegmentWidth / kenneyHillsAspect(tier),
+                  child: !sprites
+                      ? const SizedBox.shrink()
+                      : _GroundDrive(
+                          builder: (worldX) => _Scroller(
+                            key: const ValueKey('pitch-hills'),
+                            stillKey: (night, tier),
+                            offsetPx: parallaxOffset(
+                              worldX,
+                              segmentWidth: _hillsSegmentWidth,
+                              period: farPeriod * 6,
+                              mood: mood,
+                            ),
+                            segmentWidth: _hillsSegmentWidth,
+                            child: _HillsSegment(
+                              tier: tier,
+                              night: night,
+                              haze: haze,
+                            ),
+                          ),
+                        ),
+                ),
+                // **THE TOWN STAYS.** The same trees and houses the park had,
+                // behind the stand once one is built: it is the same place with
+                // a stadium going up in it, so the ground grows in front of them
+                // and hides more as it rises. Always a child, empty when the
+                // park strip itself is drawing them.
+                Positioned(
+                  left: 0,
+                  right: 0,
+                  top:
+                      horizon -
+                      (tier >= firstHoardingTier ? hoardingHeight : 0) -
+                      parkHeight,
+                  height: parkHeight,
+                  child: !sprites || tier < firstStandTier
+                      ? const SizedBox.shrink()
+                      : _GroundDrive(
+                          builder: (worldX) => _Scroller(
+                            key: const ValueKey('pitch-town'),
+                            stillKey: (haze, night),
+                            offsetPx: parallaxOffset(
+                              worldX,
+                              segmentWidth: farSegmentWidth,
+                              period: farPeriod,
+                              mood: mood,
+                            ),
+                            segmentWidth: farSegmentWidth,
+                            child: _ParkSegment(
+                              haze: haze,
+                              night: night,
+                              fence: false,
+                            ),
+                          ),
+                        ),
                 ),
                 // The pylons, on their OWN strip behind the stand and at the
                 // stand's own speed and period — so however tall they get they
@@ -849,7 +967,7 @@ class PitchScene extends StatelessWidget {
                       builder: (worldX) => _Scroller(
                         key: const ValueKey('pitch-stand'),
                         live: excitement > 0,
-                        stillKey: (kitColor, haze, tier),
+                        stillKey: (kitColor, haze, tier, sprites, night),
                         offsetPx: parallaxOffset(
                           worldX,
                           segmentWidth: farSegmentWidth,
@@ -875,6 +993,8 @@ class PitchScene extends StatelessWidget {
                           beat: 0,
                           excitement: 0,
                           tier: tier,
+                          sprites: sprites,
+                          night: night,
                         ),
                       ),
                     ),
@@ -940,6 +1060,7 @@ class PitchScene extends StatelessWidget {
                     contactBelowHorizon: feet - horizon,
                     condition: condition,
                     tier: tier,
+                    sprites: sprites,
                   ),
                 ),
                 // His boot prints, pinned to HIS contact line rather than to the
@@ -1068,8 +1189,181 @@ class PitchScene extends StatelessWidget {
           ),
         );
       },
+      ),
     );
   }
+}
+
+/// How wide one tile of hills is. Wider than the stand's segment so the strip
+/// stands taller than a park and shows above it.
+const double _hillsSegmentWidth = 720;
+
+/// One tile of Kenney's hills. The sprite is a near-white silhouette, so by
+/// day it is MULTIPLIED by a hill green — it read as cloud when only faded —
+/// and by night it is a black cut-out.
+class _HillsSegment extends StatelessWidget {
+  const _HillsSegment({
+    required this.tier,
+    required this.night,
+    required this.haze,
+  });
+
+  final int tier;
+  final bool night;
+  final Color haze;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    width: _hillsSegmentWidth,
+    height: double.infinity,
+    // Four points wider than its slot: the sprite's edge columns are half
+    // transparent, and tiled edge to edge that was a hairline of sky.
+    child: OverflowBox(
+      minWidth: _hillsSegmentWidth + 4,
+      maxWidth: _hillsSegmentWidth + 4,
+      child: ColorFiltered(
+        colorFilter: night
+            ? const ColorFilter.mode(Color(0xD9080C17), BlendMode.srcATop)
+            : const ColorFilter.mode(Color(0xFF8FBF7E), BlendMode.modulate),
+        child: LayoutBuilder(
+          builder: (context, box) {
+            final h = box.maxHeight;
+            final w = box.maxWidth;
+            // A far village on the lower slopes: the same trees and houses,
+            // a tenth of the size and in the hills' own tint, so distance
+            // does the fading rather than a second filter.
+            Widget far(String path, double x, double up, double height) =>
+                Positioned(
+                  left: w * x,
+                  bottom: h * up,
+                  child: Image.asset(
+                    path,
+                    height: h * height,
+                    filterQuality: FilterQuality.medium,
+                  ),
+                );
+            return Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Positioned.fill(
+                  child: Image.asset(
+                    kenneyHillsFor(tier),
+                    fit: BoxFit.fill,
+                    alignment: Alignment.bottomCenter,
+                    filterQuality: FilterQuality.medium,
+                  ),
+                ),
+                far(kenneyTreesSmall[0], 0.06, 0.22, 0.16),
+                far(kenneyTreesSmall[2], 0.11, 0.18, 0.13),
+                far(kenneyHouses[2], 0.19, 0.16, 0.14),
+                far(kenneyTreesSmall[1], 0.27, 0.30, 0.15),
+                far(kenneyTreesSmall[0], 0.41, 0.14, 0.12),
+                far(kenneyHouses[3], 0.47, 0.20, 0.13),
+                far(kenneyTreesSmall[2], 0.53, 0.24, 0.14),
+                far(kenneyTreesSmall[1], 0.66, 0.12, 0.16),
+                far(kenneyHouses[2], 0.74, 0.26, 0.12),
+                far(kenneyTreesSmall[0], 0.80, 0.30, 0.13),
+                far(kenneyTreesSmall[2], 0.91, 0.16, 0.15),
+              ],
+            );
+          },
+        ),
+      ),
+    ),
+  );
+}
+
+/// A park out of Kenney's pieces: houses into the haze, trees, bushes and a
+/// fence along the whole foot. Stands in for [ParkPainter] once the sprites
+/// have decoded; the painter is what draws until then.
+class _ParkSegment extends StatelessWidget {
+  const _ParkSegment({
+    required this.haze,
+    required this.night,
+    this.fence = true,
+  });
+
+  final Color haze;
+  final bool night;
+
+  /// A park has a fence; the same town behind a stadium has hoardings instead.
+  final bool fence;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, box) {
+      final h = box.maxHeight;
+      const w = farSegmentWidth;
+      Widget at(String path, double x, double height, {double fade = 0}) {
+        final image = Image.asset(
+          path,
+          height: height,
+          filterQuality: FilterQuality.medium,
+        );
+        return Positioned(
+          left: x,
+          bottom: 0,
+          child: fade == 0
+              ? image
+              : ColorFiltered(
+                  colorFilter: ColorFilter.mode(
+                    haze.withValues(alpha: fade),
+                    BlendMode.srcATop,
+                  ),
+                  child: image,
+                ),
+        );
+      }
+      final park = Stack(
+        clipBehavior: Clip.none,
+        children: [
+          at(kenneyHouses[2], w * 0.10, h * 0.78, fade: 0.35),
+          at(kenneyHouses[0], w * 0.58, h * 0.92, fade: 0.35),
+          at(kenneyHouses[3], w * 0.80, h * 0.74, fade: 0.35),
+          at(kenneyTrees[0], w * 0.03, h),
+          at(kenneyTrees[1], w * 0.30, h * 0.96),
+          at(kenneyTreesSmall[1], w * 0.42, h * 0.55),
+          at(kenneyTrees[2], w * 0.50, h),
+          at(kenneyTrees[0], w * 0.71, h * 0.9),
+          at(kenneyTreesSmall[2], w * 0.90, h * 0.5),
+          at(kenneyBushes[0], w * 0.15, h * 0.24),
+          at(kenneyBushes[2], w * 0.38, h * 0.22),
+          at(kenneyBushes[1], w * 0.64, h * 0.26),
+          at(kenneyBushes[3], w * 0.95, h * 0.22),
+          // The fence, tile by tile along the whole foot: 104×77 pieces.
+          if (fence) Positioned(
+            left: 0,
+            bottom: 0,
+            height: h * 0.34,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                for (var i = 0; i < (w / (h * 0.34 * 104 / 77)).ceil() + 1; i++)
+                  Image.asset(
+                    kenneyFence,
+                    height: h * 0.34,
+                    filterQuality: FilterQuality.medium,
+                  ),
+              ],
+            ),
+          ),
+        ],
+      );
+      return SizedBox(
+        width: w,
+        height: h,
+        child: night
+            ? ColorFiltered(
+                colorFilter: const ColorFilter.mode(
+                  Color(0x99060A14),
+                  BlendMode.srcATop,
+                ),
+                child: park,
+              )
+            : park,
+      );
+    },
+  );
 }
 
 /// The crowd's own clock, and how worked up it is.
@@ -1530,10 +1824,16 @@ class _StandSegment extends StatelessWidget {
     required this.excitement,
     required this.tier,
     this.front = false,
+    this.sprites = false,
+    this.night = false,
   });
 
   final Color kitColor;
   final Color haze;
+
+  /// Kenney's pieces have decoded, so a park is built from them.
+  final bool sprites;
+  final bool night;
 
   /// True for the LIVE layer — the front rows and the washes over them. See
   /// [_liveRows].
@@ -1573,7 +1873,9 @@ class _StandSegment extends StatelessWidget {
         // it cannot come apart from the pitch: every element stands on
         // `size.height`, which is the horizon by construction. So the plate is
         // gone and nothing has replaced it.
-        ? CustomPaint(painter: ParkPainter(haze: haze, tier: tier))
+        ? sprites
+              ? _ParkSegment(haze: haze, night: night)
+              : CustomPaint(painter: ParkPainter(haze: haze, tier: tier))
         : CustomPaint(
             painter: _StandPainter(
               kitColor: kitColor,
@@ -2458,9 +2760,13 @@ class _Turf extends StatelessWidget {
     required this.contactBelowHorizon,
     required this.condition,
     required this.tier,
+    this.sprites = false,
   });
 
   final Mood mood;
+
+  /// Kenney's grass has decoded, so a field's tufts are sprites.
+  final bool sprites;
 
   /// How well kept the pitch is — see [tuftsPerBand] and [firstKeptPitchTier].
   final int tier;
@@ -2554,8 +2860,12 @@ class _Turf extends StatelessWidget {
                         child: _Scroller(
                           offsetPx: atRow(tuftBandFraction(band)),
                           segmentWidth: groundSegmentWidth,
-                          stillKey: (band, tier),
-                          child: _TuftSegment(band: band, tier: tier),
+                          stillKey: (band, tier, sprites),
+                          child: _TuftSegment(
+                            band: band,
+                            tier: tier,
+                            sprites: sprites,
+                          ),
                         ),
                       ),
                   ],
@@ -2747,16 +3057,72 @@ class _MowPainter extends CustomPainter {
 }
 
 class _TuftSegment extends StatelessWidget {
-  const _TuftSegment({required this.band, required this.tier});
+  const _TuftSegment({
+    required this.band,
+    required this.tier,
+    this.sprites = false,
+  });
 
   final int band;
   final int tier;
+  final bool sprites;
 
   @override
   Widget build(BuildContext context) => SizedBox(
     width: groundSegmentWidth,
     height: double.infinity,
-    child: CustomPaint(painter: _TuftPainter(band: band, tier: tier)),
+    // A FIELD's tufts are Kenney's scruffy grass; a kept pitch keeps its blades.
+    child: sprites && tier < firstKeptPitchTier
+        ? _GrassSprites(band: band, tier: tier)
+        : CustomPaint(painter: _TuftPainter(band: band, tier: tier)),
+  );
+}
+
+/// Kenney's grass at the tufts' own places — the same rolls the painter makes,
+/// so a field reads the same whether it is blades or sprites.
+class _GrassSprites extends StatelessWidget {
+  const _GrassSprites({required this.band, required this.tier});
+
+  final int band;
+  final int tier;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, box) {
+      final children = <Widget>[];
+      var i = 0;
+      for (final t in tuftPlacements(band, tier)) {
+        final depth = t.depth;
+        final x = t.x * box.maxWidth;
+        final base = box.maxHeight * (1 - t.f);
+        final sprite = kenneyGrass[i++ % kenneyGrass.length];
+        final height = math.max(6.0, t.tall * 1.3);
+        children.add(
+          Positioned(
+            left: x,
+            top: base - height,
+            // The sprite is a pale silhouette; multiplied into a lighter,
+            // yellower green than the turf so it reads as a tuft ON the grass.
+            child: ColorFiltered(
+              colorFilter: ColorFilter.mode(
+                Color.lerp(
+                  const Color(0xFFA8DE72),
+                  const Color(0xFF7CC062),
+                  depth,
+                )!,
+                BlendMode.modulate,
+              ),
+              child: Image.asset(
+                sprite,
+                height: height,
+                filterQuality: FilterQuality.medium,
+              ),
+            ),
+          ),
+        );
+      }
+      return Stack(clipBehavior: Clip.none, children: children);
+    },
   );
 }
 
@@ -2883,29 +3249,16 @@ class _TuftPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    // Seeded per band so each depth has its own arrangement and none of them
-    // reshuffle between frames.
-    final rng = math.Random(31 + band);
-    final span = (tuftFMax - tuftFMin) / _tuftBands;
-
-    final count = tuftsPerBand(tier);
-    final sizeBoost = tuftSizeBoost(tier);
-    final lengthBoost = tuftLengthBoost(tier);
-    for (var i = 0; i < count; i++) {
-      // How far up the pitch this clump sits. Its band owns a third of the
-      // range, so a sparse pitch still spreads its tufts through the depth
-      // instead of stacking them at one distance.
-      final f = tuftFMin + (band + rng.nextDouble()) * span;
-      final depth = (f - tuftFMin) / (tuftFMax - tuftFMin);
-      // Fake perspective: the further up the pitch, the smaller.
-      final w = math.max(
-        4.0,
-        (9 + rng.nextDouble() * 7) * (1 - depth * 0.55) * sizeBoost,
-      );
-      final tall = w * lengthBoost;
-      final x = rng.nextDouble() * size.width;
-      final base = size.height * (1 - f);
-      final lean = rng.nextDouble() * 8 - 4;
+    // Seeded per tuft's blades only; where a tuft stands is shared with the
+    // sprites — see [tuftPlacements].
+    final rng = math.Random(97 + band);
+    for (final t in tuftPlacements(band, tier)) {
+      final depth = t.depth;
+      final w = t.w;
+      final tall = t.tall;
+      final x = t.x * size.width;
+      final base = size.height * (1 - t.f);
+      final lean = t.lean;
 
       final paint = Paint()
         ..color = Color.lerp(

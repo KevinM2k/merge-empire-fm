@@ -47,6 +47,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:merge_empire_fc/ui/screens/home/kenney_art.dart';
 import 'package:merge_empire_fc/ui/theme/sky.dart';
 
 /// The seed every particle field is laid out from.
@@ -198,8 +199,8 @@ class WeatherSky extends StatelessWidget {
           // drove, so at night this is a still painting and there is no reason
           // to tick a frame for it.
           child: night
-              ? const CustomPaint(
-                  key: ValueKey('pitch-moon'),
+              ? CustomPaint(
+                  key: const ValueKey('pitch-moon'),
                   size: Size.infinite,
                   painter: _MoonPainter(),
                 )
@@ -224,7 +225,11 @@ class WeatherSky extends StatelessWidget {
             active: condition != 'fog',
             builder: (context, t) => CustomPaint(
               size: Size.infinite,
-              painter: _CloudPainter(seconds: t, condition: condition),
+              painter: _CloudPainter(
+                seconds: t,
+                condition: condition,
+                night: night,
+              ),
             ),
           ),
         ),
@@ -697,10 +702,15 @@ class _CloudArt {
 }
 
 class _CloudPainter extends CustomPainter {
-  const _CloudPainter({required this.seconds, required this.condition});
+  _CloudPainter({
+    required this.seconds,
+    required this.condition,
+    required this.night,
+  }) : super(repaint: Sprites.version);
 
   final double seconds;
   final String condition;
+  final bool night;
 
   /// The same nodes, retimed. A gale drives them across in 22s; a storm's are
   /// heavier and slower.
@@ -737,7 +747,26 @@ class _CloudPainter extends CustomPainter {
       if (x + c.width < 0 || x > size.width) continue;
       canvas.save();
       canvas.translate(x, size.height * c.top);
-      canvas.drawOval(art[i].rect, art[i].paint);
+      final sprite = Sprites.of(kenneyClouds[i % kenneyClouds.length]);
+      if (sprite == null) {
+        canvas.drawOval(art[i].rect, art[i].paint);
+      } else {
+        // Kenney's cloud, at the width the oval had and its own shape.
+        final w = c.width;
+        final hgt = w * sprite.height / sprite.width;
+        final a = _forcedOpacity ?? c.opacity;
+        canvas.drawImageRect(
+          sprite,
+          Rect.fromLTWH(0, 0, sprite.width.toDouble(), sprite.height.toDouble()),
+          Rect.fromLTWH(0, 0, w, hgt),
+          Paint()
+            ..color = Color.fromRGBO(255, 255, 255, a)
+            ..filterQuality = FilterQuality.medium
+            ..colorFilter = night
+                ? const ColorFilter.mode(Color(0xFF5A6684), BlendMode.modulate)
+                : null,
+        );
+      }
       canvas.restore();
     }
     canvas.restore();
@@ -1377,7 +1406,7 @@ class _GustPainter extends CustomPainter {
 /// guarantees the pair agree — a sunny sky floors the temperature at `sunnyC` —
 /// so this is also what makes the manager sweat through his overcoat.
 class _SunPainter extends CustomPainter {
-  const _SunPainter(this.seconds);
+  _SunPainter(this.seconds) : super(repaint: Sprites.version);
 
   final double seconds;
 
@@ -1396,6 +1425,19 @@ class _SunPainter extends CustomPainter {
     canvas.save();
     canvas.translate(art.centre.dx, art.centre.dy);
     canvas.rotate(seconds / 120 * 2 * math.pi);
+    final sprite = Sprites.of(kenneySun);
+    if (sprite != null) {
+      // Kenney's sun, rays and all, turning as the fan did.
+      const half = 36.0;
+      canvas.drawImageRect(
+        sprite,
+        Rect.fromLTWH(0, 0, sprite.width.toDouble(), sprite.height.toDouble()),
+        const Rect.fromLTWH(-half, -half, half * 2, half * 2),
+        Paint()..filterQuality = FilterQuality.medium,
+      );
+      canvas.restore();
+      return;
+    }
     canvas.drawPath(art.fan, art.rays);
     canvas.restore();
 
@@ -1530,7 +1572,7 @@ class _SunArt {
 /// rays go entirely. The craters are what stop a plain pale disc reading as a
 /// dimmed sun.
 class _MoonPainter extends CustomPainter {
-  const _MoonPainter();
+  _MoonPainter() : super(repaint: Sprites.version);
 
   /// The sun's own centre, so the sky's one bright thing does not move when the
   /// theme changes. See [_SunPainter._centre].
@@ -1569,6 +1611,17 @@ class _MoonPainter extends CustomPainter {
         ..color = const Color(0x59D7E6FF)
         ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 7),
     );
+    final sprite = Sprites.of(kenneyMoon);
+    if (sprite != null) {
+      // Kenney's crescent, inside the glow the disc had.
+      canvas.drawImageRect(
+        sprite,
+        Rect.fromLTWH(0, 0, sprite.width.toDouble(), sprite.height.toDouble()),
+        Rect.fromCenter(center: c, width: 46, height: 46),
+        Paint()..filterQuality = FilterQuality.medium,
+      );
+      return;
+    }
     canvas.drawCircle(
       c,
       20,
