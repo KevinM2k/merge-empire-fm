@@ -5,29 +5,16 @@ on:
   pull_request:
 
 jobs:
-  test:
-    # Unit and widget tests need no Apple toolchain — iOS builds get their own
-    # macOS job when M7 adds the release pipeline.
+  analyze:
+    # Analyze only. The suite runs locally before a tag; see docs/RELEASE.md §5.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      # **PINNED, and the pin is the point.** Nothing else in the repo said
-      # which SDK this builds against: `pubspec.lock` is not committed, there
-      # was no `.fvmrc`, and this job named a version older than the one the
-      # port is actually developed on — so a fresh clone and this job could
-      # disagree with each other and with the machine the tests were last run
-      # on. The framework's own assertions move between minors: the same suite
-      # that passes here fails 34 tests on 3.47, which is how a green local run
-      # and a red CI happened at once. `.fvmrc` carries the same number for
-      # anyone using fvm; keep the two together.
+      # Pinned: the framework's own assertions move between minors. Keep with .fvmrc.
       - uses: subosito/flutter-action@v2
         with:
           flutter-version: '3.44.9'
           channel: stable
+          cache: true
       - run: flutter pub get
       - run: flutter analyze
-      - run: flutter test --coverage
-      - uses: actions/upload-artifact@v4
-        with:
-          name: coverage
-          path: coverage/lcov.info

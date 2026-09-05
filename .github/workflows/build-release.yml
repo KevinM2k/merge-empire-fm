@@ -1,0 +1,215 @@
+name: Build Android Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  # Manual re-run. Off a tag it only builds; release + Play upload are tag-gated.
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build App Bundle
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # pubspec is the version of record; a tag that disagrees is a typo.
+      - name: Check tag matches pubspec version
+        if: github.ref_type == 'tag'
+        run: |
+          PUB=$(sed -n 's/^version: *\([0-9][0-9.]*\)+.*/\1/p' pubspec.yaml)
+          echo "pubspec $PUB, tag ${GITHUB_REF_NAME}"
+          if [ "v$PUB" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::tag $GITHUB_REF_NAME does not match pubspec version $PUB"
+            exit 1
+          fi
+
+      # Play caps notes at 500 chars per language; fail here, not after the build.
+      - name: Check Play Store release notes
+        run: |
+          NOTES=distribution/whatsnew/whatsnew-en-GB
+          if [ ! -s "$NOTES" ]; then
+            echo "::error::$NOTES is missing or empty — Play needs release notes."
+            exit 1
+          fi
+          CHARS=$(wc -m < "$NOTES")
+          echo "$NOTES: $CHARS chars (Play limit 500)"
+          if [ "$CHARS" -gt 500 ]; then
+            echo "::error::Play release notes are $CHARS chars, over the 500 limit."
+            exit 1
+          fi
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'gradle'
+
+      # Same pin as ci.yml and .fvmrc.
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.9'
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+
+      - name: Write google-services.json
+        run: echo "${{ secrets.GOOGLE_SERVICES_JSON }}" | base64 --decode > android/app/google-services.json
+
+      - name: Validate google-services.json
+        run: |
+          python3 - <<'PY'
+          import json, sys
+          j = json.load(open('android/app/google-services.json'))
+          project = j.get('project_info', {}).get('project_id')
+          client = next((c for c in j.get('client', [])
+                         if c.get('client_info', {}).get('android_client_info', {}).get('package_name') == 'com.mergeempirefc.app'), None)
+          oauth = len(client.get('oauth_client', [])) if client else 0
+          print('project_id:', project, '| android client found:', bool(client), '| oauth clients:', oauth)
+          if project != 'merge-empire-fc': sys.exit('FAIL: wrong Firebase project (expected merge-empire-fc)')
+          if not client: sys.exit('FAIL: no client entry for package com.mergeempirefc.app')
+          if oauth == 0: sys.exit('FAIL: no oauth_client entries — Google Sign-In fails with DEVELOPER_ERROR (10)')
+          PY
+
+      # build.gradle.kts reads android/key.properties; without it the build signs with the debug key.
+      - name: Write keystore and key.properties
+        run: |
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > android/app/keystore.jks
+          cat > android/key.properties <<EOF
+          storeFile=${{ github.workspace }}/android/app/keystore.jks
+          storePassword=${{ secrets.KEYSTORE_PASSWORD }}
+          keyAlias=merge-empire-fc
+          keyPassword=${{ secrets.KEYSTORE_PASSWORD }}
+          EOF
+
+      - name: Build App Bundle and APK
+        run: |
+          flutter build appbundle --release
+          flutter build apk --release
+
+      # Play rejects native libs not 16 KB-aligned; catch a regressed dependency here.
+      - name: Verify 16 KB ELF alignment of native libs
+        run: |
+          python3 - <<'PY'
+          import zipfile, struct, sys
+          apk = 'build/app/outputs/flutter-apk/app-release.apk'
+          print('Checking', apk)
+          bad, checked = [], 0
+          with zipfile.ZipFile(apk) as z:
+              for n in z.namelist():
+                  if not (n.startswith('lib/') and n.endswith('.so')):
+                      continue
+                  checked += 1
+                  data = z.read(n)
+                  if data[:4] != b'\x7fELF' or data[4] != 2:
+                      continue  # 32-bit ABIs are exempt
+                  e_phoff = struct.unpack_from('<Q', data, 0x20)[0]
+                  e_phentsize = struct.unpack_from('<H', data, 0x36)[0]
+                  e_phnum = struct.unpack_from('<H', data, 0x38)[0]
+                  for i in range(e_phnum):
+                      off = e_phoff + i * e_phentsize
+                      if struct.unpack_from('<I', data, off)[0] != 1:  # PT_LOAD
+                          continue
+                      p_align = struct.unpack_from('<Q', data, off + 0x30)[0]
+                      if p_align == 0 or p_align % 0x4000 != 0:
+                          bad.append((n, hex(p_align)))
+                          break
+          print(f'Checked {checked} .so file(s)')
+          if bad:
+              print('NOT 16 KB-aligned:')
+              for n, a in bad:
+                  print(f'  {n}  p_align={a}')
+              sys.exit(1)
+          print('All 64-bit native libs are 16 KB-aligned.')
+          PY
+
+      - name: Get version from tag
+        id: version
+        run: |
+          if [ "${{ github.ref_type }}" == "tag" ]; then
+            echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          else
+            echo "version=manual-$(date +%Y%m%d-%H%M%S)" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Rename artifacts
+        run: |
+          mv build/app/outputs/bundle/release/app-release.aab \
+             build/app/outputs/bundle/release/merge-empire-fm-${{ steps.version.outputs.version }}.aab
+          mv build/app/outputs/flutter-apk/app-release.apk \
+             build/app/outputs/flutter-apk/merge-empire-fm-${{ steps.version.outputs.version }}.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-release
+          path: |
+            build/app/outputs/bundle/release/*.aab
+            build/app/outputs/flutter-apk/*.apk
+
+      # Lets a moved tag re-run without colliding with an existing release.
+      - name: Check existing GitHub Release
+        id: release_check
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh release view "${{ github.ref_name }}" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Body comes from CHANGELOG.md; falls back to the Play notes if the section is missing.
+      - name: Extract release notes from CHANGELOG
+        if: github.ref_type == 'tag'
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          if [ -f CHANGELOG.md ]; then
+            awk -v tag="## $VERSION " '
+              index($0, tag) == 1 { found = 1; print; next }
+              found && /^## v/   { exit }
+              found              { print }
+            ' CHANGELOG.md > release-notes.md
+          fi
+          if [ ! -s release-notes.md ]; then
+            echo "::warning::No CHANGELOG.md section for $VERSION — using the Play notes as the release body."
+            cp distribution/whatsnew/whatsnew-en-GB release-notes.md
+          fi
+          echo "--- release body ---"
+          cat release-notes.md
+
+      - name: Create GitHub Release
+        if: github.ref_type == 'tag' && steps.release_check.outputs.exists == 'false'
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            build/app/outputs/bundle/release/merge-empire-fm-${{ steps.version.outputs.version }}.aab
+            build/app/outputs/flutter-apk/merge-empire-fm-${{ steps.version.outputs.version }}.apk
+          body_path: release-notes.md
+          draft: false
+          prerelease: false
+          tag_name: ${{ github.ref_name }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # No changesNotSentForReview: Play rejects it once the app has passed initial review.
+      - name: Upload to Google Play Console
+        if: github.ref_type == 'tag'
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: com.mergeempirefc.app
+          releaseFiles: build/app/outputs/bundle/release/merge-empire-fm-${{ steps.version.outputs.version }}.aab
+          tracks: internal
+          status: completed
+          whatsNewDirectory: distribution/whatsnew
+
+      - name: Clean up signing material
+        if: always()
+        run: rm -f android/app/keystore.jks android/key.properties

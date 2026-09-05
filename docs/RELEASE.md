@@ -111,10 +111,19 @@ the Dart `appVersion` the Settings footer prints and the two native configs —
 both DERIVE from pubspec, and a hardcoded number there is the same console-only
 failure.
 
-**Yours:** AGP/Gradle on the build machine, and whatever runs the build. Note
-that `.github/workflows/ci.yml` runs the test suite only; there is no release
-job, deliberately — a release job needs the keystore and both config files from
-steps 2 and 3 as CI secrets, which is a decision for whoever holds them.
+**The PIPELINE half is done.** `.github/workflows/build-release.yml` is the old
+repo's `build-release.yml` ported to Flutter: a `v*` tag builds the signed
+bundle and APK, checks the tag against pubspec and the Play notes against the
+500-character cap, creates the GitHub Release and uploads to the internal track.
+It does NOT run the test suite — run it locally before tagging; `ci.yml` only
+analyzes. It needs four repository secrets, named as in the old repo so the
+same values carry over: `KEYSTORE_BASE64`, `KEYSTORE_PASSWORD` (store and key,
+alias `merge-empire-fc`), `GOOGLE_SERVICES_JSON` (base64) and
+`GOOGLE_PLAY_SERVICE_ACCOUNT_JSON`. The Play Games and AdMob ids the old job
+injected are already in the manifest here.
+
+**Yours:** the four secrets, and `distribution/whatsnew/whatsnew-en-GB` — the
+notes Play shows for the release, under 500 characters.
 
 ## 6. Store listings, whatsnew, changelog
 
