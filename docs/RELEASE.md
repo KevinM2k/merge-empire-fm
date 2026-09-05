@@ -89,6 +89,17 @@ pins the reference and the Resources entry, never the file.
 profile, and the App Store Connect record. Steps 3 and 12 are the parts of the
 iOS release that were this repo's, and both are now done.
 
+**The archive is scripted**, as it was in the old repo: `ios-build-and-release.py`
+checks the pinned Flutter is the one on PATH and the Firebase plist is present,
+runs `flutter build ipa`, moves the archive to `build/ios/archives/` under a
+versioned name and opens it in Organizer for Distribute App; the App Store
+`.ipa` it also exports sits in `build/ios/ipa/` for Transporter. The version
+comes from pubspec. Release signs MANUALLY with the distribution certificate and
+the App Store profile by UUID, as the old project does: two installed profiles
+share the name, and by name Xcode picked the one issued to a certificate whose
+key is not on this Mac. Certificate and profile both expire 2026-11-17; renew
+both and update the UUID in `project.pbxproj` before the release after that.
+
 ## 5. Android: the release pipeline
 
 **The SDK LEVELS half is done and pinned.** minSdk is the one that can strand
