@@ -105,7 +105,7 @@ is a floor rather than a ceiling.
 `flutter create`'s `1.0.0+1` — versionCode 1, against a live build of 10112.
 Play refuses an upload whose code is not higher than the shipped one, so the
 port as it stood could not have been uploaded at all, and `1.0.0` would have
-read as a downgrade on the listing beside 1.1.12. Now 1.2.0+10200, on the
+read as a downgrade on the listing beside 1.1.12. Now 2.0.0+20000, on the
 shipped app's own major×10000 scheme, pinned by `native_version_test` along with
 the Dart `appVersion` the Settings footer prints and the two native configs —
 both DERIVE from pubspec, and a hardcoded number there is the same console-only

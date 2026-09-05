@@ -22,11 +22,11 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # could not have been uploaded at all. The live build is versionCode 10112 /
 # versionName 1.1.12 (`../merge-empire-fc/android/app/build.gradle`).
 #
-# The scheme is the shipped app's own: major*10000 + minor*100 + patch. 1.2.0
-# because a whole reimplementation is not a patch release, and because it leaves
+# The scheme is the shipped app's own: major*10000 + minor*100 + patch. 2.0.0
+# because a whole reimplementation is a new major, and because it leaves
 # the 1.1.x line free for anything the old build still has to ship.
 # Pinned by `test/native_version_test.dart`.
-version: 1.2.0+10200
+version: 2.0.0+20000
 
 environment:
   sdk: ^3.10.1

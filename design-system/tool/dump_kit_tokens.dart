@@ -1,3 +1,4 @@
+// ignore_for_file: avoid_print
 // Ground truth for the TS port of buildKitSurfaces. Run from repo root:
 //   dart run design-system/tool/dump_kit_tokens.dart > design-system/fixtures/kit_tokens.json
 import 'dart:convert';
