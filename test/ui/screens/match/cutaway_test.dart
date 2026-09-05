@@ -597,10 +597,14 @@ void main() {
       );
       await tester.pump();
       final size = tester.getSize(find.byKey(const ValueKey('cutaway-idle')));
-      expect(size.width, closeTo(360, 0.5));
+      // A box this shallow narrows the pitch to keep its shape — see
+      // [stageFitWidth] — so the plane is the FIT's width, at the pitch's aspect.
+      final fit = stageFitWidth(360, 130);
+      expect(fit, lessThan(360));
+      expect(size.width, closeTo(fit, 0.5));
       expect(
         size.height,
-        closeTo(360 / pitchAspect, 0.5),
+        closeTo(fit / pitchAspect, 0.5),
         reason: 'the band is 130 tall; the PLANE is not',
       );
     });

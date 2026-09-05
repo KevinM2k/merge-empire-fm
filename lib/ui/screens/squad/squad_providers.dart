@@ -366,6 +366,7 @@ typedef SlotCandidate = ({
   int effRating,
   double penalty,
   int seasons,
+  bool available,
 });
 
 /// Everyone who could take [slotPosition], best-for-that-slot first.
@@ -374,9 +375,13 @@ typedef SlotCandidate = ({
 /// left back is worth less there than a 70 defender, and a list sorted by card
 /// rating puts the wrong man at the top.
 ///
-/// `isSelectable` is the filter, not `!injured`. A loaned-out player is at
-/// another club and a listed one is advertised; the match engine rates both
-/// zero, so offering either let a manager field a hole in the side.
+/// **THE UNAVAILABLE ARE LISTED, LAST, AND REFUSE.** `isSelectable` — not
+/// injured, not loaned out, not listed for sale — plus the referee's ban used
+/// to be the filter, and a man who failed it vanished from the picker, which
+/// the couch read as a lost card. He is shown now in the state the card
+/// already wears (the cross, the loan badge, the red card), sorted to the end,
+/// and the tile refuses the tap; the match engine rates every one of them
+/// zero, so none may be put on.
 final slotCandidatesProvider = Provider.family<List<SlotCandidate>, String>((
   Ref ref,
   String slotPosition,
@@ -390,6 +395,8 @@ final slotCandidatesProvider = Provider.family<List<SlotCandidate>, String>((
   };
   final pro = isProMode(s);
   final ratios = _map(s['definitionRatios']) ?? const <String, dynamic>{};
+  // `isSelectable` is the card's own state and knows nothing of the referee.
+  final banned = suspendedIn(s);
 
   final out = <SlotCandidate>[];
   for (final raw in gridCells(s)) {
@@ -397,10 +404,11 @@ final slotCandidatesProvider = Provider.family<List<SlotCandidate>, String>((
     final id = raw['instanceId'];
     if (id is! String || picked.contains(id)) continue;
     final instance = CardInstance.from(raw);
-    if (instance == null || !instance.isSelectable) continue;
+    if (instance == null) continue;
     final view = cardViewFor(
       raw,
       proMode: pro,
+      banned: banned,
       definitionRatios: ratios,
     );
     if (view == null) continue;
@@ -415,9 +423,13 @@ final slotCandidatesProvider = Provider.family<List<SlotCandidate>, String>((
       ).rating,
       penalty: computePositionPenalty(view.position, slotPosition),
       seasons: instance.seasonsPlayed,
+      available: instance.isSelectable && !view.suspended,
     ));
   }
-  out.sort((a, b) => b.effRating - a.effRating);
+  out.sort((a, b) {
+    final out_ = (a.available ? 0 : 1) - (b.available ? 0 : 1);
+    return out_ != 0 ? out_ : b.effRating - a.effRating;
+  });
   return out;
 });
 

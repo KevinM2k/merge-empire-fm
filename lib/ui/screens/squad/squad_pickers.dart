@@ -695,7 +695,9 @@ class _SlotPickerState extends ConsumerState<_SlotPicker> {
                     return GestureDetector(
                       key: ValueKey('slot-pick-${entry.instanceId}'),
                       behavior: HitTestBehavior.opaque,
+                      // Hurt, banned or away: shown in that state, and refuses.
                       onTap: () {
+                        if (!entry.available) return;
                         swapIntoSlot(
                           ref,
                           slotId: widget.slotId,

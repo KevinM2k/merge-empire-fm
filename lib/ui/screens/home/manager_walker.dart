@@ -719,11 +719,12 @@ double hairSwayAt(double t, {required double tilt, double amount = 1}) {
 const double _hairSettleAt = 14;
 
 /// How much of the near leg a kick owns at [progress] through it: in over the
-/// first eighth, all of it through the middle, out over the last eighth.
+/// wind-up, all of it through the strike, out over the last quarter. An eighth
+/// each way snapped the leg — see the kick track in `gesture_poses.dart`.
 double kickBlendAt(double progress) {
   final p = progress.clamp(0.0, 1.0);
-  if (p < 0.125) return Curves.easeInOut.transform(p / 0.125);
-  if (p > 0.875) return Curves.easeInOut.transform((1 - p) / 0.125);
+  if (p < 0.28) return Curves.easeInOut.transform(p / 0.28);
+  if (p > 0.74) return Curves.easeInOut.transform((1 - p) / 0.26);
   return 1;
 }
 
@@ -1581,8 +1582,8 @@ class _ManagerWalkerState extends State<ManagerWalker>
         // window in which a copy of the arm and the real one are in different
         // places, and nothing to crossfade.
         // How far the near leg belongs to a kick rather than the stride — see
-        // [_WalkerPainter.kickBlend]. In over the first eighth, out over the
-        // last, so the leg neither snaps out of the walk nor back into it.
+        // [_WalkerPainter.kickBlend]. In over the wind-up, out over the last
+        // quarter, so the leg neither snaps out of the walk nor back into it.
         final kickBlend = playing != null &&
                 _gestureClock.isAnimating &&
                 (playing.id == 'kick' || playing.id == 'flick')

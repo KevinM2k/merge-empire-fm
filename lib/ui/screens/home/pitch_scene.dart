@@ -935,9 +935,10 @@ class PitchScene extends StatelessWidget {
                     builder: (beat, excitement) => _GroundDrive(
                       builder: (worldX) => _Scroller(
                         key: const ValueKey('pitch-stand'),
-                        // A park's fans idle every frame; a stand's crowd only
+                        // A park's fans idle every frame, and so do a stand's
+                        // front rows — see [_liveRows]; the rest is a picture.
                         // when it is up.
-                        live: tier < firstStandTier ? sprites : excitement > 0,
+                        live: tier < firstStandTier ? sprites : true,
                         stillKey: (kitColor, haze, tier, sprites, night),
                         offsetPx: parallaxOffset(
                           worldX,
@@ -947,7 +948,7 @@ class PitchScene extends StatelessWidget {
                         ),
                         segmentWidth: farSegmentWidth,
                         liveChild: tier < firstStandTier
-                            ? (sprites ? _ParkFans(tier: tier) : null)
+                            ? (sprites ? _ParkFans(tier: tier, night: night) : null)
                             : _StandSegment(
                                 front: true,
                                 kitColor: kitColor,
@@ -1174,49 +1175,76 @@ const double _hillsSegmentWidth = 720;
 /// sprite at that x), and how tall.
 typedef _Villager = ({String path, double x, double up, double height});
 
-List<_Villager> _villageFor(int tier) => tier < 4 ? _hillsVillage : _peaksVillage;
+List<_Villager> _villageFor(int tier) => tier < 2
+    ? _hillsVillage
+    : tier < 4
+    ? _hillsLargeVillage
+    : _peaksVillage;
 
+// **`up` IS READ OFF THE RIDGE**, not tuned by eye: the LOWEST ridge row
+// under the villager's whole footprint — one column was enough for a tree on
+// a slope to hang its downhill side over the fall — eight pixels down so the
+// base sits in the slope, over the cropped 240. Heights are fractions of a strip
+// 1.9× taller than the old one, hence the small numbers.
 const List<_Villager> _hillsVillage = [
-  // A copse on the left shoulder, three together and one strayed.
-  (path: 'assets/bg/kenney/treeSmall_green1.png', x: 0.035, up: 0.78, height: 0.15),
-  (path: 'assets/bg/kenney/treeSmall_green3.png', x: 0.055, up: 0.80, height: 0.12),
-  (path: 'assets/bg/kenney/treeSmall_green2.png', x: 0.070, up: 0.77, height: 0.16),
-  (path: 'assets/bg/kenney/treeSmall_green1.png', x: 0.125, up: 0.62, height: 0.11),
-  // A hamlet part way down the long slope.
-  (path: 'assets/bg/kenney/houseSmall1.png', x: 0.205, up: 0.44, height: 0.12),
-  (path: 'assets/bg/kenney/houseSmall2.png', x: 0.235, up: 0.42, height: 0.10),
-  (path: 'assets/bg/kenney/treeSmall_green3.png', x: 0.255, up: 0.46, height: 0.10),
-  // Singles in the valley and up the far side.
-  (path: 'assets/bg/kenney/treeSmall_green2.png', x: 0.335, up: 0.24, height: 0.13),
-  (path: 'assets/bg/kenney/treeSmall_green1.png', x: 0.415, up: 0.36, height: 0.10),
-  (path: 'assets/bg/kenney/treeSmall_green1.png', x: 0.465, up: 0.50, height: 0.14),
-  (path: 'assets/bg/kenney/treeSmall_green3.png', x: 0.485, up: 0.55, height: 0.11),
-  // A farm on the big hill's shoulder, and a pair on its crown.
-  (path: 'assets/bg/kenney/houseSmall2.png', x: 0.545, up: 0.66, height: 0.12),
-  (path: 'assets/bg/kenney/treeSmall_green2.png', x: 0.575, up: 0.70, height: 0.13),
-  (path: 'assets/bg/kenney/treeSmall_green1.png', x: 0.610, up: 0.90, height: 0.11),
-  (path: 'assets/bg/kenney/treeSmall_green3.png', x: 0.630, up: 0.92, height: 0.13),
-  // Down the right-hand slope, spread out.
-  (path: 'assets/bg/kenney/treeSmall_green2.png', x: 0.720, up: 0.68, height: 0.15),
-  (path: 'assets/bg/kenney/treeSmall_green1.png', x: 0.790, up: 0.46, height: 0.11),
-  (path: 'assets/bg/kenney/houseSmall1.png', x: 0.845, up: 0.38, height: 0.11),
-  (path: 'assets/bg/kenney/treeSmall_green3.png', x: 0.865, up: 0.40, height: 0.13),
-  (path: 'assets/bg/kenney/treeSmall_green2.png', x: 0.935, up: 0.58, height: 0.12),
+  (path: 'assets/bg/kenney/treeSmall_green1.png', x: 0.035, up: 0.90, height: 0.083),
+  (path: 'assets/bg/kenney/treeSmall_green3.png', x: 0.055, up: 0.91, height: 0.066),
+  (path: 'assets/bg/kenney/treeSmall_green2.png', x: 0.070, up: 0.91, height: 0.088),
+  (path: 'assets/bg/kenney/treeSmall_green1.png', x: 0.125, up: 0.85, height: 0.061),
+  (path: 'assets/bg/kenney/houseSmall1.png', x: 0.205, up: 0.64, height: 0.066),
+  (path: 'assets/bg/kenney/houseSmall2.png', x: 0.235, up: 0.59, height: 0.055),
+  (path: 'assets/bg/kenney/treeSmall_green3.png', x: 0.255, up: 0.56, height: 0.055),
+  (path: 'assets/bg/kenney/treeSmall_green2.png', x: 0.335, up: 0.48, height: 0.072),
+  (path: 'assets/bg/kenney/treeSmall_green1.png', x: 0.415, up: 0.53, height: 0.055),
+  (path: 'assets/bg/kenney/treeSmall_green1.png', x: 0.465, up: 0.65, height: 0.077),
+  (path: 'assets/bg/kenney/treeSmall_green3.png', x: 0.485, up: 0.72, height: 0.061),
+  (path: 'assets/bg/kenney/houseSmall2.png', x: 0.545, up: 0.87, height: 0.066),
+  (path: 'assets/bg/kenney/treeSmall_green2.png', x: 0.575, up: 0.92, height: 0.072),
+  (path: 'assets/bg/kenney/treeSmall_green1.png', x: 0.610, up: 0.96, height: 0.061),
+  (path: 'assets/bg/kenney/treeSmall_green3.png', x: 0.630, up: 0.97, height: 0.072),
+  (path: 'assets/bg/kenney/treeSmall_green2.png', x: 0.720, up: 0.84, height: 0.083),
+  (path: 'assets/bg/kenney/treeSmall_green1.png', x: 0.790, up: 0.68, height: 0.061),
+  (path: 'assets/bg/kenney/houseSmall1.png', x: 0.845, up: 0.55, height: 0.061),
+  (path: 'assets/bg/kenney/treeSmall_green3.png', x: 0.865, up: 0.55, height: 0.072),
+  (path: 'assets/bg/kenney/treeSmall_green2.png', x: 0.935, up: 0.66, height: 0.066),
+];
+
+const List<_Villager> _hillsLargeVillage = [
+  (path: 'assets/bg/kenney/treeSmall_green1.png', x: 0.035, up: 0.67, height: 0.083),
+  (path: 'assets/bg/kenney/treeSmall_green3.png', x: 0.055, up: 0.72, height: 0.066),
+  (path: 'assets/bg/kenney/treeSmall_green2.png', x: 0.070, up: 0.75, height: 0.088),
+  (path: 'assets/bg/kenney/treeSmall_green1.png', x: 0.125, up: 0.76, height: 0.061),
+  (path: 'assets/bg/kenney/houseSmall1.png', x: 0.205, up: 0.60, height: 0.066),
+  (path: 'assets/bg/kenney/houseSmall2.png', x: 0.235, up: 0.55, height: 0.055),
+  (path: 'assets/bg/kenney/treeSmall_green3.png', x: 0.255, up: 0.51, height: 0.055),
+  (path: 'assets/bg/kenney/treeSmall_green2.png', x: 0.335, up: 0.39, height: 0.072),
+  (path: 'assets/bg/kenney/treeSmall_green1.png', x: 0.415, up: 0.45, height: 0.055),
+  (path: 'assets/bg/kenney/treeSmall_green1.png', x: 0.465, up: 0.64, height: 0.077),
+  (path: 'assets/bg/kenney/treeSmall_green3.png', x: 0.485, up: 0.72, height: 0.061),
+  (path: 'assets/bg/kenney/houseSmall2.png', x: 0.545, up: 0.90, height: 0.066),
+  (path: 'assets/bg/kenney/treeSmall_green2.png', x: 0.575, up: 0.95, height: 0.072),
+  (path: 'assets/bg/kenney/treeSmall_green1.png', x: 0.610, up: 0.96, height: 0.061),
+  (path: 'assets/bg/kenney/treeSmall_green3.png', x: 0.630, up: 0.95, height: 0.072),
+  (path: 'assets/bg/kenney/treeSmall_green2.png', x: 0.720, up: 0.65, height: 0.083),
+  (path: 'assets/bg/kenney/treeSmall_green1.png', x: 0.790, up: 0.22, height: 0.061),
+  (path: 'assets/bg/kenney/houseSmall1.png', x: 0.845, up: 0.05, height: 0.061),
+  (path: 'assets/bg/kenney/treeSmall_green3.png', x: 0.865, up: 0.05, height: 0.072),
+  (path: 'assets/bg/kenney/treeSmall_green2.png', x: 0.935, up: 0.15, height: 0.066),
 ];
 
 const List<_Villager> _peaksVillage = [
-  (path: 'assets/bg/kenney/treeSmall_green1.png', x: 0.03, up: 0.12, height: 0.12),
-  (path: 'assets/bg/kenney/treeSmall_green3.png', x: 0.09, up: 0.40, height: 0.11),
-  (path: 'assets/bg/kenney/houseSmall1.png', x: 0.15, up: 0.30, height: 0.10),
-  (path: 'assets/bg/kenney/treeSmall_green2.png', x: 0.22, up: 0.50, height: 0.12),
-  (path: 'assets/bg/kenney/treeSmall_green1.png', x: 0.35, up: 0.56, height: 0.11),
-  (path: 'assets/bg/kenney/treeSmall_green3.png', x: 0.42, up: 0.16, height: 0.12),
-  (path: 'assets/bg/kenney/houseSmall2.png', x: 0.48, up: 0.42, height: 0.10),
-  (path: 'assets/bg/kenney/treeSmall_green2.png', x: 0.62, up: 0.30, height: 0.12),
-  (path: 'assets/bg/kenney/treeSmall_green1.png', x: 0.69, up: 0.18, height: 0.11),
-  (path: 'assets/bg/kenney/treeSmall_green3.png', x: 0.75, up: 0.52, height: 0.12),
-  (path: 'assets/bg/kenney/houseSmall1.png', x: 0.82, up: 0.75, height: 0.10),
-  (path: 'assets/bg/kenney/treeSmall_green2.png', x: 0.89, up: 0.34, height: 0.12),
+  (path: 'assets/bg/kenney/treeSmall_green1.png', x: 0.030, up: 0.30, height: 0.066),
+  (path: 'assets/bg/kenney/treeSmall_green3.png', x: 0.090, up: 0.44, height: 0.061),
+  (path: 'assets/bg/kenney/houseSmall1.png', x: 0.150, up: 0.23, height: 0.055),
+  (path: 'assets/bg/kenney/treeSmall_green2.png', x: 0.220, up: 0.23, height: 0.066),
+  (path: 'assets/bg/kenney/treeSmall_green1.png', x: 0.350, up: 0.85, height: 0.061),
+  (path: 'assets/bg/kenney/treeSmall_green3.png', x: 0.420, up: 0.77, height: 0.066),
+  (path: 'assets/bg/kenney/houseSmall2.png', x: 0.480, up: 0.46, height: 0.055),
+  (path: 'assets/bg/kenney/treeSmall_green2.png', x: 0.620, up: 0.65, height: 0.066),
+  (path: 'assets/bg/kenney/treeSmall_green1.png', x: 0.690, up: 0.52, height: 0.061),
+  (path: 'assets/bg/kenney/treeSmall_green3.png', x: 0.750, up: 0.53, height: 0.066),
+  (path: 'assets/bg/kenney/houseSmall1.png', x: 0.820, up: 0.30, height: 0.055),
+  (path: 'assets/bg/kenney/treeSmall_green2.png', x: 0.890, up: 0.34, height: 0.066),
 ];
 
 /// One tile of Kenney's hills. The sprite is a near-white silhouette, so by
@@ -1237,18 +1265,19 @@ class _HillsSegment extends StatelessWidget {
   Widget build(BuildContext context) => SizedBox(
     width: _hillsSegmentWidth,
     height: double.infinity,
-    // Four points wider than its slot: the sprite's edge columns are half
-    // transparent, and tiled edge to edge that was a hairline of sky.
-    // Two points wider than its slot: the sprite's edge columns are half
-    // transparent, and tiled edge to edge that was a hairline of sky, while
-    // four points doubled the edges into a visible join.
-    child: OverflowBox(
-      minWidth: _hillsSegmentWidth + 2,
-      maxWidth: _hillsSegmentWidth + 2,
+    // The remastered sprite's edge columns are opaque and its ridge meets
+    // itself across the tile, so it is drawn at exactly its slot. (The
+    // originals' half-transparent edges needed cutting two columns in.)
+    child: ClipRect(
+      child: OverflowBox(
+      minWidth: _hillsSegmentWidth,
+      maxWidth: _hillsSegmentWidth,
       child: ColorFiltered(
         // The night cut-out takes the village with it; the day green does not.
+        // Night: a solid black cut-out, village and all. At 85% the green
+        // showed through and the hills read dark green rather than black.
         colorFilter: night
-            ? const ColorFilter.mode(Color(0xD9080C17), BlendMode.srcATop)
+            ? const ColorFilter.mode(Color(0xFF06080D), BlendMode.srcATop)
             : const ColorFilter.mode(Colors.transparent, BlendMode.srcATop),
         child: LayoutBuilder(
           builder: (context, box) {
@@ -1305,13 +1334,14 @@ class _HillsSegment extends StatelessWidget {
         ),
       ),
     ),
+    ),
   );
 }
 
 /// Who is watching from the park fence: a couple at the very first ground,
 /// a small crowd at the second, and from there the stand has them.
 List<int> parkSpectatorSeeds(int tier) => [
-  for (var i = 0; i < (tier == 0 ? 2 : (tier == 1 ? 7 : 0)); i++) 700 + i,
+  for (var i = 0; i < (tier == 0 ? 2 : (tier == 1 ? 14 : 0)); i++) 700 + i,
 ];
 
 /// Every file the park's spectators draw, for the scene's gate.
@@ -1321,17 +1351,20 @@ List<String> parkSpectatorAssets(int tier) => [
 ];
 
 /// Across the segment, per head-count: a pair stands together, a small crowd
-/// is a knot of three, a couple and two on their own.
-const List<List<double>> _spectatorSpots = [
-  [],
-  [0.62],
-  [0.58, 0.64],
-  [0.12, 0.60, 0.66],
-  [0.08, 0.14, 0.60, 0.84],
-  [0.06, 0.24, 0.29, 0.63, 0.89],
-  [0.05, 0.19, 0.24, 0.52, 0.67, 0.86],
-  [0.04, 0.17, 0.22, 0.27, 0.58, 0.63, 0.91],
-];
+/// is a knot of three, a couple and two on their own; fourteen is four knots
+/// and a few loners. Keyed by count — it was indexed, and the fourteen landed
+/// at index eight.
+const Map<int, List<double>> _spectatorSpots = {
+  0: [],
+  1: [0.62],
+  2: [0.58, 0.64],
+  3: [0.12, 0.60, 0.66],
+  4: [0.08, 0.14, 0.60, 0.84],
+  5: [0.06, 0.24, 0.29, 0.63, 0.89],
+  6: [0.05, 0.19, 0.24, 0.52, 0.67, 0.86],
+  7: [0.04, 0.17, 0.22, 0.27, 0.58, 0.63, 0.91],
+  14: [0.03, 0.07, 0.11, 0.20, 0.25, 0.29, 0.34, 0.47, 0.56, 0.60, 0.64, 0.79, 0.84, 0.94],
+};
 
 /// The fans, drawn LIVE over the still park so they can shift their weight.
 ///
@@ -1339,9 +1372,10 @@ const List<List<double>> _spectatorSpots = [
 /// them at all. Each idles on its own clock, so the knot of three never sways
 /// as one, and reduced motion stops the clock and leaves them standing.
 class _ParkFans extends StatefulWidget {
-  const _ParkFans({required this.tier});
+  const _ParkFans({required this.tier, required this.night});
 
   final int tier;
+  final bool night;
 
   @override
   State<_ParkFans> createState() => _ParkFansState();
@@ -1384,15 +1418,12 @@ class _ParkFansState extends State<_ParkFans>
       const w = farSegmentWidth;
       final seeds = parkSpectatorSeeds(widget.tier);
       // Its own size, as every segment: a row of strips cannot size this.
-      return SizedBox(
-        width: w,
-        height: h,
-        child: Stack(
+      final fans = Stack(
           clipBehavior: Clip.none,
           children: [
             for (final (i, seed) in seeds.indexed)
               Positioned(
-                left: w * _spectatorSpots[seeds.length][i],
+                left: w * _spectatorSpots[seeds.length]![i],
                 bottom: 0,
                 // **THE FIGURE IS BUILT ONCE and only a transform moves.** Its
                 // fourteen images rebuilt every frame, times the tiles the
@@ -1407,7 +1438,20 @@ class _ParkFansState extends State<_ParkFans>
                 ),
               ),
           ],
-        ),
+        );
+      // The park's own night tint: a live layer misses the still strip's.
+      return SizedBox(
+        width: w,
+        height: h,
+        child: widget.night
+            ? ColorFiltered(
+                colorFilter: const ColorFilter.mode(
+                  Color(0x99060A14),
+                  BlendMode.srcATop,
+                ),
+                child: fans,
+              )
+            : fans,
       );
     },
   );
@@ -1584,11 +1628,14 @@ class _CrowdState extends State<_Crowd> with SingleTickerProviderStateMixin {
   /// rather than shared: the crowd bounces at the rate people bounce, not at the
   /// rate the ground travels. A stand that stopped dead because the manager
   /// paused to bow would be stranger than one that carried on.
-  /// **AT REST THE CROWD IS STILL.** The bounce ran every frame for the life
-  /// of the screen and was half the UI thread on a flagship phone, for a
-  /// movement nobody could see. The clock runs while a surge decays and stops.
+  /// **THE CLOCK RUNS, and only the front rows pay for it.** Every fan in every
+  /// deck bouncing was half the UI thread on a flagship phone, so the crowd
+  /// was stopped dead at rest — and a still stand from tier 3 up was asked
+  /// about from the couch, against a park whose few fans never stop. The split
+  /// at [_liveRows] is what makes a resting bounce affordable: the keenest
+  /// fifth of two rows move, the rest is one picture.
   void _sync() {
-    final run = _excitement > 0 && !MediaQuery.of(context).disableAnimations;
+    final run = !MediaQuery.of(context).disableAnimations;
     if (run && !_c.isAnimating) {
       _last = Duration.zero;
       _c.repeat();

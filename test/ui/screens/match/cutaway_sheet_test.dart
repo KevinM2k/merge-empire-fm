@@ -17,12 +17,6 @@ void main() {
     }
   });
 
-  test('every body has an arm piece in its own skin', () {
-    for (var body = 1; body <= 10; body++) {
-      expect(cutawayArmFor(body), inInclusiveRange(11, 14), reason: '$body');
-    }
-  });
-
   test('the cache is asked for two files, not thirty-one', () {
     expect(cutawaySpritePaths(), ['sheet_characters.png', 'ball.png']);
   });

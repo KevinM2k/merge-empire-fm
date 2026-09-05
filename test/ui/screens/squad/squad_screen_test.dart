@@ -1446,6 +1446,75 @@ void main() {
       await settleSave(tester);
     });
 
+    testWidgets('A SUSPENDED OR INJURED MAN IS SHOWN IN THE PICKER AND REFUSES THE TAP', (
+      tester,
+    ) async {
+      // The suspended man was offered in his ordinary colours and put on at a
+      // rating of zero; the injured man was not offered at all, which read as
+      // a lost card. Both are listed now, in the state the card wears, last,
+      // and the tap does nothing.
+      final container = await pumpSquad(tester);
+      final picked = {
+        for (final slot in container.read(pitchSlotsProvider))
+          if (slot.cardInstanceId != null) slot.cardInstanceId,
+      };
+      late String banned;
+      late String hurt;
+      container.read(gameProvider).update((s) {
+        final cells = (s['grid'] as Map<String, dynamic>)['cells'] as List;
+        final spares = cells
+            .where((c) => c is Map && c['instanceId'] != null && !picked.contains(c['instanceId']))
+            .cast<Map<String, dynamic>>()
+            .toList();
+        banned = spares[0]['instanceId'] as String;
+        spares[0]['suspendedUntilMatch'] = 99;
+        hurt = spares[1]['instanceId'] as String;
+        spares[1]['injured'] = true;
+      });
+      final gkSlot = container
+          .read(pitchSlotsProvider)
+          .firstWhere((s) => s.slotPosition == 'GK');
+      // An empty square is what opens the picker.
+      container.read(gameProvider).update((s) {
+        for (final row in ((s['squad'] as Map)['lineup'] as List)) {
+          if ((row as Map)['slotId'] == gkSlot.slotId) {
+            row['cardInstanceId'] = null;
+          }
+        }
+      });
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(ValueKey('squad-slot-${gkSlot.slotId}')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('slot-filter-ALL')));
+      await tester.pumpAndSettle();
+      final offered = container.read(slotCandidatesProvider('GK'));
+      final red = offered.firstWhere((e) => e.instanceId == banned);
+      expect(red.card.suspended, isTrue, reason: 'no red card on him');
+      expect(red.available, isFalse);
+      final cross = offered.firstWhere((e) => e.instanceId == hurt);
+      expect(cross.card.injured, isTrue, reason: 'no cross on him');
+      expect(cross.available, isFalse);
+      expect(
+        offered.takeWhile((e) => e.available).length,
+        offered.length - 2,
+        reason: 'the two should be listed last',
+      );
+      for (final id in [banned, hurt]) {
+        await tester.ensureVisible(find.byKey(ValueKey('slot-pick-$id')));
+        await tester.tap(find.byKey(ValueKey('slot-pick-$id')));
+        await tester.pumpAndSettle();
+        expect(
+          container.read(pitchSlotsProvider).map((s) => s.cardInstanceId),
+          isNot(contains(id)),
+          reason: 'the tap put an unavailable man on the pitch',
+        );
+        expect(find.byKey(const ValueKey('slot-picker')), findsOneWidget);
+      }
+      await tester.tapAt(const Offset(8, 8));
+      await tester.pumpAndSettle();
+      await settleSave(tester);
+    });
+
     testWidgets('THE BENCH FILTERS BY LINE, and the spec always did', (
       tester,
     ) async {

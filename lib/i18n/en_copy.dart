@@ -404,8 +404,8 @@ const Map<String, String> enCopy = <String, String>{
   // We won by one or two.
   'report.opp.pushed':
       '{opp} made {club} work for it and were not far away themselves.|'
-      '{opp} will feel they had enough of this game to take something from it.|'
-      'There was more in this for {opp} than the scoreline gives them.',
+      '{opp} pushed {club} all the way.|'
+      '{opp} will feel they were close to taking something from this.',
 
   // ── THE SUMMARY USES EVERYTHING ──────────────────────────────────────────
   //
@@ -562,8 +562,16 @@ const Map<String, String> enCopy = <String, String>{
   'report.goals.opened':
       '{player} got {club} going.|'
       'It was {player} who started it for {club}.|'
-      '{player} opened the scoring, and {club} built the afternoon on it.|'
-      '{club} were off the mark through {player}.',
+      '{player} opened the scoring for {club}.',
+
+  // The goals shared out, with the names in the order they went in. The
+  // generated line counted them — "{n} names on the scoresheet, and none of
+  // them carried it alone" — which read from the couch as saying nothing.
+  // `{names}` is the port's own parameter; the nine other catalogues count.
+  'report.scorers.spread':
+      '{names} all scored for {club}.|'
+      'The goals were shared around: {names} for {club}.|'
+      '{n} different scorers for {club} — {names}.',
 
   // A half that ran away from the other one, told as a half rather than as
   // four minutes.
@@ -615,11 +623,12 @@ const Map<String, String> enCopy = <String, String>{
           'way.|'
       'Possession went one way and the clear chances went the other. {club} '
           'will not mind that at all.',
+  // Plain: "neither had enough of it for long enough to call it their match"
+  // was a long way round "it was even". Reported from the couch.
   'report.stats.even':
-      'There was very little between them, on the ball or off it.|'
-      '{club} and {opp} were as evenly matched as the afternoon suggests.|'
-      'Neither {club} nor {opp} had enough of it for long enough to call it '
-          'their match.',
+      'There was very little between them.|'
+      '{club} and {opp} were evenly matched, and it showed.|'
+      'An even game, with neither side on top for long.',
 
   // The cards that matter: a red is a name; two or more bookings of ours are
   // names. One booking is not mentioned — "so what?!" — and nor are theirs

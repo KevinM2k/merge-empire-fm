@@ -65,7 +65,8 @@ List<String> cutawaySpritePaths() => ['sheet_characters.png', 'ball.png'];
 /// Where each figure sits on the sheet, straight out of the pack's
 /// `sheet_characters.xml`: (x, y, width, height). 1–10 are bodies, five skin
 /// tones with the arms in and the same five with them out; 11–14 are loose
-/// arm-and-hand pieces in four tones, pointing forward from the sleeve.
+/// limb pieces — a sleeve or sock, skin, then a hand or boot. Swung as arms
+/// they were a wiggle; the white-sock-black-boot one is every man's LEG.
 const Map<String, Map<int, (int, int, int, int)>> cutawaySheetFrames = {
   'green': {
     1: (105, 93, 21, 31),
@@ -117,9 +118,8 @@ const Map<String, Map<int, (int, int, int, int)>> cutawaySheetFrames = {
   },
 };
 
-/// The arm piece whose skin matches body [body]: the five tones run light,
-/// ginger, brown, black, olive; the pieces run light, brown, dark, dark.
-int cutawayArmFor(int body) => const [11, 11, 12, 13, 11][(body - 1) % 5];
+/// The one leg piece: white sock, black boot — `white_14`, at (168, 62).
+const String cutawayLegKey = 'white_14.png';
 
 /// Every figure and the ball as sprites, cut from the cached sheet. Keyed
 /// `green_1.png` … `white_14.png` and `ball.png`, the names the files had.
@@ -172,10 +172,11 @@ class Mover extends PositionComponent {
     required this.paceScale,
     this.label,
     this.kit,
-    this.arm,
+    this.leg,
   }) : super(
          position: start.clone(),
-         size: Vector2(5.2, 5.2),
+         // Smaller than the 5.2 they were: too big for the pitch; 4.0 too small.
+         size: Vector2(4.4, 4.4),
          anchor: Anchor.center,
        );
 
@@ -184,9 +185,9 @@ class Mover extends PositionComponent {
   /// Which shirt, for whoever asks — the tests do.
   final Kit? kit;
 
-  /// The loose arm piece in this body's skin, swung with the stride. Null
-  /// draws no arms: the arms-out bodies (6–10) carry their own.
-  final Sprite? arm;
+  /// The sock-and-boot piece drawn twice behind him, one leg back and one
+  /// under him, swapped each stride. Null draws none.
+  final Sprite? leg;
 
   /// Individual pace, so a back four does not move as one object.
   ///
@@ -262,7 +263,7 @@ class Mover extends PositionComponent {
   /// sprinting one fast, without a second speed to keep in step.
   double _stride = 0;
 
-  /// Where the arms are in their swing, 0..1 — see the update.
+  /// Where the feet are in their stride, 0..1 — see the update.
   double _armPhase = 0;
 
   /// Arms up. Set for the length of a celebration.
@@ -334,7 +335,7 @@ class Mover extends PositionComponent {
     );
     // One stride per ~4.2 units covered.
     _stride = (_stride + step.length / 4.2) % 1;
-    // The gait — feet and arms swapping — is one cycle per ~12 units, far
+    // The gait — the feet swapping — is one cycle per ~12 units, far
     // slower than the old body rock, which read as shaking.
     _armPhase = (_armPhase + step.length / 12) % 1;
 
@@ -381,15 +382,15 @@ class Mover extends PositionComponent {
 
   @override
   void render(Canvas canvas) {
-    // **THE RUN IS ONE FOOT FORWARD, ONE BACK, SWAPPED** — and the arms with
-    // them, the way a top-down runner reads. Not a sine: a near-square wave,
-    // so each swap is a step rather than a wobble. Still when he is. The old
-    // per-stride rock and bob read as the body shaking.
+    // **THE RUN IS ONE FOOT FORWARD, ONE BACK, SWAPPED**, and nothing else
+    // moves: the swung arm pieces and the body rock both read as a wiggle.
+    // Not a sine: a near-square wave, so each swap is a step. Still when he is.
     final moving = speed >= 0.4;
     final swap = moving
         ? (math.sin(_armPhase * 2 * math.pi) * 3).clamp(-1.0, 1.0)
         : 0.0;
-    final rock = swap * 0.4;
+    // No body rock at all: a torso that turns with each step is a wiggle.
+    const rock = 0.0;
     const bob = 0.0;
     // **A CONTACT SHADOW.** The pitch is in perspective and the men standing on
     // it were flat sprites with nothing underneath — reported as the players
@@ -414,37 +415,27 @@ class Mover extends PositionComponent {
     canvas.translate(-size.x / 2, -size.y / 2);
     canvas.save();
     canvas.scale(size.x / 21, size.y / 31);
-    // The feet, under the body's ends: the pack has none, so two dark ovals,
-    // the top one forward when the bottom one is back.
-    if (moving) {
-      final foot = Paint()..color = const Color(0xCC2A2622);
-      for (final (footY, sign) in const [(6.0, 1.0), (25.0, -1.0)]) {
-        canvas.drawOval(
-          Rect.fromCenter(
-            center: Offset(10.5 + swap * sign * 8, footY),
-            width: 6,
-            height: 4.2,
-          ),
-          foot,
-        );
+    // **ONE LEG FORWARD, ONE BACK, SWAPPED.** He faces +x, so a leg is the
+    // pack's sock-and-boot piece from each hip, pointing the way that leg is
+    // reaching, splayed a little outward; it grows as it reaches so the boot
+    // clears the shirt front and back. Nothing rotates with the stride, so no
+    // wobble. Standing, both sit back a little.
+    final limb = leg;
+    if (limb != null) {
+      for (final (hipY, sign) in const [(8.0, 1.0), (23.0, -1.0)]) {
+        final ext = moving ? swap * sign : -0.7;
+        final dir = ext < 0 ? -1.0 : 1.0;
+        final length = moving ? 4 + ext.abs() * 11 : 13.5;
+        canvas.save();
+        canvas.translate(10.5, hipY);
+        canvas.scale(dir, sign);
+        canvas.rotate(-0.3 * dir);
+        limb.render(canvas, position: Vector2(0, -4), size: Vector2(length, 8));
+        canvas.restore();
       }
     }
     canvas.restore();
     sprite.render(canvas, size: size);
-    final swing = arm;
-    if (swing != null) {
-      // One arm at each shoulder, pointing forward, the opposite one back —
-      // the loose arm-and-hand piece the pack ships.
-      canvas.scale(size.x / 21, size.y / 31);
-      for (final (shoulderY, sign) in const [(3.5, 1.0), (27.5, -1.0)]) {
-        canvas.save();
-        canvas.translate(10, shoulderY);
-        canvas.scale(1, sign);
-        canvas.rotate(-0.35 - swap * sign * 0.55);
-        swing.render(canvas, position: Vector2(0, -6.5), size: Vector2(19, 13));
-        canvas.restore();
-      }
-    }
     canvas.restore();
 
     // Under his feet, upright whichever way he is running. Drawn at four times
@@ -859,7 +850,7 @@ class CutawayGame extends FlameGame with HasTimeScale {
       final mover = Mover(
         sprite: sprites['${attackKit}_${(i % 5) + 1}.png']!,
         kit: ours ? Kit.green : Kit.red,
-        arm: sprites['${attackKit}_${cutawayArmFor((i % 5) + 1)}.png'],
+        leg: sprites[cutawayLegKey],
         start: _at(starts[i]),
         paceScale: 0.9 + _rng.nextDouble() * 0.35,
         label: !ours
@@ -876,7 +867,7 @@ class CutawayGame extends FlameGame with HasTimeScale {
       final mover = Mover(
         sprite: sprites['${defenceKit}_${(i % 5) + 1}.png']!,
         kit: ours ? Kit.red : Kit.green,
-        arm: sprites['${defenceKit}_${cutawayArmFor((i % 5) + 1)}.png'],
+        leg: sprites[cutawayLegKey],
         start: _at(defensiveBlock[i]),
         paceScale: 0.82 + _rng.nextDouble() * 0.3,
         label: ours ? number : nameOr(number),
@@ -889,7 +880,7 @@ class CutawayGame extends FlameGame with HasTimeScale {
     keeper = Mover(
       sprite: sprites['white_1.png']!,
       kit: Kit.white,
-      arm: sprites['white_${cutawayArmFor(1)}.png'],
+      leg: sprites[cutawayLegKey],
       start: _at((p: keeperP, q: 0.5)),
       paceScale: 0.7,
       label: 'GK',

@@ -117,7 +117,7 @@ class IdlePitchGame extends FlameGame with HasTimeScale {
       final us = Mover(
         sprite: sprites['green_${(i % 5) + 1}.png']!,
         kit: Kit.green,
-        arm: sprites['green_${cutawayArmFor((i % 5) + 1)}.png'],
+        leg: sprites[cutawayLegKey],
         start: _at(idleShape[i]),
         paceScale: 0.55 + _rng.nextDouble() * 0.2,
       );
@@ -125,7 +125,7 @@ class IdlePitchGame extends FlameGame with HasTimeScale {
       final them = Mover(
         sprite: sprites['red_${(i % 5) + 1}.png']!,
         kit: Kit.red,
-        arm: sprites['red_${cutawayArmFor((i % 5) + 1)}.png'],
+        leg: sprites[cutawayLegKey],
         start: _at((p: 1 - idleShape[i].p, q: 1 - idleShape[i].q)),
         paceScale: 0.55 + _rng.nextDouble() * 0.2,
       );

@@ -467,15 +467,43 @@ void main() {
     });
 
     test('who started it is one sentence, and it carries no minute', () {
+      // Smith opened it and Jones took the headline with two.
       final beat = buildMatchReport(
         facts(
-          ours: 2,
-          scorers: const ['Smith', 'Jones'],
-          goals: [g(12, scorer: 'Smith'), g(70, scorer: 'Jones')],
+          ours: 3,
+          scorers: const ['Smith', 'Jones', 'Jones'],
+          goals: [
+            g(12, scorer: 'Smith'),
+            g(70, scorer: 'Jones'),
+            g(80, scorer: 'Jones'),
+          ],
         ),
       ).firstWhere((b) => b.key == 'report.goals.opened');
       expect(beat.params['player'], 'Smith');
       expect(beat.params.containsKey('minute'), isFalse);
+    });
+
+    test('and it stands aside for a SPREAD, which names them all in order', () {
+      // "Smith got them going. Three names on the scoresheet, and none of them
+      // carried it alone" stumbled over itself — reported from the couch.
+      final beats = buildMatchReport(
+        facts(
+          ours: 3,
+          scorers: const ['Smith', 'Jones', 'Brown'],
+          goals: [
+            g(12, scorer: 'Smith'),
+            g(50, scorer: 'Jones'),
+            g(70, scorer: 'Brown'),
+          ],
+        ),
+      );
+      expect(
+        beats.map((b) => b.key),
+        isNot(contains('report.goals.opened')),
+      );
+      final spread = beats.firstWhere((b) => b.key == 'report.scorers.spread');
+      expect(spread.params['names'], 'Smith, Jones and Brown');
+      expect(spread.params['n'], 3);
     });
 
     test('and it stands aside when the tally is about to name the same man', () {
@@ -675,6 +703,51 @@ void main() {
         facts(stats: board(62, 14, 4)),
       ).firstWhere((b) => b.key.startsWith('report.stats.'));
       expect(beat.params.keys, unorderedEquals(['club', 'opp']));
+    });
+
+    test('THE BOARD AND THE OPPOSITION LINE DO NOT ARGUE', () {
+      // "Neither side had enough of it to call it their match" and then "there
+      // was more in this for Ayton than the scoreline gives them", about one
+      // afternoon. Reported from the couch. The close outcomes defer to the
+      // board.
+      // A narrow win the board says was controlled: the "they were close"
+      // line goes; the board's sentence already names them.
+      var keys = keysOf(facts(stats: board(62, 14, 4)));
+      expect(keys, contains('report.stats.on_top'));
+      expect(keys, isNot(contains('report.opp.pushed')));
+      keys = keysOf(facts(stats: board(38, 14, 4)));
+      expect(keys, contains('report.stats.counter'));
+      expect(keys, isNot(contains('report.opp.pushed')));
+      // An even board and a narrow win: both stand, and they agree.
+      keys = keysOf(facts(stats: board(50, 8, 8)));
+      expect(keys, contains('report.stats.even'));
+      expect(keys, contains('report.opp.pushed'));
+      // A draw the board calls even would say "even" twice; the line about
+      // the opposition is the one that stays.
+      keys = keysOf(
+        facts(ours: 1, theirs: 1, wasAhead: false, stats: board(50, 8, 8)),
+      );
+      expect(keys, isNot(contains('report.stats.even')));
+      expect(keys, contains('report.opp.matched'));
+      keys = keysOf(
+        facts(ours: 0, theirs: 0, scorers: const [], wasAhead: false, stats: board(50, 8, 8)),
+      );
+      expect(keys, isNot(contains('report.stats.even')));
+      expect(keys, contains('report.opp.stalemate'));
+      // A draw the board says was ours: "they matched us" goes.
+      keys = keysOf(
+        facts(ours: 1, theirs: 1, wasAhead: false, stats: board(62, 14, 4)),
+      );
+      expect(keys, contains('report.stats.on_top'));
+      expect(keys, isNot(contains('report.opp.matched')));
+      // A loss when we were on top is exactly what "clinical" is written for.
+      keys = keysOf(
+        facts(ours: 1, theirs: 2, wasAhead: false, stats: board(62, 14, 4)),
+      );
+      expect(keys, contains('report.stats.on_top'));
+      expect(keys, contains('report.opp.clinical'));
+      // And a board that says nothing leaves the opposition line alone.
+      expect(keysOf(facts()), contains('report.opp.pushed'));
     });
 
     test('and nothing is said about a board the result cannot fill', () {

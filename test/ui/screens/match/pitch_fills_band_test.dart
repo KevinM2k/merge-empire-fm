@@ -15,6 +15,11 @@
 /// height is 140 points on a 402x874 phone where the spec's own rule asks for
 /// 226 — so the pitch filled its band and the band was 62% of the size the
 /// pitch is drawn for. See [stageBandHeight].
+///
+/// **And then the stretch went.** Filling a shallower band by scaling the axes
+/// apart was visible on a tablet, where the feed's floor binds hard: the ratio
+/// went out. The pitch keeps its shape now, at [stageFitWidth], and the band
+/// shows [PitchBackdrop.surround] down either side of it when it must.
 library;
 
 import 'package:flutter/rendering.dart';
@@ -45,7 +50,7 @@ void main() {
   /// `match_screen.dart` — and this is only here to exercise the floors.
   double poolOn(Size screen) => screen.height - 84 - 60;
 
-  group('THE PITCH FILLS ITS BAND', () {
+  group('THE PITCH FILLS ITS BAND AND KEEPS ITS SHAPE', () {
     for (final entry in devices.entries) {
       test('on a ${entry.key}', () {
         final screen = entry.value;
@@ -55,35 +60,41 @@ void main() {
           pool: poolOn(screen),
           hasTacticStrip: true,
         );
-        final band = Size(width, height);
-        final plane = Size(width, width / pitchAspect);
+        final fit = stageFitWidth(width, height);
+        expect(fit, lessThanOrEqualTo(width + 0.01));
+        final band = Size(fit, height);
+        final plane = Size(fit, fit / pitchAspect);
         final drawn = _drawn(plane, band);
 
         // The inset is room for the touchlines, not a margin: three points all
-        // round is the whole of the slack that is allowed.
+        // round is the whole of the slack that is allowed inside the fit.
         expect(
           drawn.width,
-          closeTo(width - pitchFitInset * 2, 1),
-          reason: 'dead green down the sides',
+          closeTo(fit - pitchFitInset * 2, 1),
+          reason: 'dead green down the sides of the fit',
         );
         expect(
           drawn.height,
           closeTo(height - pitchFitInset * 2, 1),
           reason: 'dead green above and below',
         );
+        // And NO stretch: the band the fit is drawn in is the one its own
+        // tilt asks for, so the axes are scaled together.
+        expect(
+          tiltedBandHeight(fit),
+          closeTo(height, 0.5),
+          reason: 'the pitch is being squashed',
+        );
       });
     }
 
-    test('and the stretch that costs stays modest', () {
-      // Filling a band of a different shape means scaling the axes apart. That
-      // is safe on a PROJECTION in a way it would not be on a photograph — the
-      // tilt is already a choice about how much foreshortening to show, so a
-      // squatter band reads as a shallower camera. What would not be safe is an
-      // unbounded stretch, so the worst case across the shapes above is pinned.
-      var worst = 1.0;
-      for (final screen in devices.values) {
+    test('a phone gets the full width and a tablet gets borders', () {
+      // The feed's floor binds on a tablet held wide, so the band is shallower
+      // than the tilt needs; the pitch narrows to keep its shape and the
+      // surround shows either side. A modern phone's band is the pitch's own.
+      double fitOn(Size screen) {
         final width = screen.width - matchInset * 2;
-        final band = Size(
+        return stageFitWidth(
           width,
           stageBandHeight(
             width: width,
@@ -91,12 +102,17 @@ void main() {
             hasTacticStrip: true,
           ),
         );
-        final ratio =
-            (band.height - pitchFitInset * 2) /
-            (tiltedBandHeight(width) - pitchFitInset * 2);
-        if (ratio < worst) worst = ratio;
       }
-      expect(worst, greaterThan(0.75), reason: 'the pitch is being squashed');
+      // Within a few points: the floors bind by a hair even on the phone.
+      expect(fitOn(devices['iPhone 15']!), closeTo(devices['iPhone 15']!.width - matchInset * 2, 6));
+      // Upright, the mini's pool is deep enough; on its side it is not.
+      const landscape = Size(1133, 744);
+      expect(fitOn(landscape), lessThan(landscape.width - matchInset * 2 - 100));
+    });
+
+    test('and a band deep enough is not narrowed at all', () {
+      expect(stageFitWidth(349, tiltedBandHeight(349) + 40), 349);
+      expect(stageFitWidth(349, double.infinity), 349);
     });
   });
 

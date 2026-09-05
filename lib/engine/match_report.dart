@@ -326,11 +326,19 @@ List<ReportBeat> buildMatchReport(ReportFacts f) {
   // Ours only, and named only. The opposition's opener is already the shape
   // beat's story, and the sim never names their scorers — "Ayton got them
   // started" is a sentence about nobody.
+  //
+  // **AND NOT IN FRONT OF A SPREAD.** "Smith got them going. Three names on
+  // the scoresheet, and none of them carried it alone" — read from the couch
+  // as a paragraph that stumbles over itself. The spread now names every
+  // scorer in order, the opener first, so the opener only speaks when the
+  // tally is about to give somebody ELSE the headline for a brace or a
+  // hat-trick.
   final first = ordered.isEmpty ? null : ordered.first;
   final openScorer = first != null && first.ours ? first.scorer : null;
   if (openScorer != null &&
       openScorer.isNotEmpty &&
       openScorer != standout &&
+      !spread &&
       ordered.length > 1) {
     beats.add((
       key: 'report.goals.opened',
@@ -374,7 +382,13 @@ List<ReportBeat> buildMatchReport(ReportFacts f) {
       beats.add((
         key: 'report.scorers.spread',
         para: ReportPara.performance,
-        params: {'club': f.clubName, 'n': tally.length},
+        // The names in the order they scored, for the English copy; the
+        // other nine count them with `{n}` and ignore the spare.
+        params: {
+          'club': f.clubName,
+          'n': tally.length,
+          'names': nameList(tally.keys.toList()),
+        },
       ));
     } else {
       beats.add((
@@ -469,6 +483,7 @@ List<ReportBeat> buildMatchReport(ReportFacts f) {
   // "{opp} had the ball" would be a flat lie about that match, so they are
   // written about the better of it and about who looked like scoring.
   final st = f.stats;
+  String? verdict;
   if (st != null) {
     final ball = st.possession >= possessionEdge
         ? 1
@@ -481,17 +496,13 @@ List<ReportBeat> buildMatchReport(ReportFacts f) {
         : shotGap <= -shotEdge
         ? -1
         : 0;
-    beats.add((
-      key: switch ((ball, chances)) {
-        (1, -1) => 'report.stats.ball_only',
-        (-1, 1) => 'report.stats.counter',
-        _ when ball + chances > 0 => 'report.stats.on_top',
-        _ when ball + chances < 0 => 'report.stats.pinned_back',
-        _ => 'report.stats.even',
-      },
-      para: ReportPara.performance,
-      params: {'club': f.clubName, 'opp': f.opponentName},
-    ));
+    verdict = switch ((ball, chances)) {
+      (1, -1) => 'report.stats.ball_only',
+      (-1, 1) => 'report.stats.counter',
+      _ when ball + chances > 0 => 'report.stats.on_top',
+      _ when ball + chances < 0 => 'report.stats.pinned_back',
+      _ => 'report.stats.even',
+    };
   }
 
   // ── 7. And how the OPPOSITION played ─────────────────────────────────────
@@ -508,6 +519,17 @@ List<ReportBeat> buildMatchReport(ReportFacts f) {
   // reads the same facts the headline does — the margin, and whether the lead
   // ever changed hands — because that is all this file knows: the port never
   // names an opposition player, so there is no their-scorers line to write.
+  //
+  // **AND THE TWO VERDICTS MAY NOT DISAGREE.** The board's sentence and this
+  // one read different facts about the same afternoon, and the couch caught
+  // them arguing: "neither side had enough of it to call it their match" and
+  // then "there was more in this for {opp} than the scoreline gives them",
+  // about one match. So the close outcomes — a one- or two-goal win, a draw —
+  // defer to the board: when it says the club were the better side, the line
+  // that says the opposition were close is dropped, because the board's
+  // sentence already names them; and when both would say "even", the board
+  // stands aside for the line about the opposition, which is the one the
+  // other set of supporters came for.
   final oppKey = switch ((margin, f.wasAhead, f.wasBehind)) {
     // They won it from behind, which is the one thing worth saying first.
     (< 0, true, _) => 'report.opp.comeback',
@@ -523,11 +545,27 @@ List<ReportBeat> buildMatchReport(ReportFacts f) {
     (>= 3, _, _) => 'report.opp.outclassed',
     _ => 'report.opp.pushed',
   };
-  beats.add((
-    key: oppKey,
-    para: ReportPara.performance,
-    params: {'club': f.clubName, 'opp': f.opponentName},
-  ));
+  const close = {'report.opp.pushed', 'report.opp.matched', 'report.opp.stalemate'};
+  const better = {'report.stats.on_top', 'report.stats.counter'};
+  final oppSpeaks = !(close.contains(oppKey) && better.contains(verdict));
+  final bothEven =
+      verdict == 'report.stats.even' &&
+      oppKey != 'report.opp.pushed' &&
+      close.contains(oppKey);
+  if (verdict != null && !bothEven) {
+    beats.add((
+      key: verdict,
+      para: ReportPara.performance,
+      params: {'club': f.clubName, 'opp': f.opponentName},
+    ));
+  }
+  if (oppSpeaks) {
+    beats.add((
+      key: oppKey,
+      para: ReportPara.performance,
+      params: {'club': f.clubName, 'opp': f.opponentName},
+    ));
+  }
 
   // ── 8. The referee ───────────────────────────────────────────────────────
   //

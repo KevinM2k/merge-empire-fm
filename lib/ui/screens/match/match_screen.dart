@@ -1794,7 +1794,7 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
                       'MID',
                 ),
               )
-              .where((SlotCandidate c) => !_withdrawn.contains(c.instanceId))
+              .where((SlotCandidate c) => c.available && !_withdrawn.contains(c.instanceId))
               .firstOrNull
         : null;
     final spent = _subsUsed >= PlayerEnergy.maxSubs;
@@ -1903,7 +1903,7 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
     final booked = (slot.effRating * yellowCardRatingMult).round();
     final best = ref
         .read(slotCandidatesProvider(slot.slotPosition))
-        .where((SlotCandidate c) => !_withdrawn.contains(c.instanceId))
+        .where((SlotCandidate c) => c.available && !_withdrawn.contains(c.instanceId))
         .firstOrNull;
     if (best == null || best.effRating <= booked) return;
     _bookingAdvised = true;

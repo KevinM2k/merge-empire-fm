@@ -11,12 +11,19 @@ void main() {
   test('the near leg draws back, then comes through to the ball', () {
     final windup = gesturePose('kick', 0.28);
     final contact = gesturePose('kick', 0.6);
-    final rest = gesturePose('kick', 1.0);
+    final start = gesturePose('kick', 0.0);
+    final end = gesturePose('kick', 1.0);
     expect(windup.kickThigh, greaterThan(15), reason: 'positive is backwards');
     expect(windup.kickShin, greaterThan(40), reason: 'the knee folds first');
     expect(contact.kickShin!.abs(), lessThan(10), reason: 'leg straight');
-    expect(rest.kickThigh, closeTo(0, 1e-9));
-    expect(rest.kickShin, closeTo(0, 1e-9));
+    // **THE ENDS MEET THE WALK.** The cue fires with the near leg at the back
+    // of its stride, so the track opens already wound rather than at zero;
+    // and it ends out in front with the knee folding, which is where the
+    // stride has the leg by then. Opening at 0 and closing at 0 was a
+    // seventeen-degree lurch in three frames at each end — the "jaggidy" kick.
+    expect(start.kickThigh, closeTo(windup.kickThigh!, 1e-9));
+    expect(end.kickThigh, inInclusiveRange(-16, -8));
+    expect(end.kickShin, greaterThan(20));
   });
 
   test('THE TOE IS ON THE BALL AT CONTACT', () {
@@ -39,7 +46,11 @@ void main() {
       final thigh = gesturePose('kick', phase).kickThigh!;
       expect(thigh, greaterThan(-30), reason: 'a hoof at $phase');
     }
-    expect(gesturePose('kick', 0.97).kickThigh!.abs(), lessThan(4));
+    // And by the end it has settled toward where the stride is taking it.
+    expect(
+      gesturePose('kick', 0.97).kickThigh!,
+      closeTo(gesturePose('kick', 1.0).kickThigh!, 2),
+    );
   });
 
   test('the kick OWNS the leg through its middle and hands it back', () {

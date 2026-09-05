@@ -55,14 +55,22 @@ const List<String> kenneyHouses = [
 
 /// The far ground behind the stand, by how big the ground has grown. Hills at a
 /// park, mountains once the stand is tall enough to hide most of them anyway.
+///
+/// **The REMASTERED pack's, cropped.** Its hills are 1024×400 with a solid
+/// body under the ridge and a lighter rim along it, which reads as a slope
+/// with light on it where the originals were a flat cut-out; and they tile
+/// edge to edge on opaque pixels, so the hairline-of-sky clip the originals
+/// needed is gone. `tool/crop_kenney_hills.py` cuts them to the top 240 rows:
+/// the strip's bottom sits behind the stand, and the rest of the body would
+/// only lift the ridge higher into the sky.
 String kenneyHillsFor(int tier) => tier < 2
-    ? '$_dir/hills1.png'
+    ? '$_dir/hillsRedux.png'
     : tier < 4
-    ? '$_dir/hills2.png'
-    : '$_dir/pointy_mountains.png';
+    ? '$_dir/hillsLargeRedux.png'
+    : '$_dir/mountainsRedux.png';
 
 /// Width over height, so a strip can be sized before the image is decoded.
-double kenneyHillsAspect(int tier) => tier < 4 ? 1001 / 128 : 1001 / 168;
+double kenneyHillsAspect(int tier) => 1024 / 240;
 
 /// Everything the park strip and the hills draw as widgets.
 List<String> kenneySceneSprites(int tier) => [

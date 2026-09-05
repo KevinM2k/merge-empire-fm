@@ -467,10 +467,19 @@ final Map<String, GestureAnimation> _animations = {
   // contact frame is solved: thigh -5, shin 2 puts the toe at x≈75.6, two
   // units into the rear of a ball whose back face is at 73. The follow-through
   // after it is small — the ball has gone.
+  //
+  // **THE ENDS MEET THE WALK, NOT ZERO.** The ball cue fires as the near leg
+  // reaches the back of its stride, thigh at ~25, so a track that opened at 0
+  // and wound up to 22 yanked the leg forward 17 degrees in three frames and
+  // then back again — and a tail that returned to 0 fought the stride, which
+  // by then has the leg out in front with the knee folded. Sampled at 60Hz:
+  // that was the jag. So the track opens already wound (the walk did the
+  // winding) and ends where the swinging leg is heading, and the blend at
+  // either end is a quarter of the gesture rather than an eighth.
   'kick': const GestureAnimation(
     spline: true,
-    kickThigh: [(0, 0), (0.28, 22), (0.60, -5), (0.74, -24), (0.95, 0), (1, 0)],
-    kickShin: [(0, 0), (0.28, 48), (0.60, 2), (0.74, -2), (0.95, 0), (1, 0)],
+    kickThigh: [(0, 22), (0.28, 22), (0.60, -5), (0.74, -24), (1, -12)],
+    kickShin: [(0, 12), (0.28, 48), (0.60, 2), (0.74, -2), (1, 30)],
     // The near arm swings back with the near leg's wind-up and comes forward
     // with the strike; the far arm does the opposite, which is what balances
     // him.

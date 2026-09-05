@@ -380,12 +380,18 @@ class _CutawayStageState extends State<CutawayStage> {
 
   @override
   Widget build(BuildContext context) {
-    // **NO `AspectRatio` — THE STAGE FILLS WHAT IT IS GIVEN.** It held the
-    // pitch's own aspect, so a box shorter than that aspect made the stage
-    // NARROWER than the box: dead green down both sides and a band of it below,
-    // which is exactly what a screenshot of a chance showed. The caller decides
-    // the band's shape; `fittedTilt` fits the projection into whatever arrives,
-    // so a shallow box is simply a shallow pitch.
+    // **NO `AspectRatio` — THE STAGE FILLS WHAT IT IS GIVEN**, up to the height
+    // the tilted pitch needs. It held the pitch's own FLAT aspect, so a box
+    // shorter than that made the stage narrower than the box: dead green down
+    // both sides and a band of it below, which is what a screenshot of a
+    // chance showed. The caller decides the band's shape.
+    // **BUT THE PITCH KEEPS ITS SHAPE.** A box shallower than the tilt needs
+    // used to be filled anyway, by stretching the axes apart — "a shallow box
+    // is simply a shallow pitch" — and on a tablet, where the feed's floor
+    // binds hard, the ratio visibly went out. Asked for directly: keep the
+    // ratio, and if that means a border down either side then so be it, in a
+    // green close to the pitch. So the pitch is drawn at [stageFitWidth] and
+    // centred, and [PitchBackdrop.surround] shows either side of it.
     // **UNLESS NOBODY HAS GIVEN IT ONE.** The goal replay mounts this inside a
     // column with no height to hand down, and it was the aspect that used to
     // supply one — so filling the box there asks for infinity. Bounded, the
@@ -402,9 +408,26 @@ class _CutawayStageState extends State<CutawayStage> {
           // `tiltedBandHeight` is the height that makes the fit exact, so
           // asking for it can never leave a gap and never crops.
           final want = width.isFinite ? tiltedBandHeight(width) : null;
-          return want != null && want < constraints.maxHeight
-              ? SizedBox(height: want, child: _stage(context))
-              : _stage(context);
+          if (want != null && want < constraints.maxHeight) {
+            return SizedBox(height: want, child: _stage(context));
+          }
+          if (want != null && want > constraints.maxHeight + 0.5) {
+            final fit = stageFitWidth(width, constraints.maxHeight);
+            return ClipRRect(
+              borderRadius: BorderRadius.circular(widget.radius),
+              child: ColoredBox(
+                color: PitchBackdrop.surround,
+                child: Center(
+                  child: SizedBox(
+                    width: fit,
+                    height: constraints.maxHeight,
+                    child: _stage(context),
+                  ),
+                ),
+              ),
+            );
+          }
+          return _stage(context);
         }
         // **THE TILTED shape, not the pitch's own.** A flat pitch's aspect
         // leaves the box nearly half empty once the projection has
@@ -779,6 +802,31 @@ Matrix4 _about(Size plane) {
     ..translateByDouble(centre.dx, centre.dy, 0, 1)
     ..multiply(_tilted())
     ..translateByDouble(-centre.dx, -centre.dy, 0, 1);
+}
+
+/// How wide the pitch can be drawn in a band [width] across and [height]
+/// deep WITHOUT changing its shape: the full width when the band is deep
+/// enough, and otherwise the width whose [tiltedBandHeight] is [height].
+///
+/// Solved by bisection rather than a ratio: the perspective divide is in
+/// absolute units, so the tilt's shape shifts a little with its size and a
+/// straight scale would leave a hairline of slack.
+double stageFitWidth(double width, double height) {
+  if (!width.isFinite || width <= 0 || !height.isFinite || height <= 0) {
+    return width;
+  }
+  if (tiltedBandHeight(width) <= height) return width;
+  var lo = 1.0;
+  var hi = width;
+  for (var i = 0; i < 40 && hi - lo > 0.01; i++) {
+    final mid = (lo + hi) / 2;
+    if (tiltedBandHeight(mid) > height) {
+      hi = mid;
+    } else {
+      lo = mid;
+    }
+  }
+  return lo;
 }
 
 /// How tall a band [width] across has to be for the tilted pitch to FILL it.

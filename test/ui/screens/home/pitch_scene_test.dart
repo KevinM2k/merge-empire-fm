@@ -130,13 +130,17 @@ void main() {
         )
         .toList();
 
-    testWidgets('and at rest the whole terrace is ONE PICTURE', (tester) async {
+    testWidgets('and at rest the crowd is ONE PICTURE with live front rows', (
+      tester,
+    ) async {
+      // A stand stopped dead from tier 3 up, beside a park whose fans never
+      // stop, was asked about from the couch. The front rows idle; the rest
+      // stays a picture, which is what keeps it affordable.
       await pumpScene(tester, tier: 8);
       final strips = standStrips(tester);
       expect(strips.length, 2, reason: 'a still half and a live one');
-      for (final strip in strips) {
-        expect(strip.controller.allowSnapshotting, isTrue);
-      }
+      expect(strips.first.controller.allowSnapshotting, isTrue);
+      expect(strips.last.controller.allowSnapshotting, isFalse);
     });
 
     testWidgets('AND A SURGE ONLY DROPS THE FRONT ROWS', (tester) async {
@@ -157,6 +161,9 @@ void main() {
         isFalse,
         reason: 'nothing is moving at all',
       );
+      // And the surge dies back to a resting crowd that is still alive.
+      await tester.pump(const Duration(seconds: 3));
+      expect(standStrips(tester).first.controller.allowSnapshotting, isTrue);
     });
   });
 
