@@ -233,4 +233,31 @@ const Map<String, String> zhCopy = <String, String>{
 
   'shop.section.looks': '主教练风格',
 
+  // Colin relays an offer and calls it; then his tour after the tutorial.
+  'coach.bid.relay': '{club}来电话了，老板。他们想要{player}，出价{price}。',
+  'coach.sponsor.relay': '{company}联系了我们，老板。他们想让{player}做品牌代言人：合约期间这名球员的收入增加{n}%。',
+  'coach.verdict.accept': '我的建议：接受',
+  'coach.verdict.decline': '我的建议：拒绝',
+  'coach.verdict.your_call': '我的建议：两可之间',
+  'manager.transfer.starter_short': '{player}每周首发，替补席上没人能顶上。除非你马上再球探一个替代者，否则拒绝。',
+  'manager.transfer.relegation': '我们在降级区，而{player}在首发阵容里。现在卖掉，正是在我们最承受不起的时候削弱自己。',
+  'manager.transfer.flying': '我们排名榜首，钱也不缺。不需要这笔钱：把阵容留住。',
+  'manager.transfer.need_money': '老实说，我们没钱了。这笔费用够买一名新球员，我们比需要{player}更需要金币。',
+  'manager.transfer.bench_warmer': '{player}根本不在你的首发里，价格也公道。拿钱去补强真正重要的位置。',
+  'manager.sponsor.clean': '这份没有任何附带条件。签吧：白送的钱。',
+  'manager.sponsor.relegation_starter': '{player}在首发里，而我们在降级区。首发变弱是我们最不需要的：拒绝。',
+  'manager.sponsor.injury_prone': '{player}已经踏过{seasons}个赛季，这份合约还会增加受伤风险。不值。',
+  'manager.sponsor.poor_form': '{player}的状态已经很差，这份合约还会拖得更低。说不。',
+  'manager.sponsor.need_money': '我们缺金币，而这份合约每秒都在进账。附带条件值得：签吧。',
+  'manager.sponsor.bench': '{player}不在你的首发里，附带条件在球场上不会有任何影响。签吧。',
+  'manager.sponsor.rating_cost': '{player}会掉{n}评分，而且是首发。用更弱的阵容换更多收入：你来定。',
+  'manager.sponsor.fair': '附带条件很小，收入不小。我会签。',
+  'guide.scout': '点击球探来签下新人。把两名同类球员拖到一起，就能合并成更强的球员。',
+  'guide.squad_tab': '很好。现在打开{tab}标签页，把你最好的十一人排上球场。',
+  'guide.squad_fill': '点击空位选择谁上场，或者点自动，我来替你排好阵容。',
+  'guide.dugout': '看到右下角的菜单了吗？那就是Dugout：训练和联赛积分榜都在里面。',
+  'guide.club_tab': '球场也能挣钱。去看看{tab}标签页。',
+  'guide.club_buy': '在这里购买设施。你拥有的每一处设施都会增加俱乐部每秒的收入。',
+  'guide.shop_tab': '能量或金币不够？{tab}标签页有礼包和加成，随时可用。',
+
 };

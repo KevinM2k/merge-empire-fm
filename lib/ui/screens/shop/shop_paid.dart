@@ -28,6 +28,7 @@ import 'package:merge_empire_fc/ui/screens/shop/shop_shine.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_tiles.dart';
 import 'package:merge_empire_fc/ui/shell/shell_controller.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
+import 'package:merge_empire_fc/ui/widgets/entrance.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 import 'package:merge_empire_fc/ui/widgets/store_button.dart';
 import 'package:merge_empire_fc/engine/iap_billing_policy.dart';
@@ -431,19 +432,34 @@ class GemPacksSection extends ConsumerWidget {
               child: IntrinsicHeight(
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
+                  // Hand-laid rather than a `ShopGrid`, so the arrival is
+                  // hand-laid too — same order, same pattern. See
+                  // `entrance.dart`.
                   children: [
-                    Expanded(child: GemPackTile(tile: grid[i])),
+                    Expanded(
+                      child: EntranceItem(
+                        index: i,
+                        child: GemPackTile(tile: grid[i]),
+                      ),
+                    ),
                     const SizedBox(width: 10),
                     Expanded(
                       child: i + 1 < grid.length
-                          ? GemPackTile(tile: grid[i + 1])
+                          ? EntranceItem(
+                              index: i + 1,
+                              child: GemPackTile(tile: grid[i + 1]),
+                            )
                           : const SizedBox.shrink(),
                     ),
                   ],
                 ),
               ),
             ),
-          if (hero != null) GemPackTile(tile: hero, hero: true),
+          if (hero != null)
+            EntranceItem(
+              index: grid.length,
+              child: GemPackTile(tile: hero, hero: true),
+            ),
         ],
       ),
     );

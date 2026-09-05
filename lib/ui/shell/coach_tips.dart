@@ -23,9 +23,11 @@ library;
 import 'package:merge_empire_fc/data/config.dart';
 import 'package:merge_empire_fc/data/divisions.dart';
 import 'package:merge_empire_fc/data/players.dart';
+import 'package:merge_empire_fc/engine/guide_engine.dart';
 import 'package:merge_empire_fc/engine/trait_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/state/card_instance.dart';
+import 'package:merge_empire_fc/ui/shell/guide.dart';
 import 'package:merge_empire_fc/ui/shell/tabs.dart';
 
 Map<String, dynamic>? _map(Object? v) => v is Map<String, dynamic> ? v : null;
@@ -99,6 +101,16 @@ List<Map<String, dynamic>>? _lineup(Map<String, dynamic>? save) {
 /// external `setEnabled`.
 FloatingTip? coachTipFor(Map<String, dynamic>? save, ShellTab tab) {
   if (save == null) return null;
+  // **The tour outranks the pool, and is not a pool.** A player fresh out of
+  // the tutorial needs "now open the Squad tab" more than a read on their
+  // traits, and once they have done it the step is spent for good — see
+  // `guide_engine.dart`. Not on the home tab, where his dock orb says it.
+  final guide = tab == ShellTab.home
+      ? null
+      : guideStepFor(save, guideTabOf(tab));
+  if (guide != null) {
+    return _tip(guideText(guide), 'guide', dismissKey: guide.seenId);
+  }
   return switch (tab) {
     ShellTab.home => null,
     ShellTab.grid => _gridTip(save),

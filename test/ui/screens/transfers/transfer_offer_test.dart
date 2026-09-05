@@ -21,7 +21,10 @@ import 'package:merge_empire_fc/state/game_state.dart';
 import 'package:merge_empire_fc/state/save_slots.dart';
 import 'package:merge_empire_fc/state/save_store.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
+import 'package:merge_empire_fc/ui/popups/coach_card.dart' show CoachTypewriter;
 import 'package:merge_empire_fc/ui/popups/popup_host.dart';
+import 'package:merge_empire_fc/ui/screens/transfers/coach_verdict.dart';
+import 'package:merge_empire_fc/util/format.dart';
 import 'package:merge_empire_fc/ui/screens/transfers/transfer_offer_card.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
@@ -674,4 +677,95 @@ void main() {
     });
   });
 
+
+  group('COLIN RELAYS THE BID, AND CALLS IT', () {
+    // Asked for from the couch: the card should read as an offer having come
+    // in and him telling us about it, then saying whether to go ahead.
+    testWidgets('the card opens in his voice and ends on his call', (
+      tester,
+    ) async {
+      await _pump(tester, _saveWithOffer(price: 5000));
+      final relay = tester
+          .widget<CoachTypewriter>(
+            find.ancestor(
+              of: find.byKey(const ValueKey('transfer-relay')),
+              matching: find.byType(CoachTypewriter),
+            ),
+          )
+          .text;
+      final name = findCardById(
+        _saveWithOffer(),
+        _instanceId,
+      )!.name('Test Player');
+      expect(relay, contains(_rival));
+      expect(relay, contains(name));
+      expect(relay, contains(formatCoins(5000)));
+      // 5000 for a tier-three forward is a jackpot, and a jackpot is a sell.
+      expect(find.byKey(const ValueKey('coach-verdict-accept')), findsOneWidget);
+      expect(find.byKey(const ValueKey('transfer-advice')), findsOneWidget);
+      // And the pane no longer repeats who they want: he has just said so.
+      expect(find.text(t('transfer.they_want', {'player': name})),
+          findsNothing);
+    });
+
+    final fair = players.firstWhere((p) => p.id == _defId).sellValue.round();
+    // The live card's own name wins over the bid's snapshot — see the card.
+    final name = findCardById(_saveWithOffer(), _instanceId)!.name('');
+
+    Map<String, dynamic> withLineup(Map<String, dynamic> s, {bool starter = true}) {
+      (s['squad'] as Map<String, dynamic>)['lineup'] = [
+        {'slotId': 'st', 'instanceId': starter ? _instanceId : null},
+      ];
+      return s;
+    }
+
+    test('a starter with nobody behind them is a HOLD at a fair price', () {
+      final s = withLineup(_saveWithOffer(price: fair, coins: 100000));
+      final read = transferRead(
+        s,
+        (s['transferMarket'] as Map<String, dynamic>)['pendingOffer']
+            as Map<String, dynamic>,
+        findCardById(s, _instanceId),
+      );
+      expect(read.verdict, CoachVerdict.decline);
+      expect(read.text, t('manager.transfer.starter_short', {'player': name}));
+    });
+
+    test('a bench player at a fair price is a SELL', () {
+      final s = withLineup(
+        _saveWithOffer(price: fair, coins: 100000),
+        starter: false,
+      );
+      // Twelve on the grid, so there IS a bench.
+      final cells = (s['grid'] as Map<String, dynamic>)['cells'] as List;
+      for (var i = 1; i < 12; i++) {
+        cells[i] = {'instanceId': 'x$i', 'definitionId': 'player_t1_def'};
+      }
+      final read = transferRead(
+        s,
+        (s['transferMarket'] as Map<String, dynamic>)['pendingOffer']
+            as Map<String, dynamic>,
+        findCardById(s, _instanceId),
+      );
+      expect(read.verdict, CoachVerdict.accept);
+      expect(read.text, t('manager.transfer.bench_warmer', {'player': name}));
+    });
+
+    test('and a club that is skint sells for the rebuild', () {
+      final s = withLineup(_saveWithOffer(price: 5000, coins: 0), starter: false);
+      final read = transferRead(
+        s,
+        (s['transferMarket'] as Map<String, dynamic>)['pendingOffer']
+            as Map<String, dynamic>,
+        findCardById(s, _instanceId),
+      );
+      expect(read.verdict, CoachVerdict.accept);
+    });
+
+    test('every verdict has a label', () {
+      for (final v in CoachVerdict.values) {
+        expect(coachVerdictLabel(v), isNot(startsWith('coach.')));
+      }
+    });
+  });
 }

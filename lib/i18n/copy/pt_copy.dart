@@ -343,4 +343,31 @@ const Map<String, String> ptCopy = <String, String>{
 
   'shop.section.looks': 'Estilo do treinador',
 
+  // Colin relays an offer and calls it; then his tour after the tutorial.
+  'coach.bid.relay': 'O {club} ligou, chefe. Eles querem {player} e estão colocando {price} na mesa.',
+  'coach.sponsor.relay': 'A {company} entrou em contato, chefe. Querem {player} como cara da marca: {n}% a mais de renda desse jogador enquanto o acordo durar.',
+  'coach.verdict.accept': 'Minha opinião: aceite',
+  'coach.verdict.decline': 'Minha opinião: recuse',
+  'coach.verdict.your_call': 'Minha opinião: pode ir pra qualquer lado',
+  'manager.transfer.starter_short': '{player} é titular toda semana e não tem ninguém no banco pra entrar. Recuse, a menos que você contrate um substituto logo depois.',
+  'manager.transfer.relegation': 'Estamos na zona de rebaixamento e {player} está no time titular. Vender agora nos enfraquece justo quando não podemos.',
+  'manager.transfer.flying': 'Somos líderes e o caixa está saudável. Não precisamos desse dinheiro: mantenha o elenco junto.',
+  'manager.transfer.need_money': 'Sinceramente, estamos sem dinheiro. Esse valor paga uma contratação inteira, e precisamos das moedas mais do que de {player}.',
+  'manager.transfer.bench_warmer': '{player} nem está no seu time titular, e o preço é justo. Pegue o dinheiro e reforce onde importa.',
+  'manager.sponsor.clean': 'Esse não tem pegadinha. Assine: é dinheiro de graça.',
+  'manager.sponsor.relegation_starter': '{player} está no time titular e estamos na zona de rebaixamento. Um titular mais fraco é a última coisa que precisamos: recuse.',
+  'manager.sponsor.injury_prone': '{player} já tem {seasons} temporadas nas pernas e esse acordo aumenta o risco de lesão. Não vale a pena.',
+  'manager.sponsor.poor_form': 'A forma de {player} já está ruim e esse acordo piora ainda mais. Diga não.',
+  'manager.sponsor.need_money': 'Estamos curtos de moedas e isso paga a cada segundo. Vale a pegadinha: assine.',
+  'manager.sponsor.bench': '{player} não está no seu time titular, então a pegadinha não nos custa nada em campo. Assine.',
+  'manager.sponsor.rating_cost': 'Custa {n} de avaliação a {player}, e ele é titular. Mais renda em troca de um time mais fraco: você decide.',
+  'manager.sponsor.fair': 'A pegadinha é pequena e a renda não. Eu assinaria.',
+  'guide.scout': 'Toque em Olheiro para contratar alguém novo. Dois do mesmo tipo arrastados juntos se fundem num jogador melhor.',
+  'guide.squad_tab': 'Boa. Agora abra a aba {tab} e coloque seus melhores onze em campo.',
+  'guide.squad_fill': 'Toque numa vaga vazia para escolher quem joga ali, ou aperte Auto e eu completo o time pra você.',
+  'guide.dugout': 'Viu o Menu, embaixo à direita? É o Dugout: os treinos e a tabela do campeonato ficam lá.',
+  'guide.club_tab': 'O estádio também gera dinheiro. Dê uma olhada na aba {tab}.',
+  'guide.club_buy': 'Compre uma instalação aqui. Cada uma que você tiver soma ao que o clube ganha a cada segundo.',
+  'guide.shop_tab': 'Faltando energia ou moedas? A aba {tab} tem pacotes e bônus quando você precisar.',
+
 };

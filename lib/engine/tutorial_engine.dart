@@ -253,7 +253,12 @@ final List<TutorialStep> tutorialSteps = [
     id: 'done',
     titleKey: 'tut.done.title',
     bodyKey: 'tut.done.body',
-    tab: TutorialTab.league,
+    // **On the GRID, not the league screen.** The step before it empties the
+    // grid, and the first thing a new manager has to do is fill it again — so
+    // the script ends where the work is rather than sending them to the home
+    // screen and then pointing back at the Players tab. Asked for from the
+    // couch; it is also what lets Colin's tour open on "tap Scout".
+    tab: TutorialTab.grid,
     buttonKey: 'tut.done.btn',
     condition: null,
     targetKey: null,
@@ -451,7 +456,12 @@ void advanceTutorial(Map<String, dynamic> state) {
   final from = _num(tut['step'])?.toInt() ?? 0;
   final next = from + 1;
   tut['step'] = next;
-  if (next >= tutorialSteps.length) tut['done'] = true;
+  if (next >= tutorialSteps.length) {
+    tut['done'] = true;
+    // Distinct from `done`, which a settle or a reset also writes: this says
+    // the script RAN here, and is what starts Colin's tour (`guide_engine`).
+    tut['completed'] = true;
+  }
 
   // **THE ONE FUNNEL THAT DECIDES WHETHER A PLAYER STAYS**, and it reported
   // nothing at all. A tutorial is nine chances to lose someone and the only

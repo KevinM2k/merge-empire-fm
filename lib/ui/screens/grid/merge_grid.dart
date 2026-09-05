@@ -43,6 +43,7 @@ import 'package:merge_empire_fc/ui/screens/grid/merged_float.dart';
 import 'package:merge_empire_fc/ui/screens/grid/scout_reveal.dart';
 import 'package:merge_empire_fc/ui/screens/grid/sell_sheet.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
+import 'package:merge_empire_fc/ui/widgets/entrance.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 import 'package:merge_empire_fc/ui/widgets/player_card.dart';
 
@@ -709,6 +710,12 @@ class MergeGridState extends ConsumerState<MergeGrid>
                                         delay: departing[cell.instanceId],
                                         child: LoanArrival(
                                           delay: arriving[cell.instanceId],
+                                          // The cards drop onto the grid in
+                                          // order when the tab opens; the
+                                          // slots under them hold still. See
+                                          // `entrance.dart`.
+                                          child: EntranceItem(
+                                          index: cell.index,
                                           child: _CardSlot(
                                             cell: cell,
                                             onDrop: _drop,
@@ -763,6 +770,7 @@ class MergeGridState extends ConsumerState<MergeGrid>
                                                 );
                                               }
                                             },
+                                          ),
                                           ),
                                         ),
                                       ),

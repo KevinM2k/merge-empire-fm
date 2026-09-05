@@ -288,7 +288,8 @@ const double minFontSize = 12;
 /// **THE BUTTONS WERE SILENT, and they always had been.** `'tap'` is in
 /// `sound_defs.dart` — a 50ms blip — and the only things that ever played it
 /// were the five mini-games. Reported from the couch as having been lost;
-/// nothing was lost, it was never wired.
+/// nothing was lost, it was never wired. The cue wired here is now `'pop'`,
+/// which is what the JS plays for the interface — see `theme_providers.dart`.
 ///
 /// **AND IT IS NOW ON ITS OWN CHANNEL, which ships OFF.** Wired to the SFX
 /// toggle it was reported as really annoying, with the ask being a switch of

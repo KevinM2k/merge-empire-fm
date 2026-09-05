@@ -22,6 +22,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
+import 'package:merge_empire_fc/engine/guide_engine.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/ui/hud/hud.dart' show energyMaxProvider;
 import 'package:merge_empire_fc/ui/popups/coach_card.dart'
@@ -276,7 +277,13 @@ class MenuDock extends ConsumerWidget {
       label: t('scene.dock.menu'),
       dot: ref.watch(quickNavNeedsAttentionProvider),
       onTap: () {
-        final state = ref.read(gameProvider).state;
+        final game = ref.read(gameProvider);
+        final state = game.state;
+        // Opening it once is knowing where it is: the tour's Dugout step is
+        // spent here and Colin never mentions it again.
+        if (guideActive(state)) {
+          game.update((s) => markGuideDone(s, 'dugout'));
+        }
         // The hand holding it is the manager's: his skin off his look.
         final look = ref.read(managerLookProvider) ?? const {};
         final skin = '${look['skin'] ?? ''}';

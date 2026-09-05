@@ -361,4 +361,31 @@ const Map<String, String> frCopy = <String, String>{
 
   'shop.section.looks': 'Style d\'entraîneur',
 
+  // Colin relays an offer and calls it; then his tour after the tutorial.
+  'coach.bid.relay': '{club} ont appelé, coach. Ils veulent {player} et mettent {price} sur la table.',
+  'coach.sponsor.relay': '{company} nous ont contactés, coach. Ils veulent {player} comme visage de leur marque : {n}% de revenus en plus sur ce joueur tant que le contrat court.',
+  'coach.verdict.accept': 'Mon avis : prends-la',
+  'coach.verdict.decline': 'Mon avis : refuse',
+  'coach.verdict.your_call': 'Mon avis : ça peut aller dans les deux sens',
+  'manager.transfer.starter_short': '{player} est titulaire chaque semaine et il n\'y a personne sur le banc pour prendre le relais. Refuse, sauf si tu recrutes un remplaçant tout de suite après.',
+  'manager.transfer.relegation': 'On est dans la zone rouge et {player} est dans le onze. Vendre maintenant nous affaiblit pile au moment où on ne peut pas se le permettre.',
+  'manager.transfer.flying': 'On est en tête et les caisses sont pleines. On n\'a pas besoin de cet argent : garde le groupe soudé.',
+  'manager.transfer.need_money': 'Franchement, on est à sec. Cette somme paie une recrue entière, et on a plus besoin des pièces que de {player}.',
+  'manager.transfer.bench_warmer': '{player} n\'est même pas dans ton onze, et le prix est correct. Prends l\'argent et renforce là où ça compte.',
+  'manager.sponsor.clean': 'Aucun piège sur celui-là. Signe : c\'est de l\'argent gratuit.',
+  'manager.sponsor.relegation_starter': '{player} est dans le onze et on est dans la zone rouge. Un titulaire affaibli, c\'est la dernière chose qu\'il nous faut : refuse.',
+  'manager.sponsor.injury_prone': '{player} a déjà {seasons} saisons dans les jambes et ce contrat augmente le risque de blessure. Ça ne vaut pas le coup.',
+  'manager.sponsor.poor_form': 'La forme de {player} est déjà mauvaise et ce contrat l\'enfonce encore. Dis non.',
+  'manager.sponsor.need_money': 'On manque de pièces et ça paie chaque seconde. Le piège vaut le coup : signe.',
+  'manager.sponsor.bench': '{player} n\'est pas dans ton onze, donc le piège ne nous coûte rien sur le terrain. Signe.',
+  'manager.sponsor.rating_cost': 'Ça coûte {n} de note à {player}, et c\'est un titulaire. Plus de revenus contre une équipe plus faible : à toi de voir.',
+  'manager.sponsor.fair': 'Le piège est petit et les revenus ne le sont pas. Je signerais.',
+  'guide.scout': 'Appuie sur Recruter pour signer quelqu\'un de nouveau. Deux joueurs du même type glissés l\'un sur l\'autre fusionnent en un meilleur joueur.',
+  'guide.squad_tab': 'Bien. Ouvre maintenant l\'onglet {tab} et mets ton meilleur onze sur la pelouse.',
+  'guide.squad_fill': 'Touche une case vide pour choisir qui joue là, ou appuie sur Auto et je te compose l\'équipe.',
+  'guide.dugout': 'Tu vois le Menu, en bas à droite ? C\'est le Dugout : l\'entraînement et le classement sont là-dedans.',
+  'guide.club_tab': 'Le stade rapporte aussi. Jette un œil à l\'onglet {tab}.',
+  'guide.club_buy': 'Achète une installation ici. Chacune que tu possèdes s\'ajoute à ce que le club gagne chaque seconde.',
+  'guide.shop_tab': 'À court d\'énergie ou de pièces ? L\'onglet {tab} a des packs et des bonus quand tu en as besoin.',
+
 };

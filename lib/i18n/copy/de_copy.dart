@@ -361,4 +361,31 @@ const Map<String, String> deCopy = <String, String>{
 
   'shop.section.looks': 'Manager-Stil',
 
+  // Colin relays an offer and calls it; then his tour after the tutorial.
+  'coach.bid.relay': '{club} haben angerufen, Chef. Sie wollen {player} und legen {price} auf den Tisch.',
+  'coach.sponsor.relay': '{company} haben sich gemeldet, Chef. Sie wollen {player} als Gesicht ihrer Marke: {n}% mehr Einnahmen durch diesen Spieler, solange der Deal läuft.',
+  'coach.verdict.accept': 'Mein Rat: annehmen',
+  'coach.verdict.decline': 'Mein Rat: ablehnen',
+  'coach.verdict.your_call': 'Mein Rat: kann so oder so ausgehen',
+  'manager.transfer.starter_short': '{player} steht jede Woche in der Startelf und auf der Bank sitzt niemand, der einspringen könnte. Lehn ab, es sei denn, du scoutest direkt danach Ersatz.',
+  'manager.transfer.relegation': 'Wir stehen in der Abstiegszone und {player} steht in der Elf. Jetzt zu verkaufen schwächt uns genau dann, wenn wir es uns nicht leisten können.',
+  'manager.transfer.flying': 'Wir sind Tabellenführer und die Kasse ist voll. Wir brauchen dieses Geld nicht: Halt den Kader zusammen.',
+  'manager.transfer.need_money': 'Ehrlich gesagt sind wir pleite. Diese Summe zahlt einen kompletten Neuzugang, und wir brauchen die Münzen mehr als {player}.',
+  'manager.transfer.bench_warmer': '{player} steht nicht mal in deiner Elf, und der Preis ist fair. Nimm das Geld und verstärke dich, wo es zählt.',
+  'manager.sponsor.clean': 'Kein Haken bei diesem hier. Unterschreib: Das ist geschenktes Geld.',
+  'manager.sponsor.relegation_starter': '{player} steht in der Elf und wir sind in der Abstiegszone. Ein schwächerer Stammspieler ist das Letzte, was wir brauchen: Lehn ab.',
+  'manager.sponsor.injury_prone': '{player} hat schon {seasons} Saisons in den Beinen und dieser Deal erhöht das Verletzungsrisiko. Nicht wert.',
+  'manager.sponsor.poor_form': 'Die Form von {player} ist schon schlecht und dieser Deal drückt sie weiter. Sag nein.',
+  'manager.sponsor.need_money': 'Uns fehlen Münzen und das hier zahlt jede Sekunde. Den Haken ist es wert: Unterschreib.',
+  'manager.sponsor.bench': '{player} steht nicht in deiner Elf, also kostet uns der Haken auf dem Platz nichts. Unterschreib.',
+  'manager.sponsor.rating_cost': 'Es kostet {player} {n} Bewertung, und das ist ein Stammspieler. Mehr Einnahmen gegen eine schwächere Elf: deine Entscheidung.',
+  'manager.sponsor.fair': 'Der Haken ist klein, die Einnahmen nicht. Ich würde unterschreiben.',
+  'guide.scout': 'Tipp auf Scouten, um jemand Neues zu holen. Zwei vom gleichen Typ, zusammengezogen, fusionieren zu einem besseren Spieler.',
+  'guide.squad_tab': 'Gut. Öffne jetzt den Tab {tab} und stell deine beste Elf auf den Platz.',
+  'guide.squad_fill': 'Tipp auf einen leeren Platz, um auszuwählen, wer dort spielt, oder drück Auto und ich stelle die Elf für dich auf.',
+  'guide.dugout': 'Siehst du das Menü unten rechts? Das ist der Dugout: Training und Tabelle sind da drin.',
+  'guide.club_tab': 'Das Stadion verdient auch Geld. Schau mal in den Tab {tab}.',
+  'guide.club_buy': 'Kauf hier eine Einrichtung. Jede, die du besitzt, erhöht, was der Verein jede Sekunde verdient.',
+  'guide.shop_tab': 'Knapp an Energie oder Münzen? Der Tab {tab} hat Packs und Boosts, wenn du sie brauchst.',
+
 };

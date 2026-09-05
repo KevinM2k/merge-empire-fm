@@ -28,6 +28,7 @@ import 'package:merge_empire_fc/providers/sound_providers.dart'
     show soundServiceProvider;
 import 'package:merge_empire_fc/ui/widgets/victory_confetti.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
+import 'package:merge_empire_fc/engine/tutorial_engine.dart' show tutorialFinished;
 import 'package:merge_empire_fc/engine/booking_engine.dart'
     show cardSendsOff, cardYellow;
 import 'package:merge_empire_fc/ui/widgets/card_glyph.dart';
@@ -290,7 +291,15 @@ class MatchSummaryScreenState extends ConsumerState<MatchSummaryScreen>
     final trophies = _num(result['trophiesEarned']).toInt();
     // **THE OFFER IS ABOUT THE WHOLE FIGURE NOW**, so a match whose fee was
     // nothing but whose quests paid still has something to double.
-    final canDouble = _base + _quests > 0;
+    //
+    // **AND NOT DURING THE TUTORIAL.** The script's one match ended on a
+    // rewarded-video offer and a "No thanks" — a decision about watching an
+    // advert, put to somebody who has been playing for ninety seconds. Asked
+    // for from the couch: one Continue, and the offer back the moment the
+    // script is over. `tutorialFinished` reads a save with no flag as done,
+    // so nobody who has ever played loses the offer.
+    final canDouble =
+        _base + _quests > 0 && tutorialFinished(ref.read(gameProvider).state);
     final questRows = result['questResults'];
     final hasQuests = questRows is List && questRows.isNotEmpty;
 

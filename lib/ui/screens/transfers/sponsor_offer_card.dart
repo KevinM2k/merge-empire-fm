@@ -21,17 +21,74 @@ import 'package:merge_empire_fc/data/art_paths.dart';
 import 'package:merge_empire_fc/data/players.dart';
 import 'package:merge_empire_fc/data/sponsors.dart';
 import 'package:merge_empire_fc/engine/coach_tip_engine.dart';
+import 'package:merge_empire_fc/engine/scout_signing_engine.dart' show scoutCost;
 import 'package:merge_empire_fc/engine/sponsor_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/state/card_instance.dart';
 import 'package:merge_empire_fc/ui/popups/coach_card.dart';
+import 'package:merge_empire_fc/ui/screens/transfers/coach_verdict.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/art_image.dart';
 import 'package:merge_empire_fc/ui/widgets/player_portrait.dart';
 import 'package:merge_empire_fc/util/event_bus.dart';
 
+Map<String, dynamic>? _map(Object? v) => v is Map<String, dynamic> ? v : null;
 num _num(Object? v) => v is num ? v : 0;
+
+/// Colin's read on a sponsor: sign it or not, and why.
+///
+/// **The card had no read at all** — the terms, the drawback's own line and two
+/// buttons — on a deal whose catch is exactly the kind of thing a coach is for.
+/// Asked for from the couch alongside the bid's: weigh who it is, whether they
+/// start, how we are doing and whether we need the money.
+///
+/// Most specific first. A catch is only a catch on somebody who plays; a club
+/// that is broke takes a deal a comfortable one would think twice about.
+CoachRead sponsorRead(
+  Map<String, dynamic> state,
+  CardInstance player,
+  Company company,
+) {
+  final def = getPlayerDef(player.definitionId);
+  final impact = sponsorImpact(def, company);
+  final name = player.name(def?.name ?? '');
+  final starter = inStartingEleven(state, player.instanceId);
+  final form = _num(player.raw['form']).toInt();
+  final broke =
+      _num(_map(state['resources'])?['fanCoins']) < scoutCost(state);
+
+  CoachRead sign(String key, [Map<String, Object?> p = const {}]) =>
+      (verdict: CoachVerdict.accept, text: t(key, p));
+  CoachRead refuse(String key, [Map<String, Object?> p = const {}]) =>
+      (verdict: CoachVerdict.decline, text: t(key, p));
+
+  if (impact.clean) return sign('manager.sponsor.clean');
+  if (starter && impact.ratingDrop > 0 && inDropZone(clubStanding(state))) {
+    return refuse('manager.sponsor.relegation_starter', {'player': name});
+  }
+  if (impact.injuryPct > 0 && player.seasonsPlayed >= 7) {
+    return refuse('manager.sponsor.injury_prone', {
+      'player': name,
+      'seasons': player.seasonsPlayed,
+    });
+  }
+  if (impact.formDrop > 0 && form <= -1) {
+    return refuse('manager.sponsor.poor_form', {'player': name});
+  }
+  if (broke) return sign('manager.sponsor.need_money');
+  if (!starter) return sign('manager.sponsor.bench', {'player': name});
+  if (impact.ratingDrop >= 3) {
+    return (
+      verdict: CoachVerdict.yourCall,
+      text: t('manager.sponsor.rating_cost', {
+        'player': name,
+        'n': impact.ratingDrop,
+      }),
+    );
+  }
+  return sign('manager.sponsor.fair');
+}
 
 /// Offer the deal and settle it. Returns true when it was signed.
 Future<bool> showSponsorOffer(
@@ -50,6 +107,11 @@ Future<bool> showSponsorOffer(
   final explain = ref
       .read(gameProvider)
       .update((s) => takeTipOnce(s, 'sponsor'));
+  final read = sponsorRead(
+    ref.read(gameProvider).state ?? const <String, dynamic>{},
+    player,
+    company,
+  );
   bool? accepted;
   await showDialog<void>(
     context: context,
@@ -61,6 +123,7 @@ Future<bool> showSponsorOffer(
       player: player,
       company: company,
       explain: explain,
+      read: read,
       onAnswer: (yes) => accepted = yes,
     ),
   );
@@ -87,11 +150,15 @@ class _SponsorOfferCard extends StatelessWidget {
     required this.player,
     required this.company,
     required this.explain,
+    required this.read,
     required this.onAnswer,
   });
 
   final CardInstance player;
   final Company company;
+
+  /// His call, worked out before the card opened — see [sponsorRead].
+  final CoachRead read;
 
   /// Whether this is the first sponsor this save has ever been offered, and so
   /// carries Colin's one-time explanation of what a sponsorship IS.
@@ -111,11 +178,11 @@ class _SponsorOfferCard extends StatelessWidget {
     return CoachCardFrame(
       key: const ValueKey('sponsor-offer'),
       title: t('sponsor.title', {'company': company.name}),
-      // Colin putting the offer to us, not a modal announcing it. His head is on
-      // the frame; the company's logo goes with its own terms, where it belongs.
-      body: t('sponsor.want_to_sponsor', {
-        'player': player.name(def?.name ?? ''),
-      }),
+      // **Colin relays the call, in the child rather than in `body`.** The
+      // frame draws the body UNDER the child, and the offer has to be heard
+      // before the terms are read: "they've been in touch, they want him" and
+      // then the small print, then his call. Asked for from the couch — the
+      // card should read as him telling us an offer has come in.
       // What a sponsorship is, once ever. Under the offer rather than over it.
       extraLines: [
         if (explain)
@@ -138,6 +205,17 @@ class _SponsorOfferCard extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          CoachTypewriter(
+            text: t('coach.sponsor.relay', {
+              'company': company.name,
+              'player': player.name(def?.name ?? ''),
+              'n': boostPct,
+            }),
+            textKey: const ValueKey('sponsor-relay'),
+            textAlign: TextAlign.center,
+            style: TextStyle(color: kit.textMuted, fontSize: 13.5, height: 1.5),
+          ),
+          const SizedBox(height: 10),
           if (def != null)
             SizedBox(
               height: 96,
@@ -201,6 +279,11 @@ class _SponsorOfferCard extends StatelessWidget {
             withoutLongDash(drawback.msg),
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 12, height: 1.5, color: kit.textMuted),
+          ),
+          const SizedBox(height: 10),
+          CoachVerdictLine(
+            read: read,
+            textKey: const ValueKey('sponsor-advice'),
           ),
         ],
       ),

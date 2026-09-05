@@ -124,11 +124,18 @@ Future<MatchSummaryScreenState> pumpSummary(
   /// opponents are boot sweeps, and a save with no fixtures has no table for
   /// the standings block to move.
   bool boot = false,
+
+  /// The script still running: the one time the report offers no video.
+  bool tutorial = false,
 }) async {
+  final save = createDefaultState();
+  // A default save is MID-TUTORIAL. These tests are about an ordinary match,
+  // so the script is marked done unless a test asks for it.
+  (save['tutorial'] as Map<String, dynamic>)['done'] = !tutorial;
   final container = ProviderContainer(
     overrides: [
       saveStoreProvider.overrideWithValue(
-        MemorySaveStore({saveKeyPrimary: jsonEncode(createDefaultState())}),
+        MemorySaveStore({saveKeyPrimary: jsonEncode(save)}),
       ),
       if (ads != null) rewardedAdsProvider.overrideWithValue(ads),
       if (sound != null) soundServiceProvider.overrideWithValue(sound),
@@ -387,6 +394,26 @@ void main() {
       lessThan(40),
       reason: 'the figure and the button that doubles it are one control',
     );
+  });
+
+  testWidgets('DURING THE TUTORIAL THERE IS NO VIDEO, only Continue', (
+    tester,
+  ) async {
+    // Asked for from the couch: the script's one match should not end on an
+    // advert decision. The offer is back the moment the script is over.
+    await pumpSummary(tester, result(coins: 500), tutorial: true);
+    expect(find.byKey(const ValueKey('summary-double')), findsNothing);
+    expect(find.byKey(const ValueKey('summary-no-thanks')), findsNothing);
+    expect(find.byKey(const ValueKey('summary-continue')), findsOneWidget);
+    // The money is still reported; only the offer on it is gone.
+    expect(find.byKey(const ValueKey('summary-payout')), findsOneWidget);
+  });
+
+  testWidgets('and an ordinary match still has the offer', (tester) async {
+    await pumpSummary(tester, result(coins: 500));
+    expect(find.byKey(const ValueKey('summary-double')), findsOneWidget);
+    expect(find.byKey(const ValueKey('summary-no-thanks')), findsOneWidget);
+    expect(find.byKey(const ValueKey('summary-continue')), findsNothing);
   });
 
   testWidgets('AND HE IS NOT LEFT STANDING IN A CORNER', (tester) async {

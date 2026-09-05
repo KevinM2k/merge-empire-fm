@@ -280,4 +280,31 @@ const Map<String, String> jaCopy = <String, String>{
 
   'shop.section.looks': '監督のスタイル',
 
+  // Colin relays an offer and calls it; then his tour after the tutorial.
+  'coach.bid.relay': '{club}から電話があった、ボス。{player}が欲しいそうで、{price}を提示している。',
+  'coach.sponsor.relay': '{company}から連絡があった、ボス。{player}をブランドの顔にしたいそうだ。契約中はその選手からの収入が{n}%増える。',
+  'coach.verdict.accept': '私の判断：受けよう',
+  'coach.verdict.decline': '私の判断：断ろう',
+  'coach.verdict.your_call': '私の判断：どちらとも言えない',
+  'manager.transfer.starter_short': '{player}は毎週先発で、代わりに入れる控えがいない。すぐに補充をスカウトするつもりがなければ断ろう。',
+  'manager.transfer.relegation': '我々は降格圏にいて、{player}は先発だ。今売れば、一番苦しい時に戦力が落ちる。',
+  'manager.transfer.flying': '首位で、資金も潤沢だ。この金は必要ない。チームを崩すな。',
+  'manager.transfer.need_money': '正直、金がない。この額なら新戦力を丸ごと獲れる。{player}よりコインが必要だ。',
+  'manager.transfer.bench_warmer': '{player}は先発にすら入っていないし、価格も妥当だ。金を受け取って、必要な場所を補強しよう。',
+  'manager.sponsor.clean': 'これに裏はない。契約しよう。ただの収入だ。',
+  'manager.sponsor.relegation_starter': '{player}は先発で、我々は降格圏だ。先発が弱くなるのは一番困る。断ろう。',
+  'manager.sponsor.injury_prone': '{player}はすでに{seasons}シーズン走っていて、この契約は負傷リスクを上げる。割に合わない。',
+  'manager.sponsor.poor_form': '{player}の調子はすでに悪く、この契約でさらに下がる。断ろう。',
+  'manager.sponsor.need_money': 'コインが足りないし、これは毎秒入ってくる。デメリットに見合う。契約しよう。',
+  'manager.sponsor.bench': '{player}は先発ではないから、デメリットはピッチ上では何も響かない。契約しよう。',
+  'manager.sponsor.rating_cost': '{player}のレーティングが{n}下がる。しかも先発だ。収入増と引き換えにチームが弱くなる。君の判断だ。',
+  'manager.sponsor.fair': 'デメリットは小さく、収入は大きい。私なら契約する。',
+  'guide.scout': 'スカウトをタップして新しい選手を獲ろう。同じ種類の二人をドラッグして重ねると、より良い選手に合成される。',
+  'guide.squad_tab': 'いいぞ。次は{tab}タブを開いて、ベストの十一人をピッチに並べよう。',
+  'guide.squad_fill': '空いている枠をタップして誰を置くか選ぶか、オートを押せば私が埋めておく。',
+  'guide.dugout': '右下のメニューが見えるか？あれがDugoutだ。トレーニングとリーグ表はあの中にある。',
+  'guide.club_tab': 'スタジアムも稼いでくれる。{tab}タブを見てみよう。',
+  'guide.club_buy': 'ここで施設を買おう。持っている施設ひとつごとに、クラブの毎秒の収入が増える。',
+  'guide.shop_tab': 'エネルギーやコインが足りない？{tab}タブにパックとブーストがある。',
+
 };

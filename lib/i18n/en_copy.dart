@@ -769,4 +769,82 @@ const Map<String, String> enCopy = <String, String>{
   // sweep wanted anyway — the German was already the widest heading in the app.
   'shop.section.looks': 'Manager Style',
 
+  // ── Colin RELAYS an offer rather than a modal announcing one ────────────
+  //
+  // The bid and the sponsor cards opened with the terms and left his read to a
+  // grey line at the foot. Asked for from the couch: he should be TELLING us an
+  // offer has come in, and saying whether to take it. No pronoun for the
+  // player, who may be either gender.
+  'coach.bid.relay':
+      '{club} have been on the phone, gaffer. They want {player}, and they\'re '
+      'putting {price} on the table.',
+  'coach.sponsor.relay':
+      '{company} have been in touch, gaffer. They want {player} as the face of '
+      'their brand — {n}% more income from that player while the deal runs.',
+  // The verdict chip above his reason. Three answers, one of them a shrug.
+  'coach.verdict.accept': 'My call: take it',
+  'coach.verdict.decline': 'My call: turn it down',
+  'coach.verdict.your_call': 'My call: could go either way',
+  // Reads about the CLUB — the table, the bench, the coffers — where the
+  // generated `manager.transfer.*` set is all about the player.
+  'manager.transfer.starter_short':
+      '{player} starts every week and there\'s nobody on the bench to step in. '
+      'Turn it down unless you scout a replacement straight after.',
+  'manager.transfer.relegation':
+      'We\'re in the drop zone and {player} is in the eleven. Selling now '
+      'weakens us exactly when we can\'t afford it.',
+  'manager.transfer.flying':
+      'We\'re top of the table and the coffers are healthy. We don\'t need '
+      'this money — keep the squad together.',
+  'manager.transfer.need_money':
+      'Honestly, we\'re skint. This fee covers a new signing outright, and we '
+      'need the coins more than we need {player}.',
+  'manager.transfer.bench_warmer':
+      '{player} isn\'t even in your eleven, and the price is fair. Take the '
+      'money and strengthen where it matters.',
+  // The sponsor card had no read at all: terms, a drawback line, two buttons.
+  'manager.sponsor.clean': 'No catch on this one. Sign it — it\'s free money.',
+  'manager.sponsor.relegation_starter':
+      '{player} is in the eleven and we\'re in the drop zone. A weaker starter '
+      'is the last thing we need — turn it down.',
+  'manager.sponsor.injury_prone':
+      '{player} has {seasons} seasons in the legs already and this deal adds to '
+      'the injury risk. Not worth it.',
+  'manager.sponsor.poor_form':
+      '{player}\'s form is already poor and this deal knocks it further. Say '
+      'no.',
+  'manager.sponsor.need_money':
+      'We\'re short of coins and this pays every second. Worth the catch — '
+      'sign it.',
+  'manager.sponsor.bench':
+      '{player} isn\'t in your eleven, so the catch costs us nothing on the '
+      'pitch. Sign it.',
+  'manager.sponsor.rating_cost':
+      'It costs {player} {n} rating, and that\'s a starter. Extra income '
+      'against a weaker side — your call.',
+  'manager.sponsor.fair': 'The catch is small and the income isn\'t. I\'d sign it.',
+
+  // ── The tour after the tutorial ─────────────────────────────────────────
+  //
+  // Each said from Colin's corner until it is done, then never again — see
+  // `engine/guide_engine.dart`. `{tab}` is the bar's own word for the tab.
+  'guide.scout':
+      'Tap Scout to sign somebody new. Two of the same kind dragged together '
+      'merge into a better player.',
+  'guide.squad_tab':
+      'Good. Now open the {tab} tab and get your best eleven on the pitch.',
+  'guide.squad_fill':
+      'Tap an empty slot to pick who plays there, or hit Auto and I\'ll fill '
+      'the side for you.',
+  'guide.dugout':
+      'See the Menu, bottom right? That\'s the Dugout — training and the '
+      'league table are in there.',
+  'guide.club_tab': 'The ground earns money too. Have a look at the {tab} tab.',
+  'guide.club_buy':
+      'Buy a facility here. Every one you own adds to what the club earns '
+      'every second.',
+  'guide.shop_tab':
+      'Short of energy or coins? The {tab} tab has packs and boosts when you '
+      'need them.',
+
 };

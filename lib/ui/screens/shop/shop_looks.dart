@@ -36,6 +36,7 @@ import 'package:merge_empire_fc/ui/screens/shop/shop_paid.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_providers.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_section.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
+import 'package:merge_empire_fc/ui/widgets/entrance.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 import 'package:merge_empire_fc/ui/widgets/store_button.dart';
 
@@ -75,18 +76,24 @@ class LooksSection extends ConsumerWidget {
           // sentence that it holds every pack, then an arrow into the packs, and
           // a Vault mark on each one of them. Asked for directly — the money SKU
           // unlocks all ten gem packs and nothing on the shelf said so.
+          // The Vault arrives first, then its spine, then the packs — the
+          // same pattern every other shelf follows. See `entrance.dart`.
           if (vault != null)
-            _VaultHero(
-              vault: vault,
-              ownedPacks: owned,
-              totalPacks: tiles.length,
-              isOwned: vaultOwned,
+            EntranceItem(
+              child: _VaultHero(
+                vault: vault,
+                ownedPacks: owned,
+                totalPacks: tiles.length,
+                isOwned: vaultOwned,
+              ),
             ),
           if (vault != null)
             // The spine. A hairline down out of the Vault into the grid, with
             // the count on it — so the tiles below are read as its contents
             // rather than as the alternative to it.
-            Padding(
+            EntranceItem(
+              index: 1,
+              child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 8),
               child: Row(
                 children: [
@@ -121,11 +128,13 @@ class LooksSection extends ConsumerWidget {
                 ],
               ),
             ),
+            ),
           ShopGrid(
             // **TWO TO A ROW, not three.** Asked for directly: a pack is a
             // face with a name under it, and at a third of the width the face
             // is a thumbnail and the name ellipsises.
             columns: 2,
+            firstIndex: vault == null ? 0 : 2,
             children: [
               for (final tile in tiles)
                 _LookTile(

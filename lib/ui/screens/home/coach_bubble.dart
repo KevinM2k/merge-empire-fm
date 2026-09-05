@@ -28,6 +28,7 @@ import 'package:merge_empire_fc/ui/screens/grid/grid_providers.dart'
     show gridCells;
 import 'package:merge_empire_fc/ui/popups/coach_card.dart';
 import 'package:merge_empire_fc/engine/fixture_preview.dart';
+import 'package:merge_empire_fc/engine/guide_engine.dart';
 import 'package:merge_empire_fc/engine/manager_hint_engine.dart';
 import 'package:merge_empire_fc/engine/match_tactics.dart'
     show opponentAtkDefFromShare;
@@ -55,6 +56,13 @@ typedef CoachTip = ({String id, String text});
 final coachTipsProvider = savePick<List<CoachTip>>((s) {
   final preview = previewFixture(s);
   final tips = <CoachTip>[];
+
+  // **The tour first.** The shell's corner coach does not stand on this tab —
+  // the orb is him here — so a home-tab step ("head to the Players tab", "the
+  // Dugout is bottom right") is said from the orb, ahead of the match read.
+  // Spent once done, never repeated; see `guide_engine.dart`.
+  final guide = guideStepFor(s, GuideTab.home);
+  if (guide != null) tips.add((id: guide.seenId, text: guideText(guide)));
 
   if (preview != null) {
     // **AND HE TALKS ABOUT THE FIXTURE THAT IS ACTUALLY NEXT.** `previewFixture`
@@ -262,7 +270,9 @@ final coachTipKeyProvider = savePick<String>((s) {
       '';
   final rating = preview?.effectiveSquadRating.round() ?? 0;
   final matches = _num(_map(s['progression'])?['matchesPlayed']).toInt();
-  return '$opponent|$rating|$matches';
+  // A new tour step is new advice, so the unread dot comes back for it.
+  final guide = guideStepFor(s, GuideTab.home)?.id ?? '';
+  return '$opponent|$rating|$matches|$guide';
 });
 
 /// What he would play, when it is not what is already set. Null when the

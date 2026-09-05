@@ -22,7 +22,6 @@ import 'package:merge_empire_fc/state/save_store.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
 import 'package:merge_empire_fc/ui/screens/grid/grid_providers.dart';
 import 'package:merge_empire_fc/ui/screens/grid/loan_arrival.dart';
-import 'package:merge_empire_fc/ui/shell/tab_transition.dart';
 import 'package:merge_empire_fc/ui/screens/tutorial/tutorial_overlay.dart';
 import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
 
@@ -234,9 +233,10 @@ void main() {
     final leaving = c.read(loanCardIdsProvider).length;
     expect(leaving, greaterThan(0));
 
-    // Past the tab slide and one card into the flight.
+    // Past the hold — the tab, the cards arriving, a beat to see them — and
+    // one card into the flight.
     await tester.pump();
-    await tester.pump(tabSlideDuration);
+    await tester.pump(loanDepartHold(leaving));
     await tester.pump(loanDepartureDuration);
 
     // Mid-flight: nothing said yet, nothing taken yet, and nothing pressable.
@@ -248,7 +248,7 @@ void main() {
     expect(c.read(loanDepartingProvider), isTrue);
     expect(find.byKey(const ValueKey(tutorialInputSeal)), findsOneWidget);
 
-    await tester.pump(tabSlideDuration + loanDepartureWindow(leaving));
+    await tester.pump(loanDepartHold(leaving) + loanDepartureWindow(leaving));
     await tester.pumpAndSettle();
 
     // Only now does he say it, and the grid he says it over is empty.

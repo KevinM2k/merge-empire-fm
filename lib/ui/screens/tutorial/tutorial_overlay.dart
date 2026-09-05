@@ -39,6 +39,7 @@ import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/ui/screens/grid/grid_providers.dart';
 import 'package:merge_empire_fc/data/sound_defs.dart' show loanStarCue;
 import 'package:merge_empire_fc/ui/screens/grid/loan_arrival.dart';
+import 'package:merge_empire_fc/ui/widgets/entrance.dart';
 import 'package:merge_empire_fc/util/event_bus.dart';
 import 'package:merge_empire_fc/ui/screens/match/play_button.dart' show matchPopupBlocker;
 import 'package:merge_empire_fc/providers/game_providers.dart';
@@ -406,11 +407,17 @@ class TutorialHostState extends ConsumerState<TutorialHost> {
         // own chrome is down, there is no card to absorb taps, and Add Player
         // is sitting right there under the emptying grid.
         setState(() => _sealing = true);
-        // **The tab has to have ARRIVED first.** The step is on the grid and
-        // the player was on the league screen a frame ago; without this the
-        // cards spend their whole flight sliding in from off-screen, and the
-        // report was that the loan vanished on the wrong page entirely.
-        await Future<void>.delayed(tabSlideDuration);
+        // **The tab has to have ARRIVED first — and so do the cards.** The
+        // step is on the grid and the player was on the league screen a frame
+        // ago; without this the cards spent their whole flight sliding in from
+        // off-screen, and the report was that the loan vanished on the wrong
+        // page entirely. The grid's pieces now zoom in when the tab opens, so
+        // the hold covers that too, plus a beat to SEE the eleven standing
+        // there before they break — asked for from the couch: let them animate
+        // in first, then get rid of them.
+        await Future<void>.delayed(
+          loanDepartHold(ref.read(loanCardIdsProvider).length),
+        );
         if (!mounted) return;
         await departLoan(ref);
         if (!mounted) return;
@@ -568,6 +575,15 @@ Future<void> _chimeLoanIn(WidgetRef ref, int lent) async {
   final tail = loanArrivalWindow(lent) - loanArrivalStagger * lent;
   if (tail > Duration.zero) await Future<void>.delayed(tail);
 }
+
+/// A beat with the borrowed eleven standing on the grid before they go — long
+/// enough to register as "there they are", short enough not to read as a hang.
+const Duration loanSeenBeat = Duration(milliseconds: 450);
+
+/// How long `loan_depart` holds before the flight: the tab's arrival, the
+/// grid's pieces zooming in ([entranceWindow]), then [loanSeenBeat].
+Duration loanDepartHold(int cards) =>
+    tabSlideDuration + entranceWindow(cards) + loanSeenBeat;
 
 /// **The loan leaves BEFORE the card that says it has, not after.**
 ///

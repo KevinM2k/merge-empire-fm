@@ -16,7 +16,9 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:merge_empire_fc/engine/guide_engine.dart';
 import 'package:merge_empire_fc/providers/bus_providers.dart';
+import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/ui/popups/energy_sheet.dart';
 import 'package:merge_empire_fc/ui/hud/coin_flight.dart';
 import 'package:merge_empire_fc/ui/hud/hud.dart';
@@ -34,8 +36,10 @@ import 'package:merge_empire_fc/ui/shell/shell_routes.dart';
 import 'package:merge_empire_fc/ui/shell/tab_bar.dart';
 import 'package:merge_empire_fc/ui/shell/coach_floating.dart';
 import 'package:merge_empire_fc/ui/shell/coach_tip_host.dart';
+import 'package:merge_empire_fc/ui/shell/guide.dart';
 import 'package:merge_empire_fc/ui/shell/tabs.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
+import 'package:merge_empire_fc/ui/widgets/entrance.dart';
 
 class AppShell extends ConsumerStatefulWidget {
   const AppShell({super.key, this.screenFor});
@@ -57,6 +61,12 @@ class AppShell extends ConsumerStatefulWidget {
 /// [shellControllerProvider], which this watches.
 class AppShellState extends ConsumerState<AppShell> {
   ShellTab _active = defaultTab;
+
+  /// How many times each tab has been brought to the front. Handed down as
+  /// [TabEntrance], so a page can replay its arrival on every open rather
+  /// than once per process — `IndexedStack` never remounts it.
+  final Map<ShellTab, int> _opened = {defaultTab: 1};
+  final Map<ShellTab, DateTime> _openedAt = {defaultTab: DateTime.now()};
 
   /// The card-reveal overlay dims the whole screen and sits UNDER the HUD, so
   /// an unhidden HUD punches through its dim. The JS flags the body element for
@@ -104,7 +114,21 @@ class AppShellState extends ConsumerState<AppShell> {
     // over the screen rather than replacing it, so there is nothing left to
     // reset and the rule holds by construction.
     if (tab == _active) return;
-    setState(() => _active = tab);
+    setState(() {
+      _active = tab;
+      _opened[tab] = (_opened[tab] ?? 0) + 1;
+      _openedAt[tab] = DateTime.now();
+    });
+    // **Opening a tab is knowing where it is.** The tour's "head to the Players
+    // tab" is spent the moment the Players tab is in front — see
+    // `guide_engine.dart`. After the frame: this can be reached from a
+    // listener firing mid-build, and the update moves the save revision.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final game = ref.read(gameProvider);
+      if (!guideActive(game.state)) return;
+      game.update((s) => guideTabOpened(s, guideTabOf(tab)));
+    });
   }
 
   @override
@@ -125,6 +149,13 @@ class AppShellState extends ConsumerState<AppShell> {
     });
     ref.listen(busEventProvider('reveal:end'), (_, _) {
       if (_revealActive) setState(() => _revealActive = false);
+    });
+    // The tour's "tap Scout to sign somebody": a card landing on the grid is
+    // the player having done it. Spent for good.
+    ref.listen(busEventProvider('card:placed'), (_, _) {
+      final game = ref.read(gameProvider);
+      if (!guideActive(game.state)) return;
+      game.update((s) => markGuideDone(s, 'scout'));
     });
     final kit = Theme.of(context).extension<KitTheme>()!;
     // **Colin's one-time tips**, watching for a milestone. It draws nothing —
@@ -192,8 +223,14 @@ class AppShellState extends ConsumerState<AppShell> {
                               // "second animated screen" the customiser's lag was
                               // reported as. See `screen_covered.dart`.
                               enabled: tab == _active && !covered,
-                              // The inset `extendBody` used to give them, per tab.
-                              child: SafeArea(
+                              // **"You have just opened this" — see
+                              // `entrance.dart`.** The pieces of the page under
+                              // it drop into place every time the number moves.
+                              child: TabEntrance(
+                                generation: _opened[tab] ?? 0,
+                                openedAt: _openedAt[tab],
+                                // The inset `extendBody` used to give them, per tab.
+                                child: SafeArea(
                                 top: false,
                                 left: false,
                                 right: false,
@@ -219,6 +256,7 @@ class AppShellState extends ConsumerState<AppShell> {
                                         key: ValueKey('screen-shop'),
                                       ),
                                     },
+                                ),
                               ),
                             ),
                         ],
@@ -289,6 +327,9 @@ class AppShellState extends ConsumerState<AppShell> {
         bottomNavigationBar: ShellTabBar(
           active: _active,
           onTap: (tab) => goTab(tab),
+          // The tour's finger on the bar: the tab its current step is sending
+          // the player to. Off the moment they get there.
+          highlight: ref.watch(guideHighlightProvider),
         ),
       ),
     );

@@ -30,6 +30,7 @@ import 'package:merge_empire_fc/ui/screens/club/kit_picker.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/store_button.dart';
 import 'package:merge_empire_fc/ui/widgets/art_image.dart';
+import 'package:merge_empire_fc/ui/widgets/entrance.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 import 'package:merge_empire_fc/ui/widgets/svg_canvas.dart';
 import 'package:merge_empire_fc/util/format.dart';
@@ -281,8 +282,13 @@ class _AssetGrid extends StatelessWidget {
                     // The short last row keeps its columns empty rather than
                     // stretching the cards that ARE there across the screen.
                     Expanded(
+                      // The facilities drop into place in turn when the tab
+                      // opens — see `entrance.dart`.
                       child: c < rows[r].length
-                          ? _AssetPanel(tile: rows[r][c])
+                          ? EntranceItem(
+                              index: r * columns + c,
+                              child: _AssetPanel(tile: rows[r][c]),
+                            )
                           : const SizedBox.shrink(),
                     ),
                   ],

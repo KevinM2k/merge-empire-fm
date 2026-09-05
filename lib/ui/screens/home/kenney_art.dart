@@ -28,7 +28,6 @@ const List<String> kenneyClouds = [
 ];
 const String kenneySun = '$_dir/sun.png';
 const String kenneyMoon = '$_dir/moon.png';
-const String kenneyFence = '$_dir/fence.png';
 const List<String> kenneyTrees = [
   '$_dir/tree.png',
   '$_dir/treePine.png',
@@ -74,7 +73,6 @@ double kenneyHillsAspect(int tier) => 1024 / 240;
 
 /// Everything the park strip and the hills draw as widgets.
 List<String> kenneySceneSprites(int tier) => [
-  kenneyFence,
   ...kenneyTrees,
   ...kenneyTreesSmall,
   ...kenneyBushes,

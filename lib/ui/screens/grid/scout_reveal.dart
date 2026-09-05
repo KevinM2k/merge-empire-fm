@@ -377,10 +377,15 @@ class ScoutRevealOverlayState extends State<ScoutRevealOverlay>
         widget.reveal.cards.length,
         topTier: widget.reveal.cards.map((c) => c.view.tier).reduce(math.max),
       ),
-      _dismiss,
+      () => unawaited(_dismiss()),
     );
-    _resolveLanding();
+    _landingDone = _resolveLanding();
   }
+
+  /// The landing being worked out — see [_resolveLanding]. The way out awaits
+  /// it, so a hold that runs out while the grid is still scrolling to the
+  /// square does not fly nothing.
+  Future<void> _landingDone = Future<void>.value();
 
   /// **`onDone` MUST FIRE EXACTLY ONCE, INCLUDING ON THE WAY OUT.** The caller
   /// awaits a `Completer` this resolves, and it holds a guard while it waits —
@@ -467,12 +472,23 @@ class ScoutRevealOverlayState extends State<ScoutRevealOverlay>
 
   void _skip() {
     if (!canSkip) return;
-    _dismiss();
+    unawaited(_dismiss());
   }
 
-  void _dismiss() {
+  Future<void> _dismiss() async {
     if (_leaving) return;
     _hold?.cancel();
+    // **The square first, then the flight.** `_capture` reads `_landing`, and
+    // that is filled by an async ask that scrolls the grid and waits a frame;
+    // a dismissal that overtook it captured nothing and the card faded out
+    // where it stood rather than travelling — reported as some batches flying
+    // home and others just disappearing and appearing in place. Bounded, so a
+    // grid that never answers cannot hold the reveal up.
+    await _landingDone.timeout(
+      const Duration(milliseconds: 600),
+      onTimeout: () {},
+    );
+    if (!mounted || _leaving) return;
     // Reduce-motion keeps the reveal and drops the journey: a card crossing the
     // screen is the decoration, and the square it lands in is on screen either
     // way because the landing has already scrolled to it.
@@ -483,7 +499,7 @@ class ScoutRevealOverlayState extends State<ScoutRevealOverlay>
       _leaving = true;
       _flights = flights;
     });
-    _leave();
+    unawaited(_leave());
   }
 
   /// The break, then the journey. A reveal with nothing to break skips straight
@@ -625,8 +641,13 @@ class ScoutRevealOverlayState extends State<ScoutRevealOverlay>
                         widget.reveal.caption,
                         key: const ValueKey('scout-reveal-caption'),
                         textAlign: TextAlign.center,
-                        style: TextStyle(
-                          color: kit.accentBright,
+                        // **WHITE, not the kit.** The line sat in the club's
+                        // accent on a near-black backdrop, and on half the kits
+                        // that is a dark colour on a dark ground — reported as
+                        // hard to read. The backdrop is the same in every kit,
+                        // so the ink on it can be too.
+                        style: const TextStyle(
+                          color: Colors.white,
                           fontSize: 14,
                           height: 1.3,
                           letterSpacing: 1,

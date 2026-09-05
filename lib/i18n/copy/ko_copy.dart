@@ -308,4 +308,31 @@ const Map<String, String> koCopy = <String, String>{
 
   'shop.section.looks': '감독 스타일',
 
+  // Colin relays an offer and calls it; then his tour after the tutorial.
+  'coach.bid.relay': '{club}에서 전화가 왔습니다, 감독. {player}를 원하고 {price}를 제시했습니다.',
+  'coach.sponsor.relay': '{company}에서 연락이 왔습니다, 감독. {player}를 브랜드의 얼굴로 원합니다. 계약 기간 동안 그 선수의 수입이 {n}% 늘어납니다.',
+  'coach.verdict.accept': '제 판단: 받으세요',
+  'coach.verdict.decline': '제 판단: 거절하세요',
+  'coach.verdict.your_call': '제 판단: 어느 쪽이든 가능합니다',
+  'manager.transfer.starter_short': '{player}는 매주 선발이고 대신 뛸 벤치 선수가 없습니다. 바로 대체 선수를 스카우트할 게 아니면 거절하세요.',
+  'manager.transfer.relegation': '우리는 강등권이고 {player}는 선발입니다. 지금 팔면 가장 여유 없는 시점에 전력이 약해집니다.',
+  'manager.transfer.flying': '우리는 선두이고 금고도 넉넉합니다. 이 돈은 필요 없습니다. 스쿼드를 지키세요.',
+  'manager.transfer.need_money': '솔직히 돈이 없습니다. 이 금액이면 새 선수 한 명을 통째로 데려옵니다. {player}보다 코인이 더 필요합니다.',
+  'manager.transfer.bench_warmer': '{player}는 선발도 아니고 가격도 적당합니다. 돈을 받고 중요한 자리를 보강하세요.',
+  'manager.sponsor.clean': '이건 함정이 없습니다. 계약하세요. 공짜 돈입니다.',
+  'manager.sponsor.relegation_starter': '{player}는 선발이고 우리는 강등권입니다. 약해진 선발은 가장 피해야 합니다. 거절하세요.',
+  'manager.sponsor.injury_prone': '{player}는 이미 {seasons}시즌을 뛰었고 이 계약은 부상 위험을 높입니다. 가치가 없습니다.',
+  'manager.sponsor.poor_form': '{player}의 폼은 이미 나쁘고 이 계약은 더 떨어뜨립니다. 거절하세요.',
+  'manager.sponsor.need_money': '코인이 부족한데 이건 매초 들어옵니다. 단점을 감수할 만합니다. 계약하세요.',
+  'manager.sponsor.bench': '{player}는 선발이 아니니 단점이 경기장에서는 아무 영향이 없습니다. 계약하세요.',
+  'manager.sponsor.rating_cost': '{player}의 능력치가 {n} 떨어지는데 선발입니다. 수입 증가와 약해진 팀의 교환입니다. 당신의 판단입니다.',
+  'manager.sponsor.fair': '단점은 작고 수입은 큽니다. 저라면 계약합니다.',
+  'guide.scout': '스카우트를 눌러 새 선수를 영입하세요. 같은 종류 둘을 끌어다 겹치면 더 좋은 선수로 합쳐집니다.',
+  'guide.squad_tab': '좋습니다. 이제 {tab} 탭을 열고 최고의 11명을 경기장에 세우세요.',
+  'guide.squad_fill': '빈 자리를 눌러 누가 뛸지 고르거나, 자동을 누르면 제가 팀을 채워 드립니다.',
+  'guide.dugout': '오른쪽 아래 메뉴가 보이십니까? 그게 Dugout입니다. 훈련과 리그 순위표가 그 안에 있습니다.',
+  'guide.club_tab': '구장도 돈을 벌어 줍니다. {tab} 탭을 살펴보세요.',
+  'guide.club_buy': '여기서 시설을 구매하세요. 보유한 시설마다 클럽의 매초 수입이 늘어납니다.',
+  'guide.shop_tab': '에너지나 코인이 부족하십니까? {tab} 탭에 필요할 때 쓸 팩과 부스트가 있습니다.',
+
 };

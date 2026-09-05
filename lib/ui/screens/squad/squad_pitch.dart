@@ -17,6 +17,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:merge_empire_fc/ui/screens/squad/pitch_token.dart';
 import 'package:merge_empire_fc/ui/screens/squad/squad_providers.dart';
+import 'package:merge_empire_fc/ui/widgets/entrance.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 
 /// The turf, its mown bands and the shading down the top.
@@ -229,19 +230,31 @@ class PitchBoard extends StatelessWidget {
         final scale = pitchTokenScale([
           for (final slot in slots) (x: slot.x, y: slot.y),
         ], constraints.biggest);
+        // The arrival order is a READING order — top-left to bottom-right —
+        // and a formation's slot order is not (the keeper comes first). Rank
+        // by row, then column. See `entrance.dart`.
+        final reading = List<int>.generate(slots.length, (i) => i)
+          ..sort((a, b) {
+            final byRow = slots[a].y.compareTo(slots[b].y);
+            return byRow != 0 ? byRow : slots[a].x.compareTo(slots[b].x);
+          });
+        final rank = List<int>.filled(slots.length, 0);
+        for (var r = 0; r < reading.length; r++) {
+          rank[reading[r]] = r;
+        }
         return Stack(
           key: const ValueKey('pitch-board'),
           clipBehavior: Clip.none,
           children: [
-            for (final slot in slots)
+            for (var i = 0; i < slots.length; i++)
               Positioned(
                 // CENTRED on the formation's own percentage, which is what
                 // `left:x%; top:y%; transform:translate(-50%,-50%)` means. It
                 // had been mapping 0-100% onto `0..(width - cardWidth)`, which
                 // pulls every slot toward the top-left and squeezes the gaps
                 // between them until eleven tokens sit on top of each other.
-                left: (slot.x / 100) * constraints.maxWidth,
-                top: (slot.y / 100) * constraints.maxHeight,
+                left: (slots[i].x / 100) * constraints.maxWidth,
+                top: (slots[i].y / 100) * constraints.maxHeight,
                 // The token sizes itself, so the half-shift has to come off its
                 // own measured box rather than a hard-coded height. The scale
                 // goes INSIDE it, about the token's own centre, so the slot
@@ -250,7 +263,12 @@ class PitchBoard extends StatelessWidget {
                   translation: const Offset(-0.5, -0.5),
                   child: Transform.scale(
                     scale: scale,
-                    child: slotBuilder(context, slot),
+                    // The eleven drop onto the pitch in formation order when
+                    // the tab opens — see `entrance.dart`.
+                    child: EntranceItem(
+                      index: rank[i],
+                      child: slotBuilder(context, slots[i]),
+                    ),
                   ),
                 ),
               ),

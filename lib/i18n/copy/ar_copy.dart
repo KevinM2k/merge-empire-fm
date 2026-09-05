@@ -303,4 +303,31 @@ const Map<String, String> arCopy = <String, String>{
 
   'shop.section.looks': 'أسلوب المدير',
 
+  // Colin relays an offer and calls it; then his tour after the tutorial.
+  'coach.bid.relay': 'اتصل بنا {club} أيها المدرب. يريدون {player} ويعرضون {price} على الطاولة.',
+  'coach.sponsor.relay': 'تواصلت معنا {company} أيها المدرب. يريدون {player} وجهاً لعلامتهم: {n}% دخل إضافي من هذا اللاعب ما دامت الصفقة سارية.',
+  'coach.verdict.accept': 'رأيي: اقبلها',
+  'coach.verdict.decline': 'رأيي: ارفضها',
+  'coach.verdict.your_call': 'رأيي: قد تسير في أي اتجاه',
+  'manager.transfer.starter_short': '{player} أساسي كل أسبوع ولا يوجد أحد على مقاعد البدلاء ليحل مكانه. ارفض، إلا إذا استكشفت بديلاً فوراً بعدها.',
+  'manager.transfer.relegation': 'نحن في منطقة الهبوط و{player} في التشكيلة. البيع الآن يضعفنا في الوقت الذي لا نحتمل فيه ذلك.',
+  'manager.transfer.flying': 'نحن في القمة والخزينة بخير. لسنا بحاجة إلى هذا المال: حافظ على تماسك الفريق.',
+  'manager.transfer.need_money': 'بصراحة، نحن مفلسون. هذا المبلغ يغطي صفقة جديدة بالكامل، ونحن بحاجة إلى العملات أكثر من حاجتنا إلى {player}.',
+  'manager.transfer.bench_warmer': '{player} ليس حتى في تشكيلتك، والسعر عادل. خذ المال وعزّز حيث يهم.',
+  'manager.sponsor.clean': 'لا مقابل في هذا العرض. وقّع: إنه مال مجاني.',
+  'manager.sponsor.relegation_starter': '{player} في التشكيلة ونحن في منطقة الهبوط. لاعب أساسي أضعف هو آخر ما نحتاجه: ارفض.',
+  'manager.sponsor.injury_prone': '{player} لديه {seasons} مواسم في ساقيه بالفعل وهذه الصفقة تزيد خطر الإصابة. لا تستحق.',
+  'manager.sponsor.poor_form': 'مستوى {player} ضعيف أصلاً وهذه الصفقة تزيده سوءاً. قل لا.',
+  'manager.sponsor.need_money': 'نحن نفتقر إلى العملات وهذا يدفع كل ثانية. يستحق المقابل: وقّع.',
+  'manager.sponsor.bench': '{player} ليس في تشكيلتك، لذا لا يكلفنا المقابل شيئاً في الملعب. وقّع.',
+  'manager.sponsor.rating_cost': 'يكلّف {player} {n} من التقييم، وهو أساسي. دخل إضافي مقابل فريق أضعف: القرار لك.',
+  'manager.sponsor.fair': 'المقابل صغير والدخل ليس كذلك. أنا سأوقّع.',
+  'guide.scout': 'اضغط على استكشاف لضم لاعب جديد. اثنان من النوع نفسه يُسحبان معاً يندمجان في لاعب أفضل.',
+  'guide.squad_tab': 'جيد. افتح الآن تبويب {tab} وضع أفضل أحد عشر لاعباً على أرض الملعب.',
+  'guide.squad_fill': 'اضغط على خانة فارغة لاختيار من يلعب فيها، أو اضغط تلقائي وسأكمل الفريق لك.',
+  'guide.dugout': 'ترى القائمة في الأسفل على اليمين؟ هذا هو الـDugout: التدريب وجدول الدوري هناك.',
+  'guide.club_tab': 'الملعب يجني المال أيضاً. ألقِ نظرة على تبويب {tab}.',
+  'guide.club_buy': 'اشترِ منشأة هنا. كل واحدة تملكها تضيف إلى ما يجنيه النادي كل ثانية.',
+  'guide.shop_tab': 'تنقصك الطاقة أو العملات؟ تبويب {tab} فيه حزم وتعزيزات عند الحاجة.',
+
 };

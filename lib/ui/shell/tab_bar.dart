@@ -1,6 +1,8 @@
 /// The bottom tab bar.
 library;
 
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:merge_empire_fc/ui/hud/hud.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
@@ -19,10 +21,19 @@ const Map<ShellTab, IconData> tabIcons = {
 };
 
 class ShellTabBar extends StatelessWidget {
-  const ShellTabBar({super.key, required this.active, required this.onTap});
+  const ShellTabBar({
+    super.key,
+    required this.active,
+    required this.onTap,
+    this.highlight,
+  });
 
   final ShellTab active;
   final void Function(ShellTab tab) onTap;
+
+  /// A tab to draw the eye to — the one Colin's tour is sending the player to.
+  /// See [GuideGlow].
+  final ShellTab? highlight;
 
   @override
   Widget build(BuildContext context) {
@@ -77,6 +88,7 @@ class ShellTabBar extends StatelessWidget {
                     tab: tab,
                     active: tab == active,
                     sceneTab: onScene,
+                    highlight: tab == highlight && tab != active,
                     onTap: () => onTap(tab),
                   ),
                 ),
@@ -94,10 +106,14 @@ class _TabButton extends StatelessWidget {
     required this.active,
     required this.sceneTab,
     required this.onTap,
+    this.highlight = false,
   });
 
   final ShellTab tab;
   final bool active;
+
+  /// Wears the tour's glow — see [GuideGlow].
+  final bool highlight;
 
   /// The shell is on Play, so there is no bar behind this button — see
   /// [ShellTabBar.build].
@@ -175,9 +191,12 @@ class _TabButton extends StatelessWidget {
     // plates. There is no ACTIVE case to worry about: on the scene the selected
     // tab is Play, and Play is the disc.
     final onScene = tab != ShellTab.home && sceneTab;
+    // A highlighted tab wears the club's colour off the scene, as the active
+    // one does — on the scene the pill behind it carries the colour and the
+    // glyph stays pale, because the accent may be the grass's own green.
     final colour = onScene
         ? const Color(0xFFE9EFF5)
-        : active
+        : active || highlight
         ? glassAccent(context, kit.accentBright)
         : hudChromeInk(context).withValues(alpha: 0.62);
     final shadows = !onScene
@@ -190,7 +209,11 @@ class _TabButton extends StatelessWidget {
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
-          child: Column(
+          child: GuideGlow(
+            key: ValueKey('tab-glow-${tab.name}'),
+            on: highlight,
+            colour: glassAccent(context, kit.accentBright),
+            child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(tabIcons[tab], size: 22, color: colour, shadows: shadows),
@@ -210,8 +233,120 @@ class _TabButton extends StatelessWidget {
                 ),
               ),
             ],
+            ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// A pulsing pill round a tab the player is being sent to.
+///
+/// **The tutorial ends on the home screen and says nothing about the bar.** The
+/// first thing Colin's tour asks is "head to the Players tab", and a sentence
+/// in a bubble is not a finger: the tab has to be the thing that moves. Asked
+/// for from the couch as a gentle animation on the Players button.
+///
+/// **A FILLED pill, and it keeps going.** The first cut was a soft halo behind
+/// the glyph that breathed four times and stopped — and on the home tab the
+/// bar has no chrome, so that was a faint shadow behind a pale icon over grass,
+/// which nobody saw. Reported as "I thought we were going to highlight it". So
+/// it is the club's colour under a white rim, swelling and fading on a loop,
+/// for as long as the step is outstanding: the moment they open the tab the
+/// step is spent and the pill is gone. Reduced motion holds it at rest, still
+/// filled, so it is a highlight rather than nothing.
+///
+/// Its own layer, so the loop repaints the pill and not the bar.
+class GuideGlow extends StatefulWidget {
+  const GuideGlow({
+    required this.on,
+    required this.colour,
+    required this.child,
+    super.key,
+  });
+
+  final bool on;
+  final Color colour;
+  final Widget child;
+
+  static const Duration period = Duration(milliseconds: 1100);
+
+  @override
+  State<GuideGlow> createState() => _GuideGlowState();
+}
+
+class _GuideGlowState extends State<GuideGlow>
+    with SingleTickerProviderStateMixin {
+  /// Made on the first `on`, not lazily: a `late final` that dispose() was the
+  /// first to touch built its ticker off a tree that was already gone.
+  AnimationController? _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.on) _begin();
+  }
+
+  @override
+  void didUpdateWidget(GuideGlow old) {
+    super.didUpdateWidget(old);
+    if (widget.on && !old.on) _begin();
+    if (!widget.on && old.on) _ctrl?.stop();
+  }
+
+  void _begin() {
+    _ctrl ??= AnimationController(vsync: this, duration: GuideGlow.period);
+    // The frame, not now: `MediaQuery` is not readable in initState.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !widget.on) return;
+      if (MediaQuery.of(context).disableAnimations) return;
+      _ctrl?.repeat();
+    });
+  }
+
+  @override
+  void dispose() {
+    _ctrl?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final ctrl = _ctrl;
+    if (!widget.on || ctrl == null) return widget.child;
+    return RepaintBoundary(
+      child: AnimatedBuilder(
+        animation: ctrl,
+        child: widget.child,
+        builder: (context, child) {
+          // One swell per period. At rest (value 0) the pill is at its
+          // quietest, and still clearly there.
+          final t = math.sin(ctrl.value * math.pi);
+          return Transform.scale(
+            scale: 1 + 0.08 * t,
+            child: Container(
+              key: const ValueKey('guide-glow-pill'),
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+              decoration: BoxDecoration(
+                color: widget.colour.withValues(alpha: 0.28 + 0.3 * t),
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: Colors.white.withValues(alpha: 0.55 + 0.35 * t),
+                  width: 1.5,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: widget.colour.withValues(alpha: 0.35 + 0.35 * t),
+                    blurRadius: 12 + 10 * t,
+                    spreadRadius: 1 + 3 * t,
+                  ),
+                ],
+              ),
+              child: child,
+            ),
+          );
+        },
       ),
     );
   }

@@ -45,6 +45,7 @@ import 'package:merge_empire_fc/providers/weather_providers.dart';
 import 'package:merge_empire_fc/ui/screens/match/play_button.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/theme/sky.dart';
+import 'package:merge_empire_fc/ui/widgets/entrance.dart';
 
 /// The vertical seam between the stacked boxes on the Play page.
 ///
@@ -137,7 +138,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               13,
               0,
             ),
-            child: const NextMatchCard(),
+            // Zooms in when the tab opens — see `entrance.dart`.
+            child: const EntranceItem(child: NextMatchCard()),
           ),
         ),
         Positioned(
@@ -190,11 +192,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       // of the right edge. Tight slots fix the packing; the
                       // `Align`s put each orb against its own side of the slot
                       // rather than centred in it.
+                      // The orbs arrive with the card — see `entrance.dart`.
+                      // NOT the customise pill between them: the walker's
+                      // stand is measured off that pill's box, and a pill
+                      // mid-zoom would move him with it.
                       const Expanded(
                         flex: 3,
                         child: Align(
                           alignment: Alignment.bottomLeft,
-                          child: CoachDock(),
+                          child: EntranceItem(index: 1, child: CoachDock()),
                         ),
                       ),
                       Expanded(
@@ -230,9 +236,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           child: Column(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              PrestigeDock(),
+                              EntranceItem(index: 2, child: PrestigeDock()),
                               SizedBox(height: 8),
-                              MenuDock(),
+                              EntranceItem(index: 3, child: MenuDock()),
                             ],
                           ),
                         ),
@@ -323,6 +329,9 @@ class _SceneState extends ConsumerState<_Scene> {
       TickerMode.of(context) &&
       !MediaQuery.of(context).disableAnimations;
 
+  /// The last opening of the home tab he greeted — see [TabEntrance].
+  int? _greeted;
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -332,6 +341,19 @@ class _SceneState extends ConsumerState<_Scene> {
     } else {
       _next?.cancel();
       _next = null;
+    }
+    // **He greets you when the tab opens.** The card drops in from the top
+    // and the man on the pitch turns and waves — the two things on this
+    // screen that can move, moving, is what "the page opened" looks like now
+    // that nothing slides. Asked for from the couch: the manager should have an
+    // opening animation. After the frame, so the setState is not inside a
+    // dependency change.
+    final opened = TabEntrance.of(context)?.generation;
+    if (opened != null && opened != _greeted) {
+      _greeted = opened;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_live) _playNamed('wave');
+      });
     }
   }
 

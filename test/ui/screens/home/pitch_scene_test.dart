@@ -101,7 +101,9 @@ void main() {
     });
 
     testWidgets('and the stand is behind it, not over it', (tester) async {
-      await pumpScene(tester);
+      // A STAND. A park's strip runs on below the horizon on purpose, for its
+      // spectators to stand on the grass — see THE FAR TOUCHLINE.
+      await pumpScene(tester, tier: firstStandTier);
       final stand = tester.getRect(find.byKey(const ValueKey('pitch-stand')));
       final turf = tester.getRect(find.byKey(const ValueKey('pitch-turf')));
       expect(stand.bottom, lessThanOrEqualTo(turf.top + 1));
@@ -834,13 +836,118 @@ void main() {
         findsWidgets,
         reason: 'no Kenney pieces in the park',
       );
-      final fences = find.descendant(
-        of: stand,
-        matching: find.byWidgetPredicate(
-          (w) => w is Image && w.image is AssetImage && (w.image as AssetImage).assetName.endsWith('fence.png'),
+      // Kenney's fence piece has a post at each end, so tiled along the foot
+      // it read as one fence after another. The boundary is the touchline.
+      expect(
+        find.descendant(
+          of: stand,
+          matching: find.byWidgetPredicate(
+            (w) => w is Image && w.image is AssetImage && (w.image as AssetImage).assetName.endsWith('fence.png'),
+          ),
+        ),
+        findsNothing,
+        reason: "the fence is back along the park's foot",
+      );
+    });
+  });
+
+  group('THE FAR TOUCHLINE', () {
+    testWidgets('is chalked onto the grass under where the spectators stand', (
+      tester,
+    ) async {
+      await pumpScene(tester, tier: 1);
+      final line = find.byKey(const ValueKey('pitch-touchline'));
+      expect(line, findsOneWidget);
+      final turf = tester.getRect(find.byKey(const ValueKey('pitch-turf')));
+      final rect = tester.getRect(line);
+      // The spectators' feet are on the horizon, which is the turf's top edge.
+      expect(rect.top, closeTo(turf.top + touchlineBelowHorizon, 0.01));
+      expect(rect.height, closeTo(touchlineWidth, 0.01));
+      expect(rect.left, turf.left);
+      expect(rect.right, turf.right);
+    });
+
+    testWidgets('and a ground with boards on the horizon does not chalk one', (
+      tester,
+    ) async {
+      await pumpScene(tester, tier: firstStandTier);
+      expect(find.byKey(const ValueKey('pitch-touchline')), findsNothing);
+    });
+
+    testWidgets("and the park's strip runs on below the horizon for its spectators", (
+      tester,
+    ) async {
+      // The houses keep their feet on the horizon; the people stand in front
+      // of them on the grass, which is the depth one line of feet had none of.
+      await pumpScene(tester, tier: 1);
+      final turf = tester.getRect(find.byKey(const ValueKey('pitch-turf')));
+      final strip = tester.getRect(find.byKey(const ValueKey('pitch-stand')));
+      expect(strip.bottom, closeTo(turf.top + parkFansDrop, 0.01));
+      expect(strip.height, closeTo(parkHeight + parkFansDrop, 0.01));
+      final line = tester.getRect(find.byKey(const ValueKey('pitch-touchline')));
+      expect(line.top, closeTo(strip.bottom + 10, 0.01), reason: 'the line is not ten under their feet');
+      // A stand stays on the boards.
+      await pumpScene(tester, tier: firstStandTier);
+      final turf2 = tester.getRect(find.byKey(const ValueKey('pitch-turf')));
+      final stand = tester.getRect(find.byKey(const ValueKey('pitch-stand')));
+      expect(stand.bottom, closeTo(turf2.top - hoardingHeight, 0.01));
+    });
+  });
+
+  group('A STILL STRIP MOVES BY WHOLE DEVICE PIXELS', () {
+    // A raster drawn a fraction of a pixel along is resampled at a new phase
+    // every frame — sharp on the pixel, soft between — and at the hills' crawl
+    // that is a house's edge pulsing. Reported as the houses and trees moving
+    // while the fans, drawn live, did not.
+    testWidgets('so a raster is blitted, never resampled', (tester) async {
+      // Animations ON, unlike [pumpScene]: a scene that reduces motion parks
+      // the world at zero, and zero is a whole number of anything.
+      await tester.pumpWidget(
+        MaterialApp(
+          home: MediaQuery(
+            data: const MediaQueryData(
+              size: Size(400, 800),
+              devicePixelRatio: 2.625,
+            ),
+            child: Scaffold(
+              body: PitchScene(
+                mood: Mood.neutral,
+                tier: 3,
+                walkerBottom: 150 + walkerBottomClearance,
+                walkerBuilder: (ball) => Stack(
+                  children: [const SizedBox(width: 120, height: 170), ball],
+                ),
+              ),
+            ),
+          ),
         ),
       );
-      expect(fences.evaluate().length, greaterThan(4), reason: 'the fence should run the whole foot');
+      await tester.pump(const Duration(milliseconds: 137));
+      await tester.pump(const Duration(milliseconds: 251));
+      final dpr = MediaQuery.devicePixelRatioOf(
+        tester.element(find.byType(PitchScene)),
+      );
+      expect(dpr, 2.625, reason: 'the scene is not reading the screen it is on');
+      var moved = false;
+      for (final key in ['pitch-stand', 'pitch-hills', 'pitch-floodlights']) {
+        final strip = find.byKey(ValueKey(key));
+        if (strip.evaluate().isEmpty) continue;
+        final transforms = tester.widgetList<Transform>(
+          find.descendant(of: strip, matching: find.byType(Transform)),
+        );
+        expect(transforms, isNotEmpty, reason: '$key has no scroller');
+        for (final t in transforms) {
+          final dx = t.transform.getTranslation().x;
+          if (dx != 0) moved = true;
+          final devicePx = dx * dpr;
+          expect(
+            devicePx - devicePx.round(),
+            closeTo(0, 1e-6),
+            reason: '$key is drawn $dx pt along, a fraction of a device pixel',
+          );
+        }
+      }
+      expect(moved, isTrue, reason: 'nothing moved, so nothing was checked');
     });
   });
 }

@@ -84,7 +84,12 @@ final appThemeProvider = Provider<ThemeData>((ref) {
     kitId: ref.watch(kitIdProvider),
     light: forcedDark ? false : ref.watch(lightModeProvider),
     // On the INTERFACE channel, not the SFX one — see `SoundService.playUi`.
-    onPress: () => unawaited(sound.playUi('tap')),
+    // **`pop`, not `tap`.** The JS answers a tab tap or a swipe with `playPop`
+    // — the soft sine sweep — and keeps the sharper 800Hz `tap` for the
+    // mini-games and the shop's own controls, which call it themselves here
+    // too. The port had every press on `tap`, and it was reported as not the
+    // sound the game used to make.
+    onPress: () => unawaited(sound.playUi('pop')),
   );
 });
 

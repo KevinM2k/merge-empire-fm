@@ -6,6 +6,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
+import 'package:merge_empire_fc/ui/widgets/entrance.dart';
 import 'package:merge_empire_fc/ui/widgets/section_heading.dart';
 
 /// The seven shelves, in display order.
@@ -205,10 +206,19 @@ class ShopSectionFrame extends StatelessWidget {
 /// "WORLD CLASS" is 103px of text, and four across gives each tile 78px, which
 /// wraps the name and pushes the description to three lines.
 class ShopGrid extends StatelessWidget {
-  const ShopGrid({required this.children, this.columns = 2, super.key});
+  const ShopGrid({
+    required this.children,
+    this.columns = 2,
+    this.firstIndex = 0,
+    super.key,
+  });
 
   final List<Widget> children;
   final int columns;
+
+  /// Where this grid's tiles fall in the shelf's arrival order, for a shelf
+  /// with something above the grid — the Vault hero comes in before its packs.
+  final int firstIndex;
 
   @override
   Widget build(BuildContext context) {
@@ -242,8 +252,13 @@ class ShopGrid extends StatelessWidget {
                   // their share so the tiles that ARE there keep their width
                   // rather than stretching across the shelf.
                   Expanded(
+                    // Each tile drops onto the shelf in turn when the tab
+                    // opens — see `entrance.dart`.
                     child: c < rows[r].length
-                        ? rows[r][c]
+                        ? EntranceItem(
+                            index: firstIndex + r * columns + c,
+                            child: rows[r][c],
+                          )
                         : const SizedBox.shrink(),
                   ),
                 ],

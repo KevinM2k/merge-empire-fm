@@ -359,4 +359,31 @@ const Map<String, String> itCopy = <String, String>{
 
   'shop.section.looks': 'Stile allenatore',
 
+  // Colin relays an offer and calls it; then his tour after the tutorial.
+  'coach.bid.relay': 'Ha chiamato il {club}, mister. Vogliono {player} e mettono {price} sul tavolo.',
+  'coach.sponsor.relay': 'Si è fatta sentire {company}, mister. Vogliono {player} come volto del marchio: {n}% di entrate in più da quel giocatore finché dura l\'accordo.',
+  'coach.verdict.accept': 'Il mio consiglio: accetta',
+  'coach.verdict.decline': 'Il mio consiglio: rifiuta',
+  'coach.verdict.your_call': 'Il mio consiglio: può andare in entrambi i modi',
+  'manager.transfer.starter_short': '{player} è titolare ogni settimana e in panchina non c\'è nessuno a sostituirlo. Rifiuta, a meno che tu non ingaggi subito un rimpiazzo.',
+  'manager.transfer.relegation': 'Siamo in zona retrocessione e {player} è nell\'undici. Vendere adesso ci indebolisce proprio quando non possiamo permettercelo.',
+  'manager.transfer.flying': 'Siamo in testa e le casse sono piene. Non ci servono questi soldi: tieni unita la rosa.',
+  'manager.transfer.need_money': 'Sinceramente, siamo al verde. Questa cifra paga un acquisto intero, e ci servono le monete più di {player}.',
+  'manager.transfer.bench_warmer': '{player} non è nemmeno nel tuo undici, e il prezzo è giusto. Prendi i soldi e rinforza dove conta.',
+  'manager.sponsor.clean': 'Questo non ha fregature. Firma: sono soldi gratis.',
+  'manager.sponsor.relegation_starter': '{player} è nell\'undici e siamo in zona retrocessione. Un titolare più debole è l\'ultima cosa che ci serve: rifiuta.',
+  'manager.sponsor.injury_prone': '{player} ha già {seasons} stagioni nelle gambe e questo accordo aumenta il rischio infortuni. Non ne vale la pena.',
+  'manager.sponsor.poor_form': 'La forma di {player} è già scarsa e questo accordo la peggiora. Di\' di no.',
+  'manager.sponsor.need_money': 'Siamo a corto di monete e questo paga ogni secondo. La fregatura vale la pena: firma.',
+  'manager.sponsor.bench': '{player} non è nel tuo undici, quindi la fregatura non ci costa nulla in campo. Firma.',
+  'manager.sponsor.rating_cost': 'Costa {n} di valutazione a {player}, ed è un titolare. Più entrate in cambio di una squadra più debole: decidi tu.',
+  'manager.sponsor.fair': 'La fregatura è piccola e le entrate no. Io firmerei.',
+  'guide.scout': 'Tocca Osserva per ingaggiare qualcuno di nuovo. Due dello stesso tipo trascinati insieme si fondono in un giocatore migliore.',
+  'guide.squad_tab': 'Bene. Ora apri la scheda {tab} e metti in campo i tuoi migliori undici.',
+  'guide.squad_fill': 'Tocca uno slot vuoto per scegliere chi gioca lì, oppure premi Auto e ti schiero io la squadra.',
+  'guide.dugout': 'Vedi il Menu, in basso a destra? È il Dugout: allenamenti e classifica sono lì dentro.',
+  'guide.club_tab': 'Anche lo stadio rende. Dai un\'occhiata alla scheda {tab}.',
+  'guide.club_buy': 'Compra una struttura qui. Ognuna che possiedi si aggiunge a quanto il club guadagna ogni secondo.',
+  'guide.shop_tab': 'A corto di energia o monete? La scheda {tab} ha pacchetti e bonus quando ti servono.',
+
 };

@@ -24,6 +24,7 @@ import 'package:merge_empire_fc/ui/widgets/match_stat_rows.dart'
     show vsGreenOn, vsRedOn;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/data/art_paths.dart';
+import 'package:merge_empire_fc/data/divisions.dart';
 import 'package:merge_empire_fc/data/players.dart';
 import 'package:merge_empire_fc/engine/coach_tip_engine.dart';
 import 'package:merge_empire_fc/engine/goal_model.dart';
@@ -33,6 +34,7 @@ import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/state/card_instance.dart';
 import 'package:merge_empire_fc/ui/popups/coach_card.dart';
+import 'package:merge_empire_fc/ui/screens/transfers/coach_verdict.dart';
 import 'package:merge_empire_fc/ui/theme/glass.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/art_image.dart';
@@ -82,12 +84,19 @@ enum TransferAnswer { accepted, declined }
       ),
     };
 
-/// Colin's read on the bid.
+/// Colin's read on the bid: what he would do, and why.
 ///
 /// Ordered most specific first, and every branch is about WHY rather than about
 /// the price alone — the premium is already on the card as a number, so a line
 /// that only said "good deal" would be the same fact twice.
-String transferAdvice(
+///
+/// **And about the CLUB as much as the player.** The generated set reasons from
+/// the player's age, form and fee; asked for from the couch was a call that
+/// weighs the table, whether they start, whether there is anyone behind them,
+/// and whether the money is needed. Those branches sit where their urgency puts
+/// them: a starter in a relegation fight outranks a good price, a club that is
+/// skint takes a fair one it would otherwise shrug at.
+CoachRead transferRead(
   Map<String, dynamic> state,
   Map<String, dynamic> offer,
   CardInstance? card,
@@ -108,50 +117,91 @@ String transferAdvice(
   final penalty = agingPenalty(seasons);
   final seasonsLeft = seasons >= 15 ? 0 : 15 - seasons;
   final injuryChance = getInjuryChance(seasons);
+  final name =
+      card?.name('${offer['playerName'] ?? ''}') ??
+      '${offer['playerName'] ?? ''}';
 
-  // Could they replace the player after banking the fee? The one piece of
-  // advice that is about the CLUB rather than the player.
-  final coinsAfter =
-      _num(_map(state['resources'])?['fanCoins']) + _num(offer['price']);
-  final canReplace = coinsAfter >= scoutCost(state);
+  // The club's side of it: the table, the eleven, the bench, the coffers.
+  final coins = _num(_map(state['resources'])?['fanCoins']);
+  final coinsAfter = coins + _num(offer['price']);
+  final cost = scoutCost(state);
+  final canReplace = coinsAfter >= cost;
+  final starter = inStartingEleven(state, offer['cardInstanceId'] as String?);
+  final noBench = squadSize(state) <= 11;
+  final standing = clubStanding(state);
+  final division = getDivision(
+    '${_map(state['progression'])?['currentDivision']}',
+  );
+  final flush = coins >= division.matchRevenueBase * 20;
 
-  if (premiumPct >= 200) return t('manager.transfer.incredible');
+  CoachRead sell(String key, [Map<String, Object?> p = const {}]) =>
+      (verdict: CoachVerdict.accept, text: t(key, p));
+  CoachRead hold(String key, [Map<String, Object?> p = const {}]) =>
+      (verdict: CoachVerdict.decline, text: t(key, p));
+  CoachRead shrug(String key, [Map<String, Object?> p = const {}]) =>
+      (verdict: CoachVerdict.yourCall, text: t(key, p));
+
+  if (premiumPct >= 200) return sell('manager.transfer.incredible');
   if (seasons >= 14) {
-    return t('manager.transfer.final_season', {
+    return sell('manager.transfer.final_season', {
       'penalty': penalty,
       'seasonsLeft': seasonsLeft,
     });
   }
   if (seasons >= 10 && injured) {
-    return t('manager.transfer.declining_injured', {
+    return sell('manager.transfer.declining_injured', {
       'penalty': penalty,
       'seasonsLeft': seasonsLeft,
     });
   }
   if (seasons >= 10) {
-    return t('manager.transfer.long_decline', {
+    return sell('manager.transfer.long_decline', {
       'seasons': seasons,
       'penalty': penalty,
       'seasonsLeft': seasonsLeft,
     });
   }
-  if (injured) return t('manager.transfer.injured');
+  if (injured) return sell('manager.transfer.injured');
+  // A relegation fight is the one time a starter is not for sale at any fair
+  // price; a runaway leader with money in the bank has no reason to sell one.
+  if (starter && inDropZone(standing)) {
+    return hold('manager.transfer.relegation', {'player': name});
+  }
+  if (starter && standing?.pos == 1 && flush && premiumPct < 60) {
+    return hold('manager.transfer.flying');
+  }
   if (!canReplace) {
-    return t('manager.transfer.cant_replace', {
-      'cost': formatCoins(scoutCost(state)),
-    });
+    return hold('manager.transfer.cant_replace', {'cost': formatCoins(cost)});
   }
-  if (form >= 2) return t('manager.transfer.hot_form');
+  if (starter && noBench && premiumPct < 60) {
+    return hold('manager.transfer.starter_short', {'player': name});
+  }
+  // Could not afford a scout before the bid and can after it: the fee IS the
+  // rebuild, and the club needs it more than the card.
+  if (coins < cost && !(starter && form >= 2)) {
+    return sell('manager.transfer.need_money', {'player': name});
+  }
+  if (form >= 2) return hold('manager.transfer.hot_form');
   if (injuryChance >= 0.35 && premiumPct >= 20) {
-    return t('manager.transfer.injury_prone', {'seasons': seasons});
+    return sell('manager.transfer.injury_prone', {'seasons': seasons});
   }
-  if (seasons >= 7) return t('manager.transfer.veteran', {'seasons': seasons});
-  if (premiumPct >= 60) return t('manager.transfer.good_deal');
-  if (sponsored) return t('manager.transfer.sponsored');
-  if (tier >= 5 && !canReplace) return t('manager.transfer.high_tier');
-  if (premiumPct <= 10 && tier <= 2) return t('manager.transfer.replaceable');
-  return t('manager.transfer.fair');
+  if (seasons >= 7) return shrug('manager.transfer.veteran', {'seasons': seasons});
+  if (premiumPct >= 60) return sell('manager.transfer.good_deal');
+  if (!starter && premiumPct >= 0) {
+    return sell('manager.transfer.bench_warmer', {'player': name});
+  }
+  if (sponsored) return shrug('manager.transfer.sponsored');
+  if (tier >= 5 && !canReplace) return hold('manager.transfer.high_tier');
+  if (premiumPct <= 10 && tier <= 2) return sell('manager.transfer.replaceable');
+  return shrug('manager.transfer.fair');
 }
+
+/// The sentence alone. See [transferRead].
+String transferAdvice(
+  Map<String, dynamic> state,
+  Map<String, dynamic> offer,
+  CardInstance? card,
+) => transferRead(state, offer, card).text;
 
 /// Show the bid and settle it.
 ///
@@ -230,10 +280,11 @@ class _TransferOfferCard extends ConsumerWidget {
     // the number the whole card is about had to be found by reading. The two
     // ends of the question keep their words; the figure between them gets a
     // coin, a size and the band it falls in.
-    final pitch = [
-      t('transfer.they_want', {'player': name}),
-      '${t('transfer.income_lost', {'rate': incomePerSec.toStringAsFixed(2)})}.',
-    ].join(' ');
+    // Who they want is in Colin's own mouth now — see the relay below — so
+    // the pane keeps only the figure it exists to set beside the fee.
+    final pitch =
+        '${t('transfer.income_lost', {'rate': incomePerSec.toStringAsFixed(2)})}.';
+    final read = transferRead(state, offer, card);
     final band = transferBand(premiumPct, context);
     // **The band's DARK-MODE colour, because the plate under it is dark.**
     // `transferBand` takes a context so its two ends darken on a light card;
@@ -289,6 +340,23 @@ class _TransferOfferCard extends ConsumerWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
+          // **COLIN TELLS US THE PHONE HAS RUNG.** The card opened on the terms
+          // — a portrait, two panes, a grey line at the foot — and read as a
+          // modal announcing a bid. Asked for from the couch: it should read as
+          // an offer having come in and him telling us about it, then saying
+          // whether to go ahead. So the first thing on the card is his voice,
+          // typed the way every card's body is, and the last is his call.
+          CoachTypewriter(
+            text: t('coach.bid.relay', {
+              'club': offer['fromTeam'] ?? '',
+              'player': name,
+              'price': formatCoins(price),
+            }),
+            textKey: const ValueKey('transfer-relay'),
+            textAlign: TextAlign.center,
+            style: TextStyle(color: kit.textMuted, fontSize: 13.5, height: 1.5),
+          ),
+          const SizedBox(height: 10),
           if (def != null)
             SizedBox(
               height: 110,
@@ -415,11 +483,9 @@ class _TransferOfferCard extends ConsumerWidget {
           // `transfer.over_fair_market`, `transfer.at_fair_market` and
           // `transfer.decline_warning` are now shipped copy with no caller,
           // which anywhere else in this port is a bug. Here it is the point.
-          Text(
-            transferAdvice(state, offer, card),
-            key: const ValueKey('transfer-advice'),
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 12.5, height: 1.5, color: kit.textMuted),
+          CoachVerdictLine(
+            read: read,
+            textKey: const ValueKey('transfer-advice'),
           ),
         ],
       ),
