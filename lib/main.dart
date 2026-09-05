@@ -133,6 +133,8 @@ class MergeEmpireApp extends ConsumerWidget {
     }
     return MaterialApp(
       title: 'Merge Empire Football Manager',
+      // Simulator screenshots run debug; the ribbon does nothing in release.
+      debugShowCheckedModeBanner: false,
       // **ABOVE THE NAVIGATOR, which is what `builder` is for.** The ad wait
       // has to cover the routes that ask for a video and stay open across it —
       // the daily reward sheet, the post-match card — so it cannot live in
