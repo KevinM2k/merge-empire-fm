@@ -1,0 +1,11 @@
+<!-- The notification small icon: alpha only, so it cannot be the launcher icon (an opaque square reads as a white blob). -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24"
+    android:tint="#FFFFFFFF">
+    <path
+        android:fillColor="#FFFFFFFF"
+        android:pathData="M12,2C6.48,2 2,6.48 2,12s4.48,10 10,10 10,-4.48 10,-10S17.52,2 12,2zM12,4c1.53,0 2.95,0.43 4.16,1.18l-1.6,2.2 -2.56,-0.83 -2.56,0.83 -1.6,-2.2C9.05,4.43 10.47,4 12,4zM4.7,8.5l2.58,0.84 0.98,3 -1.6,2.2 -2.58,-0.01C4.03,13.79 4,12.9 4,12c0,-1.23 0.25,-2.4 0.7,-3.5zM8.9,19.36l0.79,-2.44h4.62l0.79,2.44C14.16,19.77 13.11,20 12,20S9.84,19.77 8.9,19.36zM17.34,14.54l-1.6,-2.2 0.98,-3L19.3,8.5C19.75,9.6 20,10.77 20,12c0,0.9 -0.03,1.79 -0.08,2.53l-2.58,0.01zM12,9.15l2.6,1.89 -0.99,3.06h-3.22l-0.99,-3.06L12,9.15z"/>
+</vector>

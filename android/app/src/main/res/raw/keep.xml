@@ -1,0 +1,3 @@
+<!-- The notification icon is looked up by NAME at runtime, so the release shrinker cannot see it and strips it. -->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@drawable/ic_stat_notice" />

@@ -35,6 +35,20 @@ import 'package:timezone/timezone.dart' as tz;
 /// player: the game telling them something is ready.
 const String noticeChannelId = 'merge_empire_reminders';
 
+/// **A DRAWABLE, and `ic_launcher` is not one.** The plugin resolves this with
+/// `getIdentifier(name, "drawable", pkg)` and the launcher icon lives in
+/// `mipmap/` — so the lookup returned 0, `initialize` answered with a
+/// `PlatformException`, and every call below it died in a `catch` that reports
+/// nothing. Two silences came out of that one miss: `permissionGranted` answers
+/// TRUE when it cannot ask, so the Android 13 prompt was never raised, and
+/// every `schedule` threw before it reached `AlarmManager`. Nothing was ever
+/// armed on a device and no log said so.
+///
+/// **And a name resolved at RUNTIME is invisible to the release shrinker**,
+/// which stripped the drawable out of the APK while debug builds kept it —
+/// `res/raw/keep.xml` is what holds it in.
+const String noticeIconRes = 'ic_stat_notice';
+
 /// The one the app uses. A variable so a test can answer for it without
 /// reaching a plugin — the same seam shape `platform_seams.dart` explains.
 NoticeBackend notices = PluginNoticeBackend();
@@ -124,7 +138,7 @@ class PluginNoticeBackend implements NoticeBackend {
     }
     await _plugin.initialize(
       settings: const InitializationSettings(
-        android: AndroidInitializationSettings('ic_launcher'),
+        android: AndroidInitializationSettings(noticeIconRes),
         iOS: DarwinInitializationSettings(
           // Asked for explicitly below instead, so the prompt lands when the
           // app first backgrounds rather than on the splash screen.
@@ -195,7 +209,7 @@ class PluginNoticeBackend implements NoticeBackend {
           noticeChannelId,
           'Reminders',
           importance: Importance.defaultImportance,
-          icon: 'ic_launcher',
+          icon: noticeIconRes,
         ),
         iOS: DarwinNotificationDetails(),
       ),
