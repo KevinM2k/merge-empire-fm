@@ -492,9 +492,8 @@ class _Tooltip extends ConsumerWidget {
     // stack and left a black screen; reported from the couch in one line. What
     // takes this card down is the script ending, which `onSkip` does.
     //
-    // **And not on the LAST step**, which is not a step: it is the script saying
-    // it is over, and a way out beside "done" costs the player the farewell the
-    // loan step just earned them. See the other footer.
+    // **And not on the LAST step**, which is barely a step: it is the script
+    // signing off. See the other footer.
     footer: step.id == tutorialSteps.last.id
         ? null
         : CoachAction(
@@ -675,11 +674,17 @@ Future<TutorialAnswer?> showTutorialCard(
     ],
     // **Skippable at every step BUT THE LAST.** A tutorial you cannot leave is
     // a trap, and the JS puts a way out in the corner of every one of them —
-    // but the last card is not a step, it is the script SAYING it is over, and
-    // its only button finishes. A skip beside it is a second way to answer
-    // "well done" that costs the player the farewell the loan step just earned
-    // them: `skipTutorial` does not pay it, deliberately, because paying a walk-
-    // out made skipping the fastest money in the game. Reported from the couch.
+    // but the last card is barely a step, it is the script SIGNING OFF, and its
+    // only button finishes. A skip beside it is a second way to answer "well
+    // done".
+    //
+    // **The last card is `loan_depart` now**, and the borrowed side has already
+    // flown by the time it is up — `run` waves them off and pays the farewell
+    // BEFORE the card is shown — so leaving from here would cost the player
+    // nothing. What it would cost is `tutorial.completed`, which `skipTutorial`
+    // does not write and which is the whole of what starts Colin's tour; a
+    // player who taps "Let's Build!" gets shown round the tabs and one who taps
+    // Skip on the same card does not.
     footer: step.id == tutorialSteps.last.id
         ? null
         : CoachAction(

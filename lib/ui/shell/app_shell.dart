@@ -327,9 +327,6 @@ class AppShellState extends ConsumerState<AppShell> {
         bottomNavigationBar: ShellTabBar(
           active: _active,
           onTap: (tab) => goTab(tab),
-          // The tour's finger on the bar: the tab its current step is sending
-          // the player to. Off the moment they get there.
-          highlight: ref.watch(guideHighlightProvider),
         ),
       ),
     );

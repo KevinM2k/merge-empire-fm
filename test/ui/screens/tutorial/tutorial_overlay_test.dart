@@ -268,11 +268,13 @@ void main() {
     );
 
     await tapAction(tester, 'tut.loan_depart.btn');
-    expect(
-      (c.read(gameProvider).state!['tutorial'] as Map)['step'],
-      stepAt('done'),
-      reason: 'the farewell is the last thing before the script ends',
-    );
+    // **And that is the script.** The farewell IS the last card — the tenth,
+    // which told the player to open the tab they were already standing on,
+    // went with it.
+    final tutorial = c.read(gameProvider).state!['tutorial'] as Map;
+    expect(tutorial['step'], tutorialSteps.length);
+    expect(tutorial['done'], isTrue);
+    expect(tutorial['completed'], isTrue, reason: 'Colin\'s tour starts here');
     await tester.pump(const Duration(milliseconds: saveDebounceMs + 1));
   });
 

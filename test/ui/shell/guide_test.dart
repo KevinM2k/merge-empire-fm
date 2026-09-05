@@ -1,7 +1,12 @@
 /// Colin's tour after the tutorial, in the shell — see `engine/guide_engine.dart`
 /// for the chain itself and `test/engine/guide_engine_test.dart` for its rules.
-/// This is the wiring: the corner says the step, the bar lights the tab, opening
-/// the tab spends the step, and a card landing spends the scout.
+/// This is the wiring: the corner says the step, opening the tab it points at
+/// spends the step, and a card landing spends the scout.
+
+/// **The bar itself stays quiet.** There was a pulsing pill round whichever tab
+/// the outstanding step led to, and it went — see `ui/shell/guide.dart`. What
+/// is asserted here is that opening a tab still spends the step it belonged to,
+/// which is the half of the mechanism that survived.
 library;
 
 import 'dart:convert';
@@ -22,7 +27,6 @@ import 'package:merge_empire_fc/ui/screens/placeholder_screen.dart';
 import 'package:merge_empire_fc/ui/shell/app_shell.dart';
 import 'package:merge_empire_fc/ui/shell/coach_floating.dart';
 import 'package:merge_empire_fc/ui/shell/coach_tips.dart';
-import 'package:merge_empire_fc/ui/shell/tab_bar.dart';
 import 'package:merge_empire_fc/ui/shell/tabs.dart';
 import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
 import 'package:merge_empire_fc/util/event_bus.dart';
@@ -91,10 +95,6 @@ Future<ProviderContainer> _pumpShell(
 Future<void> _settleSave(WidgetTester tester) =>
     tester.pump(const Duration(milliseconds: saveDebounceMs + 100));
 
-bool _glowing(WidgetTester tester, ShellTab tab) => tester
-    .widget<GuideGlow>(find.byKey(ValueKey('tab-glow-${tab.name}')))
-    .on;
-
 void main() {
   setUp(() => setLocale('en'));
   tearDown(() {
@@ -155,23 +155,23 @@ void main() {
   });
 
   group('THE BAR', () {
-    testWidgets('nothing is lit fresh out of the tutorial: they are on the grid', (
+    testWidgets('the bar draws nothing for the tour, on any tab', (
       tester,
     ) async {
-      await _pumpShell(tester, _toured());
-      for (final tab in tabOrder.where((t) => t != ShellTab.home)) {
-        expect(_glowing(tester, tab), isFalse, reason: tab.name);
-      }
+      final c = await _pumpShell(tester, _toured());
+      // The step furthest along that ever lit a tab: the scout is spent, so
+      // "open the Squad tab" is the one outstanding.
+      await tester.tap(find.byKey(const ValueKey('tab-grid')));
+      await tester.pump(const Duration(milliseconds: 32));
+      await tester.pump(const Duration(milliseconds: 32));
+      emit('card:placed', {'card': null});
+      await tester.pump(const Duration(milliseconds: 32));
+      expect(hasSeenTip(c.read(gameProvider).state!, 'guide.scout'), isTrue);
+      expect(find.byKey(const ValueKey('guide-glow-pill')), findsNothing);
+      await _settleSave(tester);
     });
 
-    testWidgets('and not for a save that was merely settled', (tester) async {
-      await _pumpShell(tester, _toured(completed: false));
-      for (final tab in tabOrder.where((t) => t != ShellTab.home)) {
-        expect(_glowing(tester, tab), isFalse, reason: tab.name);
-      }
-    });
-
-    testWidgets('a card landing spends the scout, and the Squad tab lights', (
+    testWidgets('a card landing spends the scout, and opening Squad spends it', (
       tester,
     ) async {
       final c = await _pumpShell(tester, _toured());
@@ -182,18 +182,13 @@ void main() {
       await tester.pump(const Duration(milliseconds: 32));
       final save = c.read(gameProvider).state!;
       expect(hasSeenTip(save, 'guide.scout'), isTrue);
-      expect(_glowing(tester, ShellTab.squad), isTrue);
-      // And it is DRAWN — a filled pill, not a flag. The first cut was a halo
-      // nobody saw.
-      expect(find.byKey(const ValueKey('guide-glow-pill')), findsOneWidget);
       await _settleSave(tester);
 
-      // Opening the Squad tab spends the step and the pill goes out.
+      // Opening the Squad tab spends the step that pointed at it.
       await tester.tap(find.byKey(const ValueKey('tab-squad')));
       await tester.pump(const Duration(milliseconds: 32));
       await tester.pump(const Duration(milliseconds: 32));
       expect(hasSeenTip(c.read(gameProvider).state!, 'guide.squad_tab'), isTrue);
-      expect(_glowing(tester, ShellTab.squad), isFalse);
       await _settleSave(tester);
     });
 

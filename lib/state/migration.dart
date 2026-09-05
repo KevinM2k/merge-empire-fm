@@ -24,6 +24,7 @@ import 'package:merge_empire_fc/data/player_art.dart';
 import 'package:merge_empire_fc/data/players.dart';
 import 'package:merge_empire_fc/engine/lineup_engine.dart';
 import 'package:merge_empire_fc/engine/season_end.dart' show prestigeMultiplierFor;
+import 'package:merge_empire_fc/engine/tutorial_engine.dart' show tutorialSteps;
 import 'package:merge_empire_fc/i18n/detect.dart';
 import 'package:merge_empire_fc/state/card_instance.dart';
 import 'package:merge_empire_fc/state/migration_progression.dart';
@@ -467,6 +468,23 @@ void _migrateTutorialAndTips(Map<String, dynamic> data) {
         tutorial['step'] = s + 1; // old play_match onward shifts by one
       }
       // s < 3: welcome / scout_1 / scout_2 stay at 0, 1, 2.
+    }
+
+    // **AND A STEP INDEX PAST THE END OF THE SCRIPT IS A FINISHED SCRIPT.**
+    // The script has SHRUNK once — the tenth card, `done`, went when it
+    // started telling players to open the tab they were already on — and a
+    // save parked on it comes back holding an index the list no longer has.
+    // `tutorialStepFor` answers null for that, so the overlay draws nothing;
+    // `tutorialFinished` reads the FLAG, which is still false, so the same
+    // save is simultaneously mid-tutorial to the scout cap, the transfer
+    // list, the sponsors and the auto-tier control. Nothing on screen could
+    // ever clear it. It is settled here instead, and settled as COMPLETED —
+    // they reached the last card the script had, which is what earns Colin's
+    // tour.
+    final at = _num(tutorial['step'])?.toInt();
+    if (tutorial['done'] != true && at != null && at >= tutorialSteps.length) {
+      tutorial['done'] = true;
+      tutorial['completed'] = true;
     }
   }
 

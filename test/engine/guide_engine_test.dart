@@ -30,7 +30,6 @@ void main() {
       (s['tutorial'] as Map<String, dynamic>)['done'] = true;
       expect(guideActive(s), isFalse);
       expect(guideStepFor(s, GuideTab.home), isNull);
-      expect(guideHighlight(s), isNull);
     });
 
     test('nor one still mid-script', () {
@@ -54,24 +53,26 @@ void main() {
   });
 
   group('THE CHAIN', () {
-    test('opens on the grid, where the script left them, with nothing lit', () {
+    test('opens on the grid, where the script left them', () {
       final s = _fresh();
       // The tutorial ends on the Players tab, so the first nudge is the thing
-      // to do THERE — and "tap Scout" is not a tab, so nothing in the bar glows.
+      // to do THERE.
       expect(guideStepFor(s, GuideTab.grid)?.id, 'scout');
-      expect(guideHighlight(s), isNull);
       // The home orb, meanwhile, has the Dugout to mention.
       expect(guideStepFor(s, GuideTab.home)?.id, 'dugout');
     });
 
-    test('a card landing lights the Squad tab, and opening it spends the step', () {
+    test('a card landing brings on the Squad nudge, and opening it spends it', () {
       final s = _fresh();
       markGuideDone(s, 'scout');
       expect(guideStepFor(s, GuideTab.grid)?.id, 'squad_tab');
-      expect(guideHighlight(s), GuideTab.squad);
+      expect(guideStepFor(s, GuideTab.grid)?.leadsTo, GuideTab.squad);
       guideTabOpened(s, GuideTab.squad);
-      expect(guideStepFor(s, GuideTab.grid), isNull);
-      expect(guideHighlight(s), isNull, reason: 'the next step is on the pitch');
+      expect(
+        guideStepFor(s, GuideTab.grid),
+        isNull,
+        reason: 'the next step is on the pitch',
+      );
     });
 
     test('and a step done is NEVER said again', () {
@@ -132,7 +133,6 @@ void main() {
       for (final tab in GuideTab.values) {
         expect(guideStepFor(s, tab), isNull);
       }
-      expect(guideHighlight(s), isNull);
     });
   });
 

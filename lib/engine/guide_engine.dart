@@ -62,9 +62,16 @@ class GuideStep {
   /// Where he says it.
   final GuideTab tab;
 
-  /// The tab the nudge points AT, if it points at one. Opening that tab is what
-  /// completes the step — and it is the tab the bar highlights while the step
-  /// is the one that is due.
+  /// The tab the nudge points AT, if it points at one. Opening that tab is
+  /// what completes the step, and its name is what `guide.<id>`'s `{tab}`
+  /// resolves to.
+  ///
+  /// **It does not light the bar.** The tour used to pulse a filled pill round
+  /// whichever tab the outstanding step led to, and the Squad tab wearing one
+  /// the moment a card landed read as an alert rather than a nudge — nobody
+  /// could tell what it was FOR. Reported from the couch. The corner already
+  /// says it in words; a second, wordless copy of the same instruction in the
+  /// chrome is the part that confused.
   final GuideTab? leadsTo;
 
   /// Whether the save already shows the thing done, for the steps that leave a
@@ -117,17 +124,6 @@ GuideStep? guideStepFor(Map<String, dynamic>? save, GuideTab tab) {
   if (save == null || !guideActive(save)) return null;
   for (final step in guideSteps) {
     if (step.tab == tab && !guideStepDone(save, step)) return step;
-  }
-  return null;
-}
-
-/// The tab the bar should draw attention to: where the first outstanding step
-/// of the whole tour is sending the player. Null when that step is not about a
-/// tab, or the tour is done.
-GuideTab? guideHighlight(Map<String, dynamic>? save) {
-  if (save == null || !guideActive(save)) return null;
-  for (final step in guideSteps) {
-    if (!guideStepDone(save, step)) return step.leadsTo;
   }
   return null;
 }

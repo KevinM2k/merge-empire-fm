@@ -371,13 +371,17 @@ void main() {
     });
     await until(tester, () => stepOf(container) == stepAt('match_result_reaction'));
 
-    // ── 6, 7, 8 · his reaction, the goodbye, the end ───────────────────────
+    // ── 6, 7 · his reaction, and the goodbye that ends it ──────────────────
+    // **There is no eighth card.** `done` — "now head to the Players tab" —
+    // was written for a script that finished on the league screen; once the
+    // last card moved onto the grid it was telling the player to open the tab
+    // they were already standing on, so it went.
     await answer('common.ok', stepAt('loan_depart'));
-    await answer('tut.loan_depart.btn', stepAt('done'));
+    await answer('tut.loan_depart.btn', tutorialSteps.length);
     expect(tutorialOf(container)['borrowedPlayersRemoved'], isTrue);
-    await answer('tut.done.btn', tutorialSteps.length);
 
     expect(tutorialOf(container)['done'], isTrue);
+    expect(tutorialOf(container)['completed'], isTrue);
     // **And the queue is handed back.** The block is held for the whole script
     // and released at the end, so the daily reward the player has actually
     // earned finally opens rather than being stranded.

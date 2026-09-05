@@ -257,7 +257,7 @@ void main() {
     test('and every step before it does', () {
       // A tutorial you cannot leave is a trap, and the JS puts the way out in
       // the corner of every step but this one.
-      expect(tutorialSteps.last.id, 'done');
+      expect(tutorialSteps.last.id, 'loan_depart');
       expect(tutorialSteps.length, greaterThan(1));
     });
 

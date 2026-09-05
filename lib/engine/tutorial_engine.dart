@@ -1,4 +1,4 @@
-/// The ten steps, and the players the club lends you for one match.
+/// The nine steps, and the players the club lends you for one match.
 ///
 /// Ported from `STEPS` in `../merge-empire-fc/src/ui/components/Tutorial.js`.
 /// **The copy was never the blocker; the CHOREOGRAPHY was** — which key is
@@ -6,7 +6,7 @@
 /// — and none of that is recoverable from this repo. It is all in the spec, and
 /// this is a port of it rather than a reconstruction.
 ///
-/// **TEN steps, and `tut.merge` is the one that came BACK.**
+/// **NINE steps, and `tut.merge` is the one that came BACK.**
 ///
 /// Fifty-six `tut.*` strings ship in ten languages and thirty of them belong to
 /// steps the JS had cut: `tut.sort`, `tut.tier_lock`, `tut.squad_formation`,
@@ -239,27 +239,37 @@ final List<TutorialStep> tutorialSteps = [
     targetKey: null,
     dragToKey: null,
   ),
+  // **AND THIS IS THE END OF IT.** There was a tenth step — `done`, "Scout.
+  // Merge. Build. Win. Now head to the Players tab and recruit yourself a
+  // squad!" — and it was written for a script that finished on the LEAGUE
+  // screen, where pointing back at the Players tab was a real instruction.
+  // Moving it onto the grid so the player ends where the work is made its own
+  // copy nonsense: it told them to go to the tab they were already standing
+  // on. Reported from the couch.
+  //
+  // Two ways out of that and only one of them is an improvement: reword the
+  // tenth card, or stop before it. This stops before it, because the card said
+  // nothing the one above it does not — `loan_depart` already hands over the
+  // 500, says "now we build something that's ours" and points at the corner
+  // Colin will be speaking from. A tenth card is a tenth tap for a player who
+  // has been tapping through cards for two minutes, and the shortest onboarding
+  // that still teaches the game is the one that keeps people. See
+  // `docs/increase-retention.md`.
+  //
+  // `tut.done.title`, `tut.done.body` and `tut.done.btn` stay in the ten
+  // catalogues — they are GENERATED from the JS's `en.js` and are not this
+  // repo's to delete. They are shipped copy with no call site on purpose,
+  // which is the one case the "grep for a caller" sweep is wrong about.
   (
     id: 'loan_depart',
     titleKey: 'tut.loan_depart.title',
     bodyKey: 'tut.loan_depart.body',
+    // **On the GRID, and it is the last thing the script does.** The step
+    // empties the grid, and the first thing a new manager has to do is fill it
+    // again — so the script ends where the work is rather than on the home
+    // screen. It is also what lets Colin's tour open on "tap Scout".
     tab: TutorialTab.grid,
     buttonKey: 'tut.loan_depart.btn',
-    condition: null,
-    targetKey: null,
-    dragToKey: null,
-  ),
-  (
-    id: 'done',
-    titleKey: 'tut.done.title',
-    bodyKey: 'tut.done.body',
-    // **On the GRID, not the league screen.** The step before it empties the
-    // grid, and the first thing a new manager has to do is fill it again — so
-    // the script ends where the work is rather than sending them to the home
-    // screen and then pointing back at the Players tab. Asked for from the
-    // couch; it is also what lets Colin's tour open on "tap Scout".
-    tab: TutorialTab.grid,
-    buttonKey: 'tut.done.btn',
     condition: null,
     targetKey: null,
     dragToKey: null,

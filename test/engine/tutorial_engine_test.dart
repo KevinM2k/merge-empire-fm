@@ -52,7 +52,7 @@ int coinsOf(Map<String, dynamic> s) =>
 
 void main() {
   group('the script', () {
-    test('IS TEN STEPS, in the JS\'s own order', () {
+    test('IS NINE STEPS, in the JS\'s own order', () {
       // **`merge` is the one that came back.** Measured on GA4 over August: 91%
       // of new players start the tutorial, 74% play a match, 59% finish it and
       // 26% ever open the merge grid — in a merge game whose onboarding never
@@ -60,6 +60,13 @@ void main() {
       //
       // BEFORE the loan, so the player is down to two of their own when the
       // loan is worked out and it lends one more to make the eleven.
+      //
+      // **And `done` is the one that went.** It said "now head to the Players
+      // tab", which was an instruction while the script finished on the league
+      // screen and nonsense once the last card moved onto the grid — it was
+      // pointing at the tab the player was already standing on. `loan_depart`
+      // signs off on its own: it hands over the 500, says "now we build
+      // something that's ours" and names the corner Colin speaks from.
       expect(
         tutorialSteps.map((s) => s.id),
         [
@@ -72,7 +79,6 @@ void main() {
           'play_match_action',
           'match_result_reaction',
           'loan_depart',
-          'done',
         ],
       );
     });

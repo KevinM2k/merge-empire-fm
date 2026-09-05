@@ -1,10 +1,15 @@
 /// The shell's half of Colin's post-tutorial tour — see `engine/guide_engine.dart`
-/// for the tour itself. This maps the engine's tabs onto the bar's and asks
-/// which tab the bar should be drawing attention to.
+/// for the tour itself. This maps the bar's tabs onto the engine's, which is
+/// all the shell needs of it: opening a tab is what spends a step.
+///
+/// **The bar does not glow, and that is deliberate.** There was a
+/// `guideHighlightProvider` here feeding a pulsing pill round whichever tab the
+/// outstanding step led to — see the note on [GuideStep.leadsTo]. It went
+/// because a lit tab is an alert with nothing to say: the corner already
+/// speaks the nudge in words.
 library;
 
 import 'package:merge_empire_fc/engine/guide_engine.dart';
-import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/ui/shell/tabs.dart';
 
 GuideTab guideTabOf(ShellTab tab) => switch (tab) {
@@ -14,18 +19,3 @@ GuideTab guideTabOf(ShellTab tab) => switch (tab) {
   ShellTab.club => GuideTab.club,
   ShellTab.shop => GuideTab.shop,
 };
-
-ShellTab? shellTabOf(GuideTab? tab) => switch (tab) {
-  null => null,
-  GuideTab.grid => ShellTab.grid,
-  GuideTab.squad => ShellTab.squad,
-  GuideTab.home => ShellTab.home,
-  GuideTab.club => ShellTab.club,
-  GuideTab.shop => ShellTab.shop,
-};
-
-/// The tab the bar glows, or null. Follows the save, so it goes out the moment
-/// the step it belongs to is done.
-final guideHighlightProvider = savePick<ShellTab?>(
-  (s) => shellTabOf(guideHighlight(s)),
-);
