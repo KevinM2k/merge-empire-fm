@@ -12,6 +12,7 @@ import 'package:merge_empire_fc/ui/screens/shop/shop_providers.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_spend.dart';
 
 import 'shop_helpers.dart';
+import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 import 'package:merge_empire_fc/ui/widgets/store_button.dart';
 
 /// Tap a priced row and say yes. Spending is a two-beat flow now — see
@@ -359,6 +360,44 @@ void main() {
           ),
           findsWidgets,
           reason: 'rung ${tile.floor}',
+        );
+      }
+    });
+
+    testWidgets('a locked rung wears a PADLOCK, not "Coming soon"', (
+      tester,
+    ) async {
+      // The JS puts a lock glyph on a locked rung's button and no price; the
+      // port's `blockedCopy` had no line for `notOffered` and its fallthrough
+      // printed the settings screen's "Coming soon" under a tile whose own
+      // subtitle already said which division unlocks it.
+      final container = await pumpShopWidget(
+        tester,
+        (_) {},
+        VouchersSection.new,
+      );
+      final locked = container
+          .read(voucherTilesProvider)
+          .where((t) => !t.offered)
+          .toList();
+      expect(locked, isNotEmpty);
+      expect(find.text(t('settings.comingSoon')), findsNothing);
+      for (final tile in locked) {
+        final button = find.byKey(ValueKey('shop-buy-voucher-${tile.floor}'));
+        expect(
+          find.descendant(
+            of: button,
+            matching: find.byWidgetPredicate(
+              (w) => w is GameIcon && w.name == 'lock',
+            ),
+          ),
+          findsOneWidget,
+          reason: 'rung ${tile.floor}',
+        );
+        expect(
+          find.descendant(of: button, matching: find.text('${tile.cost ?? 0}')),
+          findsNothing,
+          reason: 'rung ${tile.floor} still quotes a price',
         );
       }
     });

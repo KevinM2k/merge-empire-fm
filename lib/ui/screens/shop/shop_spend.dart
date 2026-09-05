@@ -310,10 +310,17 @@ class VouchersSection extends ConsumerWidget {
               // `shop.voucher.one_at_a_time` is the sentence that IS true and
               // it is already shipped in ten languages — it is the rule, said
               // as the rule.
+              // A rung above this division is LOCKED, not "coming soon": the
+              // JS puts a padlock on the button and lets the subtitle name
+              // the division. `blockedCopy` has no line for it, and its
+              // fallthrough printed the settings screen's "Coming soon" under
+              // a tile whose own subtitle said when it unlocks.
               final reason = tile.holding
                   ? t('shop.already_active')
                   : tile.blocked == VoucherBlock.alreadyHeld
                   ? t('shop.voucher.one_at_a_time')
+                  : tile.blocked == VoucherBlock.notOffered
+                  ? null
                   : blockedCopy(tile.blocked?.name);
               return ShopTile(
                 tileKey: 'voucher-${tile.floor}',
@@ -335,6 +342,7 @@ class VouchersSection extends ConsumerWidget {
                 ),
                 price: '${tile.cost ?? 0}',
                 tone: StoreTone.gem,
+                locked: !tile.offered,
                 disabledReason: reason,
                 onBuy: reason != null
                     ? null

@@ -46,6 +46,7 @@ class ShopTile extends StatelessWidget {
     this.accent,
     this.skin,
     this.contents,
+    this.locked = false,
   });
 
   final String tileKey;
@@ -68,6 +69,11 @@ class ShopTile extends StatelessWidget {
   /// muted; "No injured players!" is the tile explaining why the thing would do
   /// nothing, and in muted grey it read as a second line of description.
   final bool warnReason;
+
+  /// A rung the player cannot reach yet: the button wears a padlock and no
+  /// price, the JS's `is-locked`. Not a [disabledReason] — that is a state the
+  /// price is still shown under, and a locked rung has nothing to sell yet.
+  final bool locked;
 
   /// "Most popular", "Owned", a tier name.
   final String? badge;
@@ -206,7 +212,8 @@ class ShopTile extends StatelessWidget {
     return Opacity(
       // An owned tile stays on the shelf, knocked back — taking it away loses
       // the answer to "did I buy that already".
-      opacity: onBuy == null && disabledReason == null ? 0.62 : 1,
+      // A locked rung is not knocked back: its subtitle is the reason to climb.
+      opacity: onBuy == null && disabledReason == null && !locked ? 0.62 : 1,
       // **CLIPPED, because the corner flash runs off the corner.** It is a bar
       // laid across the top-right at 45 degrees and the tile's rounded rect is
       // what makes it a triangle rather than a stray rectangle.
@@ -425,7 +432,8 @@ class ShopTile extends StatelessWidget {
                       StoreButton(
                         key: ValueKey('shop-buy-$tileKey'),
                         tone: tone,
-                        label: price,
+                        label: locked ? '' : price,
+                        leading: locked ? const GameIcon('lock', size: 13) : null,
                         stretch: false,
                         onTap: onBuy,
                       ),
@@ -459,8 +467,8 @@ class ShopTile extends StatelessWidget {
             StoreButton(
               key: ValueKey('shop-buy-$tileKey'),
               tone: tone,
-              label: price,
-              leading: switch (tone) {
+              label: locked ? '' : price,
+              leading: locked ? const GameIcon('lock', size: 13) : switch (tone) {
                 // The wallet, on the button, before the number — the same two
                 // marks the HUD shows the balances with, so a price and a
                 // balance are read in the same units.
