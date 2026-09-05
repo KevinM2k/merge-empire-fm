@@ -22,6 +22,8 @@ import 'package:merge_empire_fc/ui/screens/match/cup_launcher.dart'
     show cupDue;
 import 'package:merge_empire_fc/engine/booking_engine.dart'
     show suspendedIn;
+import 'package:merge_empire_fc/engine/coach_guide_engine.dart'
+    show nextCoachGuide;
 import 'package:merge_empire_fc/data/players.dart' show getCardName;
 import 'package:merge_empire_fc/state/card_instance.dart';
 import 'package:merge_empire_fc/ui/screens/grid/grid_providers.dart'
@@ -55,6 +57,21 @@ typedef CoachTip = ({String id, String text});
 final coachTipsProvider = savePick<List<CoachTip>>((s) {
   final preview = previewFixture(s);
   final tips = <CoachTip>[];
+
+  // **THE ONBOARDING TRAIL COMES FIRST, and this orb is where it lands on the
+  // home screen.** Every other tab has a floating head to say it — see
+  // `ui/shell/coach_tips.dart` — and this screen deliberately has no floating
+  // head precisely because it has him down here instead, so a marker pointing
+  // at the Dugout would otherwise have nowhere on this page to be said.
+  //
+  // At the FRONT of the pool rather than replacing it: the bubble cycles, so a
+  // player who leaves it open still gets his read on the fixture afterwards.
+  // The pool empties itself — see `engine/coach_guide_engine.dart` — so on any
+  // save past onboarding this branch is dead and the orb is what it was.
+  final guide = nextCoachGuide(s);
+  if (guide != null) {
+    tips.add((id: 'guide.${guide.id}', text: t(guide.bodyKey)));
+  }
 
   if (preview != null) {
     // **AND HE TALKS ABOUT THE FIXTURE THAT IS ACTUALLY NEXT.** `previewFixture`
@@ -262,7 +279,12 @@ final coachTipKeyProvider = savePick<String>((s) {
       '';
   final rating = preview?.effectiveSquadRating.round() ?? 0;
   final matches = _num(_map(s['progression'])?['matchesPlayed']).toInt();
-  return '$opponent|$rating|$matches';
+  // **And the trail marker is part of the key**, or the one line on this screen
+  // that is a call to action would arrive without the dot that says something
+  // new is in there. It changes as each marker is spent, which relights it for
+  // the next one.
+  final guide = nextCoachGuide(s)?.id ?? '';
+  return '$opponent|$rating|$matches|$guide';
 });
 
 /// What he would play, when it is not what is already set. Null when the

@@ -9,6 +9,34 @@ library;
 
 /// Replaces the generated entry, or adds a key French did not have.
 const Map<String, String> frCopy = <String, String>{
+  // ── Le fil d'Ariane d'après-tutoriel ─────────────────────────────────────
+  //
+  // Six repères que Colin pose une fois le tutoriel terminé. Chacun disparaît
+  // dès que le joueur a fait la chose une fois. Voir
+  // `engine/coach_guide_engine.dart`. Les onglets portent le nom de la barre.
+  'guide.players_tab':
+      'Ton effectif vit dans l\'onglet Joueurs. C\'est là que tu '
+      'recrutes, et deux joueurs identiques glissés l\'un sur l\'autre '
+      'fusionnent en un meilleur.',
+  'guide.squad_tab':
+      'Va voir l\'onglet Effectif. C\'est ton onze et ton banc, et '
+      'c\'est toi qui décides qui commence.',
+  'guide.dugout':
+      'Touche Menu, en bas à droite, pour ouvrir le banc de touche. '
+      'Le classement, le calendrier, tes quêtes et le centre '
+      'd\'entraînement sont tous là-dedans.',
+  'guide.training':
+      'L\'entraînement est dans ce menu, et il ne coûte rien. Quelques '
+      'minutes au centre valent mieux que n\'importe quelle recrue que '
+      'tu peux te payer pour l\'instant.',
+  'guide.club_tab':
+      'L\'onglet Club, c\'est là que le stade se construit. Chaque '
+      'amélioration rapporte plus les jours de match : c\'est l\'argent '
+      'qui fait l\'argent.',
+  'guide.shop_tab':
+      'Les pièces s\'accumulent ? La Boutique propose des recruteurs, '
+      'de l\'énergie et de quoi faire durer la série.',
+
   // Une troisième ligne à côté de Son et Musique : le clic de chaque bouton.
   'settings.ui_sounds': 'Interface',
 

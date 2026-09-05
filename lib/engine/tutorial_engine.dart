@@ -56,6 +56,8 @@ import 'package:merge_empire_fc/data/divisions.dart';
 import 'package:merge_empire_fc/data/formations.dart';
 import 'package:merge_empire_fc/data/player_art.dart' show isVariantFemale;
 import 'package:merge_empire_fc/data/players.dart';
+import 'package:merge_empire_fc/engine/coach_guide_engine.dart'
+    show armCoachGuides;
 import 'package:merge_empire_fc/engine/lineup_engine.dart';
 import 'package:merge_empire_fc/engine/merge_engine.dart'
     show closeGridGaps, createInstance;
@@ -451,7 +453,16 @@ void advanceTutorial(Map<String, dynamic> state) {
   final from = _num(tut['step'])?.toInt() ?? 0;
   final next = from + 1;
   tut['step'] = next;
-  if (next >= tutorialSteps.length) tut['done'] = true;
+  if (next >= tutorialSteps.length) {
+    tut['done'] = true;
+    // **THE HAND-OFF.** The script stops here and the game does not start
+    // itself: nothing on the home screen says the squad is on another tab, or
+    // that the burger holds the table and training. `coach_guide_engine.dart`
+    // is the trail that picks the player up, and it is armed by watching the
+    // script FINISH rather than by reading `tutorial.done` — every save written
+    // before this port had a tutorial reads as done. See its header.
+    armCoachGuides(state);
+  }
 
   // **THE ONE FUNNEL THAT DECIDES WHETHER A PLAYER STAYS**, and it reported
   // nothing at all. A tutorial is nine chances to lose someone and the only
@@ -509,6 +520,9 @@ void skipTutorial(Map<String, dynamic> state) {
   // a finished script — which would file every skip in the game under nothing.
   final step = tutorialStepFor(state);
   tut['done'] = true;
+  // **A SKIP ARMS IT TOO**, and it is the case that needs it most: somebody who
+  // walked out of the script has been shown less than anybody, not more.
+  armCoachGuides(state);
   // Guarded on its own flag, so a skip after `loan_depart` has already run is a
   // no-op rather than a second pass over the grid.
   returnTutorialPlayers(state, pay: false);

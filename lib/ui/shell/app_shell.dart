@@ -33,6 +33,9 @@ import 'package:merge_empire_fc/ui/shell/shell_controller.dart';
 import 'package:merge_empire_fc/ui/shell/shell_routes.dart';
 import 'package:merge_empire_fc/ui/shell/tab_bar.dart';
 import 'package:merge_empire_fc/ui/shell/coach_floating.dart';
+import 'package:merge_empire_fc/engine/coach_guide_engine.dart'
+    show dugoutTrigger, tabTrigger, trainingTrigger;
+import 'package:merge_empire_fc/ui/shell/coach_guide_host.dart';
 import 'package:merge_empire_fc/ui/shell/coach_tip_host.dart';
 import 'package:merge_empire_fc/ui/shell/tabs.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
@@ -105,6 +108,13 @@ class AppShellState extends ConsumerState<AppShell> {
     // reset and the rule holds by construction.
     if (tab == _active) return;
     setState(() => _active = tab);
+    // **ARRIVING IS WHAT SPENDS THE MARKER**, and it is reported HERE rather
+    // than from the tab bar's `onTap` so that every way of getting to a tab
+    // counts — a coach card's button, a deep link, a bus event. A player who
+    // was already taking themselves to the Squad tab must never be told where
+    // it is. See `coach_guide_host.dart`; it is a no-op for a save that is not
+    // on the trail, which is nearly every save.
+    reportCoachGuide(ref, tabTrigger(tab.name));
   }
 
   @override
@@ -125,6 +135,17 @@ class AppShellState extends ConsumerState<AppShell> {
     });
     ref.listen(busEventProvider('reveal:end'), (_, _) {
       if (_revealActive) setState(() => _revealActive = false);
+    });
+    // **The two trail markers no tab change can report.** The Dugout and a
+    // training session are routes over the home screen rather than tabs, so the
+    // bar never hears about either. Listened for here beside the other bus
+    // routes rather than in a wrapper widget, which is where every other
+    // cross-cutting signal in this shell is already answered.
+    ref.listen(busEventProvider('nav:quicknav'), (_, _) {
+      reportCoachGuide(ref, dugoutTrigger);
+    });
+    ref.listen(busEventProvider('nav:subtab'), (_, next) {
+      if (next.value == 'minigames') reportCoachGuide(ref, trainingTrigger);
     });
     final kit = Theme.of(context).extension<KitTheme>()!;
     // **Colin's one-time tips**, watching for a milestone. It draws nothing —
@@ -288,6 +309,10 @@ class AppShellState extends ConsumerState<AppShell> {
         ),
         bottomNavigationBar: ShellTabBar(
           active: _active,
+          // **The bar points at whatever the trail is pointing at.** Null for
+          // every save that has finished it or never started it, which is what
+          // keeps a perpetual animation out of the shell.
+          nudge: ref.watch(coachGuideNudgeProvider),
           onTap: (tab) => goTab(tab),
         ),
       ),

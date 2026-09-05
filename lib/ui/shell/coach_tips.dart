@@ -23,6 +23,7 @@ library;
 import 'package:merge_empire_fc/data/config.dart';
 import 'package:merge_empire_fc/data/divisions.dart';
 import 'package:merge_empire_fc/data/players.dart';
+import 'package:merge_empire_fc/engine/coach_guide_engine.dart';
 import 'package:merge_empire_fc/engine/trait_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/state/card_instance.dart';
@@ -99,6 +100,20 @@ List<Map<String, dynamic>>? _lineup(Map<String, dynamic>? save) {
 /// external `setEnabled`.
 FloatingTip? coachTipFor(Map<String, dynamic>? save, ShellTab tab) {
   if (save == null) return null;
+  // **THE TRAIL OUTRANKS THE COMMENTARY, and it is not close.** A player who
+  // has just finished the tutorial and does not know the Squad tab exists is
+  // not helped by a read on the form of a squad they cannot find. The pool
+  // below is for somebody who knows their way around; see
+  // `engine/coach_guide_engine.dart`, and note that it empties itself — once
+  // the last marker is spent this is the only branch left, forever.
+  //
+  // **Not on the home tab, for the reason the whole function is not.** He has
+  // an orb down there and the marker goes to the front of ITS pool instead —
+  // see `screens/home/coach_bubble.dart`.
+  if (tab != ShellTab.home) {
+    final guide = coachGuideTip(save);
+    if (guide != null) return guide;
+  }
   return switch (tab) {
     ShellTab.home => null,
     ShellTab.grid => _gridTip(save),
@@ -106,6 +121,24 @@ FloatingTip? coachTipFor(Map<String, dynamic>? save, ShellTab tab) {
     ShellTab.club => _clubTip(save),
     ShellTab.shop => _shopTip(save),
   };
+}
+
+/// The live trail marker as something Colin can say, or null.
+///
+/// **Dismissable like anything else he says.** It is keyed on the marker's own
+/// ledger id rather than on the sentence, so a "not now" quiets that marker for
+/// the usual ten minutes and not the next one as well — and it is deliberately
+/// NOT `priority`, which would ignore the dismissal and bring the same line
+/// straight back. The bar keeps pointing at the tab either way, which is the
+/// quiet half of the same nudge.
+FloatingTip? coachGuideTip(Map<String, dynamic>? save) {
+  final guide = nextCoachGuide(save);
+  if (guide == null) return null;
+  return _tip(
+    t(guide.bodyKey),
+    'guide',
+    dismissKey: guideLedgerId(guide.id),
+  );
 }
 
 // ── Players (the merge grid) ────────────────────────────────────────────────

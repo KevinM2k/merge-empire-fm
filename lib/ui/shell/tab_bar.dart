@@ -1,9 +1,12 @@
 /// The bottom tab bar.
 library;
 
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:merge_empire_fc/ui/hud/hud.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
+import 'package:merge_empire_fc/ui/popups/coach_card.dart' show coachAlert;
 import 'package:merge_empire_fc/ui/shell/tabs.dart';
 import 'package:merge_empire_fc/ui/theme/glass.dart' show glassAccent;
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
@@ -19,10 +22,24 @@ const Map<ShellTab, IconData> tabIcons = {
 };
 
 class ShellTabBar extends StatelessWidget {
-  const ShellTabBar({super.key, required this.active, required this.onTap});
+  const ShellTabBar({
+    super.key,
+    required this.active,
+    required this.onTap,
+    this.nudge,
+  });
 
   final ShellTab active;
   final void Function(ShellTab tab) onTap;
+
+  /// The one tab the onboarding trail is pointing at, or null — which is the
+  /// ordinary state of the game and the state every save that predates the
+  /// trail is in. See `ui/shell/coach_guide_host.dart`.
+  ///
+  /// **Never the tab you are already on.** Arriving is what spends the marker,
+  /// so the ring going out IS the confirmation; a ring under the player's thumb
+  /// on the page they just opened is the app failing to notice.
+  final ShellTab? nudge;
 
   @override
   Widget build(BuildContext context) {
@@ -68,6 +85,7 @@ class ShellTabBar extends StatelessWidget {
                   tab: tab,
                   active: tab == active,
                   sceneTab: onScene,
+                  nudge: tab == nudge && tab != active,
                   onTap: () => onTap(tab),
                 )
               else
@@ -77,6 +95,7 @@ class ShellTabBar extends StatelessWidget {
                     tab: tab,
                     active: tab == active,
                     sceneTab: onScene,
+                    nudge: tab == nudge && tab != active,
                     onTap: () => onTap(tab),
                   ),
                 ),
@@ -93,11 +112,15 @@ class _TabButton extends StatelessWidget {
     required this.tab,
     required this.active,
     required this.sceneTab,
+    required this.nudge,
     required this.onTap,
   });
 
   final ShellTab tab;
   final bool active;
+
+  /// The trail is pointing here. See [ShellTabBar.nudge].
+  final bool nudge;
 
   /// The shell is on Play, so there is no bar behind this button — see
   /// [ShellTabBar.build].
@@ -113,7 +136,7 @@ class _TabButton extends StatelessWidget {
     // the one label telling you nothing its icon didn't. Icon only there; the
     // name still exists for a screen reader.
     if (tab == ShellTab.home) {
-      return Semantics(
+      final disc = Semantics(
         label: label,
         button: true,
         selected: active,
@@ -157,6 +180,9 @@ class _TabButton extends StatelessWidget {
           ),
         ),
       );
+      // The ring rides OUTSIDE the disc rather than behind the glyph: the disc
+      // is a filled accent, and a wash behind an opaque fill paints nothing.
+      return _NudgeHalo(size: 72, on: nudge, tab: tab, child: disc);
     }
 
     // **THE INK COMES OFF THE BAR, and the HIGHLIGHT comes off the club.**
@@ -193,7 +219,19 @@ class _TabButton extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(tabIcons[tab], size: 22, color: colour, shadows: shadows),
+              _NudgeHalo(
+                size: 34,
+                tab: tab,
+                // Off unless the trail is pointing here, and then it is the
+                // only thing in the bar moving.
+                on: nudge,
+                child: Icon(
+                  tabIcons[tab],
+                  size: 22,
+                  color: colour,
+                  shadows: shadows,
+                ),
+              ),
               const SizedBox(height: 2),
               // Shrunk rather than cut: a tab called "Mannsch…" is a tab
               // nobody can read, and one point of type is cheaper than an
@@ -213,6 +251,147 @@ class _TabButton extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// **THE QUIET HALF OF THE NUDGE.** A slow wash behind a tab the onboarding
+/// trail is pointing at — see `ui/shell/coach_guide_host.dart`.
+///
+/// **It breathes; it does not blink.** A two-second cosine, so it eases at both
+/// ends and has no edge for the eye to catch on: this is a bar the player looks
+/// at every few seconds anyway, and something flashing in it would read as a
+/// fault rather than as an invitation. Colin's head answers the same question
+/// the same way, at the same tempo — see `_CoachHead` in `coach_floating.dart`.
+///
+/// **[coachAlert], not the club's accent.** The accent is already the colour of
+/// the SELECTED tab and of the Play disc, so a nudge painted in it would be the
+/// bar saying "you are here" about a tab you are not on. This is the one ink in
+/// the app that can never be a kit colour, and it is the ink already on Colin's
+/// unread badge — which is the other end of the same message.
+///
+/// **Nothing animates while [on] is false**, which is why the controller lives
+/// behind it: five of these mount on every frame of the shell, and four of them
+/// are always off. It also keeps a perpetual animation out of every widget test
+/// that pumps the shell without arming the trail — a `pumpAndSettle` never sees
+/// it. A test that DOES arm one has to use `pump`.
+class _NudgeHalo extends StatefulWidget {
+  const _NudgeHalo({
+    required this.size,
+    required this.on,
+    required this.tab,
+    required this.child,
+  });
+
+  /// The halo's resting diameter, centred on [child].
+  final double size;
+
+  /// Names the wash `tab-nudge-<tab>`, so a test can ask which tab the coach is
+  /// pointing at. On the RING rather than on this widget: an off halo is its
+  /// own child and a key up here would be found either way, which is a test
+  /// that passes whatever the bar is doing.
+  final ShellTab tab;
+
+  final bool on;
+  final Widget child;
+
+  @override
+  State<_NudgeHalo> createState() => _NudgeHaloState();
+}
+
+class _NudgeHaloState extends State<_NudgeHalo>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _breath = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 2000),
+  );
+
+  void _sync() {
+    // **The accessibility setting is honoured by holding it OPEN, not by
+    // dropping it.** A player who has asked for no animation still has to be
+    // able to see which tab the coach is pointing at, so the wash sits at its
+    // brightest instead of disappearing.
+    final run = widget.on && !MediaQuery.of(context).disableAnimations;
+    if (run == _breath.isAnimating) return;
+    if (run) {
+      _breath.repeat();
+    } else {
+      _breath.stop();
+      _breath.value = 0.5;
+    }
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _sync();
+  }
+
+  @override
+  void didUpdateWidget(_NudgeHalo old) {
+    super.didUpdateWidget(old);
+    _sync();
+  }
+
+  @override
+  void dispose() {
+    _breath.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!widget.on) return widget.child;
+    return AnimatedBuilder(
+      animation: _breath,
+      // The glyph does not rebuild with the wash behind it.
+      child: widget.child,
+      builder: (context, child) {
+        final breath = (1 - math.cos(_breath.value * 2 * math.pi)) / 2;
+        final size = widget.size * (0.94 + 0.06 * breath);
+        return Stack(
+          // **Clip.none, and the overflow is the point.** The wash is wider
+          // than the glyph it sits behind — on the labelled tabs it reaches
+          // into the gap above the caption, and round the Play disc it stands
+          // a point outside the disc's own margin. Nothing up the tree clips
+          // the bar, so it paints.
+          clipBehavior: Clip.none,
+          alignment: Alignment.center,
+          children: [
+            // Positioned, so the halo contributes nothing to the button's
+            // size: a tab that changes width when the coach points at it would
+            // re-lay the whole bar out.
+            Positioned(
+              left: -widget.size,
+              right: -widget.size,
+              top: -widget.size,
+              bottom: -widget.size,
+              child: IgnorePointer(
+                child: Center(
+                  child: Container(
+                    key: ValueKey('tab-nudge-${widget.tab.name}'),
+                    width: size,
+                    height: size,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: coachAlert.withValues(
+                        alpha: 0.10 + 0.13 * breath,
+                      ),
+                      border: Border.all(
+                        color: coachAlert.withValues(
+                          alpha: 0.34 + 0.36 * breath,
+                        ),
+                        width: 2,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            ?child,
+          ],
+        );
+      },
     );
   }
 }

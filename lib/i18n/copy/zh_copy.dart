@@ -8,6 +8,23 @@ library;
 
 /// Replaces the generated entry, or adds a key Chinese did not have.
 const Map<String, String> zhCopy = <String, String>{
+  // ── 教程之后的路标 ──────────────────────────────────────────────────────
+  //
+  // 教程结束后科林留下的六条路标。玩家做过一次之后就不再出现。参见
+  // `engine/coach_guide_engine.dart`。标签页名称与底部导航栏一致。
+  'guide.players_tab':
+      '球员标签页是你阵容的家。在那里招募新面孔，把两张相同的球员拖到一起就能合成更强的一张。',
+  'guide.squad_tab':
+      '去看看阵容标签页。那里是你的首发十一人和替补席，谁上场由你决定。',
+  'guide.dugout':
+      '点右下角的菜单，那就是替补席。积分榜、赛程、任务和训练场全都在里面。',
+  'guide.training':
+      '训练就在那个菜单里，而且不花钱。几分钟的训练，比你现在买得起的任何引援都更能提升球员。',
+  'guide.club_tab':
+      '俱乐部标签页是建球场的地方。每一次升级都会让比赛日收入更高，这就是用钱赚钱。',
+  'guide.shop_tab':
+      '金币攒下了？商店里有球探、体力，还有几样能让连胜继续的东西。',
+
   // 位于“声音”和“音乐”旁的第三行：每个按钮的点击音。
   'settings.ui_sounds': '按键音',
 

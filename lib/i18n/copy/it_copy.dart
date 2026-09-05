@@ -8,6 +8,34 @@ library;
 
 /// Replaces the generated entry, or adds a key Italian did not have.
 const Map<String, String> itCopy = <String, String>{
+  // ── La scia dopo il tutorial ─────────────────────────────────────────────
+  //
+  // Sei indicazioni che Colin lascia alla fine del tutorial. Ognuna si spende
+  // la prima volta che il giocatore fa la cosa indicata. Vedi
+  // `engine/coach_guide_engine.dart`. Le schede hanno il nome della barra.
+  'guide.players_tab':
+      'La tua rosa vive nella scheda Giocatori. Lì ingaggi facce '
+      'nuove, e trascinando due uguali uno sull\'altro li fondi in uno '
+      'migliore.',
+  'guide.squad_tab':
+      'Dai un\'occhiata alla scheda Rosa. Sono i tuoi undici e la tua '
+      'panchina, e decidi tu chi parte titolare.',
+  'guide.dugout':
+      'Tocca Menu, in basso a destra, per aprire la panchina. '
+      'Classifica, calendario, missioni e campo d\'allenamento sono '
+      'tutti lì dentro.',
+  'guide.training':
+      'L\'allenamento è in quel menu e non costa nulla. Qualche minuto '
+      'sul campo migliora un giocatore più di qualsiasi acquisto che '
+      'puoi permetterti adesso.',
+  'guide.club_tab':
+      'Nella scheda Club si costruisce lo stadio. Ogni miglioria '
+      'rende di più nei giorni di partita: sono i soldi che fanno i '
+      'soldi.',
+  'guide.shop_tab':
+      'Monete che si accumulano? Nel Negozio trovi osservatori, '
+      'energia e qualcosa per tenere viva la serie.',
+
   // Una terza riga accanto a Suono e Musica: il clic di ogni pulsante.
   'settings.ui_sounds': 'Interfaccia',
 

@@ -10,6 +10,33 @@ library;
 
 /// Replaces the generated entry, or adds a key German did not have.
 const Map<String, String> deCopy = <String, String>{
+  // ── Der Weg nach dem Tutorial ────────────────────────────────────────────
+  //
+  // Sechs Hinweise, die Colin nach dem Tutorial gibt. Jeder verschwindet,
+  // sobald der Spieler die genannte Sache einmal getan hat. Siehe
+  // `engine/coach_guide_engine.dart`. Die Tabs heißen hier wie in der Leiste.
+  'guide.players_tab':
+      'Deine Mannschaft lebt im Spieler-Tab. Dort verpflichtest du '
+      'neue Gesichter, und zwei gleiche Karten übereinandergezogen '
+      'verschmelzen zu einer besseren.',
+  'guide.squad_tab':
+      'Schau dir den Kader-Tab an. Das sind deine Elf und deine Bank, '
+      'und du bestimmst, wer aufläuft.',
+  'guide.dugout':
+      'Tipp unten rechts auf Menü — das ist die Trainerbank. Tabelle, '
+      'Spielplan, deine Aufgaben und der Trainingsplatz stecken alle '
+      'darin.',
+  'guide.training':
+      'Das Training steckt in diesem Menü, und es kostet nichts. Ein '
+      'paar Minuten auf dem Trainingsplatz bringen mehr als jeder '
+      'Transfer, den du dir jetzt leisten kannst.',
+  'guide.club_tab':
+      'Im Verein-Tab wird das Stadion gebaut. Jeder Ausbau bringt am '
+      'Spieltag mehr ein — so verdient das Geld sein eigenes Geld.',
+  'guide.shop_tab':
+      'Münzen auf der hohen Kante? Im Shop gibt es Scouts, Energie '
+      'und ein paar Dinge, die den Lauf am Leben halten.',
+
   // Eine dritte Zeile neben Sound und Musik: der Klick jeder Schaltfläche.
   'settings.ui_sounds': 'Oberfläche',
 

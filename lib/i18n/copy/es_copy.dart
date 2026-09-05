@@ -7,6 +7,33 @@ library;
 
 /// Replaces the generated entry, or adds a key Spanish did not have.
 const Map<String, String> esCopy = <String, String>{
+  // ── El rastro posterior al tutorial ──────────────────────────────────────
+  //
+  // Seis avisos que Colin deja al terminar el tutorial. Cada uno se gasta la
+  // primera vez que el jugador hace lo que nombra. Véase
+  // `engine/coach_guide_engine.dart`. Las pestañas se llaman como en la barra.
+  'guide.players_tab':
+      'Tu plantilla vive en la pestaña Jugadores. Ahí fichas caras '
+      'nuevas, y si arrastras dos iguales uno encima del otro se '
+      'fusionan en uno mejor.',
+  'guide.squad_tab':
+      'Échale un vistazo a la pestaña Plantilla. Ahí están tu once y '
+      'tu banquillo, y tú eliges quién sale.',
+  'guide.dugout':
+      'Toca Menú, abajo a la derecha, para abrir el banquillo. La '
+      'tabla, el calendario, tus misiones y el campo de entrenamiento '
+      'están todos ahí dentro.',
+  'guide.training':
+      'El entrenamiento está en ese menú y no cuesta nada. Unos '
+      'minutos en el campo mejoran a un jugador más que cualquier '
+      'fichaje que puedas pagar ahora.',
+  'guide.club_tab':
+      'La pestaña Club es donde se construye el estadio. Cada mejora '
+      'te paga más en día de partido: es el dinero que gana dinero.',
+  'guide.shop_tab':
+      '¿Se te acumulan las monedas? La Tienda tiene ojeadores, '
+      'energía y alguna cosa para mantener la racha.',
+
   // Una tercera fila junto a Sonido y Música: el clic de cada botón.
   'settings.ui_sounds': 'Interfaz',
 

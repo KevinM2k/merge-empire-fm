@@ -287,6 +287,40 @@ const Map<String, String> enMore = <String, String>{
 /// wrong for the port, or when a screen needs a string the catalogues do not
 /// carry at all.
 const Map<String, String> enCopy = <String, String>{
+  // ── The onboarding trail ─────────────────────────────────────────────────
+  //
+  // Six markers Colin puts down after the tutorial hands the player back, each
+  // spent the first time they do the thing it names and never said again. See
+  // `engine/coach_guide_engine.dart` for the rule and
+  // `docs/increase-retention.md` for the funnel that asked for it — the script
+  // teaches scouting, merging and a match, and then stops without ever
+  // mentioning the Squad tab, the menu, training, the Club or the Shop.
+  //
+  // **His voice, and one thing each.** These land in a speech bubble beside his
+  // head, so they are two sentences at the outside — the second says why it is
+  // worth the tap, because a marker that only names a control is a label.
+  // Tabs are named as the bar names them, so the words match what the player is
+  // being pointed at.
+  'guide.players_tab':
+      'Your squad lives on the Players tab. Scout new faces there, and drag '
+      'two of the same together to merge them into someone better.',
+  'guide.squad_tab':
+      'Take a look at the Squad tab. That is your eleven and your bench, and '
+      'you pick who starts.',
+  'guide.dugout':
+      'Tap Menu, bottom right, for the dugout. The table, the fixtures, your '
+      'quests and the training ground are all in there.',
+  'guide.training':
+      'Training is in that menu, and it costs nothing. A few minutes on the '
+      'training ground makes a player better than any signing you can afford '
+      'yet.',
+  'guide.club_tab':
+      'The Club tab is where the ground gets built. Every upgrade pays you '
+      'more on a matchday, so it is the money that earns the money.',
+  'guide.shop_tab':
+      'Coins piling up? The Shop has scouts, energy and a few things to keep '
+      'the run going.',
+
   // ── The interface's own audio channel ────────────────────────────────────
   //
   // A third row beside Sound and Music. The press cue rides the theme's splash

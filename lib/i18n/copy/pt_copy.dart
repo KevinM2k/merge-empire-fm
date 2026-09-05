@@ -7,6 +7,33 @@ library;
 
 /// Replaces the generated entry, or adds a key Portuguese did not have.
 const Map<String, String> ptCopy = <String, String>{
+  // ── O trilho depois do tutorial ──────────────────────────────────────────
+  //
+  // Seis avisos que o Colin deixa no fim do tutorial. Cada um gasta-se na
+  // primeira vez que o jogador faz aquilo que ele nomeia. Ver
+  // `engine/coach_guide_engine.dart`. Os separadores têm o nome da barra.
+  'guide.players_tab':
+      'A sua equipa vive no separador Jogadores. É aí que recruta '
+      'caras novas, e duas cartas iguais arrastadas uma para a outra '
+      'fundem-se numa melhor.',
+  'guide.squad_tab':
+      'Veja o separador Elenco. É o seu onze e o seu banco, e é você '
+      'quem decide quem começa.',
+  'guide.dugout':
+      'Toque em Menu, em baixo à direita, para abrir o banco. A '
+      'tabela, o calendário, as suas missões e o centro de treino '
+      'estão todos lá dentro.',
+  'guide.training':
+      'O treino está nesse menu e não custa nada. Uns minutos no '
+      'campo melhoram um jogador mais do que qualquer reforço que '
+      'possa pagar agora.',
+  'guide.club_tab':
+      'O separador Clube é onde o estádio se constrói. Cada melhoria '
+      'rende mais no dia de jogo — é o dinheiro que faz dinheiro.',
+  'guide.shop_tab':
+      'Moedas a acumular? A Loja tem olheiros, energia e umas coisas '
+      'para manter a série viva.',
+
   // Uma terceira linha ao lado de Som e Música: o clique de cada botão.
   'settings.ui_sounds': 'Interface',
 

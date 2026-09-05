@@ -21,6 +21,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/ui/theme/app_theme.dart' show minFontSize;
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
+import 'package:merge_empire_fc/util/event_bus.dart';
 
 class QuickNavItem {
   const QuickNavItem({
@@ -109,6 +110,12 @@ Future<void> showQuickNavMenu(
   String? clubName,
   Color? skin,
 }) {
+  // **The Dugout has been FOUND**, which is a thing the onboarding trail is
+  // waiting to hear — see `ui/shell/coach_guide_host.dart`. On the way in
+  // rather than out, unlike the training sheet's own signal: the marker is
+  // about knowing the burger holds nine destinations, and that is known the
+  // moment the phone is up.
+  emit('nav:quicknav');
   final still = MediaQuery.of(context).disableAnimations;
   // `showGeneralDialog` rather than `showDialog`, so the RAISE rides the
   // route's own animation: it runs forward on open and backwards on dismiss,
