@@ -50,6 +50,23 @@ jobs:
           java-version: '17'
           cache: 'gradle'
 
+      # build.gradle.kts reads android/key.properties; without it the build signs with the debug key.
+      - name: Write keystore and key.properties
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+        run: |
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > android/app/keystore.jks
+          # Via env + python so $, \ and # in the password survive shell and Properties parsing.
+          python3 - <<'PY'
+          import os
+          pw = os.environ['KEYSTORE_PASSWORD'].replace('\\', '\\\\')
+          ws = os.environ['GITHUB_WORKSPACE']
+          open('android/key.properties', 'w').write(
+              f"storeFile={ws}/android/app/keystore.jks\nstorePassword={pw}\nkeyAlias=merge-empire-fc\nkeyPassword={pw}\n")
+          PY
+          # Fail here, in seconds, rather than after the eight-minute build.
+          keytool -list -keystore android/app/keystore.jks -storepass "$KEYSTORE_PASSWORD" -alias merge-empire-fc
+
       # Same pin as ci.yml and .fvmrc.
       - uses: subosito/flutter-action@v2
         with:
@@ -76,17 +93,6 @@ jobs:
           if not client: sys.exit('FAIL: no client entry for package com.mergeempirefc.app')
           if oauth == 0: sys.exit('FAIL: no oauth_client entries — Google Sign-In fails with DEVELOPER_ERROR (10)')
           PY
-
-      # build.gradle.kts reads android/key.properties; without it the build signs with the debug key.
-      - name: Write keystore and key.properties
-        run: |
-          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > android/app/keystore.jks
-          cat > android/key.properties <<EOF
-          storeFile=${{ github.workspace }}/android/app/keystore.jks
-          storePassword=${{ secrets.KEYSTORE_PASSWORD }}
-          keyAlias=merge-empire-fc
-          keyPassword=${{ secrets.KEYSTORE_PASSWORD }}
-          EOF
 
       - name: Build App Bundle and APK
         run: |
