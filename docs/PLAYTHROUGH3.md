@@ -6,7 +6,7 @@ because that is the part worth keeping.
 
 ## Where this queue stands
 
-**111 done, 6 open, and one feature parked.** None of the open rows is a fault.
+**112 done, 6 open, and one feature parked.** None of the open rows is a fault.
 One is a feature that was built, tried and turned down; one is a balance
 question rather than work; one is a survey to run before building; and one is
 **blocked on the spec repo** for the COMMENTARY, which is the row to read if the
@@ -1335,7 +1335,7 @@ Reported in one sitting on 4 Sep 2026.
 
 ---
 
-## Eleventh batch — a drill drawn for a phone, on a tablet on its side
+## Eleventh batch — a drill drawn for a phone, and a bar running the wrong way
 
 Reported in one sitting on 6 Sep 2026.
 
@@ -1395,6 +1395,29 @@ Reported in one sitting on 6 Sep 2026.
       couch asked of each: is the board inside the window, and is there anything
       under a fold. An overflow fails a widget test on its own, which is the
       third.
+
+- [x] **"Loaned players have a red progress bar but it's going the wrong way —
+      it should be full then animate from right to left until it's empty. That
+      is the opposite direction of money coming in, which is what we want to
+      convey."** It emptied and it emptied the wrong way round. The lit rect
+      was pinned to the bar's RIGHT edge, so the end that actually moved was
+      its LEFT one — and that end set off left-to-right, which is the same
+      direction of travel as the fill on every other card on the grid. A bar
+      that empties while its moving edge goes the same way as a bar that fills
+      says the same thing as it, whatever colour it is drawn in.
+
+      Both are anchored at the left post now and the RIGHT-hand end is what
+      carries the meaning: out to the right as a signing pays in, back in to
+      the left as a loan's wage goes out. Same clock, same cycle, read
+      backwards — `incomeBarFill` is the geometry, lifted out of the painter's
+      `paint` so the direction is a thing a test can ask about rather than
+      something to be read off a screenshot.
+
+      **And a loan parked EMPTY under reduce motion.** The bar stops and holds
+      at `t = 1` when the phone asks for no animation, which is a full bar for
+      a signing and nothing at all for a loan — a red track with no red in it,
+      on the one card that is costing money every second. Full is a different
+      end of the clock for a drain, so that is where it parks.
 
 ---
 

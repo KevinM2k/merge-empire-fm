@@ -1053,6 +1053,27 @@ class _IncomeRate extends StatelessWidget {
   );
 }
 
+/// The lit part of the income bar, [t] of the way through one cycle.
+///
+/// **ANCHORED AT THE LEFT IN BOTH DIRECTIONS, and the free edge is what
+/// carries the meaning.** A drain was pinned to the RIGHT edge instead, so the
+/// end that moved was its left one and it travelled left-to-right — the same
+/// way the fill's edge travels, which is the one thing this bar exists not to
+/// say. Reported from the couch: a loan should start full and run right to
+/// left until it is empty, because that is the opposite of money coming in.
+///
+/// So both start at the left post and the right-hand end does the talking: out
+/// to the right as a signing pays in, back to the left as a loan's wage goes
+/// out. [t] is the same clock either way — a drain simply reads it backwards,
+/// which is also why `t = 0` is the FULL bar for one and the empty bar for the
+/// other.
+Rect incomeBarFill(Size size, double t, {required bool drains}) => Rect.fromLTWH(
+  0,
+  0,
+  size.width * (drains ? 1 - t.clamp(0.0, 1.0) : t.clamp(0.0, 1.0)),
+  size.height,
+);
+
 /// The bar that fills once per payout, along the card's bottom edge.
 ///
 /// The cycle length is DERIVED from the rate rather than picked — see
@@ -1096,10 +1117,15 @@ class _IncomeBarState extends State<_IncomeBar>
   void _sync() {
     // A grid of these is a screenful of looping animations, which is exactly
     // what reduce-motion is asking us not to run. The bar parks full — the
-    // money is still arriving, so an empty one would be a lie.
+    // money is still moving, so an empty one would be a lie.
+    //
+    // **AND FULL IS A DIFFERENT END OF THE CLOCK FOR A DRAIN**: see
+    // [incomeBarFill], which reads `t` backwards for one. Parked at 1 either
+    // way, a loan card's bar was parked EMPTY — a red bar with nothing in it,
+    // on the one card that is costing you money every second.
     if (MediaQuery.of(context).disableAnimations) {
       if (_fill.isAnimating) _fill.stop();
-      _fill.value = 1;
+      _fill.value = widget.drains ? 0 : 1;
       return;
     }
     if (_fill.duration != _cycle) {
@@ -1120,7 +1146,12 @@ class _IncomeBarState extends State<_IncomeBar>
   @override
   void didUpdateWidget(_IncomeBar old) {
     super.didUpdateWidget(old);
-    if (old.ratePerSec != widget.ratePerSec) _sync();
+    // The direction as well as the rate: a loan that ends re-uses this state,
+    // and under reduce motion the parked value is the only thing drawing the
+    // bar — full is `0` for one of them and `1` for the other.
+    if (old.ratePerSec != widget.ratePerSec || old.drains != widget.drains) {
+      _sync();
+    }
   }
 
   @override
@@ -1167,11 +1198,11 @@ class _FillPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     canvas.drawRect(Offset.zero & size, Paint()..color = track);
-    final t = fill.value.clamp(0.0, 1.0);
-    // A loan EMPTIES: same clock, same cycle, read the other way round.
-    final w = size.width * (drains ? 1 - t : t);
+    // A loan EMPTIES: same clock, same cycle, read the other way round. Which
+    // END it is read from is [incomeBarFill]'s business, and it is the whole
+    // point of the bar.
     canvas.drawRect(
-      Rect.fromLTWH(drains ? size.width - w : 0, 0, w, size.height),
+      incomeBarFill(size, fill.value, drains: drains),
       Paint()..color = ink,
     );
   }
