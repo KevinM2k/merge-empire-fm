@@ -7,6 +7,9 @@ library;
 
 /// Replaces the generated entry, or adds a key Spanish did not have.
 const Map<String, String> esCopy = <String, String>{
+  // La insignia que dice lo que una expulsión le ha costado al rival, en la
+  // misma voz que los demás `play.mod.*`.
+  'play.mod.sent_off': 'Con diez — un jugador expulsado',
   // Una tercera fila junto a Sonido y Música: el clic de cada botón.
   'settings.ui_sounds': 'Interfaz',
 

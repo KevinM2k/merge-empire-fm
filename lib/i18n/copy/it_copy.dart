@@ -8,6 +8,9 @@ library;
 
 /// Replaces the generated entry, or adds a key Italian did not have.
 const Map<String, String> itCopy = <String, String>{
+  // Il badge che dice quanto è costata all'avversario un'espulsione, nella
+  // stessa voce degli altri `play.mod.*`.
+  'play.mod.sent_off': 'Ridotti in dieci — un giocatore espulso',
   // Una terza riga accanto a Suono e Musica: il clic di ogni pulsante.
   'settings.ui_sounds': 'Interfaccia',
 

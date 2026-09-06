@@ -8,6 +8,8 @@ library;
 
 /// Replaces the generated entry, or adds a key Japanese did not have.
 const Map<String, String> jaCopy = <String, String>{
+  // 退場が相手にいくら響いたかを示すバッジ。他の `play.mod.*` と同じ声で。
+  'play.mod.sent_off': '相手は10人 — 一人退場',
   // サウンド・音楽に並ぶ3つ目の行。すべてのボタンのタップ音。
   'settings.ui_sounds': '操作音',
 

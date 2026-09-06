@@ -9,6 +9,9 @@ library;
 
 /// Replaces the generated entry, or adds a key French did not have.
 const Map<String, String> frCopy = <String, String>{
+  // Le badge qui dit ce qu'un carton rouge a coûté à l'adversaire, dans la
+  // même voix que les autres `play.mod.*`.
+  'play.mod.sent_off': 'Réduits à dix — un joueur expulsé',
   // Une troisième ligne à côté de Son et Musique : le clic de chaque bouton.
   'settings.ui_sounds': 'Interface',
 

@@ -295,6 +295,22 @@ const Map<String, String> enCopy = <String, String>{
   // go looking for a switch for. It ships OFF; see `SoundService`.
   'settings.ui_sounds': 'Interface',
 
+  // ── The mark that says a side is a man short ─────────────────────────────
+  //
+  // **Reported from the couch twice, and the second time was the one that
+  // explained the first.** The opposition were sent off, the board read 70, the
+  // league table read 70, and the conclusion was that nothing had happened. It
+  // had: away from home their figure carries a home-advantage bonus, and one of
+  // eleven gone is worth about the same — so the cut lands the effective rating
+  // back on the base number the table prints, and a player watching sees a
+  // familiar 70 and reads it as unchanged.
+  //
+  // The number alone cannot say this. `StatMod` can: the badge names what moved
+  // the figure and by how much, which is what it already does for home
+  // advantage, the Lucky Boot and the grudge on the next-match card. Same
+  // family, same voice — a dash and a clause.
+  'play.mod.sent_off': 'Down to ten — a player sent off',
+
 
   // ── "1 points" ───────────────────────────────────────────────────────────
   //

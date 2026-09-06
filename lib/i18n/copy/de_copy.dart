@@ -10,6 +10,9 @@ library;
 
 /// Replaces the generated entry, or adds a key German did not have.
 const Map<String, String> deCopy = <String, String>{
+  // Das Abzeichen, das sagt, was ein Platzverweis den Gegner gekostet hat —
+  // in derselben Stimme wie die übrigen `play.mod.*`.
+  'play.mod.sent_off': 'Nur noch zehn — ein Platzverweis',
   // Eine dritte Zeile neben Sound und Musik: der Klick jeder Schaltfläche.
   'settings.ui_sounds': 'Oberfläche',
 

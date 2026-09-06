@@ -2481,6 +2481,7 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
                     rightGoals: home ? f.theirGoals : f.ourGoals,
                     result: widget.result,
                     live: _liveRatings,
+                    oppSendOffs: _oppSendOffs,
                     strategyId: _strategy,
                     isHome: home,
                     standings: _standings,
@@ -3431,6 +3432,7 @@ class _Scoreboard extends StatelessWidget {
     required this.rightGoals,
     required this.result,
     required this.live,
+    required this.oppSendOffs,
     required this.strategyId,
     required this.isHome,
     required this.standings,
@@ -3449,6 +3451,11 @@ class _Scoreboard extends StatelessWidget {
   /// The ratings the remainder was last re-rolled with, or empty when nothing
   /// has re-simulated. See `MatchScreenState._liveRatings`.
   final Map<String, dynamic> live;
+
+  /// How many of THEIRS have been sent off — see
+  /// `MatchScreenState._oppSendOffs`. What it is for is the badge, not the
+  /// arithmetic: the cut is already inside [live].
+  final int oppSendOffs;
 
   /// The tactic being played RIGHT NOW, so the split moves with the strip.
   final String strategyId;
@@ -3544,6 +3551,25 @@ class _Scoreboard extends StatelessWidget {
       'effectiveSquadRating',
     ).round();
     final theirRating = liveOr('liveOppRating', 'effectiveOppRating').round();
+    // **WHAT THE SENDING-OFF TOOK OFF THEM, as the board itself printed it.**
+    // The difference of the two ROUNDED figures rather than of the raw ones, so
+    // the badge can never disagree with the number beside it — a `-2` under a
+    // figure that only moved by one is worse than no badge.
+    //
+    // Nothing for a caution: ten per cent of one man is under one per cent of
+    // eleven, which rounds to nothing on most ratings, and a `-0` is furniture.
+    // The feed's own line is what tells a player about a booking.
+    final theirCardCost =
+        asNum(result['effectiveOppRating']).round() - theirRating;
+    final theirMods = <StatMod>[
+      if (oppSendOffs > 0 && theirCardCost > 0)
+        (
+          icon: 'card',
+          amount: -theirCardCost,
+          tone: StatTone.delta,
+          tip: t('play.mod.sent_off'),
+        ),
+    ];
     // A cup tie or an older save may carry no split at all, and four zeroes
     // would be worse than nothing.
     final hasSplit = result['ourAttackRating'] != null;
@@ -3679,6 +3705,27 @@ class _Scoreboard extends StatelessWidget {
                 right: isHome ? theirSplit : ourSplit,
                 leftRating: isHome ? ourRating : theirRating,
                 rightRating: isHome ? theirRating : ourRating,
+                // **AND WHY THEIR FIGURE IS LOWER THAN IT WAS.** The badges are
+                // the next-match card's — home advantage, the Lucky Boot, the
+                // grudge — and this board drew none of them, so the one thing
+                // that moves a rating DURING a match moved it silently.
+                //
+                // Reported from the couch twice, and the second report is what
+                // explained the first: "the team I was playing had a score of
+                // 70 after the red card… I went to the table afterwards and it
+                // still said 70… I'm assuming they were always 70 and so it
+                // didn't change mid game." It did change. Away from home their
+                // figure carries a home-advantage bonus, and one of eleven gone
+                // is worth about the same — so the cut lands the effective
+                // rating back on the BASE number the league table prints, and a
+                // player who looks at both sees the same 70 twice and concludes
+                // nothing happened.
+                //
+                // A number that has quietly returned to a familiar value cannot
+                // say any of that on its own. The badge can, and it is the
+                // shape this card already uses for exactly this question.
+                leftMods: isHome ? const [] : theirMods,
+                rightMods: isHome ? theirMods : const [],
               ),
             // **THE FOOTER STRIP IS GONE, and the BOARD is the stats door.**
             // The competition line went first ("Sunday League · Away" is a fact

@@ -8,6 +8,8 @@ library;
 
 /// Replaces the generated entry, or adds a key Korean did not have.
 const Map<String, String> koCopy = <String, String>{
+  // 퇴장이 상대에게 얼마나 손해였는지 알려주는 배지. 다른 `play.mod.*` 와 같은 어조로.
+  'play.mod.sent_off': '상대는 10명 — 한 명 퇴장',
   // 사운드·음악 옆의 세 번째 줄. 모든 버튼의 탭 소리.
   'settings.ui_sounds': '터치음',
 

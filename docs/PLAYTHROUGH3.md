@@ -1466,3 +1466,54 @@ Reported in one sitting on 4 Sep 2026.
       Handing him the live figure would hand him those three as well and change
       his read at every home fixture, on a change that is supposed to be about a
       card. He sees a sending-off of ours through `benchCover` in the meantime.
+
+## Ninth batch — the number went back to where it started
+
+- [x] **"The team I was playing had a score of 70 after the red card… I went to
+      the table afterwards and it still said 70… I'm assuming they were always
+      70 and so it didn't change mid game."** The second half of the report
+      above, and it is what explains the first. **It did change, and it changed
+      back onto a number the player already knew.**
+
+      Run on a real away fixture through `simulateMatch`, the three figures are:
+      `opponentRating` **21** — what the LEAGUE TABLE prints, because
+      `leagueRatingsProvider` reads `seasonOpponentRatings` with no modifiers on
+      it at all, which is the rule that was asked for in as many words ("the
+      table should take no modifiers into account, for me nor the AI teams") —
+      `effectiveOppRating` **23**, which is that base plus the home advantage
+      they get for being at home while we are away, and which is what the match
+      BOARD prints; and after the sending-off, **21**.
+
+      So away from home the two are within rounding of each other:
+      `homeAdvantageFor(div.maxAssetTier)` and one eleventh of a rating are
+      about the same size, and the cut lands the effective figure back on the
+      base one. A player who looks at the board after the card and then at the
+      table sees the same number twice and concludes, reasonably, that it never
+      moved. Nothing was wrong with the arithmetic; the arithmetic was
+      unreadable.
+
+      **The fix is the badge, not more of a cut.** `MatchStatRows` already has
+      `StatMod` — a glyph, a signed amount and a sentence hanging in the margin
+      beside a rating — and the next-match card uses it for home advantage, the
+      Lucky Boot, the grudge and the relegation lift. The live board drew none
+      of them, so the one modifier that arrives DURING a match arrived
+      silently. Their side of the board now carries a red card and the points it
+      cost, and the amount is the difference of the two ROUNDED figures so the
+      badge can never disagree with the number beside it.
+
+      Nothing for a caution: ten per cent of one man is under one per cent of
+      eleven, which rounds to nothing on most ratings, and a `-0` is furniture.
+      Nothing on OUR side either — our own sending-off is already a coach card,
+      an empty slot on the pitch and a man missing from the eleven, and it is
+      theirs that had no mark anywhere but one line in the feed.
+
+      `gameIcons` gains its first glyph that is not the JS's, and the header
+      says so: nothing in the spec books anybody, so `icons.js` never needed a
+      referee's card. It is `CardGlyph`'s shape at icon size, so the mark beside
+      the rating and the mark in the commentary are one object.
+
+- [ ] **Should a sending-off cancel the home advantage rather than sit beside
+      it?** Not decided here, because it is a balance question rather than a
+      fault. The two being the same size is what made the report; it is also
+      arguably right — a side reduced to ten at home is still at home. Left as
+      it is, and now at least legible.

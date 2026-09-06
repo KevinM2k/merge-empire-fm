@@ -8,6 +8,8 @@ library;
 
 /// Replaces the generated entry, or adds a key Chinese did not have.
 const Map<String, String> zhCopy = <String, String>{
+  // 说明一张红牌让对手损失了多少的徽章，语气与其他 `play.mod.*` 一致。
+  'play.mod.sent_off': '对手只剩十人——一人被罚下场',
   // 位于“声音”和“音乐”旁的第三行：每个按钮的点击音。
   'settings.ui_sounds': '按键音',
 

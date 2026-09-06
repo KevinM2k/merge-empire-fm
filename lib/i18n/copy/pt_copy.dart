@@ -7,6 +7,9 @@ library;
 
 /// Replaces the generated entry, or adds a key Portuguese did not have.
 const Map<String, String> ptCopy = <String, String>{
+  // O emblema que diz o que uma expulsão custou ao adversário, na mesma voz
+  // dos restantes `play.mod.*`.
+  'play.mod.sent_off': 'Reduzidos a dez — um jogador expulso',
   // Uma terceira linha ao lado de Som e Música: o clique de cada botão.
   'settings.ui_sounds': 'Interface',
 

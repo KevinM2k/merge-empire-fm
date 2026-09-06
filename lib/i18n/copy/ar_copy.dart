@@ -13,6 +13,9 @@ library;
 
 /// Replaces the generated entry, or adds a key Arabic did not have.
 const Map<String, String> arCopy = <String, String>{
+  // الشارة التي تقول كم كلّف الطرد الخصم، بالنبرة نفسها التي في بقية
+  // `play.mod.*`.
+  'play.mod.sent_off': 'بعشرة — طرد لاعب',
   // صف ثالث إلى جانب الصوت والموسيقى: نقرة كل زر.
   'settings.ui_sounds': 'أصوات الواجهة',
 

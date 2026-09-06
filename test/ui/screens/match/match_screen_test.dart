@@ -32,7 +32,7 @@ import 'package:merge_empire_fc/ui/screens/home/home_screen.dart' show playPageG
 import 'package:merge_empire_fc/ui/screens/match/match_screen.dart';
 import 'package:merge_empire_fc/ui/theme/glass.dart';
 import 'package:merge_empire_fc/ui/widgets/match_stat_rows.dart'
-    show MatchRow, MatchStatRows;
+    show MatchRow, MatchStatRows, StatMod;
 import 'package:merge_empire_fc/ui/screens/match/subs_panel.dart';
 import 'package:merge_empire_fc/ui/widgets/player_card.dart';
 import 'package:merge_empire_fc/ui/screens/squad/pitch_token.dart';
@@ -1138,6 +1138,82 @@ void main() {
       });
       expect(withCards.dangerHome, lessThan(theirElevenBack.dangerHome));
       expect(withCards.possAway, greaterThan(theirElevenBack.possAway));
+
+      state.skipToEnd();
+      await tester.pumpAndSettle();
+      await settleSave(tester);
+    });
+
+    testWidgets('AND THE BOARD SAYS WHY THEIR FIGURE DROPPED', (tester) async {
+      // **The second report, and it explains the first.** "The team I was
+      // playing had a score of 70 after the red card… I went to the table
+      // afterwards and it still said 70… I'm assuming they were always 70 and
+      // so it didn't change mid game."
+      //
+      // It did change. Away from home their figure is `effectiveOppRating` —
+      // the base rating plus a home-advantage bonus — while the LEAGUE TABLE
+      // prints the base one with no modifiers on it at all (see
+      // `leagueRatingsProvider`, which says so in as many words). One of eleven
+      // gone is worth about what that bonus is worth, so the cut lands the
+      // board back on the table's number and the two agree for the wrong
+      // reason. On a real away fixture the pair is 23 and 21: the board opens
+      // at 23, the card takes it to 21, and 21 is exactly what the table says.
+      //
+      // So the badge is the fix rather than more arithmetic, and this is what
+      // pins it: their side of the board carries the card, the amount, and the
+      // sentence, and ours carries nothing.
+      final result = <String, dynamic>{
+        ...matchResult(fixtureKey: 's1_m7', isHome: false),
+        'effectiveSquadRating': 60,
+        // 23 with their home advantage in it, 21 without — the shape the real
+        // engine produces for an away fixture, at the size it produces it.
+        'effectiveOppRating': 23,
+        'ourAttackRating': 60,
+        'ourDefenceRating': 60,
+        'effOppAttackRating': 23,
+        'effOppDefenceRating': 23,
+      };
+      await pumpMatch(tester, result, save: squadSave());
+      final state = stateOf(tester);
+      List<StatMod> modsOn(bool left) {
+        final rows = tester.widget<MatchStatRows>(find.byType(MatchStatRows));
+        return left ? rows.leftMods : rows.rightMods;
+      }
+
+      expect(
+        modsOn(true),
+        isEmpty,
+        reason: 'nobody has been sent off yet',
+      );
+
+      // Their dismissal is in the fifteenth.
+      for (var i = 0; i < 400 && state.frame.minute <= 16; i++) {
+        await tester.pump(minuteDurationFor(1));
+      }
+      expect(state.oppCards.sendOffs, 1);
+
+      // Away, so the opposition are the home side and sit on the LEFT.
+      final theirs = modsOn(true);
+      expect(theirs, hasLength(1));
+      expect(theirs.single.icon, 'card');
+      expect(
+        theirs.single.amount,
+        -2,
+        reason: 'the badge has to say what the figure beside it actually did',
+      );
+      expect(theirs.single.tip, t('play.mod.sent_off'));
+      expect(
+        modsOn(false),
+        isEmpty,
+        reason: 'the badge is about THEIR referee, not ours',
+      );
+
+      // **AND IT AGREES WITH THE NUMBER.** The whole point is that the two are
+      // one statement: the figure moved by exactly what the badge claims.
+      expect(
+        tester.widget<Text>(find.byKey(const ValueKey('nm-figure-left'))).data,
+        '21',
+      );
 
       state.skipToEnd();
       await tester.pumpAndSettle();

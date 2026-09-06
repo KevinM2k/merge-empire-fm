@@ -6,6 +6,8 @@
 /// Material's weights, corner radii and metrics are a different family, and a
 /// screen mixing the two reads as two screens.
 ///
+/// **Fifty-nine from the JS, and one that is the port's own** — see `'card'`.
+///
 /// They are kept as the JS's own SVG source rather than retraced as painters —
 /// the strings are the artwork, `svg_canvas.dart` already draws this subset, and
 /// a transcription is a second copy to keep in step.
@@ -176,6 +178,16 @@ const Map<String, String> gameIcons = {
   'home':
       '<svg viewBox="0 0 24 24" $_stroke><path d="M3 11 L12 3 L21 11"/>'
       '<path d="M5 10v10h14V10"/><path d="M10 20v-6h4v6"/></svg>',
+  // **THE ONE GLYPH IN HERE THE JS DOES NOT HAVE**, and it is not a
+  // transcription slipping: nothing in the spec books anybody, so `icons.js`
+  // never needed a referee's card. The port does — see `booking_engine.dart` —
+  // and `CardGlyph` already draws one for the feed and the subs panel. This is
+  // the same shape at icon size, so the mark beside a rating and the mark in
+  // the commentary are one object. Filled rather than stroked, because a card
+  // IS a solid rectangle and an outline of one reads as a window.
+  'card':
+      '<svg viewBox="0 0 24 24" fill="currentColor">'
+      '<rect x="7" y="3" width="10" height="18" rx="2"/></svg>',
   'star':
       '<svg viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" '
       'stroke-width="1.2" stroke-linejoin="round"><polygon points="12,2 14.7,8.6 '
