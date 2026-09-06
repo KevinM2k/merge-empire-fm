@@ -6,7 +6,7 @@ actually wrong, because that is the part worth keeping.
 
 ## Where this queue stands
 
-**55 done, 3 open.** Nearly every one that is done had a mechanism behind it,
+**56 done, 3 open.** Nearly every one that is done had a mechanism behind it,
 and a striking number were shipped code doing nothing: a `strategyId` nothing
 ever wrote, a `skyPaneTint` with no caller, a turf band whose whole job was
 hiding a seam it was itself making, `startMatchCooldown` called by one of the two
@@ -439,6 +439,23 @@ nobody had checked.
 - [x] **The club cards fit two lines again.** (`assetLineBox` is derived from
       `minFontSize` and the leading, not nudged — the type floor clipped the
       second line of both the perk and the next-tier line through the middle.)
+
+- [x] **And they fit them at the PHONE's type size, not at 1.0.** (Same report,
+      same two boxes, screenshotted again: six of the seven cards sliced through
+      their second line — the Stadium losing "and unlocks kit colours.", the
+      Training Ground's next-tier line losing "Keepy Uppys". `assetLineBox` was
+      derived rather than nudged and was still a CONSTANT: `minFontSize` is the
+      size the style asks for, not the size the glyphs come out at, because a
+      `Text` is laid out through `MediaQuery.textScalerOf` and a `SizedBox` is
+      not. On a phone with the system font size up, 12pt copy draws at 15 or 16
+      in a 33pt box. `assetLineBoxOf(context)` measures the box in the same
+      units the text is. Scaled rather than clamped: `withClampedTextScaling`
+      would cure it by drawing a player's chosen type size smaller than they
+      asked for, which is the setting the type floor exists to respect — and the
+      grid is `IntrinsicHeight` over a `Row`, so a taller box just makes a
+      taller row. Pinned at x1.0, x1.3, x1.6 and x2.0 by measuring every
+      paragraph on every card against its own intrinsic height; five of the six
+      new cases fail on the constant.)
 
 ---
 
