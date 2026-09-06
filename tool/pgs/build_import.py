@@ -60,6 +60,14 @@ ZIP = os.path.join(OUT, "merge-empire-achievements.zip")
 MAX_NAME = 100
 MAX_DESC = 500
 MAX_TOTAL_POINTS = 2000
+# What the six already-published achievements spend, read off the Console's own
+# "140 of 2,000 points used". The import cannot change them, so their points are
+# a fixed cost this zip has to fit around rather than something to allocate.
+# `pgsAchievementPoints` still carries a value for each of the six (165 between
+# them) because the map is one list; those six numbers are never applied to
+# anything, and the Console's per-achievement split of the 140 is not recorded
+# here because nothing has read it out.
+CONSOLE_POINTS_SPENT = 140
 MAX_ACHIEVEMENTS = 400
 MAX_ZIP_FILES = 403
 MAX_FILE_BYTES = 1024 * 1024
@@ -376,6 +384,45 @@ def main():
     rows = json.load(open(SRC, encoding="utf-8"))
     os.makedirs(OUT, exist_ok=True)
 
+    # **THE IMPORT ONLY INSERTS.** An achievement already in the Console comes
+    # back as "Duplicate names -- remove or rename", not as an update, and its
+    # rows in the other two files then fail as name mismatches; Google's own
+    # wording is that the import "cannot be used to upload translations for
+    # already existing achievements". So anything with an id in
+    # `pgs_achievements.dart` is already there and is left out. Editing one
+    # afterwards is a Console job, or `achievementConfigurations.update`.
+    #
+    # This is self-maintaining: once `sync_ids.py` has written every id back, a
+    # rebuild produces nothing, which is the correct answer to "import the
+    # achievements that are not in the Console yet". `--all` overrides it, for
+    # a game whose list is genuinely empty.
+    already = [row for row in rows if row.get("pgsId")]
+    if "--all" not in sys.argv:
+        rows = [row for row in rows if not row.get("pgsId")]
+
+    # The nine translated locales, or the subset given on the command line.
+    #
+    # **A locale has to be added to the GAME first** -- Play Console, Play Games
+    # Services, your game, Game details, Add translations -- or every row using
+    # it is refused with "Locale not supported", naming the achievements rather
+    # than the language. Until the languages are added there, build with
+    # `--locales none` to import the achievements and their icons, and add the
+    # translations in a second import later.
+    wanted = set(PLAY_LOCALES.values())
+    for arg in sys.argv[1:]:
+        if arg.startswith("--locales"):
+            value = arg.split("=", 1)[1] if "=" in arg else sys.argv[sys.argv.index(arg) + 1]
+            wanted = set() if value == "none" else {v.strip() for v in value.split(",")}
+            unknown = wanted - set(PLAY_LOCALES.values())
+            if unknown:
+                sys.exit(f"not locales this build knows about: {sorted(unknown)}")
+
+    if not rows:
+        sys.exit(
+            f"nothing to import: all {len(already)} achievements already have a "
+            "Console id. Pass --all to rebuild the whole list anyway."
+        )
+
     touched = []
     names = {}
     problems = []
@@ -425,6 +472,8 @@ def main():
             if play is None:
                 problems.append(f"{row['id']}: no Play code for locale {locale}")
                 continue
+            if play not in wanted:
+                continue
             # Play requires a localized NAME; a row with only a description is
             # not expressible, so such a locale keeps the English name.
             lname = field(row["id"], locale, "title", copy.get("title", row["title"]))
@@ -449,14 +498,22 @@ def main():
     render_icons(rows, find_chromium())
 
     write_csv(os.path.join(OUT, "AchievementsMetadata.csv"), meta)
-    write_csv(os.path.join(OUT, "AchievementsLocalizations.csv"), local)
     write_csv(os.path.join(OUT, "AchievementsIconsMappings.csv"), icons)
 
     members = [
         os.path.join(OUT, "AchievementsMetadata.csv"),
-        os.path.join(OUT, "AchievementsLocalizations.csv"),
         os.path.join(OUT, "AchievementsIconsMappings.csv"),
-    ] + [os.path.join(ICONS, f"{row['id']}.png") for row in rows]
+    ]
+    # The localizations file is optional, and an EMPTY one is not the same as an
+    # absent one -- it is a file the importer still validates. Left out entirely
+    # when there is nothing to say.
+    localizations = os.path.join(OUT, "AchievementsLocalizations.csv")
+    if local:
+        write_csv(localizations, local)
+        members.append(localizations)
+    elif os.path.exists(localizations):
+        os.remove(localizations)
+    members += [os.path.join(ICONS, f"{row['id']}.png") for row in rows]
 
     oversized = [m for m in members if os.path.getsize(m) > MAX_FILE_BYTES]
     if oversized:
@@ -473,8 +530,19 @@ def main():
     print(f"  {ZIP}")
     print(f"  {len(rows)} achievements, {len(local)} localized rows, "
           f"{len(members)} files, {os.path.getsize(ZIP) // 1024} KB")
-    print(f"  {total} of Play's {MAX_TOTAL_POINTS} points "
-          f"({MAX_TOTAL_POINTS - total} left for achievements added later)")
+    if already:
+        print(f"  {len(already)} already in the Console and left out of the zip "
+              "(the import inserts only):")
+        print("    " + ", ".join(sanitise(row["title"]) for row in already))
+        print(f"  points: {CONSOLE_POINTS_SPENT} already spent on those + {total} "
+              f"in this zip = {CONSOLE_POINTS_SPENT + total} of {MAX_TOTAL_POINTS}, "
+              f"{MAX_TOTAL_POINTS - CONSOLE_POINTS_SPENT - total} left")
+    else:
+        print(f"  {total} of Play's {MAX_TOTAL_POINTS} points "
+              f"({MAX_TOTAL_POINTS - total} left for achievements added later)")
+    if wanted != set(PLAY_LOCALES.values()):
+        missing = sorted(set(PLAY_LOCALES.values()) - wanted)
+        print(f"  NOT localized into: {', '.join(missing) if missing else 'nothing'}")
     if touched:
         print()
         print(f"  {len(touched)} strings had a comma or a line break taken out:")

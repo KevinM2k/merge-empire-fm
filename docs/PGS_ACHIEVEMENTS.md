@@ -20,6 +20,36 @@ python3 tool/pgs/sync_ids.py path/to/service-account.json
 flutter test test/data/pgs_import_test.dart
 ```
 
+## Two things the importer will not do, learned the hard way
+
+**It inserts. It never updates.** The first import was refused with *"Duplicate
+names — remove or rename"* naming the six achievements that were already in the
+Console, and then with a *name mismatch* on their rows in the other two files.
+Google's wording is that the import "cannot be used to upload translations for
+already existing achievements". So `build_import.py` leaves out anything that
+already has an id in `pgs_achievements.dart`, and says which. Editing one that
+already exists is a Console job, or `achievementConfigurations.update` — which
+can change a name, a description and a point value, just not an icon.
+
+That makes the build self-maintaining: once `sync_ids.py` has written every id
+back, a rebuild produces nothing, which is the right answer to "import what is
+not in the Console yet". `--all` overrides it for a game with an empty list.
+
+**A locale has to be added to the GAME before an achievement can use it.** The
+same import was refused with *"Locale not supported"* against every achievement
+that had translations. The fix is not in the CSV: in Play Console, under Play
+Games Services → the game → **Game details**, add each language first — "Add
+translations for your game before specifying a locale" — and only then will
+`AchievementsLocalizations.csv` be accepted for it.
+
+If the languages are not set up yet, build without them and do the translations
+as a second import:
+
+```bash
+python3 tool/pgs/build_import.py --locales none          # metadata and icons only
+python3 tool/pgs/build_import.py --locales fr-FR,de-DE   # or just the ones added
+```
+
 ## Why a zip and not the API
 
 The Play Games Services Publishing API can create an achievement —
@@ -91,8 +121,19 @@ are rendered by the Chromium already on the box.
 ## Points
 
 Play caps the **whole game** at 2,000 XP points, each achievement 5 to 200 in
-multiples of five. These eighty-one spend **1,680**, leaving 320 for
-achievements added later — Google's own advice is to keep some back.
+multiples of five.
+
+The Console reports **140 of 2,000 already used** by the six published
+achievements, and the import cannot change them, so that 140 is a fixed cost
+rather than something to allocate. The seventy-five in the zip spend **1,515**,
+which lands the game at **1,655 of 2,000** with 345 left for achievements added
+later — Google's own advice is to keep some back.
+
+`pgsAchievementPoints` still carries a value for each of the six (165 between
+them, against the Console's 140) because the map is one list and those six
+numbers are never applied to anything. The Console's own split of that 140 is
+not recorded here; if it is worth having exactly, it has to be read off the six
+achievement pages by hand.
 
 The values are in `pgsAchievementPoints` in `lib/data/pgs_achievements.dart`,
 banded off the in-game coin reward in `achievement_engine.dart`:
@@ -136,9 +177,8 @@ and no traditional ones.
 Also worth confirming in the Console before importing: that the game's default
 locale really is English (the format forbids naming the default locale in
 `AchievementsLocalizations.csv`, so English travels in the metadata file), and
-that the six already-published achievements are named exactly as the catalogue
-names them — the import matches on name, and a mismatch creates a duplicate
-rather than updating the original.
+that each of the nine languages has been added under **Game details** — see the
+locale section above, which is what the first import failed on.
 
 ## Sources
 

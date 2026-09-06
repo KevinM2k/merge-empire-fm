@@ -71,6 +71,12 @@ void main() {
       'category': a.category,
       'glyph': a.icon ?? assetGlyphs[a.iconAsset] ?? fallbackGlyph,
       'points': pgsAchievementPoints[a.id],
+      // Non-null means this one is ALREADY in the Console, and the importer
+      // only ever inserts: Google's own answer is that the import "cannot be
+      // used to upload translations for already existing achievements", and it
+      // rejects a name it already has as a duplicate rather than updating it.
+      // `build_import.py` leaves these out of the zip.
+      'pgsId': pgsAchievementIds[a.id],
       // The literal in the catalogue is the fallback for the twenty ids with no
       // `ach.title` key, and identical to the catalogue entry for the sixty-one
       // that have one.
