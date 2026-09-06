@@ -400,18 +400,37 @@ void main() {
   });
 
   test('parity — the Play Games achievement map', () {
+    // **THE PORT HAS DELIBERATELY OUTGROWN THIS FIXTURE, and only this one
+    // section of it.** The JS's `pgsAchievements.js` is a snapshot of a Console
+    // list with six achievements in it: 72 keys, 66 of them null. The port now
+    // OWNS that list — `tool/pgs/` builds the import for all 81 and
+    // `tool/pgs/sync_ids.py` writes the minted ids back — so two of the three
+    // things this test used to assert are now assertions that the feature has
+    // not happened:
+    //
+    //   - key-list equality pinned the map at the JS's 72, and nine
+    //     achievements had no row at all because of it;
+    //   - value equality per key, and the count of non-null values, pin the
+    //     port to the JS's SIX ids. Every id the sync writes breaks both.
+    //
+    // What survives is what is still the JS's to say. The six ids are real
+    // Console ids that the JS is the only record of, so they stay pinned to the
+    // character; and nothing the JS mapped may be dropped. Growth is allowed,
+    // drift and loss are not. `pgs_import_test.dart` is where the whole list is
+    // checked against the catalogue.
     final want = _section('pgsAchievementIds');
-    expect(pgsAchievementIds.keys.toList(), want.keys.toList());
     for (final entry in want.entries) {
-      expect(pgsAchievementIds[entry.key], entry.value, reason: entry.key);
-      expect(pgsAchievementId(entry.key), entry.value, reason: entry.key);
+      expect(
+        pgsAchievementIds.containsKey(entry.key),
+        isTrue,
+        reason: '${entry.key} was in the JS map and is gone from the port\'s',
+      );
+      if (entry.value != null) {
+        expect(pgsAchievementIds[entry.key], entry.value, reason: entry.key);
+        expect(pgsAchievementId(entry.key), entry.value, reason: entry.key);
+      }
     }
     expect(pgsAchievementId('not_an_achievement'), isNull);
-    // An unmapped entry is silently skipped rather than reported as an id.
-    expect(
-      pgsAchievementIds.values.where((v) => v != null).length,
-      want.values.where((v) => v != null).length,
-    );
   });
 
   test('parity — the kit palette', () {
