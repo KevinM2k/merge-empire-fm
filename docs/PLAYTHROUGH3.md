@@ -6,7 +6,7 @@ because that is the part worth keeping.
 
 ## Where this queue stands
 
-**110 done, 6 open, and one feature parked.** None of the open rows is a fault.
+**111 done, 6 open, and one feature parked.** None of the open rows is a fault.
 One is a feature that was built, tried and turned down; one is a balance
 question rather than work; one is a survey to run before building; and one is
 **blocked on the spec repo** for the COMMENTARY, which is the row to read if the
@@ -1332,6 +1332,69 @@ Reported in one sitting on 4 Sep 2026.
       `IgnorePointer`. With the player able to end it, the hold only has to
       cover a line nobody reacts to at all: 2.6s → 1.8s, and the gem line's
       3.6s → 2.6s.
+
+---
+
+## Eleventh batch — a drill drawn for a phone, on a tablet on its side
+
+Reported in one sitting on 6 Sep 2026.
+
+- [x] **"Training games look quite bad on a tablet in landscape mode. They have
+      to scroll etc. We need to ensure the scale fits inside the window."** Both
+      halves of that are one fault. Every drill is a board with a line or two of
+      chrome over it, laid down a `Column` against whatever WIDTH the window
+      handed it — which on a phone is the same thing as laying it out against a
+      portrait column, and on a tablet held landscape is not. Team Work's cards
+      and Pitch Invaders' holes were `Expanded` in a `Row`, so the tile was a
+      fraction of the width and the board's height was then whatever that came
+      to: on a 1194pt window that is a 380pt hole and a board half again taller
+      than the page. Both of those two shipped inside a `SingleChildScrollView`,
+      which is what turned the overflow into a scroll — and the note over each
+      of those boards says in as many words that a board the player cannot see
+      all of is not a board.
+
+      `DrillFit` (`minigame_frame.dart`) is the half that goes under all of
+      them: the play area takes its width from the HEIGHT it has and the
+      window's surplus becomes margin. It only ever engages on a window that is
+      wide for its height, so a phone held upright is untouched — which is what
+      makes it safe to put under seven screens at once — and it has a FLOOR as
+      well as a cap, because 0.72 of what a landscape handset leaves under the
+      app bar is 248pt and none of these pages has ever been laid out that
+      narrow. The Boot Room's moves line overflowed its row by 81 before the
+      floor went in.
+
+      A width cap cannot be all of it: it stops a board being drawn absurdly
+      large and does nothing about one drawn TALLER than the room. So the two
+      scrolling boards were rebuilt against the Boot Room, which had it right
+      first — the tile is the smaller of what the width allows and what the
+      height does (`drillTileWidth`), hung off an `Expanded`. Neither has a
+      scroll view under it any more. Through Ball's lanes lost theirs the same
+      way: the air between them closes to twelve and then the BANDS give way,
+      so five lanes fit a window of any height.
+
+      Two more that were about scale rather than scrolling. **Keepy Uppys' box
+      is part of the balance** — every number the ball is played by is an
+      absolute pixel figure, which is why the height is pinned to the JS's 280
+      — and its width was whatever the window was, so a tablet gave it a 1150pt
+      letterbox the ball crossed in a second. Held to a phone's own 1.3, which
+      on a 400pt handset is the 364 it has always been drawn at. **And the
+      penalty camera was opening its lens**: `_focalFor` answers a view too wide
+      for its height by widening the shot, which holds the ball and the crossbar
+      in frame and costs the goal its width. `penaltySceneAspect` is the aspect
+      at which it does not have to — derived from the four camera numbers rather
+      than measured — and the scene is held to it.
+
+      One thing found on the way that was not the report: three `MiniGameStat`s
+      and their gutters are 378pt, which is wider than a small phone's page, so
+      the Boot Room's full-time row would have overflowed on a handset too.
+      `MiniGameStats` is the shared row and it scales down rather than
+      overflowing — there is nothing in a figure to drop and nothing to wrap.
+
+      `landscape_fit_test.dart` plays all seven at four window shapes — a tablet
+      both ways up and a phone both ways up — and asks the two questions the
+      couch asked of each: is the board inside the window, and is there anything
+      under a fold. An overflow fails a widget test on its own, which is the
+      third.
 
 ---
 

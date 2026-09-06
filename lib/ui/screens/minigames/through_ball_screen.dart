@@ -33,6 +33,7 @@ import 'package:merge_empire_fc/providers/sound_providers.dart';
 import 'package:merge_empire_fc/state/game_state.dart';
 import 'package:merge_empire_fc/state/game_tick.dart';
 import 'package:merge_empire_fc/ui/hud/hud.dart' show hudCoinInk;
+import 'package:merge_empire_fc/ui/screens/minigames/minigame_frame.dart';
 import 'package:merge_empire_fc/ui/screens/minigames/minigame_header.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/util/format.dart';
@@ -62,6 +63,15 @@ const double laneHeight = 34;
 /// is still shared out of what the page has left over — this is only the cap —
 /// so a short screen closes up rather than scrolling.
 const double laneGapMost = 40;
+
+/// And the least, past which the BAND gives way instead.
+///
+/// The air between the lanes closes first, because it is only air; once it is
+/// down to twelve the five bands share what is actually there. A window short
+/// enough to reach that used to be answered by a `SingleChildScrollView` round
+/// the stack — five lanes with the last of them under the fold, on a drill
+/// whose whole point is that the stack can be read ahead.
+const double laneGapLeast = 12;
 
 /// Where the marker is, as a percentage of the track, [elapsedMs] into a sweep.
 ///
@@ -303,7 +313,7 @@ class ThroughBallScreenState extends ConsumerState<ThroughBallScreen>
         behavior: HitTestBehavior.opaque,
         onTap: finished ? null : _tap,
         child: SafeArea(
-          child: Padding(
+          child: DrillFit(
             padding: const EdgeInsets.all(18),
             child: Column(
               children: [
@@ -368,39 +378,48 @@ class ThroughBallScreenState extends ConsumerState<ThroughBallScreen>
                       final spare =
                           box.maxHeight - ThroughBall.rounds * laneHeight;
                       final gap = (spare / (ThroughBall.rounds + 1)).clamp(
-                        12.0,
+                        laneGapLeast,
                         laneGapMost,
+                      );
+                      // **AND THE BAND GIVES WAY ONCE THE AIR HAS.** The stack
+                      // was in a `SingleChildScrollView`, which is what a
+                      // window too short for five 34pt lanes and their minimum
+                      // gaps used to do — put the last lane under the fold, on
+                      // the one drill whose point is that you can read the
+                      // stack ahead. There is nothing to scroll to now: what
+                      // the gaps cannot give back, the bands do.
+                      final band = math.min(
+                        laneHeight,
+                        (box.maxHeight - gap * (ThroughBall.rounds - 1)) /
+                            ThroughBall.rounds,
                       );
                       return Align(
                         alignment: const Alignment(0, -0.4),
-                        child: SingleChildScrollView(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              for (
-                                var lane = 0;
-                                lane < ThroughBall.rounds;
-                                lane++
-                              ) ...[
-                                if (lane > 0) SizedBox(height: gap),
-                                _Track(
-                                  kit: kit,
-                                  lane: lane,
-                                  marker: lane == _round
-                                      ? _markerPct
-                                      : null,
-                                  settledAt: _settled[lane],
-                                  zoneLo: _zones[lane].lo,
-                                  zoneWidth: _zones[lane].width,
-                                  hit:
-                                      _settled[lane] != null &&
-                                      _settled[lane]! >= _zones[lane].lo &&
-                                      _settled[lane]! <= _zones[lane].hi,
-                                  live: lane == _round && !_over,
-                                ),
-                              ],
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            for (
+                              var lane = 0;
+                              lane < ThroughBall.rounds;
+                              lane++
+                            ) ...[
+                              if (lane > 0) SizedBox(height: gap),
+                              _Track(
+                                kit: kit,
+                                lane: lane,
+                                height: band,
+                                marker: lane == _round ? _markerPct : null,
+                                settledAt: _settled[lane],
+                                zoneLo: _zones[lane].lo,
+                                zoneWidth: _zones[lane].width,
+                                hit:
+                                    _settled[lane] != null &&
+                                    _settled[lane]! >= _zones[lane].lo &&
+                                    _settled[lane]! <= _zones[lane].hi,
+                                live: lane == _round && !_over,
+                              ),
                             ],
-                          ),
+                          ],
                         ),
                       );
                     },
@@ -473,6 +492,7 @@ class _Track extends StatelessWidget {
   const _Track({
     required this.kit,
     required this.lane,
+    required this.height,
     required this.marker,
     required this.settledAt,
     required this.zoneLo,
@@ -483,6 +503,10 @@ class _Track extends StatelessWidget {
 
   final KitTheme kit;
   final int lane;
+
+  /// The band's own height: [laneHeight] wherever there is room for it, and
+  /// whatever there is on a window too short for five of them.
+  final double height;
 
   /// The running marker, and null for every lane that is not this round's.
   final ValueListenable<double>? marker;
@@ -513,7 +537,7 @@ class _Track extends StatelessWidget {
         return Center(
           child: SizedBox(
             key: ValueKey('tb-lane-$lane'),
-            height: laneHeight,
+            height: height,
             child: Stack(
               clipBehavior: Clip.none,
               children: [

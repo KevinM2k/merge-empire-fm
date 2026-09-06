@@ -84,3 +84,36 @@ class MiniGameStat extends StatelessWidget {
     ],
   );
 }
+
+/// A drill's full-time card: the two or three figures it finished on.
+///
+/// **AND IT SCALES DOWN RATHER THAN OVERFLOWING.** Three [MiniGameStat]s and
+/// their gutters come to 378pt at these type sizes, which is wider than a small
+/// phone's page — the Boot Room's row of three overflowed by ten as soon as the
+/// drills were held to a frame instead of to the whole of a wide window. There
+/// is nothing in a figure to drop and nothing to wrap, so on a page too narrow
+/// for the row it is the row that gives way.
+///
+/// One of these rather than one per drill, for the reason [MiniGameStat] gives.
+class MiniGameStats extends StatelessWidget {
+  const MiniGameStats({super.key, required this.children});
+
+  final List<Widget> children;
+
+  /// The air between two figures.
+  static const double gutter = 18;
+
+  @override
+  Widget build(BuildContext context) => FittedBox(
+    fit: BoxFit.scaleDown,
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (var i = 0; i < children.length; i++) ...[
+          if (i > 0) const SizedBox(width: gutter),
+          children[i],
+        ],
+      ],
+    ),
+  );
+}

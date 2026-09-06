@@ -35,10 +35,19 @@ import 'package:merge_empire_fc/state/game_state.dart';
 import 'package:merge_empire_fc/state/game_tick.dart';
 import 'package:merge_empire_fc/ui/hud/hud.dart' show hudCoinInk;
 import 'package:merge_empire_fc/ui/screens/minigames/minigame_countdown.dart';
+import 'package:merge_empire_fc/ui/screens/minigames/minigame_frame.dart';
 import 'package:merge_empire_fc/ui/screens/minigames/minigame_header.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/util/format.dart';
 import 'package:merge_empire_fc/util/time.dart';
+
+/// The board's own inset, and the gutter between two tiles.
+///
+/// Named rather than left as two sixes, because the tile's size is now worked
+/// out from the room the board has instead of from the width alone, and that
+/// sum needs both of them.
+const double whackBoardPad = 6;
+const double whackGutter = 6;
 
 /// What can be in a hole, and what tapping it is worth.
 enum Invader {
@@ -507,7 +516,15 @@ class PitchInvadersScreenState extends ConsumerState<PitchInvadersScreen>
         // plus an instruction paragraph plus a score row plus a bar left the
         // nine tiles sharing what was over — and a tile is a target you have
         // seven hundred milliseconds to hit. Asked for twice: bigger boxes.
-        child: SingleChildScrollView(
+        //
+        // **AND IT IS NOT A `SingleChildScrollView` ANY MORE.** The tiles were
+        // a third of the WIDTH each, so the board's height was whatever three
+        // of those came to: on a tablet held landscape that was 380pt a tile
+        // and a board half again taller than the window, and the scroll view
+        // is what turned that into a scroll rather than an overflow. Nine
+        // holes the player has to scroll to see is what the note over the
+        // board says it must not be. See [DrillFit].
+        child: DrillFit(
           padding: const EdgeInsets.fromLTRB(8, 10, 8, 10),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -565,60 +582,95 @@ class PitchInvadersScreenState extends ConsumerState<PitchInvadersScreen>
               // seconds of an empty page is three seconds of not knowing what
               // is about to be asked of you; the nine holes are what the
               // player needs to have found by GO.
-              Stack(
-                children: [
-                  DecoratedBox(
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(14),
-                      gradient: const LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [Color(0xFF0D4A1C), Color(0xFF0A3614)],
-                      ),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(6),
-                      // Laid out in full rather than in a lazy grid: nine holes the
-                      // player cannot all see is not a board.
-                      child: Column(
-                        key: const ValueKey('pi-board'),
+              //
+              // **THE TILE IS THE SMALLER OF THE TWO ANSWERS.** It was an
+              // `Expanded` in a `Row` — a third of the width, whatever the
+              // width happened to be — and the board's height simply followed.
+              // See [drillTileWidth]: the tile that fits is the smaller of
+              // what the width allows and what the height does, so the board
+              // is square, as big as the room permits, and never taller than
+              // the page it is on.
+              Expanded(
+                child: LayoutBuilder(
+                  builder: (context, box) {
+                    // The board's own inset is inside the panel, so it comes
+                    // off the room before the nine are divided out of it.
+                    final tile = drillTileWidth(
+                      box.deflate(const EdgeInsets.all(whackBoardPad)),
+                      cols: 3,
+                      rows: 3,
+                      gap: whackGutter,
+                    );
+                    return Center(
+                      child: Stack(
                         children: [
-                          for (var row = 0; row < 3; row++)
-                            Padding(
-                              padding: EdgeInsets.only(top: row == 0 ? 0 : 6),
-                              // **THE GUTTER IS BETWEEN THE COLUMNS, not inside
-                              // them.** It was `Padding(left: 8)` inside each
-                              // `Expanded`, so the first column's tile was eight
-                              // points wider than the other two — and the tile is an
-                              // `AspectRatio`, so it was eight points TALLER as
-                              // well. Reported as the left boxes being bigger than
-                              // the rest.
-                              child: Row(
+                          DecoratedBox(
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(14),
+                              gradient: const LinearGradient(
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                                colors: [Color(0xFF0D4A1C), Color(0xFF0A3614)],
+                              ),
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.all(whackBoardPad),
+                              // Laid out in full rather than in a lazy grid: nine holes the
+                              // player cannot all see is not a board.
+                              child: Column(
+                                key: const ValueKey('pi-board'),
+                                mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  for (var col = 0; col < 3; col++) ...[
-                                    if (col > 0) const SizedBox(width: 6),
-                                    Expanded(
-                                      child: _Hole(
-                                        index: row * 3 + col,
-                                        occupant: _holes[row * 3 + col],
-                                        struck: _struck.contains(row * 3 + col),
-                                        flash: _flash[row * 3 + col],
-                                        onTap: _tapHole,
+                                  for (var row = 0; row < 3; row++)
+                                    Padding(
+                                      padding: EdgeInsets.only(
+                                        top: row == 0 ? 0 : whackGutter,
+                                      ),
+                                      // **THE GUTTER IS BETWEEN THE COLUMNS, not inside
+                                      // them.** It was `Padding(left: 8)` inside each
+                                      // `Expanded`, so the first column's tile was eight
+                                      // points wider than the other two — and the tile is an
+                                      // `AspectRatio`, so it was eight points TALLER as
+                                      // well. Reported as the left boxes being bigger than
+                                      // the rest.
+                                      child: Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          for (var col = 0; col < 3; col++) ...[
+                                            if (col > 0)
+                                              const SizedBox(
+                                                width: whackGutter,
+                                              ),
+                                            SizedBox(
+                                              width: tile,
+                                              height: tile,
+                                              child: _Hole(
+                                                index: row * 3 + col,
+                                                occupant: _holes[row * 3 + col],
+                                                struck: _struck.contains(
+                                                  row * 3 + col,
+                                                ),
+                                                flash: _flash[row * 3 + col],
+                                                onTap: _tapHole,
+                                              ),
+                                            ),
+                                          ],
+                                        ],
                                       ),
                                     ),
-                                  ],
                                 ],
                               ),
                             ),
+                          ),
+                          if (_counting)
+                            Positioned.fill(
+                              child: MiniGameCountdown(onDone: _begin),
+                            ),
                         ],
                       ),
-                    ),
-                  ),
-                  if (_counting)
-                    Positioned.fill(
-                      child: MiniGameCountdown(onDone: _begin),
-                    ),
-                ],
+                    );
+                  },
+                ),
               ),
               const SizedBox(height: 14),
               if (_over) ...[
@@ -635,8 +687,7 @@ class PitchInvadersScreenState extends ConsumerState<PitchInvadersScreen>
                   ),
                 ),
                 const SizedBox(height: 6),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                MiniGameStats(
                   children: [
                     MiniGameStat(
                       kit: kit,
@@ -645,7 +696,6 @@ class PitchInvadersScreenState extends ConsumerState<PitchInvadersScreen>
                       valueKey: const ValueKey('pi-caught'),
                       colour: kit.accentBright,
                     ),
-                    const SizedBox(width: 18),
                     MiniGameStat(
                       kit: kit,
                       label: t('game.whack.fouls'),
@@ -653,7 +703,6 @@ class PitchInvadersScreenState extends ConsumerState<PitchInvadersScreen>
                       valueKey: const ValueKey('pi-fouls'),
                       colour: _fouls > 0 ? Colors.red : kit.textMuted,
                     ),
-                    const SizedBox(width: 18),
                     MiniGameStat(
                       kit: kit,
                       label: t('mg.reward'),

@@ -108,6 +108,20 @@ const double _ballHeight = 0.70;
 double _focalFor(Size view) =>
     math.min(_focal, _maxSpan * view.height / (_sceneSpan * view.width));
 
+/// The widest this view can be drawn before [_focalFor] has to open the lens.
+///
+/// The aspect at which the two arms of that `min` are equal — so a view held
+/// to it gets the picture the four camera numbers were actually solved for:
+/// the goal across three quarters of the frame, the crossbar [_topMargin]
+/// inside the top edge, the ball on the spot at [_ballHeight].
+///
+/// It is a CEILING and not a shape. A portrait view is narrower than this and
+/// wants nothing done to it; a tablet held landscape hands this view a
+/// 1150pt-wide letterbox, and opening the lens far enough to hold the shot in
+/// it costs the goal most of its size. See `DrillFit`, which is where the
+/// screen applies it.
+const double penaltySceneAspect = _maxSpan / (_sceneSpan * _focal);
+
 /// Where eye level lands.
 ///
 /// **Derived from the BALL rather than fixed, because the scene has to frame
