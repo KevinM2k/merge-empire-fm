@@ -135,6 +135,87 @@ jobs:
           print('All 64-bit native libs are 16 KB-aligned.')
           PY
 
+      # Play grades the uploaded DEX on optimisation, shrinking and obfuscation,
+      # and a category under 25% costs visibility and publishing capability from
+      # Feb 2027. R8 is on (android/app/build.gradle.kts), so this measures that
+      # it actually RAN rather than trusting that it was configured to.
+      - name: Measure DEX obfuscation
+        run: |
+          python3 - <<'PY'
+          import zipfile, struct, sys, re
+
+          APK = 'build/app/outputs/flutter-apk/app-release.apk'
+          # Play's own bar, for the warning text to be checkable against.
+          PLAY_THRESHOLD = 25.0
+          # A build where R8 did not obfuscate reads as ~0-2%. This floor only has
+          # to separate "R8 ran" from "R8 did not"; raise it toward PLAY_THRESHOLD
+          # once a real build has printed a number here.
+          FLOOR = 10.0
+
+          def uleb128(buf, off):
+              value = shift = 0
+              while True:
+                  b = buf[off]; off += 1
+                  value |= (b & 0x7f) << shift
+                  if b < 0x80:
+                      return value, off
+                  shift += 7
+
+          def defined_classes(dex):
+              """Descriptors of the classes DEFINED in this dex.
+
+              type_ids also carries every type merely REFERENCED (java/lang/String
+              and friends), which are never obfuscated and would pad the
+              denominator; class_defs is what this artifact actually ships.
+              """
+              if dex[:4] != b'dex\n':
+                  return []
+              string_ids_off = struct.unpack_from('<I', dex, 0x3c)[0]
+              type_ids_off = struct.unpack_from('<I', dex, 0x44)[0]
+              class_defs_size, class_defs_off = struct.unpack_from('<II', dex, 0x60)
+              out = []
+              for i in range(class_defs_size):
+                  type_idx = struct.unpack_from('<I', dex, class_defs_off + 32 * i)[0]
+                  str_idx = struct.unpack_from('<I', dex, type_ids_off + 4 * type_idx)[0]
+                  off = struct.unpack_from('<I', dex, string_ids_off + 4 * str_idx)[0]
+                  _, off = uleb128(dex, off)          # utf16 length, then MUTF-8 bytes
+                  out.append(dex[off:dex.index(b'\x00', off)].decode('utf-8', 'replace'))
+              return out
+
+          # R8's default dictionary renames to a, b, ... aa, ab. Three characters
+          # is where a real class name starts being plausible, so this is an
+          # APPROXIMATION of Play's figure, not Play's algorithm, which is not
+          # published. Read the trend and the order of magnitude, not the decimal.
+          RENAMED = re.compile(r'^[A-Za-z][A-Za-z0-9]{0,2}$')
+
+          def renamed(descriptor):
+              body = descriptor[1:-1] if descriptor.startswith('L') else descriptor
+              return bool(RENAMED.match(body.rsplit('/', 1)[-1].split('$', 1)[0]))
+
+          total = obf = dex_bytes = 0
+          with zipfile.ZipFile(APK) as z:
+              names = sorted(n for n in z.namelist() if n.endswith('.dex'))
+              if not names:
+                  sys.exit('FAIL: no .dex in %s' % APK)
+              for n in names:
+                  data = z.read(n)
+                  dex_bytes += len(data)
+                  classes = defined_classes(data)
+                  hits = sum(1 for c in classes if renamed(c))
+                  total += len(classes); obf += hits
+                  pct = 100.0 * hits / len(classes) if classes else 0.0
+                  print('%-16s %6d classes  %6d renamed  %5.1f%%' % (n, len(classes), hits, pct))
+
+          pct = 100.0 * obf / total if total else 0.0
+          print('---')
+          print('DEX: %.2f MB across %d file(s), %d classes' % (dex_bytes / 1048576.0, len(names), total))
+          print('Obfuscated (approx): %d/%d = %.1f%%   Play threshold %.0f%%' % (obf, total, pct, PLAY_THRESHOLD))
+          if pct < FLOOR:
+              sys.exit('FAIL: %.1f%% is below %.0f%% — R8 obfuscation did not run on this build.' % (pct, FLOOR))
+          if pct < PLAY_THRESHOLD:
+              print('::warning::DEX obfuscation is ~%.1f%%, under Play\'s %.0f%% threshold.' % (pct, PLAY_THRESHOLD))
+          PY
+
       - name: Get version from tag
         id: version
         run: |

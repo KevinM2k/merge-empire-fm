@@ -79,6 +79,40 @@ android {
 
     buildTypes {
         release {
+            // **R8 IS ON, AND IT IS SAID HERE RATHER THAN INHERITED.**
+            //
+            // Play grades an uploaded artifact on how much of its DEX is
+            // optimised, shrunk and obfuscated, and a category under 25% costs
+            // visibility and publishing capability from February 2027. The
+            // console's warning names one release; the setting that decides it
+            // is this one.
+            //
+            // The toolchain already turns it on — Flutter 3.44.9's
+            // `FlutterPlugin.kt` sets `isMinifyEnabled` and `isShrinkResources`
+            // on the release build type and adds `proguard-android-optimize.txt`
+            // plus its own `flutter_proguard_rules.pro`, and `--no-shrink` is a
+            // flag whose own help text says it has no effect. So these two
+            // lines change nothing about today's build, which is the point:
+            // they are the DIFFERENCE between a project that obfuscates and a
+            // project that happens to be built by a toolchain that does.
+            // Nothing in the file said which one this was, and the answer to a
+            // console warning cannot be "read the SDK we pin".
+            //
+            // The one thing that DOES silently turn it off is deferred
+            // components: `gradle.dart` passes `-Pshrink=false` for a
+            // multi-apk build and prints it as a status line, not a warning.
+            // `android_optimization_test` holds that too, from pubspec.
+            //
+            // Keep rules, if this ever needs any, go in
+            // `android/app/proguard-rules.pro` — the Flutter plugin adds that
+            // file to `proguardFiles` when it exists, so it wants creating
+            // rather than wiring. There is none today and nothing has asked
+            // for one; a keep rule written from memory against a build no
+            // container here can run is how a release stops rescheduling its
+            // notifications.
+            isMinifyEnabled = true
+            isShrinkResources = true
+
             // The real key when there is one, and a NOISY fallback when there
             // is not — see the note above. Signing a release with the debug key
             // produces an artifact Play rejects, and doing it silently is how

@@ -24,6 +24,9 @@ signed with the DEBUG key, `GoogleService-Info.plist` missing from the iOS
 bundle, no dSYM upload phase, and a lapsed VIP's re-purchase dead-ending on
 "payment failed". All four are fixed here and pinned by `android_signing_test`,
 `ios_crash_reporting_test` and `iap_purchase_test`; see steps 2, 3, 7a and 12.
+And since then, a fifth of the same kind from the console's App optimisation
+warning: R8 was running but nothing in the repo said so or held it, and no build
+measured what it produced — see step 5.
 
 ---
 
@@ -132,6 +135,41 @@ same values carry over: `KEYSTORE_BASE64`, `KEYSTORE_PASSWORD` (store and key,
 alias `merge-empire-fc`), `GOOGLE_SERVICES_JSON` (base64) and
 `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON`. The Play Games and AdMob ids the old job
 injected are already in the manifest here.
+
+**The OPTIMISATION half is done, and the console warning that prompted it is
+about the OTHER app.** Play grades an uploaded artifact on how much of its DEX
+is optimised, shrunk and obfuscated, and from February 2027 a category under 25%
+costs visibility and publishing capability. The warning in the console reads
+"Obfuscation (1%)" against release **1.11.1** — a Capacitor build from
+`../merge-empire-fc`, which is not this repository and is not in a cloud
+container, so nothing here can read or fix its Gradle. What it can do is make
+sure the release that REPLACES it does not inherit the finding, and 2.0.0 will
+inherit the app's record whether or not it inherits the cause.
+
+The port was never broken here — it was UNSTATED. Flutter 3.44.9's
+`FlutterPlugin.kt` sets `isMinifyEnabled` and `isShrinkResources` on the release
+build type itself and adds `proguard-android-optimize.txt` plus its own
+`flutter_proguard_rules.pro`, so `flutter build appbundle --release` already runs
+R8; `--no-shrink` is a flag whose own help text says it has no effect. But no
+line of this repo said so and no test held it, which is the same gap that let
+the debug key and `1.0.0+1` sit behind a TODO. `android/app/build.gradle.kts`
+now asks for both explicitly and `android_optimization_test` pins them, along
+with the one route that turns shrinking off without anybody editing Gradle —
+declaring deferred components, for which `flutter_tools` passes `-Pshrink=false`
+and prints it as a status line rather than a warning.
+
+**And the build now MEASURES it rather than asserting it.** A config assertion
+from Dart is a claim about a build no container here can run, so
+`build-release.yml` has a `Measure DEX obfuscation` step that opens the APK it
+just built, walks each `classes*.dex`'s `class_defs`, and reports what fraction
+of the classes actually shipped carry renamed identifiers. It fails the release
+under 10% — which can only mean R8 did not run — and warns under Play's 25%.
+That figure is an APPROXIMATION and is labelled as one in the step: Play does
+not publish its algorithm, and the floor is provisional until a real build
+prints a number to tighten it against. Dart symbols are a separate axis and are
+deliberately left alone: `--obfuscate` renames inside `libapp.so`, not the DEX
+Play grades, and it would cost readable Dart frames in Crashlytics — the thing
+step 12 has just been fixed to deliver.
 
 **Yours:** the four secrets, and `distribution/whatsnew/whatsnew-en-GB` — the
 notes Play shows for the release, under 500 characters.
