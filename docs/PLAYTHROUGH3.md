@@ -1400,4 +1400,69 @@ Reported in one sitting on 4 Sep 2026.
       come back as the gesture ALONE, with every sheet keeping its own resting
       size.
 
+---
 
+## Eighth batch — a card the maths knew about and the pitch did not
+
+- [x] **"I was playing away from home, opponent got a red card, and their
+      rating number didn't change… they have just gone from 11 to 10 players so
+      we need to do a drop."** Reported from the couch, and half of it was
+      already in: `booking_engine.oppTeamRatingMult` takes one eleventh off a
+      side that loses a man, `reSimulateRemainder` re-rolls the rest of the
+      match against the cut pair, and the scoreboard prints it — verified on a
+      real away fixture with a straight red in the fifteenth minute, where their
+      70 becomes 64 the moment the card is shown, both figures on the correct
+      side of the board.
+
+      **What did not move is everything that says HOW THE MATCH IS GOING.**
+      `liveStatsFor` reads `effectiveSquadRating` and `effectiveOppRating` — the
+      fields `buildMatchResult` stamped at KICK-OFF — and off that one rating
+      gap it builds the possession bar, the momentum arrow and the shape the
+      idle pitch slides its twenty-two bodies into. A card cannot reach any of
+      them, so from the sending-off on, the half of the screen a player actually
+      watches went on describing eleven against eleven for the rest of the
+      afternoon. Six points quietly changing on a card nobody is staring at is
+      not a side going down to ten; the pressure swinging is.
+
+      **And it put the screen in the position `match_statboard.dart`'s own note
+      about the arrow warns against, arrived at from the other end.**
+      `reSimulateRemainder` weights the remainder's chances on `adjSquad`
+      against `oppAttack` — the LIVE pair — so the chances were already falling
+      our way while the arrow drawn over them pointed the other. The two were
+      reading different matches.
+
+      The live pair is handed to `liveStatsFor` now, on the same basis as the
+      kickoff fields it stands in for: `adjSquad` is `applyMatchRatingMods` over
+      the live squad, which is what `effectiveMatchRating` gives at kick-off,
+      and `liveOppRating` is `effectiveOppRating` scaled by what their own
+      referee cost them. It is a substitution and not a second model — a match
+      nobody was booked in carries no `live*` fields and reads exactly as it
+      did — and it counts our own cards the same way, so a sending-off of ours
+      hands them the run of play.
+
+- [x] **And Colin was advising against the eleven who kicked off.**
+      `_maybeCoach` read the opposition's ATK and DEF off the kickoff fields
+      too, so with the other side down to ten he could still ask for Park the
+      Bus — the arrow finally swinging our way over a coach telling us to sit
+      in. Their pair carries `oppTeamRatingMult` now, which is the same cut the
+      sim takes.
+
+      **The multiplier rather than the live figure, and the reason is a
+      disagreement between two defaults.** `reSimulateRemainder` reads a missing
+      opponent rating as ZERO, through `fallbackOpp`; the coach's own `asNum`
+      and `liveStatsFor`'s read the same absence as FIFTY, because a fixture the
+      engine does not rate is a level one rather than a nil one. So the live
+      pair carries a nil where those two would have said fifty, and taking it
+      blind handed the coach — and nearly the possession bar — a walkover on a
+      fixture where nothing had happened. `liveStatsFor` takes the live figure
+      only when the kickoff field it substitutes for is actually there; the
+      coach takes the multiplier, which cannot pick the other default up at all.
+
+- [ ] **Our own cards still do not reach Colin's read of OUR side.** Left
+      deliberately. What a card costs us is a hole in the lineup that
+      `computeSquadRatings` scores, and the figure that comes back is on
+      `ourMatchSplit`'s basis — home advantage, the stagnation buff and the
+      relegation lift all in it — while he reads the bare `ourAttackRating`.
+      Handing him the live figure would hand him those three as well and change
+      his read at every home fixture, on a change that is supposed to be about a
+      card. He sees a sending-off of ours through `benchCover` in the meantime.

@@ -57,6 +57,28 @@ LiveStats liveStatsFor({
   required Map<String, dynamic> result,
   required bool isHome,
   required String strategyId,
+
+  /// **THE RATINGS THE REMAINDER IS ACTUALLY BEING ROLLED WITH**, or empty
+  /// while nothing has re-simulated — `MatchScreenState._liveRatings`.
+  ///
+  /// Reported from the couch about an away fixture: the opposition were sent
+  /// down to ten and nothing about the match changed. The figures on the board
+  /// DID move — `reSimulateRemainder` cuts their rating by the man and hands
+  /// the pair back for the scoreboard to print — and the run of play did not,
+  /// because everything below came off the kickoff fields and could not see a
+  /// card. Which put this file in the exact position its own note about the
+  /// arrow warns against: `reSimulateRemainder` re-rolls the remainder's
+  /// chances on `adjSquad` and `oppAttack`, so from the sending-off on, the
+  /// chances were falling our way while the possession bar and the arrow above
+  /// them went on describing eleven against eleven.
+  ///
+  /// Both fields are on the SAME basis as the kickoff pair they stand in for —
+  /// `adjSquad` is `applyMatchRatingMods` over the live squad, which is what
+  /// `effectiveMatchRating` gives at kick-off, and `liveOppRating` is
+  /// `effectiveOppRating` scaled by what their own referee cost them. So this
+  /// is a substitution and not a second model: a match nobody was booked in
+  /// never re-sims, carries none of these, and reads exactly as it did.
+  Map<String, dynamic> live = const {},
 }) {
   var shotsUs = 0;
   var shotsThem = 0;
@@ -132,8 +154,25 @@ LiveStats liveStatsFor({
   }
 
   num asNum(Object? v) => v is num ? v : 50;
-  final ourRating = asNum(result['effectiveSquadRating']);
-  final theirRating = asNum(result['effectiveOppRating']);
+  // The live figure when there is one, the kickoff field otherwise — see
+  // [live].
+  //
+  // **BOTH have to be there, and that is not belt and braces.** `asNum`
+  // defaults a MISSING rating to fifty, because a fixture the engine does not
+  // rate is a level one rather than a nil one — and `reSimulateRemainder`
+  // defaults the same absence to ZERO, through `fallbackOpp`. So on a result
+  // with no `effectiveOppRating` the live map carries a nil the kickoff read
+  // would have called fifty, and taking it would hand the opposition's half of
+  // the pitch to us on a fixture where nothing had happened at all. The live
+  // pair is a SUBSTITUTION for the kickoff pair: with nothing to substitute
+  // for, there is nothing to substitute.
+  num liveOr(String liveKey, String kickoffKey) {
+    final v = live[liveKey];
+    return v is num && result[kickoffKey] is num ? v : asNum(result[kickoffKey]);
+  }
+
+  final ourRating = liveOr('liveSquadRating', 'effectiveSquadRating');
+  final theirRating = liveOr('liveOppRating', 'effectiveOppRating');
   final ratingDiffHome = isHome
       ? ourRating - theirRating
       : theirRating - ourRating;

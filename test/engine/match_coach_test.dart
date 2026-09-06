@@ -5,6 +5,7 @@
 library;
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:merge_empire_fc/engine/booking_engine.dart';
 import 'package:merge_empire_fc/engine/match_coach.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 
@@ -281,6 +282,35 @@ void main() {
         ),
         isNot('parkTheBus'),
       );
+    });
+
+    test('AND TEN MEN IS A DIFFERENT GAME FROM ELEVEN', () {
+      // **Reported from the couch: the opposition were sent off and nothing
+      // about the match changed.** The screen hands him the pair
+      // `reSimulateRemainder` is actually rolling the remainder with — see
+      // `MatchScreenState._maybeCoach` — so what he is advising against is a
+      // side of ten. Nothing here is a special case for a card: their figures
+      // are simply lower, and lower is what he already knows what to do about.
+      //
+      // 40/60 is a side set up to defend, which is the reading that most wants
+      // the bus; a man off it is what stops it being worth the seat.
+      String? against(double atk, double def) => matchCoachSuggestion(
+        ourAttack: 40,
+        ourDefence: 40,
+        theirAttack: atk,
+        theirDefence: def,
+        activeStrategy: 'balanced',
+        minute: 40,
+        duration: 92,
+        margin: 0,
+      );
+      final eleven = against(40, 60);
+      // One of eleven gone, the same cut the sim takes — see
+      // `booking_engine.oppTeamRatingMult`.
+      final ten = oppTeamRatingMult(0, 1);
+      expect(against(40 * ten, 60 * ten), isNot(eleven));
+      expect(eleven, 'parkTheBus');
+      expect(against(40 * ten, 60 * ten), 'balanced');
     });
 
     test('he agrees with the dial rather than nagging over noise', () {

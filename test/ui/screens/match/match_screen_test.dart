@@ -25,6 +25,7 @@ import 'package:merge_empire_fc/ui/screens/match/cutaway/cutaway_stage.dart';
 import 'package:merge_empire_fc/ui/screens/match/dugout_cam.dart';
 import 'package:merge_empire_fc/ui/screens/match/match_clock.dart';
 import 'package:merge_empire_fc/ui/screens/match/match_statboard.dart';
+import 'package:merge_empire_fc/ui/screens/match/momentum_arrow.dart';
 import 'package:merge_empire_fc/ui/screens/home/next_match_card.dart'
     show PosChip;
 import 'package:merge_empire_fc/ui/screens/home/home_screen.dart' show playPageGap;
@@ -1034,6 +1035,112 @@ void main() {
             theirs.where((b) => '${b['card']}' == cardSecondYellow).length,
         reason: 'their cautions were counted twice',
       );
+      await settleSave(tester);
+    });
+
+    testWidgets('AND THE RUN OF PLAY KNOWS THEY ARE DOWN TO TEN', (
+      tester,
+    ) async {
+      // **Reported from the couch about an away fixture: "opponent got a red
+      // card and their rating number didn't change."** The number on the board
+      // did — `reSimulateRemainder` cuts their figure by the man and hands the
+      // pair back for the scoreboard to print — but the possession bar, the
+      // momentum arrow and the idle pitch's shape were all counted off the
+      // KICKOFF fields and could not see a card, so the half of the screen that
+      // says how the match is going went on describing eleven against eleven.
+      //
+      // Which left the screen contradicting the engine underneath it: the
+      // remainder's chances ARE re-rolled on the live pair — `chanceWeights` in
+      // `reSimulateRemainder` is `adjSquad` against `oppAttack` — so from the
+      // sending-off on, the chances fell our way while the arrow over them
+      // pointed the other. See `statboard_live_ratings_test.dart` for the rule;
+      // this is the wiring.
+      //
+      // `s1_m7` is the fixture THEIR referee shows a straight red in, in the
+      // fifteenth minute, and books nobody of ours until the fifty-sixth.
+      final result = <String, dynamic>{
+        ...matchResult(fixtureKey: 's1_m7', isHome: false),
+        'effectiveSquadRating': 60,
+        'effectiveOppRating': 70,
+        'ourAttackRating': 60,
+        'ourDefenceRating': 60,
+        'effOppAttackRating': 70,
+        'effOppDefenceRating': 70,
+      };
+      // **THE CUTAWAYS ARE OFF, so the grass is never on loan.** A chance the
+      // pitch retells replaces the arrow with the passage for as long as it
+      // runs, and the minute it cuts one is the engine's business rather than
+      // this test's — so the read below would be a coin toss on whether the
+      // seventeenth minute happened to be worth watching.
+      final save = squadSave();
+      save['settings'] = {
+        ...?(save['settings'] as Map<String, dynamic>?),
+        'cutawayOurTeam': false,
+        'cutawayOpponent': false,
+      };
+      await pumpMatch(tester, result, save: save);
+      final state = stateOf(tester);
+      double biasOn() =>
+          tester.widget<MomentumArrow>(find.byType(MomentumArrow)).bias;
+
+      // Their dismissal is in the fifteenth, so walk the clock past it.
+      for (var i = 0; i < 400 && state.frame.minute <= 16; i++) {
+        await tester.pump(minuteDurationFor(1));
+      }
+      expect(
+        state.oppCards.sendOffs,
+        1,
+        reason: 'the clock never reached their red card',
+      );
+      expect(
+        (state.liveRatings['liveOppRating'] as num?) ?? 70,
+        lessThan(70),
+        reason: 'the remainder was rolled against eleven of them',
+      );
+
+      // **THE SAME FRAME, THREE WAYS.** The swing is counted off the events
+      // shown, so comparing two MINUTES would be comparing two matches. One
+      // frame, read three times, leaves the ratings as the only difference
+      // there is.
+      final live = state.liveRatings;
+      LiveStats statsWith(Map<String, dynamic> ratings) => liveStatsFor(
+        frame: state.frame,
+        result: result,
+        isHome: false,
+        strategyId: 'balanced',
+        live: ratings,
+      );
+
+      // 1. THE WIRING: the arrow on the grass is the live pair's, not the
+      //    kickoff fields'.
+      final withCards = statsWith(live);
+      final kickoffOnly = statsWith(const {});
+      expect(
+        withCards.dangerHome,
+        isNot(kickoffOnly.dangerHome),
+        reason: 'nothing to tell the two readings apart, so the next one is '
+            'not a test',
+      );
+      expect(
+        biasOn(),
+        momentumBias(dangerHome: withCards.dangerHome, isHome: false),
+        reason: 'the arrow was still describing eleven against eleven',
+      );
+
+      // 2. AND THE DISMISSAL IS WHAT MOVED IT. Our own side is held at whatever
+      //    the live lineup is worth and only THEIR figure is put back to the
+      //    eleven who kicked off — so what is left is the man they lost. Away
+      //    from home the opposition are the home side, so their cut has to
+      //    LOWER the home-positive figure.
+      final theirElevenBack = statsWith({
+        ...live,
+        'liveOppRating': result['effectiveOppRating'],
+      });
+      expect(withCards.dangerHome, lessThan(theirElevenBack.dangerHome));
+      expect(withCards.possAway, greaterThan(theirElevenBack.possAway));
+
+      state.skipToEnd();
+      await tester.pumpAndSettle();
       await settleSave(tester);
     });
 

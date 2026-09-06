@@ -1190,8 +1190,39 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
     final margin = f.ourGoals - f.theirGoals;
     num asNum(Object? v) => v is num ? v : 50;
     final healthy = _healthyCards(state);
-    final theirAtk = asNum(widget.result['effOppAttackRating']).toDouble();
-    final theirDef = asNum(widget.result['effOppDefenceRating']).toDouble();
+    // **HE HAS TO KNOW THEY ARE DOWN TO TEN, or he is advising against the
+    // eleven who kicked off.** Their pair was the kickoff fields, so with the
+    // opposition a man short he went on asking the side to sit in against a
+    // full-strength one — the same fault as the possession bar, in the half of
+    // the screen whose whole job is to say what to do about it.
+    //
+    // **THE MULTIPLIER RATHER THAN THE LIVE FIGURE**, which is not the same
+    // shape the board and the statboard use and is the right one here. Their
+    // live pair is `effOppAttackRating` through `fallbackOpp`, which defaults a
+    // missing rating to ZERO — while `asNum` on this line defaults the same
+    // absence to FIFTY, because a fixture the engine does not rate is a level
+    // one rather than a nil one. Reading the live pair here therefore handed
+    // him a nil opposition on any result without the effective fields, and he
+    // is the one reader whose kickoff default disagrees with the sim's.
+    // `oppTeamRatingMult` is the whole of what a card does to a side that
+    // exists only as a number, so applying it to the figure he already reads
+    // says the same thing and cannot pick up the other one's fallback.
+    //
+    // **OUR OWN cards are NOT carried across here**, and that is deliberate
+    // rather than forgotten: what a card costs OUR side is a hole in the
+    // lineup that `computeSquadRatings` scores, and the figure that comes back
+    // is on `ourMatchSplit`'s basis — home advantage, the stagnation buff and
+    // the relegation lift all in it — while he reads the bare
+    // `ourAttackRating`. Handing him the live figure would hand him those three
+    // as well and change his read at every home fixture, on a change that is
+    // supposed to be about a card. He sees a sending-off of ours through
+    // `benchCover` in the meantime; putting the rest of it on his basis is its
+    // own piece of work.
+    final theirCards = oppTeamRatingMult(_oppYellows, _oppSendOffs);
+    final theirAtk =
+        asNum(widget.result['effOppAttackRating']).toDouble() * theirCards;
+    final theirDef =
+        asNum(widget.result['effOppDefenceRating']).toDouble() * theirCards;
     final suggestion = matchCoachSuggestion(
       ourAttack: asNum(widget.result['ourAttackRating']).toDouble(),
       ourDefence: asNum(widget.result['ourDefenceRating']).toDouble(),
@@ -1872,6 +1903,14 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
   /// screen, which is where this repo's rule puts one. Empty until something
   /// re-simulates, and the board falls back on the kickoff figures then.
   final Map<String, dynamic> _liveRatings = <String, dynamic>{};
+
+  /// The same map, exposed. **A test seam**, for the same reason [bookings] and
+  /// [oppCards] are: what a card is worth is a claim about these figures, and
+  /// the two surfaces that print them — the scoreboard's ratings and the
+  /// possession bar — are a `FittedBox` of unkeyed `Text` and a bar of coloured
+  /// boxes. Reading the numbers is the assertion; reading the pixels is not.
+  Map<String, dynamic> get liveRatings => _liveRatings;
+
   final Set<String> _sentOff = <String>{};
 
   /// Colin has already spoken about a booking this match.
@@ -2344,6 +2383,13 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
       // already happened — so the arrow spent every match before the first
       // switch reading Balanced. See [kickoffStrategy].
       strategyId: _strategy,
+      // **AND THE CARDS, so the run of play knows about the extra man.**
+      // Reported from the couch about an away fixture: the opposition were sent
+      // down to ten and nothing changed. The scoreboard's figures did change —
+      // and the possession bar, the momentum arrow and the idle pitch's shape
+      // did not, because they were all counted off the kickoff ratings. See
+      // [liveStatsFor]'s `live`.
+      live: _liveRatings,
     );
     final events = feedOf(
       f.shown,
