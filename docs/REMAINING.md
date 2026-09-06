@@ -7969,8 +7969,14 @@ that is not off the extension is the bug, not the symptom.
       the fixture pins the draw EDGE across the whole grid, and a test enforces
       the rule the rota exists for — a gesture marked as a celebration may only
       carry `elated` and `pleased` weights
-- [x] `pgs_achievements` (107) — the Play Games id map. Six of the 76 are mapped;
-      the rest are null and silently skipped until the Console list is published
+- [x] `pgs_achievements` (107) — the Play Games id map, and the Console points
+      beside it. Six of the 81 are mapped; the rest are null and silently
+      skipped until the Console list is published. **Nine of the 81 had no row
+      here at all**, which reads exactly like a null one at runtime — the map
+      had 72 keys for a catalogue of 81, and the file is the checklist the
+      Console list gets built from. `pgs_import_test.dart` now fails if the two
+      disagree. The list itself is built by `tool/pgs/` and imported as a zip;
+      see `docs/PGS_ACHIEVEMENTS.md`
 - [x] `kit_palette` (79) — what a kit id actually paints with. `kitSwatchCss`
       still returns the web build's CSS string: the pattern DATA is the same
       either way, and turning it into a Flutter gradient is an M3 decision
