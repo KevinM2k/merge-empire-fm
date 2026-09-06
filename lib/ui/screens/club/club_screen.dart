@@ -508,7 +508,7 @@ class _AssetPanel extends ConsumerWidget {
             // had no caller at all. An unbuilt facility shows its hint instead:
             // there is no perk yet to state.
             SizedBox(
-              height: assetLineBox,
+              height: assetLineBoxOf(context),
               child: _FlashOnChange(
                 // Only the live numbers flash. A hint is not a figure and does
                 // not change under the player.
@@ -521,7 +521,7 @@ class _AssetPanel extends ConsumerWidget {
                   style: TextStyle(
                     fontSize: minFontSize,
                     // The same leading as the next-tier line under it, so one
-                    // box height serves both — see [assetLineBox].
+                    // box height serves both — see [assetLineBoxOf].
                     height: 1.35,
                     color: tile.owned ? null : kit.textMuted,
                   ),
@@ -541,7 +541,7 @@ class _AssetPanel extends ConsumerWidget {
               // where it goes, because leaving the row blank punched a hole
               // between the full bar and the button.
               SizedBox(
-                height: assetLineBox,
+                height: assetLineBoxOf(context),
                 child: Text(
                   tile.maxed
                       ? '${t('club.tier_n', {'n': maxAssetTier})} · ${t('club.maxed')}'
@@ -813,18 +813,36 @@ abstract final class AssetGridColumns {
   static int at(double width) => _AssetGrid.columnsAt(width);
 }
 
-/// Room for TWO FULL LINES of a card's perk or next-tier line.
+/// Room for TWO FULL LINES of a card's perk or next-tier line, **at the type
+/// size this device is actually drawing them.**
 ///
-/// **The type floor is what made this a constant.** Both boxes were fixed at 29
+/// **The type floor is what made this derived.** Both boxes were fixed at 29
 /// and 27 — two lines of 11pt and 10pt copy with a couple of points to spare —
 /// and when nothing in the app was allowed under twelve any more, the second
 /// line of both was clipped through the middle. Reported from the couch with a
 /// screenshot of a Kit Sponsor whose "fatigue" was cut in half.
 ///
-/// Derived rather than nudged: two lines at [minFontSize] and the 1.35 line
-/// height these two share, plus a point so a descender is not shaved. A
-/// hardcoded 34 would be wrong again the next time either number moves.
-const double assetLineBox = minFontSize * 1.35 * 2 + 1;
+/// **And a derived CONSTANT is still a constant, which is how the same report
+/// came back.** `minFontSize` is the size the style asks for, not the size the
+/// glyphs come out at: a `Text` is laid out through
+/// `MediaQuery.textScalerOf`, so a phone with the system font size turned up
+/// draws 12pt copy at 15 or 16 — and a `SizedBox` does not move at all. Six of
+/// the seven cards clipped their second line on a screenshot from a phone with
+/// larger text on: the Stadium lost "and unlocks kit colours.", the Training
+/// Ground's next-tier line lost "Keepy Uppys". The box has to be measured in
+/// the same units the text is, which is what [BuildContext] is here for.
+///
+/// Scaled rather than clamped, and that is the choice: `withClampedTextScaling`
+/// would have held this one card still by drawing a player's chosen type size
+/// smaller than they asked for, which is the accessibility setting the type
+/// floor exists to respect. The card grows instead — it can, because the grid
+/// is `IntrinsicHeight` over a `Row` rather than a fixed aspect ratio, so a
+/// taller box makes a taller row and nothing overflows.
+///
+/// Two lines at the scaled [minFontSize] and the 1.35 line height these two
+/// share, plus a point so a descender is not shaved.
+double assetLineBoxOf(BuildContext context) =>
+    MediaQuery.textScalerOf(context).scale(minFontSize) * 1.35 * 2 + 1;
 
 /// The funding bar, FILLING rather than jumping.
 ///

@@ -4,6 +4,7 @@ library;
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
@@ -21,6 +22,7 @@ import 'package:merge_empire_fc/state/state_schema.dart';
 import 'package:merge_empire_fc/ui/screens/club/asset_tier_copy.dart';
 import 'package:merge_empire_fc/ui/screens/club/club_screen.dart';
 import 'package:merge_empire_fc/ui/screens/club/club_stats_panel.dart';
+import 'package:merge_empire_fc/ui/theme/app_theme.dart' show minFontSize;
 import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
 import 'package:merge_empire_fc/ui/widgets/art_image.dart';
 import 'package:merge_empire_fc/ui/widgets/svg_canvas.dart';
@@ -32,6 +34,10 @@ Future<ProviderContainer> pumpClub(
   WidgetTester tester, {
   int coins = 0,
   int players = 1,
+  /// The phone's own type size, which is NOT a detail of the test harness: a
+  /// `Text` is laid out through `MediaQuery.textScalerOf` and a `SizedBox` is
+  /// not, so a box built to hold two lines only holds them at 1.0.
+  double textScale = 1,
   void Function(Map<String, dynamic> state)? mutate,
 }) async {
   final state = createDefaultState();
@@ -59,7 +65,14 @@ Future<ProviderContainer> pumpClub(
       child: Consumer(
         builder: (context, ref, _) => MaterialApp(
           theme: ref.watch(appThemeProvider),
-          home: const Scaffold(body: ClubScreen()),
+          home: Builder(
+            builder: (context) => MediaQuery(
+              data: MediaQuery.of(
+                context,
+              ).copyWith(textScaler: TextScaler.linear(textScale)),
+              child: const Scaffold(body: ClubScreen()),
+            ),
+          ),
         ),
       ),
     ),
@@ -775,6 +788,119 @@ void main() {
         find.descendant(of: button, matching: find.byType(CoinIcon)),
         findsOneWidget,
       );
+    });
+  });
+
+  group('AND THE COPY IS NOT CUT IN HALF WHEN THE PHONE\'S TYPE SIZE IS UP', () {
+    // Reported from the couch with a screenshot of the Club tab on a phone
+    // with the system font size turned up: the Stadium's perk lost "and
+    // unlocks kit colours.", the Media Centre lost "payouts.", and the
+    // Training Ground's next-tier line was sliced through the middle of
+    // "Keepy Uppys". Six of the seven cards.
+    //
+    // Both boxes were `SizedBox(height: assetLineBox)`, a CONSTANT derived
+    // from `minFontSize` — which is the size the style asks for, not the size
+    // the glyphs come out at. The text scales and the box does not, and a
+    // `RenderParagraph` whose overflow is `ellipsis` clips itself rather than
+    // spilling, which is why it reads as a horizontal cut through a line
+    // rather than as an overflow stripe.
+
+    /// Every line of copy on the card, measured: what the box gave it against
+    /// what it needed at that width.
+    void expectNothingClipped(WidgetTester tester, String key) {
+      final paragraphs = tester.renderObjectList<RenderParagraph>(
+        find.descendant(
+          of: find.byKey(ValueKey('club-asset-$key'), skipOffstage: false),
+          matching: find.byType(Text, skipOffstage: false),
+        ),
+      );
+      expect(paragraphs, isNotEmpty, reason: key);
+      for (final p in paragraphs) {
+        expect(
+          p.size.height,
+          // A hair's grace: the box adds a point for descenders and the
+          // comparison is between two float layouts of the same text.
+          greaterThanOrEqualTo(p.getMaxIntrinsicHeight(p.size.width) - 0.5),
+          reason: '$key: "${(p.text.toPlainText())}" is clipped',
+        );
+      }
+    }
+
+    for (final scale in [1.0, 1.3, 1.6, 2.0]) {
+      testWidgets('an unbuilt card at x$scale', (tester) async {
+        await pumpClub(tester, textScale: scale);
+        for (final key in AssetCategory.all) {
+          expectNothingClipped(tester, key);
+        }
+      });
+    }
+
+    testWidgets('and a built one, which has the next-tier line too', (
+      tester,
+    ) async {
+      // The one the screenshot caught: "Tier 2: -10% cooldown · Keepy Uppys"
+      // wraps to two lines and the second was half a line of glyphs.
+      final container = await pumpClub(
+        tester,
+        coins: 100000000,
+        textScale: 1.6,
+      );
+      container.read(gameProvider).update((s) {
+        final assets = s['clubAssets'] as Map<String, dynamic>;
+        for (final key in AssetCategory.all) {
+          assets[key] = <String, dynamic>{
+            'owned': true,
+            'tier': 1,
+            'invested': 0,
+            'tapCount': 0,
+          };
+        }
+      });
+      await tester.pumpAndSettle();
+      await settleSave(tester);
+
+      expect(find.byKey(const ValueKey('club-next-$_key')), findsOneWidget);
+      for (final key in AssetCategory.all) {
+        expectNothingClipped(tester, key);
+      }
+    });
+
+    testWidgets('and the two boxes still match each other', (tester) async {
+      // One box for the perk and one for the next-tier line, and they share a
+      // height so the bar between them sits at the same place on every card in
+      // a row. A scale applied to one of the two would cure the clipping and
+      // break the grid.
+      final container = await pumpClub(
+        tester,
+        coins: 100000000,
+        textScale: 1.5,
+      );
+      container.read(gameProvider).update((s) {
+        (s['clubAssets'] as Map<String, dynamic>)[_key] = <String, dynamic>{
+          'owned': true,
+          'tier': 1,
+          'invested': 0,
+          'tapCount': 0,
+        };
+      });
+      await tester.pumpAndSettle();
+      await settleSave(tester);
+
+      double boxOver(Finder text) => tester.getSize(
+        find.ancestor(of: text, matching: find.byType(SizedBox)).first,
+      ).height;
+
+      final perk = boxOver(find.text(assetPerkLine(_key, 1)));
+      final next = boxOver(find.byKey(const ValueKey('club-next-$_key')));
+      expect(perk, next);
+
+      // And both of them are the SCALED box rather than the constant one —
+      // which is the same statement, checked against the number the type
+      // actually comes out at rather than against the other box.
+      final ctx = tester.element(find.byKey(const ValueKey('club-screen')));
+      expect(MediaQuery.textScalerOf(ctx).scale(minFontSize), greaterThan(minFontSize));
+      expect(perk, closeTo(assetLineBoxOf(ctx), 0.001));
+      expect(perk, greaterThan(minFontSize * 1.35 * 2 + 1));
     });
   });
 }
