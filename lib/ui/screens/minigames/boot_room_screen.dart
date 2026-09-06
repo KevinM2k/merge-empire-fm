@@ -35,6 +35,7 @@ import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/state/game_state.dart';
 import 'package:merge_empire_fc/state/game_tick.dart';
 import 'package:merge_empire_fc/ui/hud/hud.dart' show hudCoinInk;
+import 'package:merge_empire_fc/ui/screens/minigames/minigame_frame.dart';
 import 'package:merge_empire_fc/ui/screens/minigames/minigame_header.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/util/format.dart';
@@ -417,7 +418,13 @@ class BootRoomScreenState extends ConsumerState<BootRoomScreen>
       backgroundColor: kit.bg,
       appBar: const MiniGameHeader(titleKey: 'game.boot_room'),
       body: SafeArea(
-        child: Padding(
+        // The board already fits any height — it is an `AspectRatio` inside an
+        // `Expanded`, which is the shape the other two boards were rebuilt
+        // against. What it did not have is a ceiling on its WIDTH: on a tablet
+        // held landscape the instructions, the moves line and the target bar
+        // ran the full 1150pt of the window over a board a little over half
+        // that. See [DrillFit].
+        child: DrillFit(
           padding: const EdgeInsets.all(12),
           child: Column(
             children: [
@@ -567,8 +574,7 @@ class BootRoomScreenState extends ConsumerState<BootRoomScreen>
                   ),
                 ),
                 const SizedBox(height: 6),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                MiniGameStats(
                   children: [
                     MiniGameStat(
                       kit: kit,
@@ -577,7 +583,6 @@ class BootRoomScreenState extends ConsumerState<BootRoomScreen>
                       valueKey: const ValueKey('boot-room-cleared'),
                       colour: kit.accentBright,
                     ),
-                    const SizedBox(width: 18),
                     // `game.boot_room.best_chain` sat translated in all ten
                     // catalogues with nothing counting a chain to print in it.
                     MiniGameStat(
@@ -587,7 +592,6 @@ class BootRoomScreenState extends ConsumerState<BootRoomScreen>
                       valueKey: const ValueKey('boot-room-chain'),
                       colour: kit.textMuted,
                     ),
-                    const SizedBox(width: 18),
                     MiniGameStat(
                       kit: kit,
                       label: t('mg.reward'),

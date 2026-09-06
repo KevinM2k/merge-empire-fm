@@ -25,6 +25,7 @@ import 'package:merge_empire_fc/state/game_tick.dart';
 import 'package:merge_empire_fc/ui/hud/hud.dart' show hudCoinInk;
 import 'package:merge_empire_fc/ui/screens/minigames/keepy_uppys_sim.dart';
 import 'package:merge_empire_fc/ui/screens/minigames/minigame_countdown.dart';
+import 'package:merge_empire_fc/ui/screens/minigames/minigame_frame.dart';
 import 'package:merge_empire_fc/ui/screens/minigames/minigame_header.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/util/format.dart';
@@ -32,6 +33,18 @@ import 'package:merge_empire_fc/util/format.dart';
 /// The arena's height, which is also the height the ball's fall is tuned
 /// against — the JS's 280px box.
 const double keepyArenaHeight = 280;
+
+/// The arena's widest, as a multiple of that height.
+///
+/// **THE BOX IS PART OF THE BALANCE, not a frame around it.** Every number the
+/// ball is played by is an ABSOLUTE pixel figure — gravity per frame, a 52pt
+/// balloon, a bounce of 3.8, a hit radius of 44 — which is why the height is
+/// pinned to the JS's own 280 and says so. The width was left as whatever the
+/// window happened to be, and on a tablet held landscape that is a 1150pt
+/// letterbox the ball crosses in a second and can barely be volleyed in. 1.3
+/// is a phone's own shape: on a 400pt handset the arena comes out 364 across,
+/// which is exactly what it has always been drawn at.
+const double keepyArenaAspect = 1.3;
 
 /// How long the miss card sits before the result, and the bonus card before it.
 const Duration keepyMissBeat = Duration(milliseconds: 900);
@@ -230,7 +243,7 @@ class KeepyUppysScreenState extends ConsumerState<KeepyUppysScreen>
       backgroundColor: kit.bg,
       appBar: const MiniGameHeader(titleKey: 'game.keepy_uppys'),
       body: SafeArea(
-        child: Padding(
+        child: DrillFit(
           padding: const EdgeInsets.all(18),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -255,24 +268,45 @@ class KeepyUppysScreenState extends ConsumerState<KeepyUppysScreen>
                 ],
               ),
               const SizedBox(height: 10),
-              SizedBox(
-                height: keepyArenaHeight,
-                child: Stack(
-                  children: [
-                    Positioned.fill(
-                      child: _Arena(
-                        kit: kit,
-                        sim: sim,
-                        onLayout: _ensureSim,
-                        onTap: _tapArena,
-                        showHint: !_counting && (sim?.taps ?? 0) == 0,
-                      ),
+              // **FLEXIBLE, so a short window closes up rather than
+              // overflowing.** 280 of arena plus the taps line plus the result
+              // block is more than a phone held landscape has, and a fixed
+              // `SizedBox` in a `Column` does not give way — a `SizedBox`
+              // under a loose `Flexible` takes the height it asks for when it
+              // is there and the height there is when it is not.
+              //
+              // Top-aligned rather than centred: that is where the arena has
+              // always sat on a tall screen, and moving it would move the ball
+              // out from under the line that counts it.
+              Flexible(
+                child: Align(
+                  alignment: Alignment.topCenter,
+                  // Sized to the arena, not to the room: without this the
+                  // `Align` fills the `Flexible` and the result card and its
+                  // collect button are pushed to the foot of a tall page,
+                  // away from the arena they belong to.
+                  heightFactor: 1,
+                  child: SizedBox(
+                    height: keepyArenaHeight,
+                    width: keepyArenaHeight * keepyArenaAspect,
+                    child: Stack(
+                      children: [
+                        Positioned.fill(
+                          child: _Arena(
+                            kit: kit,
+                            sim: sim,
+                            onLayout: _ensureSim,
+                            onTap: _tapArena,
+                            showHint: !_counting && (sim?.taps ?? 0) == 0,
+                          ),
+                        ),
+                        if (_counting)
+                          Positioned.fill(
+                            child: MiniGameCountdown(onDone: _kickOff),
+                          ),
+                      ],
                     ),
-                    if (_counting)
-                      Positioned.fill(
-                        child: MiniGameCountdown(onDone: _kickOff),
-                      ),
-                  ],
+                  ),
                 ),
               ),
               const SizedBox(height: 10),

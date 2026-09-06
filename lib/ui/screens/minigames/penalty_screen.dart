@@ -39,6 +39,7 @@ import 'package:merge_empire_fc/engine/penalty_physics.dart';
 import 'package:merge_empire_fc/ui/screens/minigames/penalty_view.dart';
 import 'package:merge_empire_fc/ui/screens/minigames/keeper_view.dart'
     show drillTurf;
+import 'package:merge_empire_fc/ui/screens/minigames/minigame_frame.dart';
 import 'package:merge_empire_fc/ui/screens/minigames/minigame_header.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/util/format.dart';
@@ -162,7 +163,16 @@ class PenaltyScreenState extends ConsumerState<PenaltyScreen> {
       backgroundColor: kit.bg,
       appBar: const MiniGameHeader(titleKey: 'game.penalty'),
       body: SafeArea(
-        child: Padding(
+        // **THE CAMERA'S OWN CEILING, not the drills' portrait one.** This
+        // page is a scene rather than a board, and `_focalFor` already answers
+        // a view too wide for its height by opening the lens — which keeps the
+        // shot in frame and costs the goal its width, so on a tablet held
+        // landscape the goal was a small thing in the middle of a lot of
+        // grass. Held to [penaltySceneAspect], the view gets the picture the
+        // camera numbers were solved for; a phone is narrower than it and is
+        // untouched.
+        child: DrillFit(
+          aspect: penaltySceneAspect,
           padding: const EdgeInsets.all(16),
           child: Column(
             children: [
@@ -216,17 +226,28 @@ class PenaltyScreenState extends ConsumerState<PenaltyScreen> {
                 // Flexible, not fixed: the scene gives up height on a short
                 // screen rather than pushing the score line off the top.
                 Expanded(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: PenaltyView(
-                      key: const ValueKey('penalty-view'),
-                      readChance: keeperSmartChanceFor(
-                        ref.read(gameProvider).state,
+                  // **AND THE SCENE TO THAT ASPECT EXACTLY.** The cap above is
+                  // on the whole page, so what the view is left with once the
+                  // score lines have taken their height is still wider than
+                  // the camera was solved for. Held to it here as well, the
+                  // lens stays shut and the goal is the three quarters of the
+                  // frame it is supposed to be; the page shows either side of
+                  // it, which is what the rounded card was already for.
+                  child: DrillFit(
+                    aspect: penaltySceneAspect,
+                    alignment: Alignment.center,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(12),
+                      child: PenaltyView(
+                        key: const ValueKey('penalty-view'),
+                        readChance: keeperSmartChanceFor(
+                          ref.read(gameProvider).state,
+                        ),
+                        keeperSpread: keeperReachFor(division),
+                        kit: keeperKitForDivision(division),
+                        turf: drillTurf,
+                        onResult: _onResult,
                       ),
-                      keeperSpread: keeperReachFor(division),
-                      kit: keeperKitForDivision(division),
-                      turf: drillTurf,
-                      onResult: _onResult,
                     ),
                   ),
                 ),

@@ -31,6 +31,7 @@ import 'package:merge_empire_fc/providers/sound_providers.dart';
 import 'package:merge_empire_fc/state/game_state.dart';
 import 'package:merge_empire_fc/state/game_tick.dart';
 import 'package:merge_empire_fc/ui/hud/hud.dart' show hudCoinInk;
+import 'package:merge_empire_fc/ui/screens/minigames/minigame_frame.dart';
 import 'package:merge_empire_fc/ui/screens/minigames/minigame_header.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/art_image.dart';
@@ -63,6 +64,12 @@ const Duration pairsFlip = Duration(milliseconds: 320);
 /// Four at four pairs (two rows), five at five (two rows), four again at six
 /// (three rows) — twelve cards five wide crowded on a narrow phone.
 int pairsColumns(int pairs) => pairs == 5 ? 5 : 4;
+
+/// The card's own shape, width over height, and the gutter between two of
+/// them. One place, because the board now works its card size out of the room
+/// it has rather than out of the width alone, and the sum needs both.
+const double pairsCardAspect = 3 / 4;
+const double pairsGutter = 6;
 
 /// Fisher–Yates, in place, using [roll] as `Math.random()`.
 void shuffleInPlace<T>(List<T> list, double Function() roll) {
@@ -310,14 +317,25 @@ class TeamworkScreenState extends ConsumerState<TeamworkScreen> {
       key: const ValueKey('teamwork-screen'),
       backgroundColor: kit.bg,
       appBar: const MiniGameHeader(titleKey: 'game.teamwork'),
+      // **NOT A `SingleChildScrollView` ANY MORE.** The board is built out of
+      // the width, so a window wide for its height made cards the size of
+      // playing cards and a board taller than the page it was on, and the
+      // scroll view is what turned that into a scroll instead of an overflow.
+      // A memory board the player has to scroll to see is the thing the note
+      // over the board says it must not be. See [DrillFit].
       body: SafeArea(
-        child: SingleChildScrollView(
+        child: DrillFit(
           padding: const EdgeInsets.all(14),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              // Two lines at most: the instructions are for the first hand,
+              // not the tenth, and the height they are not using is the
+              // board's.
               Text(
                 t('game.teamwork.instructions'),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   color: kit.textMuted,
                   fontSize: 12,
@@ -365,48 +383,82 @@ class TeamworkScreenState extends ConsumerState<TeamworkScreen> {
               // Laid out in full rather than in a lazy grid, for the same
               // reason as the Boot Room: a memory board the player cannot all
               // see is not a memory board.
-              Column(
-                key: const ValueKey('pairs-board'),
-                children: [
-                  for (var row = 0; row * cols < _tiles.length; row++)
-                    Padding(
-                      padding: EdgeInsets.only(top: row == 0 ? 0 : 6),
-                      // **THE GUTTER IS BETWEEN THE COLUMNS, not inside
-                      // them.** It was `Padding(left: 6)` INSIDE each
-                      // `Expanded`, which divides the row evenly and then takes
-                      // the gutter out of every share but the first — so the
-                      // left column's card was six points wider than the rest,
-                      // and because the card is an `AspectRatio` it was six
-                      // points taller too. Reported from the couch, and it is
-                      // the same fault Pitch Invaders had.
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+              //
+              // **AND THE CARD IS THE SMALLER OF THE TWO ANSWERS.** It was an
+              // `Expanded` in a `Row`, so the card was a quarter of the WIDTH
+              // and the board's height was whatever three of those came to —
+              // which on a tablet held landscape was half again the height of
+              // the window. See [drillTileWidth]: the card that fits the room
+              // is the smaller of what the width allows and what the height
+              // does, and asking for both is what stops the board needing a
+              // scroll view under it.
+              Expanded(
+                child: LayoutBuilder(
+                  builder: (context, room) {
+                    final rows = (_tiles.length / cols).ceil();
+                    final card = drillTileWidth(
+                      room,
+                      cols: cols,
+                      rows: rows,
+                      gap: pairsGutter,
+                      aspect: pairsCardAspect,
+                    );
+                    return Center(
+                      child: Column(
+                        key: const ValueKey('pairs-board'),
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          for (var col = 0; col < cols; col++) ...[
-                            if (col > 0) const SizedBox(width: 6),
-                            Expanded(
-                              child: row * cols + col < _tiles.length
-                                  ? _Tile(
-                                      index: row * cols + col,
-                                      def: _tiles[row * cols + col],
-                                      faceUp: _faceUp.contains(
-                                        row * cols + col,
-                                      ),
-                                      matched: _matched.contains(
-                                        row * cols + col,
-                                      ),
-                                      onTap: _tapTile,
-                                    )
-                                  : const AspectRatio(
-                                      aspectRatio: 3 / 4,
-                                      child: SizedBox.shrink(),
+                          for (var row = 0; row < rows; row++)
+                            Padding(
+                              padding: EdgeInsets.only(
+                                top: row == 0 ? 0 : pairsGutter,
+                              ),
+                              // **THE GUTTER IS BETWEEN THE COLUMNS, not
+                              // inside them.** It was `Padding(left: 6)` INSIDE
+                              // each `Expanded`, which divides the row evenly
+                              // and then takes the gutter out of every share
+                              // but the first — so the left column's card was
+                              // six points wider than the rest, and because the
+                              // card is an `AspectRatio` it was six points
+                              // taller too. Reported from the couch, and it is
+                              // the same fault Pitch Invaders had.
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  for (var col = 0; col < cols; col++) ...[
+                                    if (col > 0)
+                                      const SizedBox(width: pairsGutter),
+                                    // The blank at the end of a short last row
+                                    // is the same box with nothing in it, so
+                                    // the row it is in stays the shape of the
+                                    // rows above it.
+                                    SizedBox(
+                                      width: card,
+                                      height: card / pairsCardAspect,
+                                      child: row * cols + col < _tiles.length
+                                          ? _Tile(
+                                              index: row * cols + col,
+                                              def: _tiles[row * cols + col],
+                                              faceUp: _faceUp.contains(
+                                                row * cols + col,
+                                              ),
+                                              matched: _matched.contains(
+                                                row * cols + col,
+                                              ),
+                                              onTap: _tapTile,
+                                            )
+                                          : null,
                                     ),
+                                  ],
+                                ],
+                              ),
                             ),
-                          ],
                         ],
                       ),
-                    ),
-                ],
+                    );
+                  },
+                ),
               ),
               const SizedBox(height: 12),
               if (_over) ...[
@@ -423,8 +475,7 @@ class TeamworkScreenState extends ConsumerState<TeamworkScreen> {
                   ),
                 ),
                 const SizedBox(height: 6),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                MiniGameStats(
                   children: [
                     MiniGameStat(
                       kit: kit,
@@ -433,7 +484,6 @@ class TeamworkScreenState extends ConsumerState<TeamworkScreen> {
                       valueKey: const ValueKey('pairs-found'),
                       colour: kit.accentBright,
                     ),
-                    const SizedBox(width: 18),
                     MiniGameStat(
                       kit: kit,
                       label: t('mg.reward'),
@@ -487,7 +537,7 @@ class _Tile extends StatelessWidget {
       behavior: HitTestBehavior.opaque,
       onTap: () => onTap(index),
       child: AspectRatio(
-        aspectRatio: 3 / 4,
+        aspectRatio: pairsCardAspect,
         child: TweenAnimationBuilder<double>(
           // 0 is fully back, 1 is fully face — the tween IS the flip, so a
           // tile interrupted mid-turn carries on from where it was rather than
