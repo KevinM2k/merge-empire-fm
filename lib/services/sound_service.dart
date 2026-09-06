@@ -389,6 +389,42 @@ class AudioPlayersBackend implements SoundBackend {
     }
   }
 
+  /// **A DISPOSED PLAYER NEVER COMPLETES, AND `Stream.first` THROWS FOR IT.**
+  ///
+  /// `onPlayerComplete` closes without ever emitting when the player behind it
+  /// is disposed, and `Stream.first` turns that empty close into a thrown
+  /// `Bad state: No element`. Nothing awaits these futures — the cleanup is a
+  /// side effect, not a result — so the error had no `catch` anywhere above it
+  /// and went to `PlatformDispatcher.onError`, which files it as a FATAL crash
+  /// through `_catchEverything`. A sound that merely ended early was being
+  /// reported as the app dying.
+  ///
+  /// **Being disposed early is the ordinary case, not an edge one.** `_kill`
+  /// does it on every retrigger inside a sound's own length — `retriggerFloor`
+  /// is 70ms and the effects are far longer than that — on every stop timer
+  /// that beats the completion event home, and on `stopAllSfx`, which disposes
+  /// the one-shots as well.
+  ///
+  /// [then] runs either way, which is what the `whenComplete` this replaces
+  /// did and what the callers need: the bookkeeping has to happen whether the
+  /// sound finished or was cut off, or `_players` and `_oneShots` keep a
+  /// platform handle nothing will ever come back for.
+  ///
+  /// Takes the STREAM rather than the player, so the rule can be tested
+  /// without a device — the same reason [sessionConfig] is exposed.
+  @visibleForTesting
+  static Future<void> whenDone(
+    Stream<void> completion,
+    void Function() then,
+  ) async {
+    try {
+      await completion.first;
+    } catch (_) {
+      // Closed without completing: disposed early. [then] still runs.
+    }
+    then();
+  }
+
   /// **THE GAME DOES NOT STOP THE PLAYER'S MUSIC.**
   ///
   /// `audioplayers` defaults to `AudioContextConfigFocus.gain`, which on iOS
@@ -458,7 +494,7 @@ class AudioPlayersBackend implements SoundBackend {
       final player = await _newPlayer(ReleaseMode.stop);
       _oneShots.add(player);
       unawaited(
-        player.onPlayerComplete.first.whenComplete(() {
+        whenDone(player.onPlayerComplete, () {
           _oneShots.remove(player);
           unawaited(player.dispose());
         }),
@@ -500,7 +536,7 @@ class AudioPlayersBackend implements SoundBackend {
     });
 
     unawaited(
-      player.onPlayerComplete.first.whenComplete(() {
+      whenDone(player.onPlayerComplete, () {
         if (_players[name] == player) unawaited(_kill(name));
       }),
     );
@@ -514,7 +550,7 @@ class AudioPlayersBackend implements SoundBackend {
         final player = await _newPlayer(ReleaseMode.stop);
         _oneShots.add(player);
         unawaited(
-          player.onPlayerComplete.first.whenComplete(() {
+          whenDone(player.onPlayerComplete, () {
             _oneShots.remove(player);
             unawaited(player.dispose());
           }),

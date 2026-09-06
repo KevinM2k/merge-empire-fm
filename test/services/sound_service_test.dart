@@ -518,5 +518,66 @@ void _sessionGroup() {
     });
   });
 
+  group('A PLAYER DISPOSED EARLY IS NOT A CRASH', () {
+    // Crashlytics, from a device, as a FATAL:
+    //
+    //   Fatal Exception: Bad state: No element
+    //     at Stream.first.<fn>(dart:async)
+    //     at AudioPlayersBackend.playSfx.<fn>.<fn>(sound_service.dart:503)
+    //
+    // Three sites awaited `player.onPlayerComplete.first` for their cleanup,
+    // and `Stream.first` throws `Bad state: No element` when the stream closes
+    // without ever emitting — which is what disposing the player does. Nothing
+    // awaited those futures, so the error reached `PlatformDispatcher.onError`
+    // and `_catchEverything` filed it as the app dying.
 
+    test('a completion stream closing EMPTY still cleans up', () async {
+      // A disposed player: closed, nothing emitted. This is the reported case.
+      var cleaned = 0;
+      await AudioPlayersBackend.whenDone(
+        const Stream<void>.empty(),
+        () => cleaned++,
+      );
+      expect(
+        cleaned,
+        1,
+        reason: 'a cut-off sound still has to leave the map and the handle',
+      );
+    });
+
+    test('and does not throw where the old line did', () async {
+      // The rule is that nothing escapes, so the fix is worth stating as the
+      // absence: `expect(..., completes)` is what `PlatformDispatcher.onError`
+      // was seeing the other side of.
+      expect(
+        AudioPlayersBackend.whenDone(const Stream<void>.empty(), () {}),
+        completes,
+      );
+      // The line as it stood, for the same stream — this is the crash.
+      expect(const Stream<void>.empty().first, throwsStateError);
+    });
+
+    test('a sound that DOES finish runs the cleanup exactly once', () async {
+      // `whenComplete` ran either way and so does this: the ordinary end of a
+      // clip must still release the player, or the cut-off case is the only
+      // one that ever cleans up.
+      var cleaned = 0;
+      await AudioPlayersBackend.whenDone(
+        Stream<void>.fromIterable([null]),
+        () => cleaned++,
+      );
+      expect(cleaned, 1);
+    });
+
+    test('and a stream that ERRORS is not a crash either', () async {
+      // A platform that reports a fault down the completion channel rather
+      // than closing quietly is the same problem wearing a different error.
+      var cleaned = 0;
+      await AudioPlayersBackend.whenDone(
+        Stream<void>.error(Exception('platform')),
+        () => cleaned++,
+      );
+      expect(cleaned, 1);
+    });
+  });
 }
