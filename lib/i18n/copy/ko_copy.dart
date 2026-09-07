@@ -8,6 +8,8 @@ library;
 
 /// Replaces the generated entry, or adds a key Korean did not have.
 const Map<String, String> koCopy = <String, String>{
+  'customise.item.face.bubblegum': '풍선껌',
+
   // 사운드·음악 옆의 세 번째 줄. 모든 버튼의 탭 소리.
   'settings.ui_sounds': '터치음',
 

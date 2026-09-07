@@ -10,6 +10,8 @@ library;
 
 /// Replaces the generated entry, or adds a key German did not have.
 const Map<String, String> deCopy = <String, String>{
+  'customise.item.face.bubblegum': 'Kaugummi',
+
   // Eine dritte Zeile neben Sound und Musik: der Klick jeder Schaltfläche.
   'settings.ui_sounds': 'Oberfläche',
 

@@ -237,11 +237,14 @@ const double mowApex = -0.48;
 /// One lane pair, in radians. The sweep must travel exactly one full period or
 /// the loop jumps.
 ///
-/// **Seven degrees, not 5.2.** The lanes are ANGULAR, so widening the period
-/// widens every one of them — and the narrow ones read as a texture on the grass
-/// rather than as mown bands. [mowDuration] solves the sweep against this, so the
-/// grass at his boots keeps its speed whatever the lanes are doing.
-final double _mowPeriod = 7 * math.pi / 180;
+/// **Ten and a half degrees, not seven and not 5.2.** The lanes are ANGULAR, so
+/// widening the period widens every one of them — and the narrow ones read as a
+/// texture on the grass rather than as mown bands. Half again wider than the
+/// seven this had settled on, asked for from the couch once the stripes were
+/// carrying the tier: a mower cuts a wide band, and at seven degrees the top of
+/// the pyramid had a pinstripe. [mowDuration] solves the sweep against this, so
+/// the grass at his boots keeps its speed whatever the lanes are doing.
+final double _mowPeriod = 10.5 * math.pi / 180;
 
 /// **THE GROUND'S SPEED, DERIVED FROM HIS LEGS.**
 ///
@@ -555,26 +558,38 @@ Duration mowDuration({
 const double tuftFMin = 0.34;
 const double tuftFMax = 0.96;
 
-/// Per band, per 420px segment, **AT THIS TIER**.
+/// How many tufts there are across a whole 420px segment, **AT THIS TIER**.
 ///
 /// **The port drew the same kept pitch at every rank.** The spec scales it hard
 /// and says why: nobody mows a Sunday League pitch, so the bottom of the pyramid
 /// gets a lot more clumps, bigger and longer in the blade, and a top-flight
 /// ground gets almost none. `_tuftBands` in `PitchScene.js`: sixteen at tier 0,
 /// eleven at tier 1, then `7 - tier` and nothing at all from Continental up.
-int tuftsPerBand(int tier) {
-  // A field is scruffy, the next ground less so, and a kept pitch has none.
-  final total = tier == 0
-      ? 9
-      : tier == 1
-      ? 5
-      : 0;
-  return (total / _tuftBands).ceil();
-}
+int tuftsTotal(int tier) => switch (tier) {
+  <= 0 => 11,
+  1 => 9,
+  2 => 4,
+  3 => 2,
+  _ => 0,
+};
+
+/// How many of those fall in one band.
+///
+/// **Round-robin, as the JS's `i % TUFT_BANDS` is**, rather than the total
+/// divided by the bands and rounded up: six bands and a ceiling could only
+/// count in sixes, so a scruffy tier 2 and a nearly-kept tier 3 came out with
+/// the identical one-per-band and the step between them disappeared.
+int tuftsInBand(int band, int tier) =>
+    (tuftsTotal(tier) - band + _tuftBands - 1) ~/ _tuftBands;
 
 /// How much bigger and longer the blades are down the bottom. The spec's
 /// `sizeBoost` and `lengthBoost`: a rough pitch is rough in the grass first.
-double tuftSizeBoost(int tier) => tier == 0 ? 2.1 : (tier == 1 ? 1.5 : 1.0);
+double tuftSizeBoost(int tier) => switch (tier) {
+  <= 0 => 2.0,
+  1 => 1.5,
+  2 => 1.15,
+  _ => 1.0,
+};
 
 /// One tuft: where it stands across the segment, its row, its size.
 typedef TuftPlacement = ({
@@ -592,7 +607,7 @@ typedef TuftPlacement = ({
 List<TuftPlacement> tuftPlacements(int band, int tier) {
   final rng = math.Random(31 + band);
   final span = (tuftFMax - tuftFMin) / _tuftBands;
-  final count = tuftsPerBand(tier);
+  final count = tuftsInBand(band, tier);
   final sizeBoost = tuftSizeBoost(tier);
   final lengthBoost = tuftLengthBoost(tier);
   return [
@@ -616,12 +631,53 @@ List<TuftPlacement> tuftPlacements(int band, int tier) {
       }(),
   ];
 }
-double tuftLengthBoost(int tier) =>
-    tier == 0 ? 1.25 : (tier == 1 ? 1.05 : 0.85);
+double tuftLengthBoost(int tier) => switch (tier) {
+  <= 0 => 1.25,
+  1 => 1.15,
+  2 => 0.95,
+  _ => 0.85,
+};
 
-/// **THE TIER THE PITCH STOPS BEING A FIELD.** Below this it gets mud, ruts and
-/// standing water; at and above it the groundsman has been.
+/// **THE TIER THE PITCH STOPS HOLDING WATER.** Below this there are puddles on
+/// it; at and above it the groundsman has at least dug the drainage in.
+///
+/// Two: the locked ground and tier 1 are the field, and tier 2 is a plain pitch
+/// — the couch's own reading of the Club tab's photographs, after a middle pass
+/// had put water on tier 2 as well.
 const int firstKeptPitchTier = 2;
+
+/// **HOW BATTERED THE SURFACE IS**, 1 for a field and 0 for a kept pitch.
+///
+/// One dial the whole ground reads — the colour of the grass, how much bare
+/// earth is showing through it, whether there is water lying on it and how
+/// scuffed the chalk is. **The Club tab's tier photographs are the brief**, and
+/// they are a stronger progression than the port was drawing: tier 1 is a
+/// puddled quagmire with more mud than grass in it, tier 2 is plain green and
+/// scruffy, and by tier 3 the groundsman has been. The port had one smudge and
+/// one puddle on an otherwise perfect table at tier 1 and the identical surface
+/// at every tier above it.
+///
+/// **THE LOCKED GROUND AND TIER 1 ARE THE BAD ONES**, and that is the couch's
+/// own reading of the photographs — a middle pass had tier 2 nearly as rough and
+/// it was called back: tier 2 is a plain green pitch that nobody has striped
+/// hard, not a field. So the fall is steep rather than long, and what is left at
+/// 2 and 3 is a scuff or two rather than mud.
+double pitchWear(int tier) => switch (tier) {
+  <= 1 => 1.0,
+  2 => 0.25,
+  3 => 0.08,
+  _ => 0.0,
+};
+
+/// How hard the stripes have been cut in, as a multiplier on the mowing fan's
+/// own contrast.
+///
+/// **Nobody stripes a Sunday League pitch**, and the port striped all eight the
+/// same — a bold mown fan on a muddy park field, which is the one thing on the
+/// surface that says "this ground is looked after". A whisper at the bottom so
+/// the turf is not a flat wash, a plain cut by tier 2, and past a full one at
+/// the top, where the photograph is a show pitch under lights.
+double mowStrength(int tier) => (0.10 + (tier - 1) * 0.24).clamp(0.10, 1.35);
 
 /// How big he renders. 1.2 → 1.5 → 1.35 → 1.22 → 1.34: at 1.2 he was a detail in
 /// a wide shot and the gestures, kit and look packs did not read; 1.5 read but
@@ -941,6 +997,55 @@ class PitchScene extends StatelessWidget {
                           ),
                         ),
                 ),
+                // **THE HEDGEROW BETWEEN THE PARK AND THE COUNTRY.** Asked
+                // for from the couch: bushes behind the ground's own trees and
+                // hut but in front of the hills, moving slower than the near
+                // layer and faster than the far one, and NOT washed out to the
+                // same degree.
+                //
+                // That middle speed is the whole point of it. Two layers give
+                // you a near one and a far one and no sense of the distance
+                // between them; a third at a rate in between is what turns two
+                // pictures into depth — and the haze is the other half of the
+                // same statement, so this takes a third of what the hills take
+                // rather than all of it.
+                //
+                // **AND IT GROWS TO CLEAR A SMALL STAND.** From
+                // `firstStandTier` the terrace covers this line — but a
+                // non-league ground has trees behind it, and asked for from the
+                // couch: at tier 2 you should still see the tops of them over
+                // the roof. So the strip is as tall as the stand plus a crown's
+                // worth at 2 and 3, and stops there: by 4 the ground is big
+                // enough that what is behind it is the hills.
+                if (tier <= lastTreelineTier)
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    top: horizon - hedgeHeightFor(tier),
+                    height: hedgeHeightFor(tier),
+                    child: _GroundDrive(
+                      builder: (worldX) => _Scroller(
+                        key: const ValueKey('pitch-hedgerow'),
+                        stillKey: (night, haze),
+                        offsetPx: parallaxOffset(
+                          worldX,
+                          segmentWidth: _hedgeSegmentWidth,
+                          period: farPeriod * _hedgeDepth,
+                          mood: mood,
+                        ),
+                        segmentWidth: _hedgeSegmentWidth,
+                        child: RepaintBoundary(
+                          child: CustomPaint(
+                            size: Size(
+                              _hedgeSegmentWidth,
+                              hedgeHeightFor(tier),
+                            ),
+                            painter: _HedgePainter(haze: haze, night: night),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
                 // The pylons, on their OWN strip behind the stand and at the
                 // stand's own speed and period — so however tall they get they
                 // cannot drift against the terrace they are planted in. A tall
@@ -1267,6 +1372,191 @@ const List<_Villager> _peaksVillage = [
 /// One tile of Kenney's hills. The sprite is a near-white silhouette, so by
 /// day it is MULTIPLIED by a hill green — it read as cloud when only faded —
 /// and by night it is a black cut-out.
+/// How tall the hedgerow strip is, and how wide one tile of it is. Its own
+/// width rather than the park's, so the two never repeat in step — a middle
+/// layer that comes round with the layer in front of it is the layer in front
+/// of it, drawn twice.
+const double _hedgeHeight = 30;
+const double _hedgeSegmentWidth = 560;
+
+/// The last tier with a treeline behind the ground. Past it the stand is tall
+/// enough that the country behind it is the hills' job.
+const int lastTreelineTier = 3;
+
+/// How much of the trees clears the roof of a small stand.
+///
+/// **Twice what it was, and then some.** Sixteen points of crown over a
+/// non-league roof read as a mistake rather than as a wood — reported from the
+/// couch twice, the second time asking for bigger again. A tree behind a stand
+/// is a TREE: most of what you see of it is above the roof, not a green thumbnail
+/// poking over the fascia.
+const double _treetopRise = 27;
+
+/// How tall the strip is at this tier: a hedgerow at a park, and enough to show
+/// the crowns over a non-league roof at 2 and 3.
+///
+/// **THE BOARDS COUNT.** A stand from [firstHoardingTier] is raised by
+/// [hoardingHeight] as well as being [standHeightFor] tall, so a strip that
+/// only cleared the stand cleared nothing — the first cut of this put two
+/// points of crown above the roof, which is to say none.
+double hedgeHeightFor(int tier) => tier < firstStandTier
+    ? _hedgeHeight
+    : standHeightFor(tier) +
+          (tier >= firstHoardingTier ? hoardingHeight : 0) +
+          _treetopRise;
+
+/// How much slower than the ground's own backdrop it runs. Between the park
+/// (1) and the hills (6) — see the strip for why the middle is the point.
+const double _hedgeDepth = 2.6;
+
+/// **THE HEDGEROW.** A run of clipped bushes with a few small trees standing
+/// out of it, lit along the top and dark underneath, on a bank of its own.
+///
+/// Painted rather than sprited: it is a silhouette at this distance, it has to
+/// tile seamlessly at a width no sprite in the pack is, and a strip that draws
+/// itself cannot be caught half-decoded.
+class _HedgePainter extends CustomPainter {
+  const _HedgePainter({required this.haze, required this.night});
+
+  /// What the distance fades TO — the sky at the horizon. Taken at a THIRD of
+  /// the hills' strength: this row is nearer, and the couch's note was that it
+  /// should not be as washed out as the background.
+  final Color haze;
+  final bool night;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final h = size.height;
+    final w = size.width;
+    if (h <= 0 || w <= 0) return;
+    final rng = math.Random(53);
+    final base = h;
+    // Deeper than the park's own hedge and cooler with it, which is the colour
+    // half of standing further back.
+    final body = night ? const Color(0xFF425B49) : const Color(0xFF2C6438);
+    final lit = night ? const Color(0xFF486851) : const Color(0xFF3E8248);
+
+    // The bank the row stands on, so the hedge has ground under it rather than
+    // hanging in the sky.
+    canvas.drawRect(
+      Rect.fromLTWH(0, base - h * 0.16, w, h * 0.16 + 1),
+      Paint()..color = night ? const Color(0xFF405146) : const Color(0xFF2A5B31),
+    );
+
+    // **THE RUN CLOSES ACROSS THE SEAM.** Bushes are placed on a fixed pitch
+    // from zero, so the last one before the edge and the first of the next tile
+    // meet as one continuous hedge instead of leaving a notch every loop.
+    const pitch = 26.0;
+    for (var x = -pitch; x < w + pitch; x += pitch) {
+      final bh = h * (0.42 + rng.nextDouble() * 0.3);
+      final bw = pitch * (1.5 + rng.nextDouble() * 0.4);
+      final box = Rect.fromLTWH(x, base - bh, bw, bh * 2);
+      canvas.drawOval(box, Paint()..color = body);
+      canvas.drawOval(
+        Rect.fromLTWH(x + bw * 0.16, base - bh + 1, bw * 0.5, bh * 0.5),
+        Paint()
+          ..color = lit
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2),
+      );
+    }
+
+    // **THE TREES, AND NO TWO OF THEM ALIKE.** Four evenly spaced ovals of one
+    // size is a row of green bumps — reported from the couch twice, the second
+    // time asking outright whether they read as trees at all. They did not, and
+    // the reason is that an ellipse has no tree in it: what says tree at a
+    // hundred yards is the OUTLINE, either a spire or a lumpy mass of clumps,
+    // and either of those against a sky nothing else is that shape.
+    //
+    // So: two species, a conifer drawn as four narrowing skirts to a point and
+    // a broadleaf built out of five overlapping clumps, at heights running from
+    // half the strip to all of it, on a spacing that is nobody's rhythm.
+    // Seeded off the same stream as the hedge, so the wood is the same wood on
+    // every frame and on every phone.
+    const spots = [0.03, 0.13, 0.21, 0.34, 0.44, 0.52, 0.66, 0.73, 0.86, 0.95];
+    for (var i = 0; i < spots.length; i++) {
+      final cx = w * spots[i] + (rng.nextDouble() - 0.5) * 22;
+      // **AND NOTHING REACHES THE TOP OF THE BOX.** A crown is drawn about a
+      // centre with a radius on top of it, so a tree as tall as its own strip
+      // has its head cut off flat along the edge of the frame — reported from
+      // the couch. The tallest here comes out at about nine tenths of the
+      // strip, crown and all.
+      final th = h * (0.45 + rng.nextDouble() * 0.4);
+      final pine = rng.nextDouble() < 0.45;
+      final trunkW = th * (pine ? 0.05 : 0.07);
+      canvas.drawRect(
+        Rect.fromLTWH(cx - trunkW / 2, base - th * 0.55, trunkW, th * 0.55),
+        Paint()..color = night ? const Color(0xFF414A46) : const Color(0xFF4A3626),
+      );
+      if (pine) {
+        // Four skirts to a point, each wider than the one above it.
+        final spread = th * (0.19 + rng.nextDouble() * 0.07);
+        for (var k = 3; k >= 0; k--) {
+          final top = base - th * (1 - k * 0.17);
+          final halfW = spread * (0.42 + k * 0.2);
+          canvas.drawPath(
+            Path()
+              ..moveTo(cx, top)
+              ..lineTo(cx + halfW, top + th * 0.3)
+              ..lineTo(cx + halfW * 0.55, top + th * 0.3)
+              ..lineTo(cx - halfW * 0.55, top + th * 0.3)
+              ..lineTo(cx - halfW, top + th * 0.3)
+              ..close(),
+            Paint()..color = k == 0 ? lit : body,
+          );
+        }
+      } else {
+        // A crown of clumps, not an oval: five discs round a centre, each its
+        // own size, so the silhouette comes out lumpy the way a canopy is.
+        final crownR = th * (0.24 + rng.nextDouble() * 0.1);
+        final cy = base - th * 0.72;
+        final crown = Path();
+        for (var k = 0; k < 5; k++) {
+          final a = k / 5 * 2 * math.pi + rng.nextDouble() * 0.5;
+          final rr = crownR * (0.52 + rng.nextDouble() * 0.34);
+          crown.addOval(
+            Rect.fromCircle(
+              center: Offset(
+                cx + math.cos(a) * crownR * 0.62,
+                cy + math.sin(a) * crownR * 0.44,
+              ),
+              radius: rr,
+            ),
+          );
+        }
+        crown.addOval(Rect.fromCircle(center: Offset(cx, cy), radius: crownR * 0.8));
+        canvas.drawPath(crown, Paint()..color = body);
+        // The light on top of it, clipped to the clumps so it takes their edge.
+        canvas.save();
+        canvas.clipPath(crown);
+        canvas.drawOval(
+          Rect.fromCenter(
+            center: Offset(cx - crownR * 0.3, cy - crownR * 0.5),
+            width: crownR * 1.3,
+            height: crownR * 0.9,
+          ),
+          Paint()
+            ..color = lit
+            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2.2),
+        );
+        canvas.restore();
+      }
+    }
+
+    // The air in front of it — a third of what the hills take, so it sits
+    // between the park and the country rather than joining either.
+    canvas.drawRect(
+      Offset.zero & size,
+      Paint()
+        ..color = haze.withValues(alpha: 0.12)
+        ..blendMode = BlendMode.srcATop,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_HedgePainter old) =>
+      old.haze != haze || old.night != night;
+}
+
 class _HillsSegment extends StatelessWidget {
   const _HillsSegment({
     required this.tier,
@@ -1294,7 +1584,8 @@ class _HillsSegment extends StatelessWidget {
         // Night: a solid black cut-out, village and all. At 85% the green
         // showed through and the hills read dark green rather than black.
         colorFilter: night
-            ? const ColorFilter.mode(Color(0xFF06080D), BlendMode.srcATop)
+            // Not quite black any more — see [_turfNight] for the lift.
+            ? const ColorFilter.mode(Color(0xFF2D3138), BlendMode.srcATop)
             : const ColorFilter.mode(Colors.transparent, BlendMode.srcATop),
         child: LayoutBuilder(
           builder: (context, box) {
@@ -1345,6 +1636,29 @@ class _HillsSegment extends StatelessWidget {
                 ),
                 for (final v in _villageFor(tier))
                   far(v.path, v.x, v.up, v.height),
+                // **AND THE VILLAGE HAS ITS LIGHTS ON.** A speck of warm each,
+                // over the cut-out rather than in it: the night filter above
+                // takes the whole strip to near-black, houses and all, so a
+                // window drawn inside it would be black too. At this size the
+                // light IS the house — which is what a village on a hill looks
+                // like after dark. Asked for from the couch with the park's.
+                if (night)
+                  for (final v in _villageFor(tier))
+                    if (v.path.contains('house'))
+                      Positioned(
+                        // Centred on the wall, not hung off its corner: the
+                        // glow is drawn round the speck now, so the box is five
+                        // times the size it was.
+                        left:
+                            w * v.x +
+                            h * v.height * 0.32 -
+                            h * v.height * 0.55,
+                        bottom:
+                            h * v.up +
+                            h * v.height * 0.28 -
+                            h * v.height * 0.55,
+                        child: _VillageLight(size: h * v.height * 0.22),
+                      ),
               ],
             );
           },
@@ -1362,8 +1676,18 @@ class _HillsSegment extends StatelessWidget {
 /// park is never on the home screen — the "couple at the first ground, small
 /// crowd at the second" split put fourteen people at the only park a player
 /// sees. Asked for as one or two: a park is a park.
+/// **AND A CLUB WITH A GROUND DRAWS MORE THAN ONE WITHOUT.** Both park tiers
+/// stood the same two people on the touchline, which makes the first thing a
+/// player ever buys change nothing about who turned up — asked about from the
+/// couch in those words. One at the locked ground, four at tier 1, and from
+/// [firstStandTier] the terrace has them instead.
 List<int> parkSpectatorSeeds(int tier) => [
-  for (var i = 0; i < (tier < firstStandTier ? 2 : 0); i++) 700 + i,
+  for (
+    var i = 0;
+    i < (tier >= firstStandTier ? 0 : (tier <= 0 ? 1 : 4));
+    i++
+  )
+    700 + i,
 ];
 
 /// Every file the park's spectators draw, for the scene's gate.
@@ -1446,25 +1770,29 @@ class _ParkFansState extends State<_ParkFans>
       final h = box.maxHeight;
       const w = farSegmentWidth;
       final seeds = parkSpectatorSeeds(widget.tier);
-      // The park's own foot is the horizon, [parkFansDrop] above this layer's
-      // — the same padding [_StandSegment] gives the still.
-      final ph = h - parkFansDrop;
+      // The houses are [parkPropsDrop] below the horizon and the spectators
+      // [parkFansDrop] below it — the lines the still is padded to. A tree or a
+      // bush stands on its OWN one; see [parkTreeDrops].
+      final ph = h - parkFansDrop + parkPropsDrop;
       Widget sway(
         String path,
         double x,
         double height, {
         required int seed,
         double amplitude = 0.022,
+        double drop = parkPropsDrop,
       }) => Positioned(
         left: x,
-        bottom: parkFansDrop,
+        bottom: parkFansDrop - drop,
         child: ParkSway(
           clock: _t,
           seed: seed,
           amplitude: amplitude,
           child: Image.asset(
             path,
-            height: height,
+            // Further forward is nearer, so it is bigger: a stagger in depth
+            // with no change of size is a row of cut-outs shuffled up and down.
+            height: height * (1 + (drop - parkPropsDrop) * 0.012),
             filterQuality: FilterQuality.medium,
           ),
         ),
@@ -1473,18 +1801,18 @@ class _ParkFansState extends State<_ParkFans>
       final fans = Stack(
           clipBehavior: Clip.none,
           children: [
-            // The same trees at the same feet the still used to draw.
-            sway(kenneyTrees[0], w * 0.03, ph, seed: 1),
-            sway(kenneyTrees[1], w * 0.30, ph * 0.96, seed: 2),
-            sway(kenneyTreesSmall[1], w * 0.42, ph * 0.55, seed: 3),
-            sway(kenneyTrees[2], w * 0.50, ph, seed: 4),
-            sway(kenneyTrees[0], w * 0.71, ph * 0.9, seed: 5),
-            sway(kenneyTreesSmall[2], w * 0.90, ph * 0.5, seed: 6),
+            // The same trees, each on its own line — see [parkTreeDrops].
+            sway(kenneyTrees[0], w * 0.03, ph, seed: 1, drop: parkTreeDrops[0]),
+            sway(kenneyTrees[1], w * 0.30, ph * 0.96, seed: 2, drop: parkTreeDrops[1]),
+            sway(kenneyTreesSmall[1], w * 0.42, ph * 0.55, seed: 3, drop: parkTreeDrops[2]),
+            sway(kenneyTrees[2], w * 0.50, ph, seed: 4, drop: parkTreeDrops[3]),
+            sway(kenneyTrees[0], w * 0.71, ph * 0.9, seed: 5, drop: parkTreeDrops[4]),
+            sway(kenneyTreesSmall[2], w * 0.90, ph * 0.5, seed: 6, drop: parkTreeDrops[5]),
             // A bush is low and stiff: half the lean.
-            sway(kenneyBushes[0], w * 0.15, ph * 0.24, seed: 7, amplitude: 0.011),
-            sway(kenneyBushes[2], w * 0.38, ph * 0.22, seed: 8, amplitude: 0.011),
-            sway(kenneyBushes[1], w * 0.64, ph * 0.26, seed: 9, amplitude: 0.011),
-            sway(kenneyBushes[3], w * 0.95, ph * 0.22, seed: 10, amplitude: 0.011),
+            sway(kenneyBushes[0], w * 0.15, ph * 0.24, seed: 7, amplitude: 0.022, drop: parkBushDrops[0]),
+            sway(kenneyBushes[2], w * 0.38, ph * 0.22, seed: 8, amplitude: 0.022, drop: parkBushDrops[1]),
+            sway(kenneyBushes[1], w * 0.64, ph * 0.26, seed: 9, amplitude: 0.022, drop: parkBushDrops[2]),
+            sway(kenneyBushes[3], w * 0.95, ph * 0.22, seed: 10, amplitude: 0.022, drop: parkBushDrops[3]),
             for (final (i, seed) in seeds.indexed)
               Positioned(
                 left: w * _spectatorSpots[seeds.length]![i],
@@ -1510,7 +1838,8 @@ class _ParkFansState extends State<_ParkFans>
         child: widget.night
             ? ColorFiltered(
                 colorFilter: const ColorFilter.mode(
-                  Color(0x99060A14),
+                  // Lifted with the rest of the night — see [_turfNight].
+                  Color(0x6E141C2E),
                   BlendMode.srcATop,
                 ),
                 child: fans,
@@ -1525,14 +1854,19 @@ class _ParkFansState extends State<_ParkFans>
 ///
 /// **Public for the test that pins it to a breeze rather than a gale.** The
 /// reference canopy moves a degree or two and never more; [amplitude] is in
-/// radians and the default is about 1.3°. Periods differ by [seed] so a row of
+/// radians and the default is about 2.6°.
+///
+/// **It was 1.3° and nobody could see it.** Reported from the couch as the
+/// background not moving at all — which it was, by about a pixel at the top of
+/// a tree. Doubled, plus a bob of its own: a canopy in a breeze rises and falls
+/// as well as leaning, and the vertical is what the eye actually catches. Periods differ by [seed] so a row of
 /// trees never nods in step, which is what would make it read as one sprite.
 class ParkSway extends StatelessWidget {
   const ParkSway({
     required this.clock,
     required this.seed,
     required this.child,
-    this.amplitude = 0.022,
+    this.amplitude = 0.045,
     super.key,
   });
 
@@ -1551,14 +1885,25 @@ class ParkSway extends StatelessWidget {
     return amplitude * math.sin(phase * 2 * math.pi) * (0.7 + 0.3 * gust);
   }
 
+  /// And how far it rises, in points.
+  double bobAt(double seconds) {
+    final period = 2.3 + (seed % 5) * 0.6;
+    return 0.7 * math.sin((seconds / period + seed * 0.41) * 2 * math.pi).abs();
+  }
+
   @override
   Widget build(BuildContext context) => AnimatedBuilder(
     animation: clock,
     child: child,
-    builder: (context, tree) => Transform.rotate(
-      angle: angleAt(clock.value),
-      alignment: Alignment.bottomCenter,
-      child: tree!,
+    builder: (context, tree) => Transform.translate(
+      // Half a point of rise on twice the lean's period, so it never beats in
+      // time with the sway and read as one motion.
+      offset: Offset(0, -bobAt(clock.value)),
+      child: Transform.rotate(
+        angle: angleAt(clock.value),
+        alignment: Alignment.bottomCenter,
+        child: tree!,
+      ),
     ),
   );
 }
@@ -1577,12 +1922,17 @@ class _Shuffle extends StatelessWidget {
     animation: clock,
     child: child,
     builder: (context, figure) {
-      final phase = (clock.value / (3 + (seed % 5) * 0.5) + seed * 0.37) % 1;
+      // **BIG ENOUGH TO SEE.** A point of drift and half a point of rise is a
+      // figure standing still as far as anybody watching is concerned —
+      // reported from the couch as the background not moving at all. Twice
+      // that, on a quicker clock, and it reads as somebody shifting their
+      // weight on a cold touchline.
+      final phase = (clock.value / (2.2 + (seed % 5) * 0.4) + seed * 0.37) % 1;
       final wave = math.sin(phase * 2 * math.pi);
       return Transform.translate(
-        offset: Offset(wave * 0.8, -wave.abs() * 0.5),
+        offset: Offset(wave * 1.4, -wave.abs() * 1.5),
         child: Transform.rotate(
-          angle: wave * 0.025,
+          angle: wave * 0.04,
           alignment: Alignment.bottomCenter,
           child: figure!,
         ),
@@ -1620,18 +1970,34 @@ class _ParkSegment extends StatelessWidget {
           height: height,
           filterQuality: FilterQuality.medium,
         );
+        final Widget hazed = fade == 0
+            ? image
+            : ColorFiltered(
+                colorFilter: ColorFilter.mode(
+                  haze.withValues(alpha: fade),
+                  BlendMode.srcATop,
+                ),
+                child: image,
+              );
         return Positioned(
           left: x,
           bottom: 0,
-          child: fade == 0
-              ? image
-              : ColorFiltered(
-                  colorFilter: ColorFilter.mode(
-                    haze.withValues(alpha: fade),
-                    BlendMode.srcATop,
-                  ),
-                  child: image,
-                ),
+          // **SOMEBODY IS IN.** Asked for from the couch: at night the houses
+          // behind the ground should have their lights on. Two warm windows and
+          // the bloom around them, laid OVER the sprite and outside the park's
+          // night tint — a lit window that takes the same blue wash as the wall
+          // it is in is a pale rectangle, not a light. See [_LitWindows].
+          child: night
+              ? Stack(
+                  // The glow is BIGGER THAN THE HOUSE — that is what makes it a
+                  // light rather than a bright wall — so nothing may clip it.
+                  clipBehavior: Clip.none,
+                  children: [
+                    hazed,
+                    Positioned.fill(child: _LitWindows(size: height * 0.12)),
+                  ],
+                )
+              : hazed,
         );
       }
       final park = Stack(
@@ -1661,6 +2027,148 @@ class _ParkSegment extends StatelessWidget {
       );
     },
   );
+}
+
+/// **A HOUSE WITH THE LIGHTS ON, THROWING LIGHT.** Asked for from the couch
+/// several times over, and the last two are what shaped it: the windows should
+/// EMIT a glow, and the glow has to be **concentrated where the light is and at
+/// nothing by the edge of its box**.
+///
+/// Both notes are the same fault. The first pass hung `BoxShadow`s off the
+/// panes and a wide soft ball over the whole house: a box shadow is a blurred
+/// RECTANGLE, so it reads as a bright smear with corners, and a ball that broad
+/// is fog on the roof rather than light out of a window. This is a radial
+/// gradient per WINDOW instead — hottest on the pane, most of it spent inside a
+/// third of the radius, and exactly zero at the rim, so nothing has an edge to
+/// see. The only wide thing left is the pool on the grass outside the door,
+/// which is what the light lands ON.
+class _LitWindows extends StatelessWidget {
+  const _LitWindows({required this.size});
+
+  /// One window's height. Off the house, so a cottage does not get the big
+  /// house's window.
+  final double size;
+
+  /// Light out of one opening: hot at the middle, gone at the rim.
+  static const RadialGradient _lamp = RadialGradient(
+    colors: [
+      Color(0xF2FFE9B8),
+      Color(0xA6FFCE7A),
+      Color(0x3DFFC168),
+      Color(0x00FFC168),
+    ],
+    stops: [0, 0.16, 0.42, 1],
+  );
+
+  @override
+  Widget build(BuildContext context) => IgnorePointer(
+    child: LayoutBuilder(
+      builder: (context, box) {
+        final w = box.maxWidth;
+        final h = box.maxHeight;
+        final halo = size * 5.2;
+        return Stack(
+          clipBehavior: Clip.none,
+          children: [
+            // What the light lands on outside the door. Flattened, because the
+            // ground is not a wall and a circle of light on it is a balloon.
+            Positioned(
+              left: -w * 0.25,
+              width: w * 1.5,
+              bottom: -h * 0.12,
+              height: h * 0.4,
+              child: const DecoratedBox(
+                decoration: BoxDecoration(
+                  gradient: RadialGradient(
+                    colors: [
+                      Color(0x66FFC873),
+                      Color(0x1FFFC168),
+                      Color(0x00FFC168),
+                    ],
+                    stops: [0, 0.45, 1],
+                  ),
+                ),
+              ),
+            ),
+            for (final x in const [-0.45, 0.42]) ...[
+              Align(
+                alignment: Alignment(x, 0.35),
+                child: SizedBox(
+                  width: halo,
+                  height: halo,
+                  child: const DecoratedBox(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      gradient: _lamp,
+                    ),
+                  ),
+                ),
+              ),
+              Align(
+                alignment: Alignment(x, 0.35),
+                child: Container(
+                  width: size * 0.85,
+                  height: size,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFF6DF),
+                    borderRadius: BorderRadius.circular(size * 0.12),
+                  ),
+                ),
+              ),
+            ],
+          ],
+        );
+      },
+    ),
+  );
+}
+
+/// One lit window on a hillside, a mile off: a hot speck inside a glow that is
+/// gone by the edge of its own box. Any bigger and the hills stop being far
+/// away — see [_LitWindows] for why this is a gradient and not a box shadow.
+class _VillageLight extends StatelessWidget {
+  const _VillageLight({required this.size});
+
+  final double size;
+
+  @override
+  Widget build(BuildContext context) {
+    final core = math.max(1.2, size);
+    final halo = core * 5;
+    return IgnorePointer(
+      child: SizedBox(
+        width: halo,
+        height: halo,
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            const DecoratedBox(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                gradient: RadialGradient(
+                  colors: [
+                    Color(0xF2FFE9B8),
+                    Color(0x99FFCE7A),
+                    Color(0x33FFC168),
+                    Color(0x00FFC168),
+                  ],
+                  stops: [0, 0.18, 0.45, 1],
+                ),
+              ),
+            ),
+            Container(
+              width: core,
+              height: core,
+              decoration: BoxDecoration(
+                color: const Color(0xFFFFF6DF),
+                borderRadius: BorderRadius.circular(core * 0.3),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
 /// The crowd's own clock, and how worked up it is.
@@ -1978,6 +2486,28 @@ typedef DeckPlan = ({
   double standH,
 });
 
+/// **THE TIER THE CROWD BRINGS BANNERS.** Below it the support is a stand full
+/// of replica shirts; at the top of the pyramid it is an END — scarves held up
+/// over the heads and big two-pole flags waving above them.
+///
+/// Asked for from the couch, naming 7 and 8. It is a real difference in kind
+/// rather than more of the same: the crowd already grew from twelve a row to
+/// thirty-three and got taller decks with it, and none of that says "this is a
+/// club with a following" the way one banner does.
+const int firstFlagTier = 7;
+
+/// How many of the crowd hold a scarf up, at this tier.
+double scarfShare(int tier) => tier < firstFlagTier
+    ? 0
+    : (tier == firstFlagTier ? 0.10 : 0.16);
+
+/// How many hold a flag. Rare on purpose: a flag is drawn over the fans around
+/// it, and a terrace where every tenth seat has a banner in front of it is a
+/// bunting line rather than a crowd.
+double flagShare(int tier) => tier < firstFlagTier
+    ? 0
+    : (tier == firstFlagTier ? 0.012 : 0.02);
+
 /// The lowest tier that has a stand at all.
 const int firstStandTier = 2;
 
@@ -2176,10 +2706,18 @@ class _StandSegment extends StatelessWidget {
         ? Padding(
             // The strip runs on below the horizon for the spectators; the
             // park's own feet stay on it — see [parkFansDrop].
-            padding: const EdgeInsets.only(bottom: parkFansDrop),
+            padding: const EdgeInsets.only(
+              bottom: parkFansDrop - parkPropsDrop,
+            ),
             child: sprites
                 ? _ParkSegment(haze: haze, night: night, tier: tier)
-                : CustomPaint(painter: ParkPainter(haze: haze, tier: tier)),
+                : CustomPaint(
+                    painter: ParkPainter(
+                      haze: haze,
+                      tier: tier,
+                      night: night,
+                    ),
+                  ),
           )
         : CustomPaint(
             painter: _StandPainter(
@@ -2209,10 +2747,14 @@ class _StandSegment extends StatelessWidget {
 /// the backdrop being cropped. Nothing about that is visible from the outside
 /// except the pixels, so the pixels are what `pitch_scene_test` checks.
 class ParkPainter extends CustomPainter {
-  const ParkPainter({required this.haze, required this.tier});
+  const ParkPainter({required this.haze, required this.tier, this.night = false});
 
   final Color haze;
   final int tier;
+
+  /// Whether the lights are on in the changing rooms — see [_LitWindows] for
+  /// the sprite park's own.
+  final bool night;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -2222,6 +2764,8 @@ class ParkPainter extends CustomPainter {
     final unit = size.width / 480;
     final h = size.height;
     final base = h;
+    // The strip runs on below this for the spectators — see [parkFansDrop].
+    final fanLine = base + (parkFansDrop - parkPropsDrop);
 
     // This IS the horizon at these tiers — there is no plate behind it. See
     // the segment for the five reports that established that.
@@ -2263,7 +2807,9 @@ class ParkPainter extends CustomPainter {
     // A near tree: a trunk, a crown built of three blobs, lit up-left and
     // shaded underneath, and a shadow on the grass at its foot. The old one
     // was a disc on a stick.
-    void tree(double x, double size_, {bool tall = false}) {
+    void tree(double x, double size_, {bool tall = false, double dy = 0}) {
+      // Its own line, [dy] in front of the props' one.
+      final foot = base + dy;
       final s = math.min(size_, h / (49 * scale));
       final w = (tall ? 22 : 34) * scale * s;
       final crownH = (tall ? 40 : 30) * scale * s;
@@ -2273,7 +2819,7 @@ class ParkPainter extends CustomPainter {
       // Shadow on the ground, so it stands on the grass rather than on the
       // horizon line.
       canvas.drawOval(
-        Rect.fromCenter(center: Offset(cx + w * 0.15, base - 1), width: w * 1.1, height: 4 * scale),
+        Rect.fromCenter(center: Offset(cx + w * 0.15, foot - 1), width: w * 1.1, height: 4 * scale),
         Paint()
           ..color = Colors.black.withValues(alpha: 0.2)
           ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.5),
@@ -2281,21 +2827,21 @@ class ParkPainter extends CustomPainter {
       // Trunk, tapered, with a branch or two into the crown.
       canvas.drawPath(
         Path()
-          ..moveTo(cx - trunkW * 0.7, base + 1)
-          ..lineTo(cx + trunkW * 0.7, base + 1)
-          ..lineTo(cx + trunkW * 0.35, base - trunkH - crownH * 0.35)
-          ..lineTo(cx - trunkW * 0.35, base - trunkH - crownH * 0.35)
+          ..moveTo(cx - trunkW * 0.7, foot + 1)
+          ..lineTo(cx + trunkW * 0.7, foot + 1)
+          ..lineTo(cx + trunkW * 0.35, foot - trunkH - crownH * 0.35)
+          ..lineTo(cx - trunkW * 0.35, foot - trunkH - crownH * 0.35)
           ..close(),
         Paint()..color = const Color(0xFF5E4130),
       );
       canvas.drawLine(
-        Offset(cx, base - trunkH - crownH * 0.2),
-        Offset(cx + w * 0.22, base - trunkH - crownH * 0.5),
+        Offset(cx, foot - trunkH - crownH * 0.2),
+        Offset(cx + w * 0.22, foot - trunkH - crownH * 0.5),
         Paint()
           ..color = const Color(0xFF5E4130)
           ..strokeWidth = trunkW * 0.35,
       );
-      final crownTop = base - trunkH - crownH;
+      final crownTop = foot - trunkH - crownH;
       final crown = Path();
       if (tall) {
         crown.addOval(Rect.fromLTWH(cx - w / 2, crownTop, w, crownH));
@@ -2359,7 +2905,14 @@ class ParkPainter extends CustomPainter {
 
     // A person: legs, a shirt with two ARMS, a head with HAIR. The one who
     // used to loiter here was a rounded rect with a disc on it.
-    void person(double x, Color shirt, Color hair, {bool sitting = false, bool waving = false, double seatY = 0}) {
+    void person(double x, Color shirt, Color hair, {bool sitting = false, bool waving = false, double seatY = 0, double? foot}) {
+      // **THE WATCHERS STAND WHERE THE SPRITE LAYER'S DO**, which is
+      // [parkFansDrop] down the picture rather than on the props' line — and
+      // still above the chalk. A fallback that stands its people somewhere else
+      // is a different park. Anyone on a BENCH is the exception, and passes the
+      // line the bench is standing on: a sitter whose feet are eight points in
+      // front of the seat is not sitting on it.
+      final base = foot ?? fanLine;
       final skin = _fanSkins[rng.nextInt(_fanSkins.length)];
       final legH = sitting ? 5 * scale : 7 * scale;
       final torsoH = 7 * scale;
@@ -2411,12 +2964,14 @@ class ParkPainter extends CustomPainter {
 
     const hairs = [Color(0xFF2A1B12), Color(0xFF5B3A22), Color(0xFFB88A4A), Color(0xFF8A8A8A), Color(0xFF1A1A1A)];
 
-    // Trees, two species, in a loose line.
-    tree((22 + rng.nextDouble() * 20) * unit, 0.9 + rng.nextDouble() * 0.3);
-    tree((120 + rng.nextDouble() * 20) * unit, 1.0 + rng.nextDouble() * 0.25, tall: true);
-    tree((205 + rng.nextDouble() * 30) * unit, 0.75 + rng.nextDouble() * 0.3);
-    tree((340 + rng.nextDouble() * 30) * unit, 0.9 + rng.nextDouble() * 0.3);
-    tree((430 + rng.nextDouble() * 20) * unit, 0.8, tall: true);
+    // Trees, two species, and **NOT IN A LINE** — each on its own depth, as the
+    // live layer plants them (see [parkTreeDrops]). Five trunks with their feet
+    // on one row is a fence with leaves on.
+    tree((22 + rng.nextDouble() * 20) * unit, 0.9 + rng.nextDouble() * 0.3, dy: 0);
+    tree((120 + rng.nextDouble() * 20) * unit, 1.0 + rng.nextDouble() * 0.25, tall: true, dy: 3);
+    tree((205 + rng.nextDouble() * 30) * unit, 0.75 + rng.nextDouble() * 0.3, dy: 1);
+    tree((340 + rng.nextDouble() * 30) * unit, 0.9 + rng.nextDouble() * 0.3, dy: 5);
+    tree((430 + rng.nextDouble() * 20) * unit, 0.8, tall: true, dy: 2);
 
     // The hedge: a run of clipped bushes along the boundary, lit on top.
     final hedgeX0 = (150 + rng.nextDouble() * 40) * unit;
@@ -2456,8 +3011,38 @@ class ParkPainter extends CustomPainter {
           ..close(),
         Paint()..color = const Color(0xFF6E3F36),
       );
-      canvas.drawRect(Rect.fromLTWH(hx + 6 * unit, base - 8 * scale, 5 * unit, 8 * scale + 1), Paint()..color = const Color(0xFF4A5B6A));
-      canvas.drawRect(Rect.fromLTWH(hx + 18 * unit, base - 10 * scale, 7 * unit, 5 * scale), Paint()..color = const Color(0xFFBFDCEC));
+      canvas.drawRect(Rect.fromLTWH(hx + 6 * unit, base - 8 * scale, 5 * unit, 8 * scale + 1), Paint()..color = night ? const Color(0xFF6A5A44) : const Color(0xFF4A5B6A));
+      final pane = Rect.fromLTWH(hx + 18 * unit, base - 10 * scale, 7 * unit, 5 * scale);
+      // **THE LIGHTS ARE ON IN THERE.** Asked for from the couch: at night the
+      // buildings behind the ground should be lit. The bloom around the pane is
+      // most of it — a warm rectangle on its own is a sticker, and the light
+      // spilling onto the wall is what says somebody is inside.
+      if (night) {
+        canvas.drawRect(
+          pane.inflate(5 * scale),
+          Paint()
+            ..color = const Color(0x8FFFB85A)
+            ..maskFilter = MaskFilter.blur(BlurStyle.normal, 4.5 * scale),
+        );
+        canvas.drawRect(
+          pane.inflate(1.6 * scale),
+          Paint()
+            ..color = const Color(0xE6FFCE7A)
+            ..maskFilter = MaskFilter.blur(BlurStyle.normal, 1.6 * scale),
+        );
+        // And it falls on the ground outside the door.
+        canvas.drawOval(
+          Rect.fromCenter(
+            center: Offset(hx + 8.5 * unit, base),
+            width: 16 * unit,
+            height: 4 * scale,
+          ),
+          Paint()
+            ..color = const Color(0x59FFC46B)
+            ..maskFilter = MaskFilter.blur(BlurStyle.normal, 2.5 * scale),
+        );
+      }
+      canvas.drawRect(pane, Paint()..color = night ? const Color(0xFFFFEFC2) : const Color(0xFFBFDCEC));
       canvas.drawRect(Rect.fromLTWH(hx + 21.2 * unit, base - 10 * scale, 0.7 * unit, 5 * scale), Paint()..color = const Color(0xFF7A6A55));
       canvas.drawRect(Rect.fromLTWH(hx + 18 * unit, base - 7.8 * scale, 7 * unit, 0.7 * scale), Paint()..color = const Color(0xFF7A6A55));
 
@@ -2477,18 +3062,24 @@ class ParkPainter extends CustomPainter {
 
       // **SUNDAY LEAGUE GETS SPECTATORS; the park below it gets nobody.** One
       // sat on the bench, one standing with a wave, and a dog.
-      person(bench1 + 6 * unit, _fanColours[rng.nextInt(_fanColours.length)], hairs[rng.nextInt(hairs.length)], sitting: true, seatY: base - 7 * scale);
+      person(bench1 + 6 * unit, _fanColours[rng.nextInt(_fanColours.length)], hairs[rng.nextInt(hairs.length)], sitting: true, seatY: base - 7 * scale, foot: base);
+      // **AND SOMEBODY ON THE OTHER ONE.** Asked for from the couch, who liked
+      // the sitter: two benches with one in use read as a bench somebody had
+      // been put on rather than a park people come to. A pair on the far one,
+      // shoulder to shoulder.
+      person(bench2 + 3 * unit, _fanColours[rng.nextInt(_fanColours.length)], hairs[rng.nextInt(hairs.length)], sitting: true, seatY: base - 7 * scale, foot: base);
+      person(bench2 + 12 * unit, _fanColours[rng.nextInt(_fanColours.length)], hairs[rng.nextInt(hairs.length)], sitting: true, seatY: base - 7 * scale, foot: base);
       final px = (170 + rng.nextDouble() * 40) * unit;
       person(px, _fanColours[rng.nextInt(_fanColours.length)], hairs[rng.nextInt(hairs.length)], waving: rng.nextDouble() < 0.6);
       // The dog: a body, a head, four legs and a tail up.
       final dx = px + 14 * unit;
       final dog = Paint()..color = const Color(0xFF7A5A3A);
-      canvas.drawOval(Rect.fromLTWH(dx, base - 5 * scale, 7 * unit, 3.2 * scale), dog);
-      canvas.drawCircle(Offset(dx + 7.4 * unit, base - 4.6 * scale), 1.7 * unit, dog);
+      canvas.drawOval(Rect.fromLTWH(dx, fanLine - 5 * scale, 7 * unit, 3.2 * scale), dog);
+      canvas.drawCircle(Offset(dx + 7.4 * unit, fanLine - 4.6 * scale), 1.7 * unit, dog);
       for (final lx2 in [dx + 1 * unit, dx + 2.6 * unit, dx + 4.6 * unit, dx + 6 * unit]) {
-        canvas.drawRect(Rect.fromLTWH(lx2, base - 2.2 * scale, 0.9 * unit, 2.2 * scale + 1), dog);
+        canvas.drawRect(Rect.fromLTWH(lx2, fanLine - 2.2 * scale, 0.9 * unit, 2.2 * scale + 1), dog);
       }
-      canvas.drawLine(Offset(dx + 0.3 * unit, base - 4.4 * scale), Offset(dx - 1.6 * unit, base - 7 * scale), Paint()..color = const Color(0xFF7A5A3A)..strokeWidth = 0.9 * unit..strokeCap = StrokeCap.round);
+      canvas.drawLine(Offset(dx + 0.3 * unit, fanLine - 4.4 * scale), Offset(dx - 1.6 * unit, fanLine - 7 * scale), Paint()..color = const Color(0xFF7A5A3A)..strokeWidth = 0.9 * unit..strokeCap = StrokeCap.round);
     }
 
     // No fence here either, so the sprites do not take one away when they
@@ -2508,7 +3099,7 @@ class ParkPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(ParkPainter old) =>
-      old.haze != haze || old.tier != tier;
+      old.haze != haze || old.tier != tier || old.night != night;
 }
 
 class _StandPainter extends CustomPainter {
@@ -2624,6 +3215,9 @@ class _StandPainter extends CustomPainter {
     // in the list is the BACK one, and it is drawn first so the deck in front
     // overlaps it.
     var deckY = deckTop;
+    // The banners in the deck being walked, held back until its rows are done.
+    final flags =
+        <({double x, double top, double shoulder, Color colour, double phase})>[];
     for (var d = 0; d < plan.decks; d++) {
       final rows = plan.perDeck[d];
       final deckH = plan.deckHs[d];
@@ -2692,8 +3286,10 @@ class _StandPainter extends CustomPainter {
         // repaint and the stand never reshuffles.
         final phase = rng.nextDouble();
         final keen = rng.nextDouble();
-        // At rest only the keenest fifth are up; excitement brings the rest.
-        final up = keen < 0.2 + excitement * 0.8;
+        // At rest about a third are up; excitement brings the rest. It was a
+        // fifth, and a stand that still reads as a photograph from the couch is
+        // the whole reason the bounce exists.
+        final up = keen < 0.32 + excitement * 0.68;
         final lift = up
             ? math.max(0.0, math.sin((beat + phase) * 2 * math.pi)) *
                   (1.1 + excitement * 2.4) *
@@ -2705,6 +3301,14 @@ class _StandPainter extends CustomPainter {
         final skin = _fanSkins[rng.nextInt(_fanSkins.length)];
         // Drawn from the stream on BOTH halves so the two stay in step.
         final hair = _fanHair[rng.nextInt(_fanHair.length)];
+        // **WHAT THEY BROUGHT WITH THEM.** Drawn from the stream on BOTH
+        // halves, like the hair, so the two stay in step — see [firstFlagTier].
+        final prop = rng.nextDouble();
+        final scarf = prop < scarfShare(tier);
+        // A flag is only ever in the FRONT deck: one waving out of the back
+        // tier of a three-decker is a banner hung in the roof.
+        final flag =
+            d == plan.decks - 1 && prop > 1 - flagShare(tier);
         final armsUp = up && (keen < 0.1 || excitement > 0.5);
         if (mine) {
           _paintFan(
@@ -2715,11 +3319,47 @@ class _StandPainter extends CustomPainter {
             shirt: shirt,
             skin: skin,
             hair: hair,
-            armsUp: armsUp,
+            // A scarf is held up in two hands, so the arms go with it.
+            armsUp: armsUp || scarf,
           );
+          if (scarf) {
+            _paintScarf(
+              canvas,
+              x: x,
+              top: deckTop + y - lift,
+              shoulder: shoulder,
+              colour: shirt == kitColor ? kitColor : shirt,
+              phase: phase,
+            );
+          }
+          if (flag) {
+            flags.add((
+              x: x,
+              top: deckTop + y - lift,
+              shoulder: shoulder,
+              colour: kitColor,
+              phase: phase,
+            ));
+          }
         }
       }
       }
+      // **THE FLAGS GO OVER THE DECK THEY ARE IN**, and no further. Painted
+      // inside the row loop a banner was cut in half by the next fan along and
+      // by every row in front of it; held back to here it stands over its own
+      // deck's crowd and still passes behind the one in front, which is what
+      // keeps it in the stand rather than on top of the picture.
+      for (final f in flags) {
+        _paintFlag(
+          canvas,
+          x: f.x,
+          top: f.top,
+          shoulder: f.shoulder,
+          colour: f.colour,
+          phase: f.phase,
+        );
+      }
+      flags.clear();
       // **AND THE AIR IN FRONT OF IT.** Size alone is a small stand rather than
       // a distant one; what actually sits a tier back is the haze between the
       // viewer and it. One pass per deck, over that deck's own band only, so
@@ -2796,6 +3436,110 @@ class _StandPainter extends CustomPainter {
   /// One supporter, at `.ps-fan`'s geometry. Everything is a multiple of
   /// [shoulder] — the torso box, the head that overlaps its top edge by a hair
   /// so there is no neck gap at 5px, and the sleeve bar across the shoulders.
+  /// **A SCARF HELD UP**, which is the cheapest thing on a terrace that says
+  /// this is a support rather than an audience: a bar of club colour stretched
+  /// between two raised hands, with a stripe through it and a lick of movement
+  /// so a hundred of them are not one shape repeated.
+  void _paintScarf(
+    Canvas canvas, {
+    required double x,
+    required double top,
+    required double shoulder,
+    required Color colour,
+    required double phase,
+  }) {
+    // Between the hands the raised arms end at, and a touch above them.
+    final w = shoulder * 1.72;
+    final h = math.max(1.4, shoulder * 0.3);
+    final y = top - shoulder * 0.72;
+    canvas.save();
+    canvas.translate(x + shoulder * 0.5, y);
+    // Held at a slight angle, its own per fan, so a row of them is not a fence.
+    canvas.rotate((phase - 0.5) * 0.34);
+    final box = Rect.fromCenter(center: Offset.zero, width: w, height: h);
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(box, Radius.circular(h * 0.35)),
+      Paint()..color = colour,
+    );
+    // The bar across the middle every club scarf has.
+    canvas.drawRect(
+      Rect.fromCenter(center: Offset.zero, width: w, height: h * 0.34),
+      Paint()..color = Colors.white.withValues(alpha: 0.65),
+    );
+    canvas.restore();
+  }
+
+  /// **A BIG FLAG.** A pole out of the crowd and a cloth two heads wide,
+  /// rippling on the same beat the terrace bounces to.
+  ///
+  /// The cloth is drawn as a run of columns whose top and bottom edges ride one
+  /// sine — a flag whose OUTLINE waves but whose face is flat reads as a sheet
+  /// of card, so the shading rides the same wave and the folds move with it.
+  void _paintFlag(
+    Canvas canvas, {
+    required double x,
+    required double top,
+    required double shoulder,
+    required Color colour,
+    required double phase,
+  }) {
+    // **IT STOPS UNDER THE FASCIA.** The pole is nearly five shoulders long and
+    // the top rows sit close to the roof, so a fixed length put the cloth off
+    // the top of the strip and the flag arrived as a stripe with no top edge.
+    final poleH = math.min(
+      shoulder * 4.6,
+      math.max(shoulder * 2.0, top - _roofHeight - 2),
+    );
+    final poleX = x + shoulder * 0.2;
+    final poleTop = top - poleH;
+    canvas.drawLine(
+      Offset(poleX, top + shoulder * 0.2),
+      Offset(poleX, poleTop),
+      Paint()
+        ..color = const Color(0xFF3A3A3A)
+        ..strokeWidth = math.max(1, shoulder * 0.12),
+    );
+    final w = shoulder * 3.6;
+    final h = math.min(shoulder * 2.4, poleH * 0.55);
+    final wave = (phase + beat) * 2 * math.pi;
+    final top_ = poleTop + shoulder * 0.15;
+    // The cloth, column by column: each one hung off the same travelling wave,
+    // so the whole sheet ripples away from the pole rather than swinging as a
+    // board.
+    const steps = 10;
+    final path = Path()..moveTo(poleX, top_);
+    double lift(double t) => math.sin(wave - t * 3.4) * h * 0.13 * t;
+    for (var i = 1; i <= steps; i++) {
+      final t = i / steps;
+      path.lineTo(poleX + w * t, top_ + lift(t));
+    }
+    for (var i = steps; i >= 0; i--) {
+      final t = i / steps;
+      path.lineTo(poleX + w * t, top_ + h + lift(t));
+    }
+    path.close();
+    canvas.drawPath(path, Paint()..color = colour);
+    // A white band across it, and the fold shading — both clipped to the cloth
+    // so they travel with the wave rather than sitting over it.
+    canvas.save();
+    canvas.clipPath(path);
+    canvas.drawRect(
+      Rect.fromLTWH(poleX, top_ + h * 0.42, w, h * 0.2),
+      Paint()..color = Colors.white.withValues(alpha: 0.75),
+    );
+    for (var i = 0; i < 3; i++) {
+      final t = 0.25 + i * 0.25;
+      final fold = poleX + w * t + math.sin(wave - t * 3.4) * w * 0.05;
+      canvas.drawRect(
+        Rect.fromLTWH(fold, top_ - h * 0.2, w * 0.09, h * 1.5),
+        Paint()
+          ..color = Colors.black.withValues(alpha: 0.16)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2),
+      );
+    }
+    canvas.restore();
+  }
+
   void _paintFan(
     Canvas canvas, {
     required double x,
@@ -3036,23 +3780,104 @@ const List<Color> _turfDay = [
   Color(0xFF3A9441),
   Color(0xFF48AD50),
 ];
+///
+/// **THE NIGHT SIDE IS LIFTED TWICE, about a tenth each time**, here and in
+/// `theme/sky.dart`, the hills, the hedgerow and the park's own tint. Asked for
+/// from the couch: dark mode on the home page was too dark across the board,
+/// and still too dark once the houses had their lights on — a window only reads
+/// as lit against something it can be brighter THAN. The fix is one consistent
+/// lift rather than a brighter pitch under the same black sky.
 const List<Color> _turfNight = [
-  Color(0xFF17442A),
-  Color(0xFF1F6035),
-  Color(0xFF2A783F),
+  Color(0xFF436852),
+  Color(0xFF497E5B),
+  Color(0xFF529263),
 ];
+
+/// **A FIELD'S COLOUR**: the same three stops with the good taken out of them —
+/// yellowed toward olive and knocked down, which is what a winter of studs and
+/// no groundsman leaves. Lerped in by [pitchWear], because a battered pitch is
+/// not fresh green grass with stains laid over it; the whole surface has gone
+/// off, and the mud patches sit in THAT.
+///
+/// **Yellowed, not greyed.** The first pass took the green most of the way out
+/// and the field came back a flat olive table — which is a dead pitch rather
+/// than a rough one. The photograph's grass is still GRASS; it is the mud
+/// through it that does the talking, so this only warms and dulls it.
+const List<Color> _turfWornDay = [
+  Color(0xFF4A6B2E),
+  Color(0xFF5E8438),
+  Color(0xFF6E9440),
+];
+const List<Color> _turfWornNight = [
+  Color(0xFF51634C),
+  Color(0xFF5B7353),
+  Color(0xFF648058),
+];
+
+/// The turf at this tier, at this hour.
+List<Color> turfColours({required bool night, required int tier}) {
+  final wear = pitchWear(tier);
+  final kept = night ? _turfNight : _turfDay;
+  if (wear <= 0) return kept;
+  final worn = night ? _turfWornNight : _turfWornDay;
+  return [
+    for (var i = 0; i < kept.length; i++) Color.lerp(kept[i], worn[i], wear)!,
+  ];
+}
 
 /// The ground: the turf, the mowing fan over it, the tuft bands, and the haze
 /// that puts the far end of it in the distance.
-/// How far below the horizon a park's spectators stand, in points. The houses
-/// and trees behind them keep their feet ON the horizon, so this is the depth
-/// between the two rows — everything used to stand on one line.
-const double parkFansDrop = 6;
+/// **THE PARK IS FOUR LINES DEEP, and it used to be one.** Everything from the
+/// hedgerow to the crowd stood on the horizon, which is a painted backdrop
+/// rather than a place — asked for from the couch a piece at a time as each one
+/// came off that line.
+///
+/// Down the picture: the hedgerow on the horizon itself, the houses and the hut
+/// [parkPropsDrop] under it, the trees scattered between and in front of them
+/// ([parkTreeDrops]), the spectators at this depth, and the touchline on the
+/// grass below all of it. The one hard rule is that the people stay ABOVE the
+/// chalk — they are watching from the touchline, not standing on the pitch.
+///
+/// How far below the horizon a park's spectators stand, in points.
+const double parkFansDrop = 11;
 
-/// How far below the horizon the far touchline is chalked, in points: ten
-/// onto the grass from the spectators' feet. Public so the test reads the
-/// number rather than a copy of it.
-const double touchlineBelowHorizon = parkFansDrop + 10;
+/// How far below the horizon the park's OWN props stand — the trees, the hut,
+/// the benches.
+///
+/// **They came off the horizon when the hedgerow arrived.** With a row of
+/// bushes on the skyline behind them, a hut whose feet were on that same line
+/// was standing IN the hedge; two things at two distances need two lines, or
+/// the middle layer is a pattern on the far one. A third of the spectators'
+/// drop, so the order down the picture reads country, hedgerow, ground, crowd.
+/// Asked for from the couch, on the first frame the hedgerow was in.
+const double parkPropsDrop = 4;
+
+/// **AND THE TREES ARE NOT IN A ROW EITHER.** Their own depth each, some level
+/// with the houses and some well in front of them — a line of trunks all on one
+/// line is a fence with leaves on. Asked for in those terms. Indexed by the
+/// order [_ParkFans] plants them.
+const List<double> parkTreeDrops = [4, 7, 5, 9, 6, 8];
+
+/// The bushes among them.
+///
+/// **NONE OF THESE MAY STAND BEHIND THE HOUSES**, and that is a rule about the
+/// LAYERS rather than about bushes: the houses are in the still snapshot and
+/// the trees and bushes are in the live one over it, so anything here is drawn
+/// in front of a house whatever depth it claims. A bush on the horizon crossing
+/// a house four points down the picture is the contradiction that produces —
+/// reported from the couch as exactly that. So every drop here is at or past
+/// [parkPropsDrop] and the painting order tells the truth.
+const List<double> parkBushDrops = [5, 8, 6, 9];
+
+/// How far below the horizon the far touchline is chalked, in points — the same
+/// depth at every tier, because the pitch is the same pitch whatever is
+/// standing round it.
+///
+/// **Its own number rather than the spectators' plus ten.** It was derived from
+/// [parkFansDrop], so taking the park's crowd further down the picture dragged
+/// the chalk of all eight grounds with it. The two are related by a rule
+/// instead: the people watch from ABOVE the line.
+const double touchlineBelowHorizon = 16;
 
 /// How thick the chalk is at that depth. Under two points: it is the far line.
 const double touchlineWidth = 1.5;
@@ -3071,7 +3896,7 @@ class _Turf extends StatelessWidget {
   /// Kenney's grass has decoded, so a field's tufts are sprites.
   final bool sprites;
 
-  /// How well kept the pitch is — see [tuftsPerBand] and [firstKeptPitchTier].
+  /// How well kept the pitch is — see [pitchWear] and [tuftsTotal].
   final int tier;
 
   /// The sky, because snow does not only fall — it settles, and grass under snow
@@ -3108,7 +3933,9 @@ class _Turf extends StatelessWidget {
                 // a lamp is a narrow band of light on a field that has no sun on
                 // it, so the green loses its warmth and the pools the pylons
                 // throw put it back in two places — see `_FloodWash`.
-                colors: night ? _turfNight : _turfDay,
+                // **AND HOW WELL KEPT IT IS.** Green at the top of the pyramid,
+                // olive and gone-off at the bottom — see [pitchWear].
+                colors: turfColours(night: night, tier: tier),
                 stops: const [0, 0.45, 1],
               ),
             ),
@@ -3139,23 +3966,32 @@ class _Turf extends StatelessWidget {
                       worldX: worldX,
                       turfHeight: constraints.maxHeight,
                       contactBelowHorizon: contactBelowHorizon,
+                      strength: mowStrength(tier),
                     ),
                     // Each band a FULL-HEIGHT strip whose tufts sit at their own
                     // depth inside it, offset by what the world has done at that
                     // depth.
                     // **MUD, RUTS AND STANDING WATER, under the grass.** The
-                    // bottom two tiers are a field rather than a pitch, and
+                    // bottom of the pyramid is a field rather than a pitch, and
                     // this is most of what says so — the spec scatters them
                     // from 6% to 80% up the pitch and rides them on the ground
-                    // at their own depth, exactly as the tufts do.
-                    if (tier < firstKeptPitchTier)
+                    // at their own depth, exactly as the tufts do. How much of
+                    // it there is, and whether any of it is water, is
+                    // [pitchWear]'s: it fades out over three tiers rather than
+                    // switching off at 2, so the climb out of the park is a
+                    // visible one more than once.
+                    if (pitchWear(tier) > 0)
                       for (var band = 0; band < _decoBands; band++)
                         Positioned.fill(
                           child: _Scroller(
-                            offsetPx: atRow(_decoBandFraction(band)),
+                            offsetPx: atRow(decoBandFraction(band)),
                             segmentWidth: groundSegmentWidth,
-                            stillKey: (band, tier),
-                            child: _DecoSegment(band: band, tier: tier),
+                            stillKey: (band, tier, night),
+                            child: _DecoSegment(
+                              band: band,
+                              tier: tier,
+                              night: night,
+                            ),
                           ),
                         ),
                     for (var band = 0; band < _tuftBands; band++)
@@ -3176,25 +4012,47 @@ class _Turf extends StatelessWidget {
               },
             ),
           ),
-          // **THE FAR TOUCHLINE, where the park's fence was.** Chalked a few
-          // points onto the grass from where the spectators stand. Horizontal,
-          // so it holds still while the ground scrolls under it; under the snow
-          // and the distance shade, so it is ON the grass rather than over the
-          // scene. Only where there is no fence to be the boundary: from
-          // [firstHoardingTier] the boards stand on the horizon instead.
-          if (tier < firstStandTier)
-            const Positioned(
-              key: ValueKey('pitch-touchline'),
-              left: 0,
-              right: 0,
-              top: touchlineBelowHorizon,
-              height: touchlineWidth,
-              child: IgnorePointer(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(color: Color(0xE6F4F4EE)),
+          // **THE FAR TOUCHLINE.** Chalked a few points onto the grass from the
+          // foot of whatever stands on the horizon — the park's spectators, or
+          // the ad boards.
+          //
+          // **AT EVERY TIER, which is the whole of the report.** It was drawn
+          // for the park only, on the reasoning that from [firstHoardingTier]
+          // the boards are the boundary — and the boards are the boundary of
+          // the GROUND, not of the pitch. Six of the eight tiers were a
+          // football pitch with no line on it. Reported from the couch as the
+          // touchlines missing on all of them.
+          //
+          // **ONE UNBROKEN RUN, FADED RATHER THAN BROKEN.** A worn pitch had it
+          // in dashes for a while, which was truer to a park in February and
+          // wrong in two ways at once: it read as a dotted line rather than as
+          // old paint, and a gap is a FEATURE — it had to be hung off the
+          // ground drive at its own row's speed or it sat still while the grass
+          // ran under it. Faded, it has nothing to give away, so it holds still
+          // and costs nothing. Both calls came from the couch, in that order.
+          //
+          // A perpendicular mark still cannot join it: the halfway line and the
+          // boxes would come round with the segment every few seconds and read
+          // as running past the same spot, which is why `PitchScene.js` dropped
+          // them.
+          Positioned(
+            key: const ValueKey('pitch-touchline'),
+            left: 0,
+            right: 0,
+            top: touchlineBelowHorizon,
+            height: touchlineWidth,
+            child: IgnorePointer(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: Color.lerp(
+                    chalkInk(night: night),
+                    chalkWorn(night: night),
+                    pitchWear(tier),
+                  ),
                 ),
               ),
             ),
+          ),
           // Snow LYING on the grass, over the stripes and the tufts but UNDER
           // the distance shade — settled snow is the surface, so it takes the
           // same aerial perspective the turf does.
@@ -3249,11 +4107,15 @@ class _MowFan extends StatelessWidget {
     required this.worldX,
     required this.turfHeight,
     required this.contactBelowHorizon,
+    required this.strength,
   });
 
   final double worldX;
   final double turfHeight;
   final double contactBelowHorizon;
+
+  /// How hard the cut is at this tier — see [mowStrength].
+  final double strength;
 
   @override
   Widget build(BuildContext context) {
@@ -3264,10 +4126,27 @@ class _MowFan extends StatelessWidget {
     // is what once collapsed the surface to nothing and painted the pitch as sky.
     return CustomPaint(
       size: Size.infinite,
-      painter: _MowPainter(phase: (angle / _mowPeriod) % 1),
+      painter: _MowPainter(phase: (angle / _mowPeriod) % 1, strength: strength),
     );
   }
 }
+
+/// The colour of fresh chalk, at this hour.
+///
+/// **NOT WHITE AT NIGHT — BUT STILL THERE.** Reported from the couch twice, one
+/// each way: a paper-white line under a floodlit sky is the brightest thing in
+/// the frame, brighter than the lamps throwing the light; and the first
+/// correction took it so far down that the line had gone. Dimmer AND cooler,
+/// which is the same move the turf makes — what a lamp gives back off wet paint
+/// is a pale blue-grey, and it reads against grass that has been lifted twice
+/// since the first pass.
+Color chalkInk({required bool night}) =>
+    night ? const Color(0xDCBACCCC) : const Color(0xF2F6F6F0);
+
+/// And the colour of the chalk that has been trodden into the mud: the same
+/// line, half taken back into the grass.
+Color chalkWorn({required bool night}) =>
+    night ? const Color(0xA5899C9C) : const Color(0x99D8D4C2);
 
 /// The mow lanes at rest, and the size they were cut for.
 class _MowLanes {
@@ -3287,10 +4166,13 @@ class _MowLanes {
 }
 
 class _MowPainter extends CustomPainter {
-  const _MowPainter({required this.phase});
+  const _MowPainter({required this.phase, required this.strength});
 
   /// How far through one lane pair the sweep is, 0 to 1.
   final double phase;
+
+  /// The tier's cut, as a multiplier on the lanes' contrast.
+  final double strength;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -3309,8 +4191,10 @@ class _MowPainter extends CustomPainter {
     // so the sweep never uncovers an edge.
     final half = math.atan2(inner / 2, -apexY) + _mowPeriod * 2;
     final reach = (h - apexY) * 1.6;
-    final light = Paint()..color = const Color(0x0EFFFFFF);
-    final dark = Paint()..color = const Color(0x0D000000);
+    final light = Paint()
+      ..color = Colors.white.withValues(alpha: 0.055 * strength);
+    final dark = Paint()
+      ..color = Colors.black.withValues(alpha: 0.051 * strength);
 
     // **THE FAN IS BUILT ONCE AND TURNED**, not rebuilt every frame. The lanes
     // are identical and the pattern repeats every [_mowPeriod], so the sweep is
@@ -3375,7 +4259,8 @@ class _MowPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_MowPainter old) => old.phase != phase;
+  bool shouldRepaint(_MowPainter old) =>
+      old.phase != phase || old.strength != strength;
 }
 
 class _TuftSegment extends StatelessWidget {
@@ -3457,16 +4342,26 @@ class _GrassSprites extends StatelessWidget {
 /// IS their speed, and a puddle that raced the stripes it sits in is the one
 /// thing a parallax scene cannot forgive.
 class _DecoSegment extends StatelessWidget {
-  const _DecoSegment({required this.band, required this.tier});
+  const _DecoSegment({
+    required this.band,
+    required this.tier,
+    required this.night,
+  });
 
   final int band;
   final int tier;
+
+  /// Water takes the SKY, so it has to know what hour the sky is at — a puddle
+  /// lit like an afternoon on a floodlit pitch is a hole cut in the ground.
+  final bool night;
 
   @override
   Widget build(BuildContext context) => SizedBox(
     width: groundSegmentWidth,
     height: double.infinity,
-    child: CustomPaint(painter: _DecoPainter(band: band, tier: tier)),
+    child: CustomPaint(
+      painter: _DecoPainter(band: band, tier: tier, night: night),
+    ),
   );
 }
 
@@ -3474,7 +4369,18 @@ class _DecoSegment extends StatelessWidget {
 const double _decoFMin = 0.06;
 const double _decoFMax = 0.80;
 
-/// The middle of a deco band, over the DECO's range.
+/// **The mud's own count of bands**, so doubling the tuft bands did not double
+/// the mud.
+///
+/// Five rather than the three it was, and the reason is drift: a band's whole
+/// strip travels at the speed of ONE row — its centre — so anything painted far
+/// off that row slides against the grass under it. Narrower bands mean a patch
+/// is never more than a fifth of the pitch from the row it is moving at, which
+/// is the same bargain [tuftBandFraction] makes.
+const int _decoBands = 5;
+
+/// The row a deco band's strip travels at — the middle of its slice of the
+/// DECO's range.
 ///
 /// **It was riding on [tuftBandFraction], and that is a different pitch.** The
 /// tufts live between 0.34 and 0.96 and the mud between 0.06 and 0.80, so band
@@ -3484,87 +4390,191 @@ const double _decoFMax = 0.80;
 /// it is painted on drifts backwards against the stripes under it. Reported
 /// from the couch: the mud and the water on the tier-1 pitch moving slightly
 /// slower than the pitch behind them.
-/// The mud's own count of bands — three, as it always was — so doubling the
-/// tuft bands did not double the mud.
-const int _decoBands = 3;
-
-double _decoBandFraction(int band) =>
+///
+/// Public because the test measures the placements against it rather than
+/// against a copy of it.
+double decoBandFraction(int band) =>
     _decoFMin + (_decoFMax - _decoFMin) * (band + 0.5) / _decoBands;
 
+/// One thing on a battered surface.
+enum DecoKind {
+  /// Bare earth showing through the grass.
+  patch,
+
+  /// A rut or a mound — uneven ground, lit along the top.
+  bump,
+
+  /// Standing water, taking the sky.
+  puddle,
+}
+
+/// One of them: where it sits across the segment, its row, its size, and the
+/// seed its outline is torn with — see [decoOutline].
+typedef DecoPlacement = ({
+  DecoKind kind,
+  double x,
+  double f,
+  double depth,
+  double w,
+  int seed,
+});
+
+/// **What is on the ground in this band at this tier**, in the order it is laid
+/// down: bare earth first, then the ruts, then the water on top of both.
+///
+/// A list rather than three loops inside the painter, exactly as
+/// [tuftPlacements] is — it is what lets the test check that nothing is painted
+/// far from the one row its strip travels at, which is the whole of whether the
+/// mud rides the grass or slides over it.
+List<DecoPlacement> decoPlacements(int band, int tier) {
+  final wear = pitchWear(tier);
+  if (wear <= 0) return const [];
+  final rng = math.Random(97 + band);
+  const span = (_decoFMax - _decoFMin) / _decoBands;
+  // **AS MUCH BARE EARTH AS GRASS.** One patch a band drew a green table with a
+  // smudge on it; the Club tab's tier-1 photograph is mud with grass in it, and
+  // this is the half of "a battered pitch" that has to carry that.
+  final counts = {
+    DecoKind.patch: (wear * 4).ceil(),
+    DecoKind.bump: (wear * 2).ceil(),
+    // Water is what a drain fixes first, so it goes a tier before the mud does.
+    DecoKind.puddle: tier < firstKeptPitchTier ? (wear * 1.6).ceil() : 0,
+  };
+  // The middle half of the band, as the tufts keep to, so nothing is painted
+  // far from the row its strip is offset at.
+  final out = <DecoPlacement>[];
+  for (final MapEntry(key: kind, value: count) in counts.entries) {
+    for (var i = 0; i < count; i++) {
+      final f = _decoFMin + (band + 0.25 + rng.nextDouble() * 0.5) * span;
+      final depth = (f - _decoFMin) / (_decoFMax - _decoFMin);
+      // The perspective, on everything: the far end of the pitch draws the same
+      // puddle smaller, exactly as it draws the same tuft smaller.
+      final near = 1 - depth * 0.55;
+      final w = switch (kind) {
+        // Bigger as well as more of it, so the worst pitch in the game is not
+        // the best one with more marks on it.
+        DecoKind.patch =>
+          (20 + rng.nextDouble() * 42) * (0.55 + wear * 0.85) * near,
+        DecoKind.bump => (30 + rng.nextDouble() * 52) * near,
+        DecoKind.puddle => (30 + rng.nextDouble() * 34) * near,
+      };
+      out.add((
+        kind: kind,
+        x: rng.nextDouble(),
+        f: f,
+        depth: depth,
+        w: w,
+        seed: rng.nextInt(1 << 30),
+      ));
+    }
+  }
+  return out;
+}
+
+/// **MUD HAS NO EDGE AN OVAL CAN DRAW.** Every patch was a blurred ellipse, and
+/// a dozen of them on one pitch read as stains on a green table rather than as
+/// bare ground — the eye finds the repeated shape before it finds the mud. A
+/// ragged ring around the same box, softened by the blur the paint carries.
+Path decoOutline(Rect box, int seed) {
+  const points = 11;
+  final rng = math.Random(seed);
+  final path = Path();
+  for (var i = 0; i < points; i++) {
+    final a = i / points * 2 * math.pi;
+    final r = 0.7 + rng.nextDouble() * 0.44;
+    final p = Offset(
+      box.center.dx + math.cos(a) * box.width / 2 * r,
+      box.center.dy + math.sin(a) * box.height / 2 * r,
+    );
+    if (i == 0) {
+      path.moveTo(p.dx, p.dy);
+    } else {
+      path.lineTo(p.dx, p.dy);
+    }
+  }
+  return path..close();
+}
+
 class _DecoPainter extends CustomPainter {
-  const _DecoPainter({required this.band, required this.tier});
+  const _DecoPainter({
+    required this.band,
+    required this.tier,
+    required this.night,
+  });
 
   final int band;
   final int tier;
+  final bool night;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final rng = math.Random(97 + band);
-    final span = (_decoFMax - _decoFMin) / _tuftBands;
-    // A park pitch is worse than a Sunday League one, and the counts say so.
-    final patches = tier == 0 ? 2 : 1;
-    final bumps = tier == 0 ? 2 : 1;
-    final puddles = tier == 0 ? 1 : 1;
-
-    double bandF() => _decoFMin + (band + rng.nextDouble()) * span;
-
-    // Bare earth, first: the grass and everything else sits on top of it.
-    for (var i = 0; i < patches; i++) {
-      final f = bandF();
-      final w = 22 + rng.nextDouble() * 40;
-      canvas.drawOval(
-        Rect.fromCenter(
-          center: Offset(rng.nextDouble() * size.width, size.height * (1 - f)),
-          width: w,
-          height: w * 0.5,
-        ),
-        Paint()
-          ..color = const Color(0x8C6B4A2E)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
+    final wear = pitchWear(tier);
+    for (final deco in decoPlacements(band, tier)) {
+      final box = Rect.fromCenter(
+        center: Offset(deco.x * size.width, size.height * (1 - deco.f)),
+        width: deco.w,
+        height: deco.w * switch (deco.kind) {
+          DecoKind.patch => 0.5,
+          DecoKind.bump => 0.34,
+          DecoKind.puddle => 0.38,
+        },
       );
-    }
-
-    // **UNEVEN GROUND: lit along the top, shadowed underneath.** That pairing is
-    // the whole trick — a mound drawn in one tone is a stain, and a park pitch
-    // has to read as rutted rather than as a flat green table with marks on it.
-    for (var i = 0; i < bumps; i++) {
-      final f = bandF();
-      final w = 30 + rng.nextDouble() * 52;
-      final c = Offset(rng.nextDouble() * size.width, size.height * (1 - f));
-      final box = Rect.fromCenter(center: c, width: w, height: w * 0.34);
-      canvas.drawOval(
-        box,
-        Paint()
-          ..shader = ui.Gradient.linear(box.topCenter, box.bottomCenter, [
-            Colors.white.withValues(alpha: 0.10),
-            Colors.black.withValues(alpha: 0.16),
-          ])
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2.5),
-      );
-    }
-
-    // Standing water: it takes the SKY, not the grass, which is what makes it
-    // read as a reflection rather than as a pale patch of turf.
-    for (var i = 0; i < puddles; i++) {
-      final f = _decoFMin + (band + rng.nextDouble()) * span * 0.7;
-      final w = 30 + rng.nextDouble() * 34;
-      final c = Offset(rng.nextDouble() * size.width, size.height * (1 - f));
-      final box = Rect.fromCenter(center: c, width: w, height: w * 0.38);
-      canvas.drawOval(
-        box,
-        Paint()
-          ..shader = ui.Gradient.linear(box.topCenter, box.bottomCenter, [
-            const Color(0x99A8C4D8),
-            const Color(0x4D3E5A55),
-          ])
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.4),
-      );
+      // A rut is a soft change of level and keeps its ellipse; earth and water
+      // have a torn edge.
+      final shape = deco.kind == DecoKind.bump
+          ? (Path()..addOval(box))
+          : decoOutline(box, deco.seed);
+      canvas.drawPath(shape, switch (deco.kind) {
+        // Bare earth. Deeper as well as denser with the wear: a churned
+        // goalmouth is nearly black, and one alpha at every tier had the worst
+        // pitch in the game reading as a dry patch on a good one.
+        DecoKind.patch =>
+          Paint()
+            ..color = Color.lerp(
+              const Color(0xFF7A5A3C),
+              const Color(0xFF56381F),
+              wear,
+            )!.withValues(alpha: 0.18 + wear * 0.5)
+            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2.2),
+        // **UNEVEN GROUND: lit along the top, shadowed underneath.** That
+        // pairing is the whole trick — a mound drawn in one tone is a stain,
+        // and a park pitch has to read as rutted rather than as a flat green
+        // table with marks on it.
+        DecoKind.bump =>
+          Paint()
+            ..shader = ui.Gradient.linear(box.topCenter, box.bottomCenter, [
+              Colors.white.withValues(alpha: 0.10 * wear),
+              Colors.black.withValues(alpha: 0.16 * wear),
+            ])
+            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2.5),
+        // Standing water: it takes the SKY, not the grass, which is what makes
+        // it read as a reflection rather than as a pale patch of turf.
+        DecoKind.puddle =>
+          Paint()
+            ..shader = ui.Gradient.linear(box.topCenter, box.bottomCenter, [
+              night ? const Color(0x8C4E6A80) : const Color(0xB8A6CDE8),
+              night ? const Color(0x8C1E2A28) : const Color(0x8C46584E),
+            ])
+            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.4),
+      });
+      // The churned lip water stands in. Only round the water: it is what
+      // separates a puddle from a pale patch of grass at a glance.
+      if (deco.kind == DecoKind.puddle) {
+        canvas.drawPath(
+          shape,
+          Paint()
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1.6
+            ..color = const Color(0x66422C18)
+            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.2),
+        );
+      }
     }
   }
 
   @override
   bool shouldRepaint(_DecoPainter old) =>
-      old.band != band || old.tier != tier;
+      old.band != band || old.tier != tier || old.night != night;
 }
 
 class _TuftPainter extends CustomPainter {

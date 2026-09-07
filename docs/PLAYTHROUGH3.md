@@ -6,7 +6,7 @@ because that is the part worth keeping.
 
 ## Where this queue stands
 
-**112 done, 6 open, and one feature parked.** None of the open rows is a fault.
+**115 done, 5 open, and one feature parked.** None of the open rows is a fault.
 One is a feature that was built, tried and turned down; one is a balance
 question rather than work; one is a survey to run before building; and one is
 **blocked on the spec repo** for the COMMENTARY, which is the row to read if the
@@ -191,6 +191,47 @@ finished, and too many traits being the same as each other.
       **The JS could not be consulted**: `../merge-empire-fc` is not in a cloud
       container. These numbers were already the port's own, per the file's
       Balance model section, and the divergence stays on this side.)
+
+## Asked for, 7 Sep 2026 — the pitch and its own photograph disagreed
+
+- [x] **"On the Club assets tab we have a picture which almost represents the
+      tiers — at tier 1 the pitch is all muddy and horrible. That's kinda what
+      the pitch should look like on the home page."** The Club tab's hero is a
+      photograph per Stadium tier and the home diorama reads the SAME tier off
+      `stadiumTierProvider`, so the two were already answering one question and
+      giving different answers: the photograph at tier 1 is a puddled quagmire
+      with no stripe in it, and the diorama drew lush green under a bold mown
+      fan with one blurred smudge on it — then drew that identical surface at
+      every tier above.
+
+      `pitchWear` is the one dial the ground reads now: 1 for a field, 0 by tier
+      4. It fades over three tiers rather than switching off at 2, so the climb
+      out of the park is visible more than once — tier 1 a quagmire, tier 2
+      plain green and scruffy, tier 3 nearly kept, which is the progression the
+      photographs make.
+
+      Three things follow it. The turf is TINTED — a battered pitch is not good
+      green grass with stains laid over it, so `turfColours` yellows and dulls
+      the whole surface and the mud sits in that; it warms rather than greys,
+      because the first pass took the green out and the field came back a dead
+      olive table. The mud thickens: a patch a band was a green table with marks
+      on it, and `decoPlacements` now scatters up to twenty patches, ruts and
+      puddles per segment, deeper as well as denser, on a torn outline rather
+      than an ellipse — a dozen blurred ovals read as stains because the eye
+      finds the repeated shape before it finds the mud. And **nobody stripes a
+      Sunday League pitch**: `mowStrength` runs from a whisper at the bottom to
+      past a full cut at the top, where the photograph is a show pitch under
+      lights. The chalk fades with it, since bright paint on a quagmire reads as
+      the one thing on the ground that has been seen to.
+
+      **A drift bug fell out of the same file.** The mud's band span was
+      computed over the TUFTS' band count, so every patch was painted inside the
+      nearest fifth of the pitch while its strip was offset at the speed of a
+      row halfway up it — the couch's earlier report about the mud moving slower
+      than the pitch behind it, still there in a second form. Bands are the
+      mud's own now and each placement is held to the middle half of its band,
+      which the test measures against `decoBandFraction` rather than a copy of
+      it.
 
 ## Done
 
@@ -1435,6 +1476,58 @@ Reported in one sitting on 6 Sep 2026.
 
 ---
 
+## Twelfth batch — a skipped match, and a win that counted for nothing
+
+Reported live on 7 Sep 2026, while the diorama work below was going on.
+
+- [x] **"I just drew 1-1... next page it said I won 4-0 and victory. I did
+      not!!"** — and then again, "I just won 2-1 and the victory screen says
+      3-0". **This is the open row from the eighth batch**, finally reproduced:
+      `result['events']` and the screen's timeline disagreeing at full time.
+      What closed it was the third report — "I am skipping the game if that
+      makes any difference" — because it makes all of it.
+
+      `_catchUpSendingsOff` is what makes watching and skipping agree about
+      what the match WAS: a skip jumps the clock, so the per-minute dispatch
+      never fires, and every booking the player skipped past is applied here
+      instead, each one re-simulating from its own minute. It runs on EVERY
+      card, not just dismissals, because a caution now cuts a rating too — so
+      on a skipped match it fires most weeks.
+
+      And it was running inside `_finish`, which is to say after the timeline
+      had been drawn at full time, with nothing rebuilding it afterwards. So
+      the player read the kickoff sim's scoreline off the feed and the summary
+      read the re-simulated one off `homeGoals`/`awayGoals`. Both were "the
+      result"; they were two different matches.
+
+      Moved into `skipToEnd`, ahead of the jump, with the timeline rebuilt from
+      the rewritten events. `_finish` still calls it and that call is now a
+      no-op — every branch is guarded by the sets that record what has already
+      been applied, which is the same thing that lets a WATCHED match run it
+      with nothing left to do. That guard is why watching never showed this.
+
+- [x] **"When I did win a game the quest 'win 4 games' did not seem to count
+      it."** It never could. `QuestAction.matchWin` had exactly one writer in
+      the repository — the back-fill that reconstructs a season's tally from
+      the fixture list for a save written before the quest track existed — and
+      `applyMatchToSeasonQuests` says in as many words that MATCH_WIN is not
+      its to advance: it belongs to "the call site that also feeds the event
+      reward track", so that no match can be counted twice. **There was no such
+      call site.** `season_wins` and `season_wins_hard` sat at zero through a
+      perfect season.
+
+      It goes in `settleMatch`, through `trackEvent` rather than
+      `advanceQuest`, which is the funnel's whole point: the season track and
+      any live event's reward track both hear it and neither can be wired up
+      without the other. League only — a cup tie resolves through
+      `cup_launcher` and the back-fill this has to agree with counts league
+      fixtures, so a cup run topping up the same counter would put the tally
+      and its own reconstruction permanently out of step.
+
+      **Shipped code with no caller, again**, which is the pattern the second
+      batch named and the fifth one repeated: the mechanic, the two quests, the
+      back-fill and the reward were all there and nothing ever said "he won".
+
 ## Open
 
 - [ ] **`canWatchMatchCooldownAd` is now unreachable from `lib/`.** The Match
@@ -1451,16 +1544,6 @@ Reported in one sitting on 6 Sep 2026.
       to delete the gate, the cap and the counter write and rename
       `grantMatchCooldownAd` to drop the `Ad`. Not done on this pass: it is a
       judgement about the shop's direction rather than a fault.
-
-- [ ] **`result['events']` and the match screen's timeline can disagree at
-      full time.** Seen twice in one sitting: a 0-6 whose `homeGoals`/
-      `awayGoals` read 1-1, and a 0-1 whose events carried three goals at
-      56', 58' and 89'. `_resimulate` rewrites the events and every caller
-      refreshes `_timeline` after it, so the path that leaves them apart has
-      not been found. The write-up reads the frame now, which hides it from the
-      player; the saved result may still be the other match. Worth a fixture
-      that plays a match with a substitution and compares the two at the
-      whistle.
 
 
 - [ ] **Commentary matched to the CUTAWAY, so a line can describe how a goal

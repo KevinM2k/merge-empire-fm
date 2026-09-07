@@ -55,21 +55,22 @@ void main() {
         ),
       ),
     );
-    final rotate = tester.widget<Transform>(
-      find.ancestor(
-        of: find.byKey(const ValueKey('tree')),
-        matching: find.byType(Transform),
-      ),
-    );
+    // **THE CLOSEST ANCESTOR, because there are two now.** The sway rocks the
+    // tree and a second transform bobs it — see [ParkSway.bobAt] — so the
+    // rotation is the inner one.
+    Transform rotateNow() => tester
+        .widgetList<Transform>(
+          find.ancestor(
+            of: find.byKey(const ValueKey('tree')),
+            matching: find.byType(Transform),
+          ),
+        )
+        .first;
+    final rotate = rotateNow();
     expect(rotate.alignment, Alignment.bottomCenter);
     clock.value = 1.1;
     await tester.pump();
-    final moved = tester.widget<Transform>(
-      find.ancestor(
-        of: find.byKey(const ValueKey('tree')),
-        matching: find.byType(Transform),
-      ),
-    );
+    final moved = rotateNow();
     expect(moved.transform, isNot(rotate.transform), reason: 'the clock moved it');
   });
 }

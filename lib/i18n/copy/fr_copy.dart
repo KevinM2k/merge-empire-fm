@@ -9,6 +9,8 @@ library;
 
 /// Replaces the generated entry, or adds a key French did not have.
 const Map<String, String> frCopy = <String, String>{
+  'customise.item.face.bubblegum': 'Chewing-gum',
+
   // Une troisième ligne à côté de Son et Musique : le clic de chaque bouton.
   'settings.ui_sounds': 'Interface',
 

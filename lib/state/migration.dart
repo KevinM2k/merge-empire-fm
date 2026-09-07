@@ -615,6 +615,23 @@ void _migrateClub(Map<String, dynamic> data) {
   if (club['lookPacks'] is! List) club['lookPacks'] = <dynamic>[];
   if (club['lookItems'] is! List) club['lookItems'] = <dynamic>[];
 
+  // **THE CIGAR IS GONE FROM THE WARDROBE, and it was BOUGHT.** It shipped as a
+  // face item with drifting smoke in a game aimed at children and has been
+  // replaced by bubblegum — see [managerFaceOverrides]. Two things follow from
+  // it having been buyable: a manager wearing one would come back wearing
+  // nothing (`normalizeAvatar` drops a face the wardrobe no longer lists), and
+  // `face:cigar` in `lookItems` would be a purchase that unlocks an item that
+  // does not exist. Both become the gum, so nobody loses either.
+  //
+  // Unconditional and idempotent, like everything else here: a save with no
+  // cigar in it has nothing to swap.
+  final avatar = club['managerAvatar'];
+  if (avatar is Map && avatar['face'] == 'cigar') avatar['face'] = 'bubblegum';
+  final lookItems = club['lookItems'] as List;
+  for (var i = 0; i < lookItems.length; i++) {
+    if (lookItems[i] == 'face:cigar') lookItems[i] = 'face:bubblegum';
+  }
+
   // Local mirror of the ad frequency cap. Only the container is created here —
   // the stamps are pruned on every read, so a save restored from an old backup
   // starts with a clear window rather than a phantom cooldown.

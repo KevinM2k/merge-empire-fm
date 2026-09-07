@@ -200,7 +200,14 @@ const List<String> faceIds = [
   'aviators',
   'goggles',
   'monocle',
-  'cigar',
+  // **BUBBLEGUM, and it replaced a lit cigar.** The wardrobe shipped one as a
+  // buyable item, smoke and all, in a game aimed at children — pulled from the
+  // couch in as many words. Gum keeps the slot doing the same job (something at
+  // the mouth, with something moving off it) and is a real touchline habit
+  // rather than an invention. `migration.dart` swaps a save that was wearing
+  // the old one, and `face:cigar` is swapped in `lookItems` with it, so nobody
+  // loses the purchase.
+  'bubblegum',
   'whistle',
   'nosestrip',
   'eyeblack',
@@ -216,7 +223,7 @@ const List<String> faceIds = [
 ///   Drawn over the top, face paint tinted the FRINGE green and swallowed the
 ///   eye — a bad recolour rather than war paint.
 /// - **Hardware sits on top of everything on the face** — glasses go over a
-///   fringe in real life, and a cigar has to be in front of the mouth to read.
+///   fringe in real life, and a bubble has to be in front of the mouth to read.
 ///
 /// Anything not listed is hardware, so a new item defaults to the layer a
 /// haircut cannot hide.
@@ -480,7 +487,7 @@ const List<LookPack> lookPacks = [
     items: [
       'hat:tophat',
       'face:monocle',
-      'face:cigar',
+      'face:bubblegum',
       'beard:handlebar',
       'emote:bow',
     ],

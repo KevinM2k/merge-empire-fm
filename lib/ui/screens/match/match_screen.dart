@@ -1291,11 +1291,24 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
     // club is what makes one 2-1 a different afternoon from the next.
     say(
       tPoolStable(key, 'ft-${f.ourGoals}-${f.theirGoals}-$opponent', {
-        // `{us}`–`{them}` is the SCORELINE in our order, and `{opp}` is the
-        // club. Not the venue ordering the scoreboard uses: "a 1-0 win over
-        // Ayton" is his sentence whichever ground it was won on.
-        'us': f.ourGoals,
-        'them': f.theirGoals,
+        // **`{us}`–`{them}` IS THE SCORELINE AS IT IS SAID OUT LOUD, which is
+        // the winner's number first.** It was our goals then theirs, on the
+        // reasoning that his sentence is about US whichever ground it was
+        // played on — and that is right about the sentence and wrong about the
+        // number: a 2-1 defeat away at Horseshoe Wanderers came out of his
+        // mouth as "1–2 against Horseshoe Wanderers", and was reported from the
+        // couch as the home and away the wrong way round. Nobody says they lost
+        // one-two.
+        //
+        // So the pair is swapped on a DEFEAT and left alone otherwise, which
+        // lands on the venue order for the case that was reported (we lost, so
+        // the other lot scored more, so their number goes first) without ever
+        // reading as a win: "heartbreak in a 2–1 thriller" is a defeat in every
+        // one of the ten catalogues, because the words round it say so. Every
+        // line is written in the first person and stays true — the swap is how
+        // the score is SPOKEN, not who it belongs to.
+        'us': f.theirGoals > f.ourGoals ? f.theirGoals : f.ourGoals,
+        'them': f.theirGoals > f.ourGoals ? f.ourGoals : f.theirGoals,
         'opp': opponent,
       }),
     );
@@ -1505,11 +1518,30 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
 
   /// Jump to full time. The result was decided before the first whistle, so
   /// skipping costs the player the story and nothing else.
+  ///
+  /// **THE CARDS ARE CAUGHT UP BEFORE THE FEED IS, and that ordering is the
+  /// whole of a reported bug.** `_catchUpSendingsOff` re-simulates from the
+  /// minute of every booking the skip jumped over — that is what makes watching
+  /// and skipping agree about what the match WAS — and it was running inside
+  /// `_finish`, which is to say AFTER the timeline had been drawn at full time
+  /// and with nothing rebuilding it afterwards. So a skipped match showed the
+  /// player the scoreline the kickoff sim had rolled and then handed the
+  /// summary the one the cards had, and the two disagreed: reported from the
+  /// couch three times in one sitting — a 1-1 that became a 4-0 victory, and a
+  /// 2-1 win that came up 3-0 — with "I am skipping the game if that makes any
+  /// difference" being the difference.
+  ///
+  /// Caught up here, the feed at full time IS the result. `_finish` still calls
+  /// it and that call is now a no-op: every branch of it is guarded by the sets
+  /// that record what has already been applied, which is what lets a watched
+  /// match run the same method with nothing left to do.
   void skipToEnd() {
     if (!mounted) return;
+    _catchUpSendingsOff();
     // Nothing to watch on the way to full time — and nothing left to hear for
     // it either, so the clip's own cues go with it.
     setState(() {
+      _timeline = timelineOf(widget.result, bookings: _bookings);
       _minute = _end;
       _clip = null;
       _clippedEvent = null;

@@ -1,4 +1,6 @@
-Fixes and housekeeping.
+A rougher pitch, a livelier ground, and two match fixes.
 
-• Sound effects that get cut short — several firing at once, or the app going to the background — no longer report the game as having crashed.
-• Audio is released cleanly in every case now, including when a clip is stopped before it finishes.
+• Skipping a match no longer shows one score on the pitch and a different one on the summary.
+• Season quests that ask you to win games now count them.
+• The home pitch matches your stadium: mud and puddles at the bottom of the pyramid, mown stripes at the top, and a touchline at every level.
+• More life around the ground — flags and scarves in the big crowds, lit windows at night.

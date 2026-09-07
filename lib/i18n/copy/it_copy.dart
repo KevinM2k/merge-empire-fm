@@ -8,6 +8,8 @@ library;
 
 /// Replaces the generated entry, or adds a key Italian did not have.
 const Map<String, String> itCopy = <String, String>{
+  'customise.item.face.bubblegum': 'Gomma',
+
   // Una terza riga accanto a Suono e Musica: il clic di ogni pulsante.
   'settings.ui_sounds': 'Interfaccia',
 

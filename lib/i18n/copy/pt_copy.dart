@@ -7,6 +7,8 @@ library;
 
 /// Replaces the generated entry, or adds a key Portuguese did not have.
 const Map<String, String> ptCopy = <String, String>{
+  'customise.item.face.bubblegum': 'Chiclete',
+
   // Uma terceira linha ao lado de Som e Música: o clique de cada botão.
   'settings.ui_sounds': 'Interface',
 

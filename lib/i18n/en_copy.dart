@@ -287,6 +287,9 @@ const Map<String, String> enMore = <String, String>{
 /// wrong for the port, or when a screen needs a string the catalogues do not
 /// carry at all.
 const Map<String, String> enCopy = <String, String>{
+  // The cigar it replaced is retired: a lit one in a game aimed at children.
+  'customise.item.face.bubblegum': 'Bubblegum',
+
   // ── The interface's own audio channel ────────────────────────────────────
   //
   // A third row beside Sound and Music. The press cue rides the theme's splash

@@ -13,6 +13,35 @@ final Map<String, dynamic> _ref =
         )
         as Map<String, dynamic>;
 
+/// **THE ONE PLACE THE WARDROBE DIVERGES FROM THE JS ON PURPOSE.** The spec's
+/// face axis carries a lit CIGAR, complete with drifting smoke, in a game aimed
+/// at children — pulled from the couch. It is bubblegum here, at the same index
+/// and in the same pack, and `migration.dart` swaps a save that was wearing one
+/// (and the `face:cigar` purchase with it).
+///
+/// The fixture is the JS's and cannot be regenerated to suit this, so the swap
+/// is declared once and applied to the reference on the way in. Everything else
+/// on every axis is still compared exactly, which is the point of doing it this
+/// way rather than dropping the assertions.
+const Map<String, String> _portRenames = {'cigar': 'bubblegum'};
+
+String _renamed(String id) => _portRenames[id] ?? id;
+
+/// And back: the JS's id for one of the port's.
+String _jsId(String id) {
+  for (final e in _portRenames.entries) {
+    if (e.value == id) return e.key;
+  }
+  return id;
+}
+
+/// An `axis:id` pair as the port writes it.
+String _renamedItem(String item) {
+  final at = item.indexOf(':');
+  if (at < 0) return _renamed(item);
+  return '${item.substring(0, at)}:${_renamed(item.substring(at + 1))}';
+}
+
 /// The wardrobe, by the axis name the requirement keys use.
 final Map<String, List<String>> _axes = {
   'build': buildIds,
@@ -91,7 +120,11 @@ void main() {
       // normaliser's membership checks are these lists.
       final want = _ref['ids'] as Map<String, dynamic>;
       for (final entry in _axes.entries) {
-        expect(entry.value, want[entry.key], reason: entry.key);
+        expect(
+          entry.value,
+          [for (final id in want[entry.key] as List) _renamed('$id')],
+          reason: entry.key,
+        );
       }
     });
 
@@ -125,7 +158,9 @@ void main() {
         expect(lookPacks[i].id, want[i]['id']);
         expect(lookPacks[i].tint, want[i]['tint']);
         expect(lookPacks[i].icon, want[i]['icon']);
-        expect(lookPacks[i].items, want[i]['items']);
+        expect(lookPacks[i].items, [
+          for (final item in want[i]['items'] as List) _renamedItem('$item'),
+        ]);
       }
     });
   });
@@ -134,7 +169,7 @@ void main() {
     test('every id on every axis resolves the same way', () {
       for (final entry
           in (_ref['requirements'] as Map<String, dynamic>).entries) {
-        final parts = entry.key.split(':');
+        final parts = _renamedItem(entry.key).split(':');
         final got = lookRequirement(parts[0], parts[1]);
         final want = entry.value as Map<String, dynamic>?;
         if (want == null) {
@@ -155,7 +190,8 @@ void main() {
                 as Map<String, dynamic>;
         for (final axis in _axes.entries) {
           for (final id in axis.value) {
-            final key = '${axis.key}:$id';
+            // The reference is keyed by the JS's id — see [_portRenames].
+            final key = '${axis.key}:${_jsId(id)}';
             expect(
               isLookUnlocked(stateEntry.value, axis.key, id),
               want[key],

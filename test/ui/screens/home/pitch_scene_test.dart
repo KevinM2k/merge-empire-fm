@@ -326,18 +326,100 @@ void main() {
       // and says why — nobody mows a Sunday League pitch — so the bottom of the
       // pyramid gets far more clumps, bigger and longer in the blade, and a top
       // flight ground gets almost none.
-      expect(tuftsPerBand(0), greaterThan(tuftsPerBand(1)));
-      expect(tuftsPerBand(1), greaterThan(tuftsPerBand(3)));
-      expect(tuftsPerBand(8), 0, reason: 'moss at the top flight');
+      expect(tuftsTotal(0), greaterThan(tuftsTotal(1)));
+      expect(tuftsTotal(1), greaterThan(tuftsTotal(2)));
+      expect(tuftsTotal(2), greaterThan(tuftsTotal(3)));
+      expect(tuftsTotal(4), 0);
+      expect(tuftsTotal(8), 0, reason: 'moss at the top flight');
+      // Round-robin through the depth, so three tufts do not stack at one
+      // distance — and so a scruffy tier still counts higher than a kept one
+      // in the band, which a ceiling over six bands could not express.
+      expect(
+        [for (var b = 0; b < 6; b++) tuftsInBand(b, 2)].reduce((a, b) => a + b),
+        tuftsTotal(2),
+      );
+      expect(tuftsInBand(0, 1), greaterThan(tuftsInBand(0, 3)));
       expect(tuftSizeBoost(0), greaterThan(tuftSizeBoost(1)));
       expect(tuftSizeBoost(1), greaterThan(tuftSizeBoost(3)));
       expect(tuftLengthBoost(0), greaterThan(tuftLengthBoost(3)));
     });
 
-    test('and mud, ruts and water stop at tier 2', () {
-      // The groundsman has been by then. Below it, "a battered pitch" is the
-      // whole art brief and the port had left every part of it out.
+    test('and standing water stops at tier 2', () {
+      // A drain is the first thing a club buys. Below it, "a battered pitch" is
+      // the whole art brief and the port had left every part of it out. The
+      // locked ground and tier 1 are the field; tier 2 is a plain pitch, which
+      // is the couch's own reading of the Club tab's photographs.
       expect(firstKeptPitchTier, 2);
+      expect(
+        decoPlacements(0, 1).where((d) => d.kind == DecoKind.puddle),
+        isNotEmpty,
+      );
+      expect(
+        decoPlacements(0, firstKeptPitchTier).where(
+          (d) => d.kind == DecoKind.puddle,
+        ),
+        isEmpty,
+      );
+    });
+
+    test('AND THE WHOLE SURFACE IS AS KEPT AS THE CLUB IS', () {
+      // The Club tab's tier photographs are the brief and the port was drawing
+      // one pitch for all eight: a bold mown fan on lush green under a park
+      // ground's trees, with one smudge on it. The photograph at tier 1 is a
+      // puddled quagmire with no stripe in it, tier 2 is plain green and
+      // scruffy, and by tier 3 the groundsman has been.
+      expect(pitchWear(1), 1.0, reason: 'a field');
+      expect(pitchWear(2), lessThan(0.4), reason: 'tier 2 is a plain pitch');
+      expect(pitchWear(2), greaterThan(pitchWear(3)));
+      expect(pitchWear(4), 0, reason: 'a kept pitch, at last');
+      // Mud is a matter of degree, not a switch: it thins over three tiers.
+      expect(
+        decoPlacements(0, 1).length,
+        greaterThan(decoPlacements(0, 2).length),
+      );
+      expect(
+        decoPlacements(0, 2).length,
+        greaterThanOrEqualTo(decoPlacements(0, 3).length),
+      );
+      expect(decoPlacements(0, 4), isEmpty);
+      // And nobody stripes a Sunday League pitch.
+      expect(mowStrength(1), lessThan(mowStrength(2)));
+      expect(mowStrength(3), lessThan(mowStrength(8)));
+    });
+
+    test('so a field is not kept grass with marks on it', () {
+      // The surface itself has gone off — yellower and duller at every stop.
+      // Drawing good green turf and scattering stains over it is what had the
+      // bottom of the pyramid reading as a groundsman's pitch in a bad week.
+      final field = turfColours(night: false, tier: 1);
+      final kept = turfColours(night: false, tier: 8);
+      expect(field, hasLength(kept.length));
+      for (var i = 0; i < kept.length; i++) {
+        expect(field[i].g, lessThan(kept[i].g));
+        expect(field[i].r, greaterThan(kept[i].r));
+      }
+      // But it is still grass: the mud does the talking, not the tint.
+      expect(field.last.g, greaterThan(field.last.b));
+    });
+
+    test('and every patch of it rides the row it is painted on', () {
+      // A band's whole strip travels at the speed of ONE row — its centre — so
+      // anything painted far off that row slides against the grass under it.
+      // The span was the TUFTS' range over the TUFTS' band count, which put
+      // every patch in the nearest fifth of the pitch while the scroller
+      // offset it at the speed of a row halfway up. Reported from the couch as
+      // the mud and the water moving slower than the pitch behind them.
+      final band = 2;
+      final row = decoBandFraction(band);
+      final placements = decoPlacements(band, 1);
+      expect(placements, isNotEmpty);
+      for (final deco in placements) {
+        expect(
+          (deco.f - row).abs(),
+          lessThan(0.08),
+          reason: '${deco.kind} at ${deco.f} is not on row $row',
+        );
+      }
     });
 
     test('and the support grows with you', () {
@@ -867,11 +949,22 @@ void main() {
       expect(rect.right, turf.right);
     });
 
-    testWidgets('and a ground with boards on the horizon does not chalk one', (
-      tester,
-    ) async {
-      await pumpScene(tester, tier: firstStandTier);
-      expect(find.byKey(const ValueKey('pitch-touchline')), findsNothing);
+    testWidgets('AND EVERY TIER HAS ONE', (tester) async {
+      // It was the park's alone, on the reasoning that the ad boards are the
+      // boundary from `firstHoardingTier` — but the boards are the boundary of
+      // the GROUND, not of the pitch, so six of the eight tiers were a football
+      // pitch with no line on it. Reported from the couch.
+      for (var tier = 1; tier <= 8; tier++) {
+        await pumpScene(tester, tier: tier);
+        final line = find.byKey(const ValueKey('pitch-touchline'));
+        expect(line, findsOneWidget, reason: 'no touchline at tier $tier');
+        final turf = tester.getRect(find.byKey(const ValueKey('pitch-turf')));
+        expect(
+          tester.getRect(line).top,
+          closeTo(turf.top + touchlineBelowHorizon, 0.01),
+          reason: 'tier $tier chalks its line somewhere else',
+        );
+      }
     });
 
     testWidgets("and the park's strip runs on below the horizon for its spectators", (
@@ -885,7 +978,7 @@ void main() {
       expect(strip.bottom, closeTo(turf.top + parkFansDrop, 0.01));
       expect(strip.height, closeTo(parkHeight + parkFansDrop, 0.01));
       final line = tester.getRect(find.byKey(const ValueKey('pitch-touchline')));
-      expect(line.top, closeTo(strip.bottom + 10, 0.01), reason: 'the line is not ten under their feet');
+      expect(line.top, greaterThan(strip.bottom), reason: 'the watchers are standing on the pitch');
       // A stand stays on the boards.
       await pumpScene(tester, tier: firstStandTier);
       final turf2 = tester.getRect(find.byKey(const ValueKey('pitch-turf')));

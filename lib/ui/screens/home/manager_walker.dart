@@ -1846,6 +1846,33 @@ class _ManagerWalkerState extends State<ManagerWalker>
                         ),
                       ),
                     ),
+                    // And the gum, which is a thing at his mouth rather than a
+                    // part of him that turns. [_SetBack] because it sits at a
+                    // point in the HEAD's art space, and the head group has
+                    // been moved.
+                    //
+                    // **IT TURNS WITH HIS HEAD.** The bubble leaves the lips
+                    // along the way he is facing, so the layer takes the same
+                    // bob and the same tilt the head does — a sibling pinned to
+                    // the art's own space blew a bubble across his eyes the
+                    // moment he looked down.
+                    //
+                    // **AND IT GOES UNDER THE HANDS.** Above them, a mouth
+                    // drawn on the outside of his own forearm — reported from
+                    // the couch on the hands-on-head pose. It belongs with the
+                    // face: everything the head wears is below this line and
+                    // the arm that may cross a face is above it.
+                    Transform.translate(
+                      offset: Offset(0, rise * headBobDamping * unit),
+                      child: _Tilt(
+                        degrees: drawnTilt,
+                        child: _SetBack(
+                          child: _GumChew(
+                            chewing: '${look['face']}' == gumFace,
+                          ),
+                        ),
+                      ),
+                    ),
                     // **AND THE NEAR ARM, if the hand belongs in front of the
                     // face.** Everything above is the head and what it wears,
                     // and the rig is under all of it — so this is the only
@@ -1859,15 +1886,6 @@ class _ManagerWalkerState extends State<ManagerWalker>
                     // pallor and the flush belong on the face, and a beanie must
                     // not be able to cover his breath.
                     _SetBack(child: _Comfort(comfort: widget.comfort)),
-                    // And the cigar's smoke, which is the same kind of thing:
-                    // in the air in front of his face rather than part of him.
-                    // [_SetBack] because it rises from a point in the HEAD's
-                    // art space, and the head group has been moved.
-                    _SetBack(
-                      child: _CigarSmoke(
-                        lit: '${look['face']}' == cigarFace,
-                      ),
-                    ),
                     // **THE BALL, OVER ALL OF HIM** — which is where the JS puts
                     // it too, and right: at his boot it belongs in front of the
                     // near leg, and in his hands the cradle is in front of his
@@ -2033,45 +2051,45 @@ const List<(double, _Puff)> _sweatFrames = [
   (1, (dx: 0.8, dy: 15, scale: 0.7, opacity: 0)),
 ];
 
-/// **THE CIGAR IS ALREADY SMOKING, and nothing ever lit it.**
+/// **HE CHEWS IT, AND HE BLOWS BUBBLES WITH IT.** Asked for from the couch in
+/// one line — if it is gum, he has to look like he is chewing — and both halves
+/// are the point: a pink dot at the corner of the mouth that never moves is a
+/// spot, and a bubble with no chew between them is a party balloon.
 ///
-/// `managerFaces['cigar']` ships a `<g class="mgr-smoke">` of three
-/// `.mgr-smoke-puff` circles — r 1.5, 1.1 and 1.8 — and all three are at the
-/// SAME point, (83.6, 51.8), because in the JS the class is a CSS animation and
-/// the SVG only states where each one starts. The port draws the file, so the
-/// three sat stacked at the cigar's lit end as one grey disc that never moved.
-/// Reported as the cigar wanting little bits of smoke coming out of it: they
-/// were there, in ten catalogues' worth of a bought item, going nowhere.
-///
-/// Up, out and gone, and slower than [_breathFrames] because smoke off a lit
-/// end is drifting rather than being blown anywhere.
-const List<(double, _Puff)> _smokeFrames = [
-  (0, (dx: 0, dy: 0, scale: 0.35, opacity: 0)),
-  (0.20, (dx: 0.6, dy: -1.6, scale: 0.70, opacity: 0.55)),
-  (0.60, (dx: 1.8, dy: -5.0, scale: 1.15, opacity: 0.32)),
-  (0.90, (dx: 2.8, dy: -8.4, scale: 1.60, opacity: 0)),
-  (1, (dx: 2.8, dy: -8.4, scale: 1.60, opacity: 0)),
-];
+/// So it is one loop with two acts. Most of it is the chew: the gum squashes
+/// and rises on a fast beat, the way a jaw works. Then, once every few seconds,
+/// a bubble grows off the lips, gets thin, and goes.
+const Duration _chewCycle = Duration(milliseconds: 430);
 
-/// The lit end, in the art's own space — the `<rect>` the SVG puts the ember on.
-const Offset cigarEmber = Offset(83.6, 51.8);
+/// One chew-and-a-bubble.
+const Duration _gumCycle = Duration(milliseconds: 6400);
 
-/// The art's own three radii, kept rather than invented: the file says how big
-/// each puff is and only the CSS said where it went.
-const List<double> _smokeRadii = [1.5, 1.1, 1.8];
+/// How much of that cycle the bubble takes. The rest is chewing.
+const double _bubbleShare = 0.3;
 
-/// How long one puff takes, and how far apart the three are started. A third of
-/// a cycle each, so there is always one leaving the end and one fading out.
-const Duration _smokeCycle = Duration(milliseconds: 2800);
+/// Where a stopped clock sits in the loop: the bubble, held at full size.
+const double _gumStillPhase = 1 - _bubbleShare + _bubbleShare * 0.6;
 
-/// The face that smokes. Named so the layer and the stripper cannot disagree
-/// about which one it is.
-const String cigarFace = 'cigar';
+/// **WHERE THE GUM IS, and it is IN HIS MOUTH.** The mouths in
+/// `managerMouths` are drawn between x 68.3 and 73.1 at y 54–57, on the right
+/// edge of the skull; the first pass put the gum at 74.2, which is off the face
+/// altogether — reported from the couch as a bit of gum bouncing around on his
+/// mouth rather than being chewed in it. This sits ON the lip line.
+const Offset gumMouth = Offset(71.4, 55.4);
 
-/// **AND THE STATIC GROUP COMES OUT.** Three overlapping discs at one point is
-/// a grey ball on the end of the cigar, and leaving it under the animation
-/// would draw the ball as well as the smoke. One contiguous run in the file, so
-/// this is a cut rather than a parse.
+/// How big the bubble gets, in the art's own units.
+const double gumBubbleRadius = 6.6;
+
+/// The face that chews. Named so the layer and the art cannot disagree about
+/// which one it is.
+const String gumFace = 'bubblegum';
+
+/// **AND THE RETIRED CIGAR'S STATIC GROUP COMES OUT.** Three overlapping discs
+/// at one point is a grey ball on the end of it, and the item is gone from the
+/// wardrobe — but the generated art still carries the group, and a save read
+/// out of a backup can still name the old id for one frame before the migration
+/// swaps it. One contiguous run in the file, so this is a cut rather than a
+/// parse.
 String withoutStaticSmoke(String svg) {
   const open = '<g class="mgr-smoke">';
   const close = '</g>';
@@ -2082,20 +2100,20 @@ String withoutStaticSmoke(String svg) {
   return svg.substring(0, start) + svg.substring(end + close.length);
 }
 
-/// The smoke, on its own clock over the head.
+/// The gum, on its own clock over the head.
 ///
-/// A sibling of [_Comfort] and for the same reason: it is a thing in the air in
-/// front of his face, not a part of him that turns.
-class _CigarSmoke extends StatefulWidget {
-  const _CigarSmoke({required this.lit});
+/// A sibling of [_Comfort] and for the same reason: it is a thing at his mouth,
+/// not a part of him that turns.
+class _GumChew extends StatefulWidget {
+  const _GumChew({required this.chewing});
 
-  final bool lit;
+  final bool chewing;
 
   @override
-  State<_CigarSmoke> createState() => _CigarSmokeState();
+  State<_GumChew> createState() => _GumChewState();
 }
 
-class _CigarSmokeState extends State<_CigarSmoke>
+class _GumChewState extends State<_GumChew>
     with SingleTickerProviderStateMixin {
   final ValueNotifier<double> _seconds = ValueNotifier<double>(0);
   late final Ticker _ticker = createTicker(
@@ -2103,7 +2121,7 @@ class _CigarSmokeState extends State<_CigarSmoke>
   );
 
   void _sync() {
-    final run = widget.lit && !MediaQuery.of(context).disableAnimations;
+    final run = widget.chewing && !MediaQuery.of(context).disableAnimations;
     if (run == _ticker.isActive) return;
     if (run) {
       _ticker.start();
@@ -2119,7 +2137,7 @@ class _CigarSmokeState extends State<_CigarSmoke>
   }
 
   @override
-  void didUpdateWidget(_CigarSmoke old) {
+  void didUpdateWidget(_GumChew old) {
     super.didUpdateWidget(old);
     _sync();
   }
@@ -2133,50 +2151,171 @@ class _CigarSmokeState extends State<_CigarSmoke>
 
   @override
   Widget build(BuildContext context) {
-    if (!widget.lit) return const SizedBox.shrink();
+    if (!widget.chewing) return const SizedBox.shrink();
     return IgnorePointer(
       child: ValueListenableBuilder<double>(
         valueListenable: _seconds,
         builder: (context, seconds, _) => CustomPaint(
-          key: const ValueKey('manager-cigar-smoke'),
+          key: const ValueKey('manager-gum-chew'),
           size: Size.infinite,
-          painter: _SmokePainter(seconds: seconds),
+          painter: _GumPainter(seconds: seconds),
         ),
       ),
     );
   }
 }
 
-class _SmokePainter extends CustomPainter {
-  const _SmokePainter({required this.seconds});
+class _GumPainter extends CustomPainter {
+  const _GumPainter({required this.seconds});
 
   final double seconds;
+
+  static const Color _gum = Color(0xFFFF9EC4);
+  static const Color _rim = Color(0xFFE0679B);
+  static const Color _shine = Color(0xFFFFD9E8);
+
+  /// The mouth's own ink, straight out of `managerMouths` — the lips this draws
+  /// have to be the same colour as the ones it draws over.
+  static const Color _lips = Color(0xFF241C1C);
 
   @override
   void paint(Canvas canvas, Size size) {
     if (size.isEmpty) return;
     canvas.save();
     canvas.scale(size.width / walkerWidth, size.height / walkerHeight);
-    final cycle = _smokeCycle.inMilliseconds / 1000;
-    for (var i = 0; i < _smokeRadii.length; i++) {
-      // **Staggered rather than simultaneous**, which is the whole difference
-      // between smoke and a pulsing dot — and it also means a stopped clock
-      // (reduced motion) leaves the three at three different heights instead of
-      // back on top of each other where the file had them.
-      final phase = ((seconds / cycle) + i / _smokeRadii.length) % 1;
-      _paintPuff(
-        canvas,
-        cigarEmber,
-        _puffAt(_smokeFrames, phase, Curves.easeOut),
-        (paint) => canvas.drawCircle(cigarEmber, _smokeRadii[i], paint),
-        const Color(0xFFDCDCDC),
-      );
+    // **A STOPPED CLOCK SHOWS THE BUBBLE.** Reduced motion and the
+    // customiser's chips never advance `seconds`, and the item is invisible
+    // while he is only chewing — so the loop is offset to start at the top of
+    // a bubble. It changes nothing about the running animation: a phase offset
+    // on a loop is where you begin, not what it does.
+    final phase =
+        (seconds / (_gumCycle.inMilliseconds / 1000) + _gumStillPhase) % 1;
+    if (phase < 1 - _bubbleShare) {
+      _chew(canvas);
+    } else {
+      _bubble(canvas, (phase - (1 - _bubbleShare)) / _bubbleShare);
     }
     canvas.restore();
   }
 
+  /// The gum in the mouth, worked between the teeth.
+  ///
+  /// **YOU DO NOT SEE THE GUM. YOU SEE HIM CHEWING IT.** Asked for from the
+  /// couch after two passes that had a pink ball on his lip: it is in his
+  /// mouth, so the mouth opens and closes a little and a bit of pink shows in
+  /// the gap when it is open. Everything else here is the face doing the work —
+  /// a soft shadow under the jaw as it closes and a lift along the cheek as it
+  /// opens, both in tone rather than colour so they work on every skin in the
+  /// wardrobe without being told which one it is.
+  ///
+  /// The lips are drawn over the mood's own mouth, at the mouth's own place:
+  /// `managerMouths` puts every one of them between x 68.3 and 73.1 at y 54–57.
+  void _chew(Canvas canvas) {
+    final beat = math.sin(
+      seconds / (_chewCycle.inMilliseconds / 1000) * 2 * math.pi,
+    );
+    // 0 shut, 1 open.
+    final open = 0.5 + beat * 0.5;
+    _jaw(canvas, beat);
+    // **INSIDE THE FACE, AND IT DROPS RATHER THAN SPREADING.** Two notes from
+    // the couch in one: the mouth is at the very edge of the skull — at this
+    // height the jaw line is only 10.4 units out from the centre — so a lens
+    // drawn about its own middle hangs off the front of his face; and a mouth
+    // opens by the LOWER lip going down, not by both lips parting round a
+    // fixed line. So the top edge is pinned and the gap grows downward, and the
+    // whole thing is clipped to the skull.
+    canvas.save();
+    canvas.clipPath(Path()..addOval(_skullBounds));
+    canvas.drawOval(
+      Rect.fromLTWH(68.5, 54.9, 4.3, 0.7 + open * 1.7),
+      Paint()..color = _lips,
+    );
+    canvas.restore();
+    // **AND NO PINK AT ALL WHILE HE CHEWS.** A flash of it in the gap was the
+    // first cut of this and it read as a stain on his teeth at the size the
+    // head is actually drawn — asked for from the couch: the gum is only ever
+    // seen when he blows with it. What is left is the jaw working, which is the
+    // part that says there is something in there.
+  }
+
+  /// The skull, in the art's own space — the circle every face part is drawn
+  /// against. Nothing this painter draws on the mouth may leave it.
+  static final Rect _skullBounds = Rect.fromCircle(
+    center: const Offset(62, 48.5),
+    radius: 12.5,
+  );
+
+  /// The jaw working, in tone: shadow under it, light along the cheek.
+  void _jaw(Canvas canvas, double beat) {
+    canvas.drawOval(
+      Rect.fromCenter(
+        center: const Offset(70.2, 58.4),
+        width: 7.4,
+        height: 2.4 + beat * 0.5,
+      ),
+      Paint()
+        ..color = Colors.black.withValues(alpha: 0.05 + beat.abs() * 0.07)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.2),
+    );
+    canvas.drawOval(
+      Rect.fromCenter(center: const Offset(69.4, 53.6), width: 6.2, height: 3),
+      Paint()
+        ..color = Colors.white.withValues(alpha: 0.05 + (1 - beat) * 0.04)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 1.4),
+    );
+  }
+
+  /// And the bubble: out of the lips, held a moment, and sucked back in.
+  ///
+  /// **It goes back in rather than popping**, which is what was asked for and
+  /// is also the only version that reads at this size: a burst needs frames the
+  /// rig has nowhere to put, and a bubble that simply vanishes looks like a
+  /// dropped frame. Blown, held, drawn back — and the chew picks up again.
+  void _bubble(Canvas canvas, double t) {
+    final double grow;
+    if (t < 0.5) {
+      grow = Curves.easeOutCubic.transform(t / 0.5);
+    } else if (t < 0.68) {
+      grow = 1;
+    } else {
+      grow = 1 - Curves.easeInCubic.transform((t - 0.68) / 0.32);
+    }
+    final r = 1.1 + (gumBubbleRadius - 1.1) * grow;
+    // It grows AWAY from the face, so its near edge stays on the lips.
+    final centre = Offset(gumMouth.dx + r * 0.78, gumMouth.dy - r * 0.12);
+    canvas.drawCircle(centre, r, Paint()..color = _gum.withValues(alpha: 0.74));
+    canvas.drawCircle(
+      centre,
+      r,
+      Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 0.5
+        ..color = _rim,
+    );
+    canvas.drawCircle(
+      centre.translate(-r * 0.34, -r * 0.34),
+      math.max(0.4, r * 0.22),
+      Paint()..color = _shine.withValues(alpha: 0.85),
+    );
+    // **BLOWN THROUGH A SHUT MOUTH**, which is the other half of the couch's
+    // note: the jaw stops working while the bubble is out. The lips close over
+    // the mood's own mouth and hold the gum on.
+    canvas.save();
+    canvas.clipPath(Path()..addOval(_skullBounds));
+    canvas.drawOval(
+      const Rect.fromLTWH(68.5, 54.9, 4.3, 0.75),
+      Paint()..color = _lips,
+    );
+    canvas.restore();
+    // The gum between the lips, holding the bubble on.
+    canvas.drawOval(
+      Rect.fromCenter(center: gumMouth, width: 2.4, height: 1.5),
+      Paint()..color = _gum,
+    );
+  }
+
   @override
-  bool shouldRepaint(_SmokePainter old) => old.seconds != seconds;
+  bool shouldRepaint(_GumPainter old) => old.seconds != seconds;
 }
 
 /// The keyframe track at [phase], eased the way CSS eases it — per SEGMENT, not
@@ -2518,9 +2657,11 @@ ManagerParts _managerPartsFor(
       : '${look['skinShade']}';
 
   String paint(String svg) => recolourManagerArt(
-    // The cigar's own smoke is animated over the head instead — see
-    // [_CigarSmoke]. Harmless on every other layer: nothing else in the
-    // wardrobe carries the group.
+    // The RETIRED cigar's static smoke group, cut on the way past. It is no
+    // longer in the wardrobe — see [managerFaceOverrides] — but the generated
+    // art still carries it and a save being read out of a backup may still name
+    // it before the migration has run. Harmless on every other layer: nothing
+    // else in the wardrobe carries the group.
     withoutStaticSmoke(svg),
     hair: hairColour,
     skin: skinColour,
@@ -2578,7 +2719,7 @@ ManagerParts _managerPartsFor(
     ]),
     behindHead: layers([hairBackDrawn], hideAbove: crown),
     onSkin: layers([
-      if (faceIsUnderHair('${look['face']}')) managerFaces['${look['face']}'],
+      if (faceIsUnderHair('${look['face']}')) managerFaceArt('${look['face']}'),
     ]),
     overHair: layers([hairFront], hideAbove: crown, clipToSkull: crownHat),
     overHead: [
@@ -2588,7 +2729,7 @@ ManagerParts _managerPartsFor(
       ...layers([managerBeards['${look['beard']}']], clipToFace: true),
       ...layers([
         if (!faceIsUnderHair('${look['face']}'))
-          managerFaces['${look['face']}'],
+          managerFaceArt('${look['face']}'),
         managerHats['${look['hat']}'],
         // The mouth is the manager's MOOD, and `manager_mood.dart` was ported
         // with nothing to draw it: how the gaffer feels about the season was a

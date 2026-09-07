@@ -27,7 +27,9 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:merge_empire_fc/data/manager_art.dart';
 import 'package:merge_empire_fc/data/manager_art.g.dart';
+import 'package:merge_empire_fc/data/manager_looks.dart';
 import 'package:merge_empire_fc/data/manager_mood.dart';
 import 'package:merge_empire_fc/ui/screens/home/gesture_poses.dart';
 import 'package:merge_empire_fc/ui/screens/home/manager_walker.dart';
@@ -278,12 +280,12 @@ void main() {
   });
 }
 
-/// **THE CIGAR SMOKES.** `managerFaces['cigar']` ships three
-/// `.mgr-smoke-puff` circles at ONE point, because in the JS the class is a CSS
-/// animation and the SVG only says where each puff starts. Drawn as a file that
-/// is a grey disc on the end of the cigar that never moves.
+/// **HE CHEWS GUM.** The wardrobe's face slot used to carry a lit cigar with
+/// drifting smoke — pulled from the couch, in a game aimed at children — and it
+/// is bubblegum now: the art is this repo's ([managerFaceOverrides]) and the
+/// chew and the bubble are drawn over the head on their own clock.
 void _smokeTests() {
-  test('THE STATIC SMOKE GROUP IS CUT OUT OF THE ART', () {
+  test('THE RETIRED CIGAR\'S STATIC SMOKE GROUP IS CUT OUT OF ANY ART', () {
     const svg =
         '<svg><path d="M1 1"/><g class="mgr-smoke">'
         '<circle cx="1" cy="1" r="1"/></g></svg>';
@@ -293,14 +295,16 @@ void _smokeTests() {
         '<svg><path d="M1 1"/></svg>');
   });
 
-  test('and the art it is cut from is the one that has it', () {
-    expect(managerFaces[cigarFace], contains('mgr-smoke'));
-    expect(withoutStaticSmoke(managerFaces[cigarFace]!), isNot(contains('mgr-smoke')));
-    // The ember the puffs rise from is the SVG's own lit end, not a guess.
-    expect(managerFaces[cigarFace], contains('#ff7a2f'));
+  test('and the gum is this repo\'s art, not the generated wardrobe\'s', () {
+    expect(managerFaces[gumFace], isNull, reason: 'the JS has no gum');
+    expect(managerFaceArt(gumFace), isNotNull);
+    expect(managerFaceArt(gumFace), isNot(contains('mgr-smoke')));
+    // And nothing in the wardrobe offers the cigar any more.
+    expect(faceIds, isNot(contains('cigar')));
+    expect(faceIds, contains(gumFace));
   });
 
-  testWidgets('THE SMOKE LAYER IS ONLY THERE FOR THE CIGAR', (tester) async {
+  testWidgets('THE CHEW LAYER IS ONLY THERE FOR THE GUM', (tester) async {
     Future<void> pump(String face) => tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
@@ -322,10 +326,11 @@ void _smokeTests() {
       ),
     );
 
-    final smoke = find.byKey(const ValueKey('manager-cigar-smoke'));
-    await pump(cigarFace);
-    expect(smoke, findsOneWidget);
+    final chew = find.byKey(const ValueKey('manager-gum-chew'));
+    await pump(gumFace);
+    expect(chew, findsOneWidget);
     await pump('specs');
-    expect(smoke, findsNothing);
+    expect(chew, findsNothing);
   });
 }
+

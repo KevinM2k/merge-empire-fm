@@ -4,6 +4,8 @@ library;
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -927,14 +929,42 @@ void main() {
       // The head names the offence — three different words for three different
       // things — and the card itself is drawn beside it.
       // The write-up heads the feed at full time, so the card rows start one
-      // screen down. A plain drag rather than `reachFeed`: two players were
-      // booked and `scrollUntilVisible` insists on exactly one target.
-      await tester.drag(
-        find.byKey(const ValueKey('match-feed')),
-        const Offset(0, -400),
-      );
-      await tester.pumpAndSettle();
-      expect(find.text(t('match.card.$card').toUpperCase()), findsWidgets);
+      // screen down. Dragged until they are on screen rather than by one fixed
+      // throw: `scrollUntilVisible` insists on exactly one target and two
+      // players were booked, and the feed is a different LENGTH depending on
+      // what the skip's card catch-up re-simulated — which is the whole point
+      // of that catch-up happening before the feed is drawn. See `skipToEnd`.
+      final cardRow = find.text(t('match.card.$card').toUpperCase());
+      // **SCROLLED, not dragged by a fixed throw.** The write-up heads the feed
+      // at full time, so the card rows start a screen or more down — and how
+      // far down depends on how long the report is, which depends on what the
+      // skip's card catch-up re-simulated. A single 400pt drag happened to land
+      // on them and stopped doing so the moment the catch-up moved ahead of the
+      // feed being drawn (see `skipToEnd`), which is the fix working rather
+      // than a regression. `scrollUntilVisible` insists on exactly one target
+      // and two players were booked, so it is the FIRST row that is scrolled
+      // to.
+      // **SCROLLED BY ITS OWN POSITION, not by a drag.** The card rows sit a
+      // screen or more down — the write-up heads the feed at full time — and
+      // how far down depends on how long that report is, which depends on what
+      // the skip's card catch-up re-simulated. A fixed 400pt drag happened to
+      // land on them and stopped doing so the moment the catch-up moved ahead
+      // of the feed being drawn (see `skipToEnd`), which is the fix working
+      // rather than a regression. A gesture cannot replace it either: at full
+      // time the coach's bubble and the write-up sit over the feed's own
+      // centre, so a drag aimed there is swallowed and the list never moves.
+      final feedScroll = find
+          .descendant(
+            of: find.byKey(const ValueKey('match-feed')),
+            matching: find.byType(Scrollable),
+          )
+          .first;
+      final pos = tester.widget<Scrollable>(feedScroll).controller!.position;
+      while (cardRow.evaluate().isEmpty && pos.pixels < pos.maxScrollExtent) {
+        pos.jumpTo(math.min(pos.pixels + 120, pos.maxScrollExtent));
+        await tester.pump();
+      }
+      expect(cardRow, findsWidgets);
       expect(find.byType(CardGlyph), findsWidgets);
 
       // And the whistle put them on the players' records, beside their goals.

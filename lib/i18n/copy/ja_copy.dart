@@ -8,6 +8,8 @@ library;
 
 /// Replaces the generated entry, or adds a key Japanese did not have.
 const Map<String, String> jaCopy = <String, String>{
+  'customise.item.face.bubblegum': 'ガム',
+
   // サウンド・音楽に並ぶ3つ目の行。すべてのボタンのタップ音。
   'settings.ui_sounds': '操作音',
 

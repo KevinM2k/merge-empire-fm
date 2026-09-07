@@ -8,6 +8,8 @@ library;
 
 /// Replaces the generated entry, or adds a key Chinese did not have.
 const Map<String, String> zhCopy = <String, String>{
+  'customise.item.face.bubblegum': '泡泡糖',
+
   // 位于“声音”和“音乐”旁的第三行：每个按钮的点击音。
   'settings.ui_sounds': '按键音',
 

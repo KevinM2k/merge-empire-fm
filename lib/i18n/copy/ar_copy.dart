@@ -13,6 +13,8 @@ library;
 
 /// Replaces the generated entry, or adds a key Arabic did not have.
 const Map<String, String> arCopy = <String, String>{
+  'customise.item.face.bubblegum': 'علكة',
+
   // صف ثالث إلى جانب الصوت والموسيقى: نقرة كل زر.
   'settings.ui_sounds': 'أصوات الواجهة',
 

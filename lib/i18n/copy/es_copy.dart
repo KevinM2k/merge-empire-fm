@@ -7,6 +7,8 @@ library;
 
 /// Replaces the generated entry, or adds a key Spanish did not have.
 const Map<String, String> esCopy = <String, String>{
+  'customise.item.face.bubblegum': 'Chicle',
+
   // Una tercera fila junto a Sonido y Música: el clic de cada botón.
   'settings.ui_sounds': 'Interfaz',
 

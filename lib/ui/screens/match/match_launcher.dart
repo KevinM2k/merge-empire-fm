@@ -14,12 +14,14 @@
 library;
 
 import 'package:merge_empire_fc/data/config.dart';
+import 'package:merge_empire_fc/data/quests.dart' show QuestAction;
 import 'package:merge_empire_fc/engine/energy_engine.dart';
 import 'package:merge_empire_fc/engine/goal_model.dart';
 import 'package:merge_empire_fc/engine/match_orchestration.dart';
 import 'package:merge_empire_fc/engine/tutorial_engine.dart';
 import 'package:merge_empire_fc/engine/match_tactics.dart';
 import 'package:merge_empire_fc/engine/quest_engine.dart';
+import 'package:merge_empire_fc/engine/season_end.dart' show trackEvent;
 import 'package:merge_empire_fc/engine/quest_match.dart';
 import 'package:merge_empire_fc/state/card_instance.dart';
 
@@ -142,6 +144,28 @@ Map<String, dynamic>? beginMatch(Map<String, dynamic> state) {
 /// what was missed as well as what was won.
 void settleMatch(Map<String, dynamic> state, Map<String, dynamic> result) {
   finalizeMatchOutcome(state, result);
+  // **AND A WIN IS COUNTED HERE, because it was counted NOWHERE.**
+  // `applyMatchToSeasonQuests` says in as many words that `MATCH_WIN` is not
+  // its to advance — it belongs to "the call site that also feeds the event
+  // reward track", so that counting a match twice is impossible — and there was
+  // no such call site. `QuestAction.matchWin` had one writer in the whole
+  // repository: the back-fill that reconstructs a season's tally from the
+  // fixture list for a save that predates the quest track. So `season_wins`
+  // ("win N games") and `season_wins_hard` sat at zero for a player who won
+  // every match of a season. Reported from the couch, after a win that did not
+  // move it.
+  //
+  // Through [trackEvent] rather than `advanceQuest`, which is the funnel's
+  // whole point: the season track and any live event's reward track both hear
+  // it, and neither can be wired up without the other.
+  //
+  // **League only.** A cup tie resolves through `cup_launcher`, never here, and
+  // the back-fill this has to agree with counts league fixtures — so a cup run
+  // that also topped up the season's win quest would put the tally and its own
+  // reconstruction permanently out of step. Cups have their own event actions.
+  if (_flag(result['won']) && !_flag(result['isCup'])) {
+    trackEvent(state, QuestAction.matchWin);
+  }
   result['questResults'] = [
     for (final outcome in resolveMatchQuests(state, result))
       <String, dynamic>{
@@ -162,3 +186,6 @@ void settleMatch(Map<String, dynamic> state, Map<String, dynamic> result) {
 /// Pay the player. Called only once they have dismissed the screen.
 void payMatch(Map<String, dynamic> state, Map<String, dynamic> result) =>
     applyMatchRewards(state, result);
+
+/// A save's booleans arrive as `true`, `1` or absent.
+bool _flag(Object? v) => v == true || v == 1;

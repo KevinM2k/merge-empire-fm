@@ -15,6 +15,8 @@
 /// draws the result lives next to the widgets.
 library;
 
+import 'package:merge_empire_fc/data/manager_art.g.dart';
+
 /// The colour each slot is baked as, straight out of `tool/gen_manager_art.mjs`.
 ///
 /// Kept in step with the generator's own `VARS` by
@@ -79,3 +81,47 @@ String recolourManagerArt(
   swap('kit', kit);
   return out;
 }
+
+/// **ART THIS REPO OWNS, LAID OVER THE GENERATED PARTS.**
+///
+/// Same arrangement as `lib/i18n/en_copy.dart` and for the same reason:
+/// `manager_art.g.dart` is generated out of the JS's `managerAvatar.js`, so a
+/// part cannot be edited in place — the next generator run would put it back.
+/// This map is laid over it at read time by [managerFaceArt], and nothing
+/// generated is touched.
+///
+/// **BUBBLEGUM IS THE REASON IT EXISTS.** The wardrobe shipped a lit CIGAR as a
+/// buyable face item, complete with drifting smoke, in a game aimed at
+/// children; pulled from the couch in as many words. Gum keeps the slot doing
+/// the same job — something at the mouth with something moving off it — and is
+/// a real touchline habit rather than an invention. The generated wardrobe has
+/// no art for it, so the part lives here.
+///
+/// **THE STILL PART IS ALMOST NOTHING, and that is the point.** The gum is IN
+/// HIS MOUTH: what you see of it is a flash of pink between the teeth as the
+/// jaw works, and a bubble every few seconds. Asked for from the couch in those
+/// words, after a version that had a pink ball riding on his lip.
+///
+/// **So the still part draws NOTHING**, and that is deliberate rather than
+/// unfinished. A pink shape in the mouth's own gap was the version before this
+/// one and it was still visible past the lips the painter draws over it —
+/// reported from the couch as seeing the gum when it is meant to be hidden.
+/// There is no size of pink that is reliably behind a jaw that moves, so the
+/// only thing that is definitely hidden is nothing at all.
+///
+/// Everything the item IS lives in `_GumChew` in `manager_walker.dart`: the jaw
+/// working for most of the loop, and a bubble for the rest. A rig with its
+/// clock stopped — the customiser's chips — sits at the top of that loop with
+/// the bubble at full size, so the item still says what it is when it is not
+/// moving.
+///
+/// The entry stays, rather than the id simply having no art: it is what makes
+/// `bubblegum` a wardrobe part the resolver knows about, and where the drawing
+/// would go if it ever needs one.
+const Map<String, String> managerFaceOverrides = {
+  'bubblegum': '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 170"/>',
+};
+
+/// The face part for [id] — this repo's, if it has one.
+String? managerFaceArt(String id) =>
+    managerFaceOverrides[id] ?? managerFaces[id];
