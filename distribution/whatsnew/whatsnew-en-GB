@@ -1,5 +1,4 @@
-Merge Empire Football Manager, rebuilt from the ground up.
+Fixes and housekeeping.
 
-• A new native app: faster to open, smoother to play, and easier on the battery.
-• Your club, squad and progress carry over. Open the app once on your old version first so everything is ready to move.
-• Every screen redrawn, in the colours of your kit.
+• Sound effects that get cut short — several firing at once, or the app going to the background — no longer report the game as having crashed.
+• Audio is released cleanly in every case now, including when a clip is stopped before it finishes.

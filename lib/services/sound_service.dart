@@ -496,7 +496,8 @@ class AudioPlayersBackend implements SoundBackend {
       unawaited(
         whenDone(player.onPlayerComplete, () {
           _oneShots.remove(player);
-          unawaited(player.dispose());
+          // stopAllSfx may have disposed it; a bare dispose goes fatal.
+          unawaited(_quietlyKill(player));
         }),
       );
       await player.setVolume(volume);
@@ -552,7 +553,8 @@ class AudioPlayersBackend implements SoundBackend {
         unawaited(
           whenDone(player.onPlayerComplete, () {
             _oneShots.remove(player);
-            unawaited(player.dispose());
+            // stopAllSfx may have disposed it; a bare dispose goes fatal.
+            unawaited(_quietlyKill(player));
           }),
         );
         await player.setVolume(volume);
@@ -629,7 +631,7 @@ class AudioPlayersBackend implements SoundBackend {
       unawaited(player.setVolume(musicFadeOutVolume(from, i, steps)));
       if (i >= steps) {
         timer.cancel();
-        unawaited(player.stop().then((_) => player.dispose()));
+        unawaited(_quietlyKill(player));
       }
     });
   }
