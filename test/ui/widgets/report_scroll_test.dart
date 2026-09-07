@@ -1,8 +1,7 @@
 /// A report page is CENTRED when it is short and scrolls when it is long.
 ///
-/// Both report screens are a stack of cards over a foot that is pinned so the
-/// way out is never more than a thumb away, and the stack is usually shorter
-/// than the phone. A `ListView` or a `SingleChildScrollView` puts short content
+/// Both report screens are a stack of cards over a foot carrying what the game
+/// paid and the way out, and the stack is usually shorter than the phone. A `ListView` or a `SingleChildScrollView` puts short content
 /// at the TOP of its viewport, so what a player sees is the report crammed
 /// against the status bar, a third of a screen of nothing, and then the button.
 /// Reported as both screens looking a little ugly.
@@ -99,5 +98,48 @@ void main() {
         .controller
         ?.position;
     expect(position?.maxScrollExtent ?? 0, closeTo(0, 0.5));
+  });
+
+  testWidgets('A FOOTER SITS ON THE BOTTOM EDGE when the report is short', (
+    tester,
+  ) async {
+    // The money and the way out are one decision, and in the scroll's flow a
+    // short report left them halfway down the page over a hand's width of sky.
+    await pump(
+      tester,
+      ReportScroll.list(
+        padding: const EdgeInsets.fromLTRB(14, 18, 14, 8),
+        footer: const [SizedBox(key: ValueKey('foot'), height: 100)],
+        children: const [SizedBox(key: ValueKey('a'), height: 100)],
+      ),
+    );
+    // The cards stay at the top; the foot goes to the bottom.
+    expect(tester.getRect(find.byKey(const ValueKey('a'))).top, closeTo(18, 1));
+    expect(
+      tester.getRect(find.byKey(const ValueKey('foot'))).bottom,
+      closeTo(800 - 8, 1),
+    );
+  });
+
+  testWidgets('and follows the cards when the report is long', (tester) async {
+    // Nothing is pinned: a full page scrolls the foot off the bottom exactly as
+    // the cards do, which is where a scrolled page leaves it anyway.
+    await pump(
+      tester,
+      ReportScroll.list(
+        footer: const [SizedBox(key: ValueKey('foot'), height: 100)],
+        children: const [SizedBox(key: ValueKey('a'), height: 900)],
+      ),
+    );
+    expect(
+      tester.getRect(find.byKey(const ValueKey('foot'))).top,
+      closeTo(900, 1),
+    );
+    await tester.drag(find.byType(Scrollable), const Offset(0, -200));
+    await tester.pumpAndSettle();
+    expect(
+      tester.getRect(find.byKey(const ValueKey('foot'))).top,
+      closeTo(700, 1),
+    );
   });
 }

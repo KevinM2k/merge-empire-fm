@@ -210,7 +210,57 @@ class _SeasonEndScreenState extends ConsumerState<SeasonEndScreen> {
               // the minimum height is the viewport, so the cards start at the
               // top and the foot stays pinned under whatever room is left.
               child: ReportScroll(
-                alignment: Alignment.topCenter,
+                // **`.se-cta` — WHAT IT PAID AND THE WAY OUT, on the bottom
+                // edge.** It was a pinned bar under the scroll; full time's
+                // foot is a card at the end of the report, and walking from
+                // one screen to the other should not change the shape. A short
+                // summary still leaves it on the bottom edge — that is what
+                // `ReportScroll`'s footer is — and a long one scrolls it off
+                // with the cards, which is where a scrolled page leaves it
+                // anyway. Asked for from the couch.
+                footer: Padding(
+                  padding: const EdgeInsets.fromLTRB(14, 12, 14, 8),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      // The payout belongs to the button rather than to the
+                      // report — it is what the button is collecting — and it
+                      // gets the page's own surface, the same as full time's
+                      // money card.
+                      _SeasonCard(
+                        padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            _Line(
+                              label: t('season.end.prize_label'),
+                              value: formatCoins(widget.outcome.payout),
+                              valueKey: 'season-end-payout',
+                            ),
+                            if (widget.outcome.gemsAwarded > 0)
+                              _Line(
+                                label: t('shop.section.gems'),
+                                value: '${widget.outcome.gemsAwarded}',
+                                valueKey: 'season-end-gems',
+                              ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      ElevatedButton(
+                        key: const ValueKey('season-end-continue'),
+                        onPressed: widget.onContinue,
+                        child: Text(
+                          t('season.end.continue', {
+                            'n': widget.seasonNumber + 1,
+                          }),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
                 // The end-of-match report's own inset, so walking from one to
                 // the other does not change the margin. It was 13/10.
                 child: Padding(
@@ -471,46 +521,6 @@ class _SeasonEndScreenState extends ConsumerState<SeasonEndScreen> {
                     ],
                   ),
                 ),
-              ),
-            ),
-            // **`.se-cta` — WHAT IT PAID AND THE WAY OUT, pinned together.**
-            // The spec's own comment: "the way out of this screen is never more
-            // than a thumb away, however long the summary above it runs". The
-            // payout belongs to it rather than to the scroll — it is what the
-            // button is collecting, and the JS puts the prize block inside the
-            // same pinned foot.
-            Container(
-              padding: const EdgeInsets.fromLTRB(13, 10, 13, 12),
-              decoration: BoxDecoration(
-                color: kit.surface,
-                border: Border(top: BorderSide(color: kit.border)),
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _Line(
-                    label: t('season.end.prize_label'),
-                    value: formatCoins(widget.outcome.payout),
-                    valueKey: 'season-end-payout',
-                  ),
-                  if (widget.outcome.gemsAwarded > 0)
-                    _Line(
-                      label: t('shop.section.gems'),
-                      value: '${widget.outcome.gemsAwarded}',
-                      valueKey: 'season-end-gems',
-                    ),
-                  const SizedBox(height: 6),
-                  ElevatedButton(
-                    key: const ValueKey('season-end-continue'),
-                    onPressed: widget.onContinue,
-                    child: Text(
-                      t('season.end.continue', {
-                        'n': widget.seasonNumber + 1,
-                      }),
-                    ),
-                  ),
-                ],
               ),
             ),
           ],

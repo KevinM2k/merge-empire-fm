@@ -303,7 +303,7 @@ void main() {
     final page = tester.getRect(find.byType(ReportScroll));
     final head = tester.getRect(find.byKey(const ValueKey('season-end-title')));
     // The report's own top inset and nothing more — the room falls BELOW the
-    // last card, above the pinned foot, which is where full time puts it.
+    // last card, above the foot, which is where full time puts it.
     expect(
       head.top - page.top,
       lessThan(30),
@@ -315,6 +315,65 @@ void main() {
         .controller
         ?.position;
     expect(position?.maxScrollExtent ?? 0, closeTo(0, 0.5));
+    // **AND THE PAYOUT IS ON THE BOTTOM EDGE**, not floating under the last
+    // card — the foot rides in the report now rather than in a pinned bar, so
+    // the room a short season leaves has to fall above it and not below.
+    expect(
+      tester.getRect(find.byKey(const ValueKey('season-end-continue'))).bottom,
+      closeTo(page.bottom - 8, 2),
+      reason: 'the way out has come off the bottom edge',
+    );
+  });
+
+  testWidgets('AND A LONG ONE SCROLLS THE FOOT OFF, like full time', (
+    tester,
+  ) async {
+    // Nothing is pinned any more: opening the final table makes the report
+    // longer than the phone, and the foot then follows the last card. That is
+    // where a scrolled page leaves it anyway, and it is what full time does.
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: buildAppTheme(kitId: '#4caf50', light: false),
+        home: SeasonEndScreen(
+          outcome: outcome(position: 3),
+          seasonNumber: 2,
+          finalTable: [
+            for (var i = 0; i < 20; i++)
+              LeagueRow(
+                name: 'Club $i',
+                isPlayer: i == 2,
+                played: 38,
+                won: 20 - i,
+                drawn: 5,
+                lost: 13 + i,
+                pts: 65 - i * 3,
+                gd: 20 - i * 2,
+              ),
+          ],
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('season-end-table-toggle')));
+    await tester.pumpAndSettle();
+
+    final go = find.byKey(const ValueKey('season-end-continue'));
+    final position = tester
+        .widget<Scrollable>(find.byType(Scrollable).first)
+        .controller
+        ?.position;
+    expect(
+      position?.maxScrollExtent ?? 0,
+      greaterThan(0),
+      reason: 'twenty rows should not fit a 844-point phone',
+    );
+    await tester.scrollUntilVisible(go, 120);
+    await tester.pumpAndSettle();
+    await tester.tap(go);
+    await tester.pumpAndSettle();
   });
 
   testWidgets('the summary names the season that FINISHED', (tester) async {
@@ -412,7 +471,7 @@ void main() {
       ),
       findsOneWidget,
     );
-    // And the payout is NOT: it rides in the pinned foot with the way out,
+    // And the payout is NOT: it rides in the report's foot with the way out,
     // which is what the button is collecting. `.se-cta` in the spec.
     expect(
       find.descendant(
@@ -431,7 +490,7 @@ void main() {
     expect(
       button.bottom,
       greaterThan(tester.getRect(hero.first).bottom),
-      reason: 'the way out is pinned under the summary, not inside it',
+      reason: 'the way out is under the summary, not inside it',
     );
   });
 

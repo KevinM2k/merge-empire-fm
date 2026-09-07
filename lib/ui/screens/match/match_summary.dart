@@ -321,19 +321,190 @@ class MatchSummaryScreenState extends ConsumerState<MatchSummaryScreen>
           child: Column(
             children: [
               Expanded(
-                // **CENTRED WHEN IT IS SHORT** — see `report_scroll.dart`. A
-                // ListView puts a stack of cards at the top of its viewport and
-                // the money block below is pinned, so a report that did not
-                // fill the phone left 125 points of nothing between the manager
-                // and the payout.
+                // **CARDS AT THE TOP, MONEY ON THE BOTTOM EDGE** — see
+                // `report_scroll.dart`. The scoreline is the result and must
+                // not float down the page as the report grows or shrinks; the
+                // foot is a decision and belongs on the bottom edge whether or
+                // not the report reaches it.
                 child: ReportScroll.list(
-                  // **TOP, not centred.** The first card is the scoreline, and
-                  // a scoreline that floats down the page as the report below
-                  // it grows or shrinks reads as the page settling rather than
-                  // as the result. Asked for directly; the season summary keeps
-                  // the centring, which is what `report_scroll.dart` is about.
-                  alignment: Alignment.topCenter,
                   padding: const EdgeInsets.fromLTRB(14, 18, 14, 8),
+                  footer: [
+                    // **THE MONEY SITS WITH THE BUTTON THAT CHANGES IT.** The
+                    // figure was at the top of the scroll and the offer to
+                    // double it at the foot, which is one decision split across
+                    // a page — the player had to remember a number to
+                    // understand the button.
+                    //
+                    // **AND IT SITS ON THE BOTTOM EDGE.** In the scroll's
+                    // flow it ended up halfway down a short report, under the
+                    // cards and over a hand's width of empty sky. As
+                    // `ReportScroll`'s footer it is on the bottom edge when the
+                    // report does not fill the phone and straight after the
+                    // cards when it does, which is where a scrolled page leaves
+                    // it anyway. Asked for from the couch.
+                    Padding(
+                      padding: const EdgeInsets.only(top: 12, bottom: 4),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // **THE MONEY GETS A SURFACE, like everything else here.**
+                          // It was the one figure on the report drawn straight onto
+                          // the sky, directly under a column of panels — so the
+                          // biggest number on the screen read as a caption.
+                          // **THE BUTTON GOES INSIDE THE CARD.** The offer and the
+                          // figure it changes were a panel with a button sitting
+                          // under it, which is two objects for one decision — the
+                          // card says what you have and the button says what it
+                          // could be, so they are the same thing. Asked for
+                          // directly, and "No thanks" stays outside and at the
+                          // bottom, on its own.
+                          if (_base + _quests > 0 || canDouble)
+                            GlassPanel(
+                                                      key: const ValueKey('summary-payout-card'),
+                              // **MORE ROOM UNDER THE BUTTON than over the figure.**
+                              // Ten and ten put the rewarded-video control hard
+                              // against the card's bottom edge, which on the one
+                              // control here that costs the player something reads as
+                              // the card having been cut off. Asked for directly.
+                              padding: const EdgeInsets.fromLTRB(12, 10, 12, 14),
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  if (_base + _quests > 0)
+                                    _Payout(
+                                      base: _base,
+                                      quests: _quests,
+                                      hasQuests: hasQuests,
+                                      doubled: canDouble && _answering,
+                                    ),
+                                  if (canDouble) ...[
+                                    const SizedBox(height: 10),
+                                    // **THE SHOP'S OWN BUTTON, in the ad tone.** It
+                                    // was a bespoke `ElevatedButton` painted gold by
+                                    // hand, on a game whose rule is one button and
+                                    // four colours where the colour answers "what
+                                    // does this cost me?". A rewarded video is
+                                    // yellow and wears the video chip, here as it
+                                    // does on the energy sheet and the free shelf.
+                                    // Rebuilt off the tally so the figure on the face
+                                    // climbs — see [_tally]. `AnimatedBuilder` rather
+                                    // than `setState` on every tick, so nothing else
+                                    // on the report rebuilds sixty times a second.
+                                    AnimatedBuilder(
+                                      animation: _tally,
+                                      builder: (context, _) {
+                                        final single = _base + _quests;
+                                        final both = single * 2;
+                                        final climbing =
+                                            _tallying || _tally.value > 0;
+                                        final shown = climbing
+                                            ? (single +
+                                                    (both - single) *
+                                                        Curves.easeOutCubic.transform(
+                                                          _tally.value,
+                                                        ))
+                                                .round()
+                                            : both;
+                                        return StoreButton(
+                                          key: const ValueKey('summary-double'),
+                                          tone: StoreTone.ad,
+                                          // While it climbs the label is the figure
+                                          // and nothing else: the offer has been
+                                          // taken, so "2× Coins" is a description of
+                                          // something that already happened.
+                                          label: climbing
+                                              ? formatCoins(shown)
+                                              : _answering
+                                              ? t('common.loading')
+                                              : '${t('match.double_reward')} → '
+                                                    '${formatCoins(both)}',
+                                          leading: climbing
+                                              ? const CoinIcon(size: 14, solid: true)
+                                              : _answering
+                                              ? null
+                                              : const GameIcon('video', size: 14),
+                                          // Dead for the whole of it: the answer is
+                                          // in and the screen is on its way out.
+                                          onTap: _answering ? null : _double,
+                                        );
+                                      },
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    // **AND THE WAY OUT GOES WITH IT**, directly under the
+                    // offer it declines — the two are one decision and the foot
+                    // is where the decision lives.
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2, bottom: 6),
+                      child:
+                          canDouble
+                          ? Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                // **Stripped to TEXT, not a quieter button.** Two
+                                // buttons stacked read as a choice between two offers,
+                                // and a muted one still invites a press. This is the
+                                // decline, so it looks like walking away.
+                                TextButton(
+                                  key: const ValueKey('summary-no-thanks'),
+                                  onPressed: _answering
+                                      ? null
+                                      : () => Navigator.of(context).pop(),
+                                  style: TextButton.styleFrom(
+                                    foregroundColor: kit.textMuted,
+                                    visualDensity: VisualDensity.compact,
+                                    minimumSize: const Size(0, 32),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 4,
+                                    ),
+                                  ),
+                                  // **BOTH FIGURES ARE WHAT YOU WALK AWAY WITH**,
+                                  // and the quest money is part of both. The link
+                                  // said `_base` — the match fee alone — while the
+                                  // player was actually leaving with the fee plus
+                                  // whatever the three quests paid at the whistle, so
+                                  // the one line naming the outcome of declining
+                                  // understated it. Totals on both sides also make
+                                  // the two answers comparable: the difference
+                                  // between them is exactly what the video is worth.
+                                  // **A FIGURE IN THIS GAME COMES WITH THE GLYPH.**
+                                  // Every other coin total on the report wears one
+                                  // and this line did not, so the one number the
+                                  // player is comparing against the button above it
+                                  // was the one that did not say what it was counted
+                                  // in. Asked for from the couch, and consistency is
+                                  // the whole of the reason.
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Text('${t('match.no_thanks')} - '),
+                                      CoinBadge(
+                                        amount: _base + _quests,
+                                        fontSize: 12,
+                                        iconSize: 11,
+                                        sign: '',
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            )
+                          : SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton(
+                                key: const ValueKey('summary-continue'),
+                                onPressed: () => Navigator.of(context).pop(),
+                                child: Text(t('common.continue')),
+                              ),
+                            ),
+                    ),
+                  ],
                   children: [
                     // **ONE BOX, not three things loose around one.** The
                     // verdict, the money and the quest outcomes each sat on the
@@ -444,184 +615,6 @@ class MatchSummaryScreenState extends ConsumerState<MatchSummaryScreen>
                           ],
                         ],
                       ),
-                    ),
-                    // **THE MONEY SITS WITH THE BUTTON THAT CHANGES IT.** The
-                    // figure was at the top of the scroll and the offer to
-                    // double it at the foot, which is one decision split across
-                    // a page — the player had to remember a number to
-                    // understand the button.
-                    //
-                    // **AND IT SCROLLS WITH THE REST NOW.** It was pinned under
-                    // the scroll, which buys nothing on a report built to fit
-                    // one screen and costs a hole: a defeat with a short table
-                    // left a hand's width of empty sky between the quest panel
-                    // and the money. Asked for from the couch — it is fine for
-                    // it to scroll. `ReportScroll` centres a short report, so
-                    // the block travels with what it is reporting on.
-                    Padding(
-                      padding: const EdgeInsets.only(top: 12, bottom: 4),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          // **THE MONEY GETS A SURFACE, like everything else here.**
-                          // It was the one figure on the report drawn straight onto
-                          // the sky, directly under a column of panels — so the
-                          // biggest number on the screen read as a caption.
-                          // **THE BUTTON GOES INSIDE THE CARD.** The offer and the
-                          // figure it changes were a panel with a button sitting
-                          // under it, which is two objects for one decision — the
-                          // card says what you have and the button says what it
-                          // could be, so they are the same thing. Asked for
-                          // directly, and "No thanks" stays outside and at the
-                          // bottom, on its own.
-                          if (_base + _quests > 0 || canDouble)
-                            GlassPanel(
-                                                      key: const ValueKey('summary-payout-card'),
-                              // **MORE ROOM UNDER THE BUTTON than over the figure.**
-                              // Ten and ten put the rewarded-video control hard
-                              // against the card's bottom edge, which on the one
-                              // control here that costs the player something reads as
-                              // the card having been cut off. Asked for directly.
-                              padding: const EdgeInsets.fromLTRB(12, 10, 12, 14),
-                              child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  if (_base + _quests > 0)
-                                    _Payout(
-                                      base: _base,
-                                      quests: _quests,
-                                      hasQuests: hasQuests,
-                                      doubled: canDouble && _answering,
-                                    ),
-                                  if (canDouble) ...[
-                                    const SizedBox(height: 10),
-                                    // **THE SHOP'S OWN BUTTON, in the ad tone.** It
-                                    // was a bespoke `ElevatedButton` painted gold by
-                                    // hand, on a game whose rule is one button and
-                                    // four colours where the colour answers "what
-                                    // does this cost me?". A rewarded video is
-                                    // yellow and wears the video chip, here as it
-                                    // does on the energy sheet and the free shelf.
-                                    // Rebuilt off the tally so the figure on the face
-                                    // climbs — see [_tally]. `AnimatedBuilder` rather
-                                    // than `setState` on every tick, so nothing else
-                                    // on the report rebuilds sixty times a second.
-                                    AnimatedBuilder(
-                                      animation: _tally,
-                                      builder: (context, _) {
-                                        final single = _base + _quests;
-                                        final both = single * 2;
-                                        final climbing =
-                                            _tallying || _tally.value > 0;
-                                        final shown = climbing
-                                            ? (single +
-                                                    (both - single) *
-                                                        Curves.easeOutCubic.transform(
-                                                          _tally.value,
-                                                        ))
-                                                .round()
-                                            : both;
-                                        return StoreButton(
-                                          key: const ValueKey('summary-double'),
-                                          tone: StoreTone.ad,
-                                          // While it climbs the label is the figure
-                                          // and nothing else: the offer has been
-                                          // taken, so "2× Coins" is a description of
-                                          // something that already happened.
-                                          label: climbing
-                                              ? formatCoins(shown)
-                                              : _answering
-                                              ? t('common.loading')
-                                              : '${t('match.double_reward')} → '
-                                                    '${formatCoins(both)}',
-                                          leading: climbing
-                                              ? const CoinIcon(size: 14, solid: true)
-                                              : _answering
-                                              ? null
-                                              : const GameIcon('video', size: 14),
-                                          // Dead for the whole of it: the answer is
-                                          // in and the screen is on its way out.
-                                          onTap: _answering ? null : _double,
-                                        );
-                                      },
-                                    ),
-                                  ],
-                                ],
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                    // **AND SO DOES THE WAY OUT.** It was pinned on its own
-                    // for a while — unpinning the payout had put "No Thanks" at
-                    // 673 on a 600-point screen. Asked for anyway: it does not
-                    // need to be fixed either. So the page is one scroll from
-                    // the scoreline to the decline, and a phone short enough to
-                    // cut the link off is a phone the player scrolls.
-                    Padding(
-                      padding: const EdgeInsets.only(top: 2, bottom: 6),
-                      child:
-                          canDouble
-                          ? Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                // **Stripped to TEXT, not a quieter button.** Two
-                                // buttons stacked read as a choice between two offers,
-                                // and a muted one still invites a press. This is the
-                                // decline, so it looks like walking away.
-                                TextButton(
-                                  key: const ValueKey('summary-no-thanks'),
-                                  onPressed: _answering
-                                      ? null
-                                      : () => Navigator.of(context).pop(),
-                                  style: TextButton.styleFrom(
-                                    foregroundColor: kit.textMuted,
-                                    visualDensity: VisualDensity.compact,
-                                    minimumSize: const Size(0, 32),
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 12,
-                                      vertical: 4,
-                                    ),
-                                  ),
-                                  // **BOTH FIGURES ARE WHAT YOU WALK AWAY WITH**,
-                                  // and the quest money is part of both. The link
-                                  // said `_base` — the match fee alone — while the
-                                  // player was actually leaving with the fee plus
-                                  // whatever the three quests paid at the whistle, so
-                                  // the one line naming the outcome of declining
-                                  // understated it. Totals on both sides also make
-                                  // the two answers comparable: the difference
-                                  // between them is exactly what the video is worth.
-                                  // **A FIGURE IN THIS GAME COMES WITH THE GLYPH.**
-                                  // Every other coin total on the report wears one
-                                  // and this line did not, so the one number the
-                                  // player is comparing against the button above it
-                                  // was the one that did not say what it was counted
-                                  // in. Asked for from the couch, and consistency is
-                                  // the whole of the reason.
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Text('${t('match.no_thanks')} - '),
-                                      CoinBadge(
-                                        amount: _base + _quests,
-                                        fontSize: 12,
-                                        iconSize: 11,
-                                        sign: '',
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            )
-                          : SizedBox(
-                              width: double.infinity,
-                              child: ElevatedButton(
-                                key: const ValueKey('summary-continue'),
-                                onPressed: () => Navigator.of(context).pop(),
-                                child: Text(t('common.continue')),
-                              ),
-                            ),
                     ),
                   ],
                 ),
@@ -790,32 +783,28 @@ class _Verdict extends StatelessWidget {
       label.toUpperCase(),
       key: const ValueKey('summary-verdict'),
       textAlign: TextAlign.center,
-      // **THE DISPLAY FACE, and this is what it is for.** One word, read at a
-      // glance, at a size where Barlow's `w900` is still a text weight. See
-      // [displayText] — it drops the weight on purpose, because Lilita One
-      // ships one cut and a `fontWeight` beside it is a synthesised smear.
-      style: displayText(
-        TextStyle(
-          fontSize: 38,
-          // Tighter than the 2 it wore: that was spacing chosen to give a
-          // text face some presence, and a display face already has it — at
-          // 38 points the same 2 reads as the letters coming apart.
-          letterSpacing: 1,
-          // **STILL THROUGH THE PANE RULE, even though there is no pane.**
-          // Dropping `glassAccent` here looked right — the card it used to
-          // clear is gone — and `light_mode_contrast_test` caught it at
-          // 2.80:1: the daylight sky is as pale as the pane ever was, so the
-          // scale's own green needs taking down exactly as much out here. The
-          // shadow is on top of that, not instead of it.
-          shadows: [
-            Shadow(
-              color: Colors.black.withValues(alpha: 0.45),
-              offset: const Offset(0, 2),
-              blurRadius: 6,
-            ),
-          ],
-          color: glassAccent(context, ink),
-        ),
+      // **THE TEXT FACE, not the display one.** Asked for from the couch: one
+      // word at 38 points in Lilita One is a poster over a report set in
+      // Barlow. `w900` and the wider tracking are what gave it presence before
+      // the display face was reached for.
+      style: TextStyle(
+        fontSize: 38,
+        fontWeight: FontWeight.w900,
+        letterSpacing: 2,
+        // **STILL THROUGH THE PANE RULE, even though there is no pane.**
+        // Dropping `glassAccent` here looked right — the card it used to
+        // clear is gone — and `light_mode_contrast_test` caught it at
+        // 2.80:1: the daylight sky is as pale as the pane ever was, so the
+        // scale's own green needs taking down exactly as much out here. The
+        // shadow is on top of that, not instead of it.
+        shadows: [
+          Shadow(
+            color: Colors.black.withValues(alpha: 0.45),
+            offset: const Offset(0, 2),
+            blurRadius: 6,
+          ),
+        ],
+        color: glassAccent(context, ink),
       ),
     );
   }
