@@ -55,6 +55,7 @@ import 'package:merge_empire_fc/ui/screens/home/manager_walker.dart'
         walkerWidth;
 import 'package:merge_empire_fc/ui/screens/home/pitch_ball.dart';
 import 'package:merge_empire_fc/ui/screens/home/pitch_weather.dart';
+import 'package:merge_empire_fc/ui/screens/home/scene_clock.dart';
 import 'package:merge_empire_fc/ui/screens/home/walk_ramp.dart';
 import 'package:merge_empire_fc/ui/theme/sky.dart';
 
@@ -900,41 +901,48 @@ class PitchScene extends StatelessWidget {
           // tap with a crowd rather than with a menu.
           child: _Crowd(
             celebration: celebration,
-            builder: (beat, excitement) => _GroundDrive(
-              builder: (worldX) => _Scroller(
-                key: const ValueKey('pitch-stand'),
-                // A park's fans idle every frame, and so do a stand's
-                // front rows — see [_liveRows]; the rest is a picture.
-                // when it is up.
-                live: park ? sprites : true,
-                stillKey: (kitColor, haze, tier, sprites, night),
-                offsetPx: parallaxOffset(
-                  worldX,
+            // **ONE clock for every tile of the park**, above the row that
+            // repeats it — see `scene_clock.dart` for the jump it stops.
+            builder: (beat, excitement) => SceneClock(
+              active: park && sprites,
+              builder: (context, clock) => _GroundDrive(
+                builder: (worldX) => _Scroller(
+                  key: const ValueKey('pitch-stand'),
+                  // A park's fans idle every frame, and so do a stand's
+                  // front rows — see [_liveRows]; the rest is a picture.
+                  // when it is up.
+                  live: park ? sprites : true,
+                  stillKey: (kitColor, haze, tier, sprites, night),
+                  offsetPx: parallaxOffset(
+                    worldX,
+                    segmentWidth: farSegmentWidth,
+                    period: farPeriod,
+                    mood: mood,
+                  ),
                   segmentWidth: farSegmentWidth,
-                  period: farPeriod,
-                  mood: mood,
-                ),
-                segmentWidth: farSegmentWidth,
-                liveChild: park
-                    ? (sprites ? _ParkFans(tier: tier, night: night) : null)
-                    : _StandSegment(
-                        front: true,
-                        kitColor: kitColor,
-                        haze: haze,
-                        beat: beat,
-                        excitement: excitement,
-                        tier: tier,
-                      ),
-                // The stand at rest, which is nearly all of it and
-                // which never leaves the picture — see [_liveRows].
-                child: _StandSegment(
-                  kitColor: kitColor,
-                  haze: haze,
-                  beat: 0,
-                  excitement: 0,
-                  tier: tier,
-                  sprites: sprites,
-                  night: night,
+                  liveChild: park
+                      ? (sprites
+                            ? _ParkFans(tier: tier, night: night, clock: clock)
+                            : null)
+                      : _StandSegment(
+                          front: true,
+                          kitColor: kitColor,
+                          haze: haze,
+                          beat: beat,
+                          excitement: excitement,
+                          tier: tier,
+                        ),
+                  // The stand at rest, which is nearly all of it and
+                  // which never leaves the picture — see [_liveRows].
+                  child: _StandSegment(
+                    kitColor: kitColor,
+                    haze: haze,
+                    beat: 0,
+                    excitement: 0,
+                    tier: tier,
+                    sprites: sprites,
+                    night: night,
+                  ),
                 ),
               ),
             ),
@@ -1715,8 +1723,13 @@ const Map<int, List<double>> _spectatorSpots = {
 /// **and the trees and bushes, so they can sway.**
 ///
 /// Seven small paper dolls a frame is cheap; a still strip could not move
-/// them at all. Each idles on its own clock, so the knot of three never sways
-/// as one, and reduced motion stops the clock and leaves them standing.
+/// them at all. Each idles at its own phase of ONE clock, so the knot of three
+/// never sways as one, and reduced motion stops the clock and leaves them
+/// standing.
+///
+/// **The clock is handed in, not owned.** This segment is tiled across the
+/// strip, and a ticker per copy put a late tile out of step with the rest —
+/// see `scene_clock.dart`.
 ///
 /// The trees moved up here from [_ParkSegment] when the couch asked for the
 /// background to breathe the way a reference game's did: its canopies rock a
@@ -1724,52 +1737,25 @@ const Map<int, List<double>> _spectatorSpots = {
 /// frame on a layer that already redraws is nothing; the houses stay in the
 /// still, because a house does not move. Drawn BEHIND the fans, which is where
 /// the still had them.
-class _ParkFans extends StatefulWidget {
-  const _ParkFans({required this.tier, required this.night});
+class _ParkFans extends StatelessWidget {
+  const _ParkFans({
+    required this.tier,
+    required this.night,
+    required this.clock,
+  });
 
   final int tier;
   final bool night;
 
-  @override
-  State<_ParkFans> createState() => _ParkFansState();
-}
-
-class _ParkFansState extends State<_ParkFans>
-    with SingleTickerProviderStateMixin {
-  final ValueNotifier<double> _t = ValueNotifier<double>(0);
-  late final Ticker _ticker = createTicker(
-    (elapsed) => _t.value = elapsed.inMicroseconds / 1e6,
-  );
-
-  void _sync() {
-    final run = !MediaQuery.of(context).disableAnimations;
-    if (run == _ticker.isActive) return;
-    if (run) {
-      _ticker.start();
-    } else {
-      _ticker.stop();
-    }
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _sync();
-  }
-
-  @override
-  void dispose() {
-    _ticker.dispose();
-    _t.dispose();
-    super.dispose();
-  }
+  /// Seconds, shared by every tile of the strip.
+  final ValueListenable<double> clock;
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, box) {
       final h = box.maxHeight;
       const w = farSegmentWidth;
-      final seeds = parkSpectatorSeeds(widget.tier);
+      final seeds = parkSpectatorSeeds(tier);
       // The houses are [parkPropsDrop] below the horizon and the spectators
       // [parkFansDrop] below it — the lines the still is padded to. A tree or a
       // bush stands on its OWN one; see [parkTreeDrops].
@@ -1785,7 +1771,7 @@ class _ParkFansState extends State<_ParkFans>
         left: x,
         bottom: parkFansDrop - drop,
         child: ParkSway(
-          clock: _t,
+          clock: clock,
           seed: seed,
           amplitude: amplitude,
           child: Image.asset(
@@ -1821,7 +1807,7 @@ class _ParkFansState extends State<_ParkFans>
                 // fourteen images rebuilt every frame, times the tiles the
                 // strip draws, was the whole home page going slow.
                 child: _Shuffle(
-                  clock: _t,
+                  clock: clock,
                   seed: seed,
                   child: ModularFigure(
                     look: spectatorLook(seed),
@@ -1835,7 +1821,7 @@ class _ParkFansState extends State<_ParkFans>
       return SizedBox(
         width: w,
         height: h,
-        child: widget.night
+        child: night
             ? ColorFiltered(
                 colorFilter: const ColorFilter.mode(
                   // Lifted with the rest of the night — see [_turfNight].

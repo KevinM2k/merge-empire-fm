@@ -46,8 +46,8 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
 import 'package:merge_empire_fc/ui/screens/home/kenney_art.dart';
+import 'package:merge_empire_fc/ui/screens/home/scene_clock.dart';
 import 'package:merge_empire_fc/ui/theme/sky.dart';
 
 /// The seed every particle field is laid out from.
@@ -79,60 +79,28 @@ ValueKey<String> weatherLayerKey(String layer) => ValueKey('weather-$layer');
 /// 1.0s. A wrapping controller would have to jump every particle back to the top
 /// at once to stay in step with itself; an open-ended count lets each one keep
 /// its own speed off one clock.
-class _Motion extends StatefulWidget {
+///
+/// **The count is [SceneClock]'s, which clamps each frame's step.** On a raw
+/// elapsed count the clouds leapt a third of the sky when a sheet closed —
+/// `TickerMode` mutes the ticker under it and the ticker counts the muted time
+/// anyway. Held where it froze while inactive, and it carries on from there: a
+/// field that jumped back to its laid-out positions mid-fade would be a visible
+/// flinch on the way to invisible.
+class _Motion extends StatelessWidget {
   const _Motion({required this.active, required this.builder});
 
   final bool active;
   final Widget Function(BuildContext context, double seconds) builder;
 
   @override
-  State<_Motion> createState() => _MotionState();
-}
-
-class _MotionState extends State<_Motion> with SingleTickerProviderStateMixin {
-  /// The painters listen to this rather than the element rebuilding, which is
-  /// the same bargain `_MowFan` makes.
-  final ValueNotifier<double> _clock = ValueNotifier<double>(0);
-  late final Ticker _ticker = createTicker(
-    (elapsed) => _clock.value = elapsed.inMicroseconds / 1e6,
-  );
-
-  void _sync() {
-    final run = widget.active && !MediaQuery.of(context).disableAnimations;
-    if (run == _ticker.isActive) return;
-    if (run) {
-      _ticker.start();
-    } else {
-      // Held where it froze rather than reset. A shower is still fading out
-      // when its clock stops, and a field that jumped back to its laid-out
-      // positions mid-fade would be a visible flinch on the way to invisible.
-      _ticker.stop();
-    }
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _sync();
-  }
-
-  @override
-  void didUpdateWidget(_Motion old) {
-    super.didUpdateWidget(old);
-    _sync();
-  }
-
-  @override
-  void dispose() {
-    _ticker.dispose();
-    _clock.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => ValueListenableBuilder<double>(
-    valueListenable: _clock,
-    builder: (context, t, _) => widget.builder(context, t),
+  Widget build(BuildContext context) => SceneClock(
+    active: active,
+    // The painters listen to the clock rather than the element rebuilding,
+    // which is the same bargain `_MowFan` makes.
+    builder: (context, clock) => ValueListenableBuilder<double>(
+      valueListenable: clock,
+      builder: (context, t, _) => builder(context, t),
+    ),
   );
 }
 

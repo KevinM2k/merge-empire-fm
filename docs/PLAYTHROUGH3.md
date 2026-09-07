@@ -6,7 +6,8 @@ because that is the part worth keeping.
 
 ## Where this queue stands
 
-**115 done, 5 open, and one feature parked.** None of the open rows is a fault.
+**117 done, 6 open, and one feature parked.** One open row is a report still
+being narrowed (the trees' size, below); none of the rest is a fault.
 One is a feature that was built, tried and turned down; one is a balance
 question rather than work; one is a survey to run before building; and one is
 **blocked on the spec repo** for the COMMENTARY, which is the row to read if the
@@ -232,6 +233,34 @@ finished, and too many traits being the same as each other.
       mud's own now and each placement is held to the middle half of its band,
       which the test measures against `decoBandFraction` rather than a copy of
       it.
+
+## Asked for, 7 Sep 2026 — the background on two phones
+
+- [x] **"On Android the loop isn't right with the trees, it jumps sometimes."**
+      The park strip is one 480px segment tiled across the width, and every
+      copy of `_ParkFans` owned a ticker of its own. Tiles built in one frame
+      share a start and agree by accident; a tile added later — the screen
+      widening, a fold opening, an inset arriving after first layout — ran a
+      younger clock, so at every wrap of the loop the trees standing where its
+      neighbour had stood snapped to a different sway. `park_strip_clock_test`
+      widens the surface mid-run and found the strip on five clocks. There is
+      one now, `SceneClock`, owned above the row and handed in.
+
+- [x] **"Trees don't seem to jump on iOS but the clouds do."** The weather's
+      `_Motion` published its ticker's raw elapsed, and a ticker muted by
+      `TickerMode` counts the time it spent muted — every sheet mutes the body
+      behind it (`screen_covered.dart`), so a cloud on a 90–180s crossing leapt
+      when the sheet closed. The walk clock already clamped its step for exactly
+      this; the weather now reads `SceneClock`, which clamps at 0.05s a frame
+      and carries on from where it stopped. Same fix on both platforms.
+
+- [ ] **"The trees look smaller on Android than they do on iOS."** Nothing in
+      the scene sizes a tree by platform or pixel ratio: every layer is in
+      logical points off constants. What changed on 7 Sep is that the diorama
+      reads the save's stadium tier, and the trees are a different thing per
+      tier — Kenney sprites in the park at 0–1, a painted hedgerow over the
+      roof at 2–3, a far village on the hills from 4. Two saves at two tiers
+      would show two sizes. Needs the tier on each phone before it is a fault.
 
 ## Done
 
