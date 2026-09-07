@@ -15,6 +15,14 @@ const Map<String, String> deCopy = <String, String>{
   // Eine dritte Zeile neben Sound und Musik: der Klick jeder Schaltfläche.
   'settings.ui_sounds': 'Oberfläche',
 
+  // Der Tab ist nicht mehr nur Ton: die Vibration kommt dazu.
+  'settings.tab.controls': 'Steuerung',
+  'settings.haptics': 'Vibration',
+  'settings.haptics.hint': 'Ein kurzes Vibrieren bei jedem Tippen. Die '
+      'Vibrationseinstellungen deines Telefons können es ebenfalls '
+      'abschalten.',
+  'settings.tap_ripple': 'Tipp-Wellen',
+
   // ── Die Schlagzeile ──────────────────────────────────────────────────────
   //
   // Ersetzt statt erweitert: die generierten Texte öffnen alle mit {score}.

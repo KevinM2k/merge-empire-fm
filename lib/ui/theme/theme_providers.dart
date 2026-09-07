@@ -3,6 +3,7 @@ library;
 
 import 'dart:async';
 
+import 'package:merge_empire_fc/providers/press_providers.dart';
 import 'package:merge_empire_fc/providers/sound_providers.dart';
 import 'dart:ui' show PlatformDispatcher;
 
@@ -80,6 +81,12 @@ final appThemeProvider = Provider<ThemeData>((ref) {
   // theme and the sound engine. `read`, not `watch`: the service is a singleton
   // and watching it would rebuild the whole theme for nothing.
   final sound = ref.read(soundServiceProvider);
+  // **AND THE BUZZ IS THE CUE'S OTHER HALF**, so it is wired beside it rather
+  // than on its own list of buttons — see `HapticsService`. `watch`, not `read`:
+  // this one carries the player's switch, and the theme is the only thing
+  // keeping it current. A rebuild when the switch flips is one rebuild per tap
+  // on one toggle, and the closure below is part of the theme anyway.
+  final haptics = ref.watch(hapticsSyncProvider);
   return buildAppTheme(
     kitId: ref.watch(kitIdProvider),
     light: forcedDark ? false : ref.watch(lightModeProvider),
@@ -89,7 +96,13 @@ final appThemeProvider = Provider<ThemeData>((ref) {
     // mini-games and the shop's own controls, which call it themselves here
     // too. The port had every press on `tap`, and it was reported as not the
     // sound the game used to make.
-    onPress: () => unawaited(sound.playUi('pop')),
+    // **The two answer to their own switches**, and each returns early when
+    // its own is off — this is one press cue with two channels behind it, not
+    // a choice between them.
+    onPress: () {
+      unawaited(sound.playUi('pop'));
+      haptics.press();
+    },
   );
 });
 

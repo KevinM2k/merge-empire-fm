@@ -244,21 +244,23 @@ void main() {
       expect(settingsOf(container)['locale'], 'fr');
     });
 
+    // **THE CLUB'S NAME IS ON GAMEPLAY NOW**, beside the other fifty-five —
+    // see the naming card there. The card it opens is unchanged.
     testWidgets('the club name row shows the name, or says it is not set', (
       tester,
     ) async {
-      await pumpSettings(tester, SettingsTab.general);
+      await pumpSettings(tester, SettingsTab.match);
       expect(find.text(t('settings.notSet')), findsOne);
       await pumpSettings(
         tester,
-        SettingsTab.general,
+        SettingsTab.match,
         mutate: (s) => s['clubName'] = 'Ember Rovers',
       );
       expect(find.text('Ember Rovers'), findsOne);
     });
 
     testWidgets('and tapping it opens Colin\'s card', (tester) async {
-      await pumpSettings(tester, SettingsTab.general);
+      await pumpSettings(tester, SettingsTab.match);
       await tester.tap(find.byKey(const ValueKey('club-name-row')));
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('club-name-field')), findsOne);
@@ -267,7 +269,7 @@ void main() {
     });
 
     testWidgets('a typed name is stored', (tester) async {
-      final container = await pumpSettings(tester, SettingsTab.general);
+      final container = await pumpSettings(tester, SettingsTab.match);
       await tester.tap(find.byKey(const ValueKey('club-name-row')));
       await tester.pumpAndSettle();
       await tester.enterText(
@@ -287,7 +289,7 @@ void main() {
       tester,
     ) async {
       // The card has to stay up for the message to have anywhere to appear.
-      final container = await pumpSettings(tester, SettingsTab.general);
+      final container = await pumpSettings(tester, SettingsTab.match);
       await tester.tap(find.byKey(const ValueKey('club-name-row')));
       await tester.pumpAndSettle();
       await tester.enterText(
@@ -315,7 +317,7 @@ void main() {
     });
 
     testWidgets('the dice puts a real name in the field', (tester) async {
-      await pumpSettings(tester, SettingsTab.general);
+      await pumpSettings(tester, SettingsTab.match);
       await tester.tap(find.byKey(const ValueKey('club-name-row')));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('club-name-generate')));
@@ -329,9 +331,9 @@ void main() {
     });
   });
 
-  group('the audio pair', () {
+  group('the controls tab', () {
     testWidgets('the toggle writes its channel', (tester) async {
-      final container = await pumpSettings(tester, SettingsTab.audio);
+      final container = await pumpSettings(tester, SettingsTab.controls);
       expect(settingsOf(container)['soundEnabled'], isTrue);
       await tester.tap(find.byKey(const ValueKey('setting-soundEnabled')));
       await tester.pumpAndSettle();
@@ -350,7 +352,7 @@ void main() {
       // **The keys are absent from a fresh save**, deliberately: the schema is
       // compared against the JS's default state field for field and this
       // channel is the port's own, so an absent key has to read as off.
-      final container = await pumpSettings(tester, SettingsTab.audio);
+      final container = await pumpSettings(tester, SettingsTab.controls);
       expect(settingsOf(container).containsKey('uiSoundsEnabled'), isFalse);
       final toggle = find.byKey(const ValueKey('setting-uiSoundsEnabled'));
       expect(toggle, findsOneWidget);
@@ -371,7 +373,7 @@ void main() {
     });
 
     testWidgets('the slider writes a 0..1 number', (tester) async {
-      final container = await pumpSettings(tester, SettingsTab.audio);
+      final container = await pumpSettings(tester, SettingsTab.controls);
       await tester.drag(
         find.byKey(const ValueKey('setting-soundVolume')),
         const Offset(-200, 0),
@@ -390,7 +392,7 @@ void main() {
       // indistinguishable from a broken feature.
       final container = await pumpSettings(
         tester,
-        SettingsTab.audio,
+        SettingsTab.controls,
         mutate: (s) {
           final settings = s['settings'] as Map<String, dynamic>;
           settings['soundEnabled'] = false;
@@ -411,7 +413,7 @@ void main() {
       // being made to find the toggle first is a step that explains nothing.
       final container = await pumpSettings(
         tester,
-        SettingsTab.audio,
+        SettingsTab.controls,
         mutate: (s) {
           final settings = s['settings'] as Map<String, dynamic>;
           settings['soundEnabled'] = false;
@@ -431,7 +433,7 @@ void main() {
     testWidgets('and dragging it to zero turns the channel off', (
       tester,
     ) async {
-      final container = await pumpSettings(tester, SettingsTab.audio);
+      final container = await pumpSettings(tester, SettingsTab.controls);
       await tester.drag(
         find.byKey(const ValueKey('setting-soundVolume')),
         const Offset(-400, 0),
@@ -443,7 +445,7 @@ void main() {
     });
 
     testWidgets('music ships OFF, matching the schema', (tester) async {
-      final container = await pumpSettings(tester, SettingsTab.audio);
+      final container = await pumpSettings(tester, SettingsTab.controls);
       expect(settingsOf(container)['musicEnabled'], isNot(true));
     });
 
@@ -464,13 +466,52 @@ void main() {
     testWidgets('COLIN HAS NO CHANNEL — there is nothing for it to do', (
       tester,
     ) async {
-      await pumpSettings(tester, SettingsTab.audio);
+      await pumpSettings(tester, SettingsTab.controls);
       expect(find.text(t('coach.label')), findsNothing);
       expect(find.byKey(const ValueKey('setting-voiceEnabled')), findsNothing);
       expect(find.byKey(const ValueKey('setting-voiceVolume')), findsNothing);
       // The two the player can actually hear are still there.
       expect(find.byKey(const ValueKey('setting-soundEnabled')), findsOneWidget);
       expect(find.byKey(const ValueKey('setting-musicEnabled')), findsOneWidget);
+    });
+
+    testWidgets('THE TAB IS CONTROLS, not Audio', (tester) async {
+      // It holds the buzz and the ripple as well as the three channels, and a
+      // tab called Audio could only ever have said three quarters of that.
+      await pumpSettings(tester, SettingsTab.controls);
+      expect(find.text(t('settings.tab.controls')), findsWidgets);
+    });
+
+    testWidgets('THE BUZZ AND THE RIPPLE SHIP ON, and both write their key', (
+      tester,
+    ) async {
+      // **The mirror image of the interface channel above.** Both keys are the
+      // port's own and so absent from a fresh save — but these are niceties a
+      // player notices and turns off rather than ones they have to find and
+      // turn on, so the absent key reads ON. See `press_providers.dart`.
+      final container = await pumpSettings(tester, SettingsTab.controls);
+      for (final key in ['hapticsEnabled', 'tapRipplesEnabled']) {
+        expect(settingsOf(container).containsKey(key), isFalse, reason: key);
+        final toggle = find.byKey(ValueKey('setting-$key'));
+        expect(toggle, findsOneWidget, reason: key);
+        expect(
+          tester.widget<SettingsToggle>(toggle).value,
+          isTrue,
+          reason: '$key is drawn off on a save that has never seen it',
+        );
+        await tester.tap(toggle);
+        await tester.pumpAndSettle();
+        await settleSave(tester);
+        expect(settingsOf(container)[key], isFalse, reason: key);
+      }
+    });
+
+    testWidgets('and the buzz says the phone can overrule it', (tester) async {
+      // Android's own touch-feedback switch and iOS's Taptic Engine both have
+      // the last word, so a player whose phone stays quiet has somewhere to
+      // look before deciding the switch is broken.
+      await pumpSettings(tester, SettingsTab.controls);
+      expect(find.text(t('settings.haptics.hint')), findsOneWidget);
     });
   });
 
@@ -1005,7 +1046,7 @@ void main() {
     // survives a New Team. `pyramid.hint` says so and ships in ten languages —
     // it was only ever printed inside the sheet, to somebody who had already
     // guessed. Asked for from the couch.
-    await pumpSettings(tester, SettingsTab.general);
+    await pumpSettings(tester, SettingsTab.match);
     expect(
       find.descendant(
         of: find.byKey(const ValueKey('team-names-btn')),
@@ -1018,9 +1059,21 @@ void main() {
   testWidgets('the entries the JS has that the port was missing are here', (
     tester,
   ) async {
-    await pumpSettings(tester, SettingsTab.general);
-    for (final key in ['club-name-row', 'team-names-btn', 'rate-btn']) {
+    // **THE NAMING PAIR MOVED TO GAMEPLAY**, which is what the tab is: your
+    // club's name and the other fifty-five are the league you are playing,
+    // not an app preference. Asked for from the couch.
+    await pumpSettings(tester, SettingsTab.match);
+    for (final key in ['club-name-row', 'team-names-btn']) {
       expect(find.byKey(ValueKey(key)), findsOne, reason: key);
+    }
+    expect(find.byKey(const ValueKey('rate-btn')), findsNothing);
+    // Through the STRIP, not a second pump: the screen keeps its state across
+    // one, so re-pumping with another `initialTab` lands on the same tab.
+    await tester.tap(find.byKey(const ValueKey('settings-tab-general')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('rate-btn')), findsOne);
+    for (final key in ['club-name-row', 'team-names-btn']) {
+      expect(find.byKey(ValueKey(key)), findsNothing, reason: key);
     }
     // **PRIVACY IS THE ONE THAT DEPENDS ON WHERE YOU ARE.** It appears only
     // where consent applies, which a test binding is not: `adConsentAvailable`
@@ -1034,7 +1087,7 @@ void main() {
     // The row was a `PendingControl` saying "coming soon" over five hundred
     // ported, tested lines of `pyramid_names_engine` — the sixth engine this
     // port has found fully built and reachable from nowhere.
-    await pumpSettings(tester, SettingsTab.general);
+    await pumpSettings(tester, SettingsTab.match);
     final row = find.byKey(const ValueKey('team-names-btn'));
     await tester.ensureVisible(row);
     await tester.pumpAndSettle();

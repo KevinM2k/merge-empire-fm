@@ -298,6 +298,22 @@ const Map<String, String> enCopy = <String, String>{
   // go looking for a switch for. It ships OFF; see `SoundService`.
   'settings.ui_sounds': 'Interface',
 
+  // ── The tab that stopped being about sound ───────────────────────────────
+  //
+  // The buzz has no volume and no clip, so an "Audio" tab could only ever have
+  // held three quarters of the subject. `settings.tab.audio` stays in the
+  // generated catalogue — it is the JS's, and the JS's tab IS audio.
+  'settings.tab.controls': 'Controls',
+  'settings.haptics': 'Vibration',
+  // **The note is the honest one, not a feature list.** The device has the last
+  // word — Android's own touch-feedback switch, and iOS needs a Taptic Engine
+  // and stays quiet in Low Power Mode — so a player whose phone says nothing has
+  // a place to look before they decide the switch is broken.
+  'settings.haptics.hint':
+      'A small buzz when you press something. Your phone\'s own vibration '
+      'settings can switch it off too.',
+  'settings.tap_ripple': 'Tap Ripple',
+
 
   // ── "1 points" ───────────────────────────────────────────────────────────
   //

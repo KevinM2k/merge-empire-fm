@@ -13,6 +13,12 @@ const Map<String, String> zhCopy = <String, String>{
   // 位于“声音”和“音乐”旁的第三行：每个按钮的点击音。
   'settings.ui_sounds': '按键音',
 
+  // 该标签页不再只关乎声音：振动也归入其中。
+  'settings.tab.controls': '操作',
+  'settings.haptics': '振动',
+  'settings.haptics.hint': '每次点按时轻微振动。手机自身的振动设置也可以将其关闭。',
+  'settings.tap_ripple': '点击涟漪',
+
   // ── 头条 ──────────────────────────────────────────────────────────────────
   //
   // 是替换而不是扩充：生成的文案一律以{score}开头。{minute}只送到三条`.late`。

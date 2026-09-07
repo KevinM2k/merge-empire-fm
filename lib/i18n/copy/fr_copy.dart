@@ -14,6 +14,13 @@ const Map<String, String> frCopy = <String, String>{
   // Une troisième ligne à côté de Son et Musique : le clic de chaque bouton.
   'settings.ui_sounds': 'Interface',
 
+  // L'onglet ne parle plus seulement de son : la vibration s'y ajoute.
+  'settings.tab.controls': 'Commandes',
+  'settings.haptics': 'Vibration',
+  'settings.haptics.hint': 'Une petite vibration à chaque appui. Les réglages '
+      'de vibration de votre téléphone peuvent aussi la désactiver.',
+  'settings.tap_ripple': 'Ondes au toucher',
+
   // ── Le résumé d'ouverture ────────────────────────────────────────────────
   //
   // Remplacés plutôt qu'élargis : les textes générés ouvrent tous sur {score}.

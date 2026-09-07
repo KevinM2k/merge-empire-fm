@@ -13,6 +13,12 @@ const Map<String, String> jaCopy = <String, String>{
   // サウンド・音楽に並ぶ3つ目の行。すべてのボタンのタップ音。
   'settings.ui_sounds': '操作音',
 
+  // このタブは音だけではなくなり、振動が加わった。
+  'settings.tab.controls': '操作',
+  'settings.haptics': 'バイブ',
+  'settings.haptics.hint': 'タップするたびに軽く振動します。端末側のバイブ設定でもオフにできます。',
+  'settings.tap_ripple': 'タップ波紋',
+
   // ── 見出し ────────────────────────────────────────────────────────────────
   //
   // 差し替えであって追加ではない。生成された文はすべて{score}で始まる。

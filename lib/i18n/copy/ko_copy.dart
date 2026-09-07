@@ -13,6 +13,12 @@ const Map<String, String> koCopy = <String, String>{
   // 사운드·음악 옆의 세 번째 줄. 모든 버튼의 탭 소리.
   'settings.ui_sounds': '터치음',
 
+  // 이 탭은 이제 소리만이 아니다. 진동이 함께 들어간다.
+  'settings.tab.controls': '조작',
+  'settings.haptics': '진동',
+  'settings.haptics.hint': '누를 때마다 짧게 진동합니다. 기기의 진동 설정으로도 끌 수 있습니다.',
+  'settings.tap_ripple': '터치 물결',
+
   // ── 헤드라인 ──────────────────────────────────────────────────────────────
   //
   // 넓힌 것이 아니라 교체한 것입니다. 생성된 문장은 모두 {score}로 시작합니다.

@@ -6,11 +6,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/i18n/detect.dart';
+import 'package:merge_empire_fc/providers/press_providers.dart';
 import 'package:merge_empire_fc/providers/boot_gate.dart';
 import 'package:merge_empire_fc/providers/game_host.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/providers/sound_providers.dart';
 import 'package:merge_empire_fc/providers/voice_providers.dart';
+import 'package:merge_empire_fc/ui/widgets/tap_ripple.dart';
 import 'package:merge_empire_fc/ui/shell/screen_covered.dart';
 import 'package:merge_empire_fc/providers/i18n_providers.dart';
 import 'package:merge_empire_fc/ui/popups/achievement_unlock.dart';
@@ -142,9 +144,15 @@ class MergeEmpireApp extends ConsumerWidget {
       // `expand`, not the default: a Stack loosens the constraints on a child
       // that is not `Positioned`, and the Navigator sizing to its content
       // instead of to the window is not a thing that fails loudly.
-      builder: (context, child) => Stack(
-        fit: StackFit.expand,
-        children: [?child, const AdWaitHost()],
+      // **AND THE TAP RIPPLE IS ABOVE THE NAVIGATOR FOR THE SAME REASON.** A
+      // press is answered wherever it lands, which includes the sheets and
+      // cards the routes put over the shell — see `ui/widgets/tap_ripple.dart`.
+      builder: (context, child) => TapRipples(
+        enabled: ref.watch(tapRipplesEnabledProvider),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [?child, const AdWaitHost()],
+        ),
       ),
       theme: ref.watch(appThemeProvider),
       // iOS-style bounce everywhere: Android's clamp-and-stretch read as

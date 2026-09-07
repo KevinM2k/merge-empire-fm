@@ -13,6 +13,13 @@ const Map<String, String> itCopy = <String, String>{
   // Una terza riga accanto a Suono e Musica: il clic di ogni pulsante.
   'settings.ui_sounds': 'Interfaccia',
 
+  // La scheda non è più solo audio: si aggiunge la vibrazione.
+  'settings.tab.controls': 'Comandi',
+  'settings.haptics': 'Vibrazione',
+  'settings.haptics.hint': 'Una breve vibrazione a ogni tocco. Anche le '
+      'impostazioni di vibrazione del telefono possono disattivarla.',
+  'settings.tap_ripple': 'Onde al tocco',
+
   // ── Il titolo ────────────────────────────────────────────────────────────
   //
   // Sostituiti, non allargati: i testi generati aprono tutti con {score}.

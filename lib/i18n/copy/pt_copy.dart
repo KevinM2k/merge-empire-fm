@@ -12,6 +12,13 @@ const Map<String, String> ptCopy = <String, String>{
   // Uma terceira linha ao lado de Som e Música: o clique de cada botão.
   'settings.ui_sounds': 'Interface',
 
+  // A aba deixou de ser só som: a vibração entra nela.
+  'settings.tab.controls': 'Controles',
+  'settings.haptics': 'Vibração',
+  'settings.haptics.hint': 'Uma leve vibração ao tocar. As configurações de '
+      'vibração do seu telefone também podem desativá-la.',
+  'settings.tap_ripple': 'Ondas ao tocar',
+
   // ── O título ─────────────────────────────────────────────────────────────
   //
   // Substituídos, não alargados: os textos gerados abrem todos com {score}.

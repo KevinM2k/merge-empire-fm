@@ -12,6 +12,13 @@ const Map<String, String> esCopy = <String, String>{
   // Una tercera fila junto a Sonido y Música: el clic de cada botón.
   'settings.ui_sounds': 'Interfaz',
 
+  // La pestaña ya no es solo sonido: la vibración se suma.
+  'settings.tab.controls': 'Controles',
+  'settings.haptics': 'Vibración',
+  'settings.haptics.hint': 'Una pequeña vibración al pulsar. Los ajustes de '
+      'vibración de tu teléfono también pueden desactivarla.',
+  'settings.tap_ripple': 'Ondas al tocar',
+
   // ── The headline ─────────────────────────────────────────────────────────
   //
   // Replaced, not widened: the generated pools all open on {score}, and the

@@ -109,6 +109,15 @@ const Map<String, String> gameIcons = {
       '<path d="M12 13.5V5.2a1.8 1.8 0 0 1 3.6 0V15"/>'
       '<path d="M15.6 12.2a1.7 1.7 0 0 1 3.4 0V16a5 5 0 0 1-5 5h-1.2a5 5 0 0 '
       '1-3.5-1.5L6 16.4a1.7 1.7 0 0 1 2.4-2.4l1.6 1.6"/></svg>',
+  // The second that is not the JS's, and for the same reason: the buzz is the
+  // port's own switch. A phone with the motor's waves either side of it — the
+  // set has no other glyph that could mean "your phone moves", and a hand or a
+  // bell would both be a row that is already on the screen.
+  'vibrate':
+      '<svg viewBox="0 0 24 24" $_stroke>'
+      '<rect x="8.5" y="3" width="7" height="18" rx="1.8"/>'
+      '<path d="M4.8 9.5a5 5 0 0 0 0 5"/>'
+      '<path d="M19.2 9.5a5 5 0 0 1 0 5"/></svg>',
   'sun':
       '<svg viewBox="0 0 24 24" $_stroke><circle cx="12" cy="12" r="4"/>'
       '<path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 '

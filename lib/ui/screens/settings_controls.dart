@@ -77,10 +77,12 @@ const Map<String, Color> settingsIconTints = {
   'bell': Color(0xFFCF304B),
   'star': Color(0xFFCFA730),
   'lock': Color(0xFF30CF9A),
-  // Audio
+  // Controls
   'sound': Color(0xFF309ACF),
   'music': Color(0xFFA730CF),
   'tap': Color(0xFF30CFC1),
+  'vibrate': Color(0xFF80CF30),
+  'target': Color(0xFFCF3080),
   // Match
   'video': Color(0xFF30CF72),
   'bolt': Color(0xFFCF7A30),

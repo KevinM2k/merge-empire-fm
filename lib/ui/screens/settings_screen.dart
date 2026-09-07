@@ -56,7 +56,12 @@ final noticesBlockedProvider = FutureProvider<bool>((ref) async {
   return !await notices.permissionGranted();
 });
 
-enum SettingsTab { general, audio, match, account }
+/// **"AUDIO" IS NOW "CONTROLS", because the tab stopped being about sound.**
+/// It holds the three audio channels and the press buzz, which are one subject
+/// — what the app does back when you touch it — and a tab called Audio could
+/// only ever have held three quarters of it. Asked for from the couch, with the
+/// haptics switch.
+enum SettingsTab { general, controls, match, account }
 
 /// The picker. Its ids must be exactly `supportedLocales` — a device language
 /// that resolves to a catalogue nobody can switch back from is a trap, which is
@@ -118,7 +123,7 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
                     const SizedBox(height: 13),
                     ...switch (_tab) {
                       SettingsTab.general => _general(),
-                      SettingsTab.audio => _audio(),
+                      SettingsTab.controls => _controls(),
                       SettingsTab.match => _match(),
                       SettingsTab.account => _account(),
                     },
@@ -142,33 +147,6 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
   List<Widget> _general() => [
     SettingsCard(
       children: [
-        SettingsRow(
-          key: const ValueKey('club-name-row'),
-          icon: 'club',
-          label: t('settings.clubName'),
-          trailing: SettingsValue(
-            text: ref.watch(clubNameProvider).isEmpty
-                ? t('settings.notSet')
-                : ref.watch(clubNameProvider),
-          ),
-          onTap: () => showClubNameCard(context),
-        ),
-        // **The pyramid editor is BUILT now**, and it always could have been:
-        // `pyramid_names_engine` is five hundred ported, tested lines and this
-        // row was a `PendingControl` saying "coming soon" over the top of them.
-        SettingsAction(
-          key: const ValueKey('team-names-btn'),
-          icon: 'shield',
-          label: t('pyramid.title'),
-          // **"Team Names" is a destination, not a description.** The row gave
-          // no hint that behind it are all fifty-six clubs in the pyramid,
-          // renameable, and savable as a set to survive a New Team — so the
-          // sheet's own `pyramid.hint`, shipped in ten languages, was the first
-          // place any of that was said and only to somebody who had already
-          // guessed. Asked for from the couch.
-          note: t('pyramid.hint'),
-          onTap: () => showPyramidEditor(context),
-        ),
         // **THREE STATES, because a switch called "Light Mode" can only ever
         // disagree with the phone.** A player whose device goes dark at sunset
         // had to come in here and flip it back, twice a day. Asked for from the
@@ -422,7 +400,7 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
-  List<Widget> _audio() => [
+  List<Widget> _controls() => [
     SettingsCard(
       children: [
         AudioChannelRow(
@@ -472,6 +450,32 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
         // the clips is this row.
       ],
     ),
+    // **A SECOND CARD, because the buzz is not a fourth audio channel.** It has
+    // no volume and no clip; what it shares with the three above is only that
+    // it is the app answering a touch, which is what the tab is now called
+    // after. Ships ON — it is a nicety a player notices and turns off, not one
+    // they have to find to turn on, which is the opposite of the interface
+    // click's case. See `HapticsService` for what fires it and where the
+    // platform can overrule it.
+    SettingsCard(
+      children: [
+        SettingSwitch(
+          settingKey: 'hapticsEnabled',
+          icon: 'vibrate',
+          label: t('settings.haptics'),
+          note: t('settings.haptics.hint'),
+        ),
+        // **The rings are the third thing a press answers with**, and the one
+        // that answers a press on something that is not a button at all — see
+        // `ui/widgets/tap_ripple.dart`. Same card as the buzz because it is the
+        // same question, and the same default for the same reason.
+        SettingSwitch(
+          settingKey: 'tapRipplesEnabled',
+          icon: 'target',
+          label: t('settings.tap_ripple'),
+        ),
+      ],
+    ),
   ];
 
   /// The pair behind the three-way speed segment.
@@ -494,6 +498,45 @@ class SettingsScreenState extends ConsumerState<SettingsScreen> {
     final hard = ref.watch(settingPick<bool>('hardMode', false));
     final proUnlocked = ref.watch(proModeUnlockedProvider);
     return [
+      // **THE NAMES ARE A GAMEPLAY SETTING, and they were on General.** Your
+      // club's name and the other fifty-five in the pyramid are the same
+      // subject — what the league you are playing is called — and General is
+      // where the app's own preferences live: theme, notices, language, the
+      // store rows. Asked for from the couch about Team Names; the club's own
+      // name comes with it, because splitting the pair puts the two halves of
+      // one job on two tabs.
+      SettingsCard(
+        children: [
+          SettingsRow(
+            key: const ValueKey('club-name-row'),
+            icon: 'club',
+            label: t('settings.clubName'),
+            trailing: SettingsValue(
+              text: ref.watch(clubNameProvider).isEmpty
+                  ? t('settings.notSet')
+                  : ref.watch(clubNameProvider),
+            ),
+            onTap: () => showClubNameCard(context),
+          ),
+          // **The pyramid editor is BUILT now**, and it always could have been:
+          // `pyramid_names_engine` is five hundred ported, tested lines and
+          // this row was a `PendingControl` saying "coming soon" over the top
+          // of them.
+          SettingsAction(
+            key: const ValueKey('team-names-btn'),
+            icon: 'shield',
+            label: t('pyramid.title'),
+            // **"Team Names" is a destination, not a description.** The row
+            // gave no hint that behind it are all fifty-six clubs in the
+            // pyramid, renameable, and savable as a set to survive a New Team —
+            // so the sheet's own `pyramid.hint`, shipped in ten languages, was
+            // the first place any of that was said and only to somebody who had
+            // already guessed. Asked for from the couch.
+            note: t('pyramid.hint'),
+            onTap: () => showPyramidEditor(context),
+          ),
+        ],
+      ),
       SettingsCard(
         children: [
           // TWO FLAGS drawn as one pair, not one choice out of two: the cutaway
