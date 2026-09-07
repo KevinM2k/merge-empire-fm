@@ -147,11 +147,12 @@ void main() {
   });
 
   group('achievements', () {
-    test('a mapped one reaches the Console id; an unmapped one is skipped', () {
+    test('a mapped one reaches the Console id; an unknown one is skipped', () {
       pgs.unlock('reach_amateur');
       pgs.unlock('first_merge');
+      // Not in the map at all: the only skip path left, now every row has an id.
       pgs.unlock('no-such-achievement');
-      expect(unlocked, ['CgkIq9aYo8oOEAIQAA']);
+      expect(unlocked, ['CgkIq9aYo8oOEAIQAA', 'CgkIq9aYo8oOEAIQHw']);
     });
 
     test('the bus event is what fires it', () {

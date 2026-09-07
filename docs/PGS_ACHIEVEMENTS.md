@@ -1,9 +1,10 @@
 # Publishing the achievements to Play Games Services
 
-Eighty-one achievements exist in the game and six of them exist in the Play
-Console. This is how the other seventy-five get there, with their icons, their
-points and their nine translations, and how their Console ids come back into the
-port afterwards.
+All eighty-one achievements now exist in the Play Console and all eighty-one
+ids are in `pgs_achievements.dart`. **Six are published; the other seventy-five
+are still drafts, and a draft cannot be unlocked by anyone** — publishing them
+in the Console is the one step left. This is how they got there, with their
+icons, their points and their nine translations, and how the ids came back.
 
 Nothing here changes what the game does. `play_games_service.dart` already
 listens for `achievement:unlocked` and calls `GamesServices.unlock` with the id
