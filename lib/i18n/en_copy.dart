@@ -310,21 +310,24 @@ const Map<String, String> enCopy = <String, String>{
   // the spare parameter, which is what `t()` already does with the 57 entries
   // that drop English's `{s}`.
   'report.table.climbed':
-      'The win moves {club} up {n} place{s} to {pos} in the table, on {pts} point{ps}.|'
-      '{club} climb {n} place{s} to {pos} as a result, with {pts} point{ps} from the season so far.|'
-      'That result lifts {club} to {pos}, {n} place{s} higher than before it, on {pts} point{ps}.|'
-      '{club} move {n} place{s} higher to {pos}, now on {pts} point{ps}.|'
-      'The three points take {club} to {pos} in the table, {n} place{s} up, on {pts} point{ps}.',
+      'The win moves {club} up to {pos} in the table, on {pts} point{ps}.|'
+      '{club} climb to {pos} as a result, with {pts} point{ps} from the season '
+          'so far.|'
+      'That result lifts {club} to {pos}, on {pts} point{ps}.|'
+      '{club} find themselves {pos} now, on {pts} point{ps}.|'
+      'The three points take {club} to {pos} in the table, on {pts} point{ps}.',
   'report.table.dropped':
-      'The result drops {club} {n} place{s} to {pos}, on {pts} point{ps}.|'
-      '{club} fall {n} place{s} to {pos} in the table, with {pts} point{ps}.|'
-      'That leaves {club} {pos} and falling, {n} place{s} worse off, on {pts} point{ps}.|'
-      '{club} slip {n} place{s} to {pos} on {pts} point{ps}.|'
-      'That result costs {club} {n} place{s} and leaves them {pos} with {pts} point{ps}.',
+      'The result drops {club} to {pos}, on {pts} point{ps}.|'
+      '{club} fall to {pos} in the table, with {pts} point{ps}.|'
+      'That leaves {club} {pos} and falling, on {pts} point{ps}.|'
+      '{club} slip to {pos} on {pts} point{ps}.|'
+      'That result leaves {club} {pos} with {pts} point{ps} from the season so '
+          'far.',
   'report.table.held':
       '{club} stay {pos} in the table, now on {pts} point{ps}.|'
       'The result leaves {club} where they were, {pos} on {pts} point{ps}.|'
-      'No change in the table for {club}, who remain {pos} with {pts} point{ps}.|'
+      'No change in the table for {club}, who remain {pos} with {pts} '
+          'point{ps}.|'
       '{club} hold their place at {pos}, on {pts} point{ps}.|'
       'Nothing moves for {club}, still {pos} and now on {pts} point{ps}.',
   // ── HOW THE OPPOSITION PLAYED ────────────────────────────────────────────
@@ -340,71 +343,94 @@ const Map<String, String> enCopy = <String, String>{
   // Voice: somebody who watched the match and is telling you about it. Not a
   // scorecard, not a press release — no "clinical finishing" or "the three
   // points were vital", and never "we". `{club}` and `{opp}` are the two
-  // clubs, and nothing else is passed. See `buildMatchReport`.
+  // clubs. See `buildMatchReport`.
+  //
+  // **AND `{side}` / `{oppSide}`, WHICH ARE THE SAME TWO CLUBS SAID AGAIN.**
+  // Reported from the couch with five real full-time summaries attached as the
+  // language to aim at, and the thing all five do that this file did not was
+  // stop repeating the name: "the hosts had to come from two goals down",
+  // "Spurs came out the blocks quickly". A 0-0 here printed the club's name
+  // five times in five sentences, because six pools each knew only `{club}`.
+  // The port has no nicknames, but it knows the venue, and the venue is where
+  // a reporter's second name for a side comes from — so every beat now carries
+  // "the hosts" and "the visitors" too, `{sideCap}` and `{oppSideCap}` being
+  // the same words for a sentence that starts on one.
+  //
+  // **Use them for the SECOND mention and later.** The headline names both
+  // clubs, so a variant opening on "the hosts" is naming somebody the reader
+  // has already met — but a pool is drawn from independently of every other
+  // pool, so a variant that reaches for one should still read if it is the
+  // only sentence in its paragraph.
+  //
+  // **The same session asked for the whole thing to be SHORTER** — "people are
+  // not gonna read it too much" — which is `reportBeatBudget`'s job rather
+  // than copy's, and is why the editorial tails came off these pools in the
+  // same pass. Six sentences that each end in a second clause about what it
+  // all means is longer than six sentences.
   //
   // They won it from a losing position.
   'report.opp.comeback':
       '{opp} looked beaten and never played like it, and by the end they were '
-          'the side you would have put your money on.|'
-      'Credit to {opp} — they were second best for a spell and turned the '
-          'afternoon on its head.|'
-      'It says something about {opp} that being behind seemed to settle them.',
+          'the side you would have backed.|'
+      'Credit to {opp}, second best for a spell and then turning the afternoon '
+          'on its head.|'
+      'Being behind seemed to settle {oppSide}, and they were the better team '
+          'after it.',
   // Three clear or better: a performance rather than a result.
   'report.opp.rampant':
-      '{opp} were outstanding, quick in everything they did and merciless with '
-          'every mistake that came along.|'
-      'This was {opp} at their very best, and anyone who was there for them '
-          'will be talking about it all week.|'
-      'Everything {opp} tried came off. Not many sides would have lived with '
-          'them today.',
+      '{opp} were outstanding, quick in everything and merciless with every '
+          'mistake that came along.|'
+      'This was {opp} at their best, and anyone who was there for them will be '
+          'talking about it all week.|'
+      'Everything {opp} tried came off, and not many sides would have lived '
+          'with {oppSide} today.',
   // A win and a clean sheet — two jobs done, and the copy should say so.
   'report.opp.shut_us_out':
-      '{opp} were as good without the ball as with it, and {club} never found a '
-          'way past them.|'
-      'A clean sheet and the points for {opp}, who defended their box properly '
-          'from the first minute to the last.|'
-      '{opp} gave {club} nothing to work with, which is as much why they won as '
-          'anything they did at the other end.',
+      '{opp} were as good without the ball as with it, and {club} never found '
+          'a way past them.|'
+      'A clean sheet and the points for {opp}, who defended their box from the '
+          'first minute to the last.|'
+      '{oppSideCap} gave {club} nothing to work with, which is as much why '
+          'they won as anything at the other end.',
   // A one or two-goal win with goals at both ends.
   'report.opp.clinical':
-      'There was not a great deal between these two; {opp} were simply sharper '
-          'when the chances came.|'
+      'There was little between these two, and {opp} were simply sharper when '
+          'the chances came.|'
       '{opp} took their moments and {club} did not, which is usually the whole '
           'of it.|'
-      '{opp} did not have to be the better side to win this, and they were not '
-          'far off it anyway.',
+      '{opp} did not have to be the better side to win this, and were not far '
+          'off it anyway.',
   // We led and did not win: they earned the point back.
   'report.opp.fought_back':
       '{opp} were behind and kept coming, and few in the ground would call the '
           'point undeserved.|'
       'It took some character from {opp} to get back into this one.|'
-      '{opp} refused to accept it and earned their share of the afternoon the '
-          'hard way.',
+      '{oppSideCap} refused to accept it and earned their share of the '
+          'afternoon the hard way.',
   'report.opp.stalemate':
-      '{opp} were every bit as organised as {club}, and neither side could find '
-          'the gap.|'
-      'Little to choose between them — {opp} were as hard to break down as '
+      '{opp} were every bit as organised as {club}, and neither side could '
+          'find the gap.|'
+      'Little to choose between them, with {oppSide} as hard to break down as '
           '{club} were.|'
       '{opp} came for a point and defended like a side that meant it.',
   'report.opp.matched':
       '{opp} matched {club} for long spells and will feel much the same about '
           'the result.|'
-      'Honest, even stuff from {opp}, who were never behind and never quite in '
-          'front.|'
-      'There was little between them, and {opp} will not feel they lost '
+      'Honest, even stuff from {opp}, never behind and never quite in front.|'
+      'There was little between them, and {oppSide} will not feel they lost '
           'anything here.',
   // We won by three or more.
   'report.opp.outclassed':
       'It was a long afternoon for {opp}, second to most things and never able '
           'to get a foothold in it.|'
-      '{opp} will want this one forgotten quickly. Very little went right for '
-          'them.|'
-      'Not much worked for {opp}, and the gap between the two sides was plain '
-          'well before the end.',
+      '{opp} will want this one forgotten quickly, with very little going '
+          'right for them.|'
+      'Not much worked for {oppSide}, and the gap between the two sides was '
+          'plain well before the end.',
   // We won by one or two.
   'report.opp.pushed':
       '{opp} made {club} work for it and were not far away themselves.|'
-      '{opp} pushed {club} all the way.|'
+      '{oppSideCap} pushed {club} all the way.|'
       '{opp} will feel they were close to taking something from this.',
 
   // ── THE SUMMARY USES EVERYTHING ──────────────────────────────────────────
@@ -569,26 +595,25 @@ const Map<String, String> enCopy = <String, String>{
   // them carried it alone" — which read from the couch as saying nothing.
   // `{names}` is the port's own parameter; the nine other catalogues count.
   'report.scorers.spread':
-      '{names} all scored for {club}.|'
+      '{names} were the scorers for {club}.|'
       'The goals were shared around: {names} for {club}.|'
-      '{n} different scorers for {club} — {names}.',
+      '{names} got on the scoresheet for {side}.',
 
   // A half that ran away from the other one, told as a half rather than as
   // four minutes.
   'report.goals.surge.ours':
-      'The second half was one-way traffic. {club} scored freely after the '
-          'break and {opp} had no answer to any of it.|'
+      'The second half was one-way traffic, and {opp} had no answer to any of '
+          'it.|'
       '{club} came out for the second half a different side, and the goals '
-          'kept coming until {opp} stopped counting.|'
-      'Whatever was said at half time worked: {club} took the game away from '
+          'kept coming.|'
+      'Whatever was said at half time worked: {side} took the game away from '
           '{opp} after it.',
   'report.goals.surge.theirs':
       '{opp} took the second half apart. {club} were still in it at the break '
           'and nowhere near it by the end.|'
-      'The break changed everything for the worse: {opp} scored again and '
-          'again after it and {club} could not stem any of it.|'
-      '{club} came out for the second half and were overrun. {opp} were '
-          'relentless after the interval.',
+      'The break changed everything for the worse, with {opp} scoring again '
+          'and again and {club} unable to stem any of it.|'
+      '{sideCap} were overrun after the interval, and {opp} were relentless.',
 
   // The board at the whistle, as a verdict rather than as seven numbers. The
   // panel above the write-up already prints them.
@@ -598,31 +623,30 @@ const Map<String, String> enCopy = <String, String>{
   // about that match. The better of it, and who looked like scoring.
   'report.stats.on_top':
       '{club} had the better of it and looked the likelier side throughout.|'
-      'This was {club}\'s match to control, and they controlled it. {opp} spent '
-          'a lot of it chasing.|'
-      '{club} were on top for most of the ninety and {opp} rarely looked like '
-          'changing that.',
+      'This was {club}\'s match to control, and {oppSide} spent a lot of it '
+          'chasing.|'
+      '{sideCap} were on top for most of the ninety and {opp} rarely looked '
+          'like changing that.',
   'report.stats.pinned_back':
       '{club} spent a lot of it defending, and {opp} were the side who looked '
           'like scoring.|'
-      '{opp} had the better of this from early on and {club} rarely got out '
+      '{opp} had the better of this from early on and {side} rarely got out '
           'from under it.|'
-      'There was one side on top here and it was not {club}. {opp} carried the '
-          'game to them.',
+      'There was one side on top here and it was not {club}, with {opp} '
+          'carrying the game to them.',
   'report.stats.ball_only':
-      '{club} had plenty of the ball and precious little to show for it. {opp} '
-          'defended their box and were happy to.|'
-      'All the possession in the world for {club}, and the chances that came '
+      '{club} had plenty of the ball and precious little to show for it.|'
+      'All the possession in the world for {side}, and the chances that came '
           'with it were not worth much.|'
       '{club} kept the ball and {opp} kept them out of anywhere that mattered '
           'with it.',
   'report.stats.counter':
-      '{opp} had the ball and {club} had the moments, which is a way of playing '
-          'as much as an accident.|'
-      '{club} were happy to sit off {opp} and made far more of what came their '
-          'way.|'
-      'Possession went one way and the clear chances went the other. {club} '
-          'will not mind that at all.',
+      '{opp} had the ball and {club} had the moments, which is a way of '
+          'playing as much as an accident.|'
+      '{sideCap} were happy to sit off {opp} and made far more of what came '
+          'their way.|'
+      'Possession went one way and the clear chances went the other, and '
+          '{club} will not mind that at all.',
   // Plain: "neither had enough of it for long enough to call it their match"
   // was a long way round "it was even". Reported from the couch.
   'report.stats.even':
@@ -637,13 +661,12 @@ const Map<String, String> enCopy = <String, String>{
   'report.cards.our_red_named':
       '{player} was sent off, and {club} finished with fewer men than they '
           'started with.|'
-      'A red card for {player} left {club} a man short for the rest of it.',
+      'A red card for {player} left {side} down to ten for the rest of it.',
   'report.cards.our_booked_many':
       '{n} {club} players were booked: {names}.|'
       'The referee booked {names} for {club}, {n} cautions in all.',
   'report.cards.their_reds':
-      '{opp} had {n} players sent off and finished the match well short of a '
-          'full side.|'
+      '{opp} had {n} players sent off and finished well short of a full side.|'
       '{n} red cards for {opp}, which shaped everything after them.',
 
   // The bench. A substitute who scored is the whole point of a substitution
@@ -651,12 +674,12 @@ const Map<String, String> enCopy = <String, String>{
   // mention only when there were enough to have been a plan.
   'report.subs.impact':
       '{player} came off the bench and made the difference for {club}.|'
-      '{club}\'s change worked: {player} came on and scored.|'
-      'The bench paid for itself — {player} came on and got on the scoresheet '
-          'for {club}.',
+      'The change worked for {club}: {player} came on and scored.|'
+      'The bench paid for itself, {player} coming on to get on the scoresheet '
+          'for {side}.',
   'report.subs.changes':
       '{club} went through their changes looking for something.|'
-      '{club} emptied the bench in search of a way into it.|'
+      '{sideCap} emptied the bench in search of a way into it.|'
       'The changes came thick and fast from {club}, without much turning on '
           'any of them.',
 
@@ -666,22 +689,22 @@ const Map<String, String> enCopy = <String, String>{
   // nine translated catalogues still print `{minute}`, which is why the beat
   // goes on passing it.
   'report.tactic.shut_up_shop':
-      '{club} dropped deep for the closing stages and set about protecting what '
-          'they had.|'
-      'Late on {club} shut up shop, invited {opp} on to them and backed '
+      '{club} dropped deep for the closing stages and set about protecting '
+          'what they had.|'
+      'Late on {side} shut up shop, invited {opp} on to them and backed '
           'themselves to see it out.|'
-      '{club} pulled everyone behind the ball for the last of it and played out '
-          'the afternoon that way.',
+      '{club} pulled everyone behind the ball and played the afternoon out '
+          'that way.',
   'report.tactic.went_for_it':
       '{club} threw men forward for the closing stages and accepted the risk '
           'that came with it.|'
-      'Late on {club} went for it, pushing up on {opp} rather than settling for '
-          'what they had.|'
+      'Late on {side} went for it, pushing up on {opp} rather than settling '
+          'for what they had.|'
       '{club} gambled with the last of it and committed bodies forward.',
   'report.tactic.settled':
-      '{club} changed their shape for the closing stages and finished the match '
-          'in it.|'
-      'A reshuffle from {club} late on shaped the way the afternoon ended.|'
+      '{club} changed their shape for the closing stages and finished the '
+          'match in it.|'
+      'A reshuffle from {side} late on shaped the way the afternoon ended.|'
       '{club} reorganised for the last of it and saw the match out that way.',
 
   // And what the side that lost did about it. `{chaser}` is the club that went
@@ -696,10 +719,10 @@ const Map<String, String> enCopy = <String, String>{
   'report.late.consolation':
       '{chaser} pushed everyone forward late on and got a goal out of it, and '
           'not much else.|'
-      'The late goal gave {chaser} something to show for the pressure and never '
-          'looked like being enough.|'
-      '{chaser} found one at the end of a long spell of pressure, by which time '
-          '{holder} had done the hard part.',
+      'The late goal gave {chaser} something to show for the pressure and '
+          'never looked like being enough.|'
+      '{chaser} found one at the end of a long spell of pressure, by which '
+          'time {holder} had done the hard part.',
 
   // ── The settings screen's small print ────────────────────────────────────
   //

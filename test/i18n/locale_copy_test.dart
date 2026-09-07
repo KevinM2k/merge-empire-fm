@@ -98,8 +98,17 @@ void main() {
     localeCopy.forEach((id, copy) {
       final generated = catalogs[id]!;
       copy.forEach((key, value) {
+        // **And the GENERATED English as well as the merged one.** `enCopy`
+        // replaces a key outright, so English's own rewrite can drop a
+        // placeholder the call site still passes — `report.table.climbed` lost
+        // "{n} place{s} up" when the write-up was shortened, and the Spanish
+        // and French overlays that still count the places were suddenly
+        // inventing `{s}`. They were not: the beat passes it, as
+        // `match_report_test`'s matrix proves. The key's original contract is
+        // evidence too.
         final known = holders(generated[key] ?? '')
-          ..addAll(holders(englishCatalog[key] ?? ''));
+          ..addAll(holders(englishCatalog[key] ?? ''))
+          ..addAll(holders(catalogs['en']?[key] ?? ''));
         for (final line in value.split('|')) {
           final unknown = holders(line).difference(known);
           if (unknown.isNotEmpty) offenders.add('$id $key: ${unknown.join(' ')}');
