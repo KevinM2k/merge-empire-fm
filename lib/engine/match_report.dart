@@ -13,6 +13,18 @@
 /// say are simply absent — so a routine 1–0 gets three sentences and a
 /// ten-man comeback gets six.
 ///
+/// **And SIX IS THE CEILING, because a paragraph nobody reads is not a
+/// feature.** Every beat below earns its place on the merits of the match, and
+/// the trouble with that is that a busy afternoon earns all of them at once: a
+/// sending-off, a substitute who scored, a second-half surge, a late switch and
+/// a siege at the end are all true of the same ninety minutes, and the write-up
+/// printed all sixteen of them. Reported from the couch, with five
+/// real full-time summaries attached as the language to aim at — "I don't want
+/// it to be this long though. I want it to be a bit shorter because people are
+/// not gonna read it too much." So the beats are ranked and cut to
+/// [reportBeatBudget]; see [beatRank] for what a sentence is worth and
+/// [trimToBudget] for why the cut and the order are two passes.
+///
 /// **Nothing here knows about Flutter or about `t()`.** The beats carry keys and
 /// parameters; the screen resolves them. That is what lets the whole thing be
 /// tested as arithmetic, and it is why the pools this draws from are the
@@ -180,7 +192,17 @@ typedef ReportFacts = ({
 ///
 /// [ReportFacts.scorers] and the booking counts are the port's own; the rest
 /// comes off the settled result and the table the round left behind.
-List<ReportBeat> buildMatchReport(ReportFacts f) {
+///
+/// [budget] is the ceiling on how many sentences come back — see
+/// [reportBeatBudget] and [trimToBudget]. It is a parameter because SELECTION
+/// and LENGTH are two questions: what a match earns is decided by the match,
+/// and what fits is decided by the reader's patience. `match_report_test`
+/// asks the first with the ceiling lifted, so a pool goes on being covered
+/// even in the shapes of match that would not print it.
+List<ReportBeat> buildMatchReport(
+  ReportFacts f, {
+  int budget = reportBeatBudget,
+}) {
   final beats = <ReportBeat>[];
   final margin = f.ours - f.theirs;
 
@@ -397,7 +419,13 @@ List<ReportBeat> buildMatchReport(ReportFacts f) {
         params: {'club': f.clubName, 'player': best.key},
       ));
     }
-  } else if (f.ours == 0) {
+  } else if (f.ours == 0 && f.theirs > 0) {
+    // **AND NOT IN A GOALLESS DRAW.** "{club} did not score, and that is the
+    // part that will concern them most" under a headline that has just said
+    // "It's all over, goalless" is the same fact twice, and neither side
+    // scored — singling one of them out reads as a write-up that forgot which
+    // match it was at. A nil in a match the other side scored in is a
+    // talking point; a nil in a 0-0 is the result.
     beats.add((
       key: 'report.scorers.none',
       para: ReportPara.performance,
@@ -812,7 +840,115 @@ List<ReportBeat> buildMatchReport(ReportFacts f) {
     ));
   }
 
-  return beats;
+  // ── 14. And the same two clubs, said a second way ────────────────────────
+  //
+  // **A WRITE-UP MAY NOT SAY THE CLUB'S NAME IN EVERY SENTENCE.** Six beats
+  // are six pools that each know only `{club}` and `{opp}`, so a 0-0 read
+  // "Nottingham Forest" five times in five sentences. Every real summary the
+  // couch handed over does the opposite — "the hosts had to come from two
+  // goals down", "Spurs came out the blocks quickly", "they'll look to get off
+  // the mark again next weekend" — and the difference is most of what makes
+  // one read like prose and the other like a form.
+  //
+  // The port cannot invent nicknames, but it knows the venue, and the venue is
+  // where a reporter's second name for a side comes from. So every beat is
+  // handed both clubs a second time as "the hosts" and "the visitors", capital
+  // and lower case, and the English pools reach for whichever the sentence
+  // wants. **They are spare parameters like any other**: nothing is obliged to
+  // use them, the nine translated catalogues do not, and a pool that only ever
+  // wanted `{club}` is unchanged.
+  final second = <String, Object?>{
+    'side': f.isHome ? 'the hosts' : 'the visitors',
+    'sideCap': f.isHome ? 'The hosts' : 'The visitors',
+    'oppSide': f.isHome ? 'the visitors' : 'the hosts',
+    'oppSideCap': f.isHome ? 'The visitors' : 'The hosts',
+  };
+  return trimToBudget([
+    for (final b in beats)
+      (key: b.key, para: b.para, params: {...second, ...b.params}),
+  ], budget: budget);
+}
+
+/// How many sentences a write-up may run to.
+///
+/// **THE REPORT WAS TOO LONG TO BE READ, which is a different fault from being
+/// wrong.** Reported from the couch alongside five real full-time summaries as
+/// the language to aim at: "I don't want it to be this long though. I want it
+/// to be a bit shorter because people are not gonna read it too much." Every
+/// beat above earns its place on the merits of the match, and the trouble is
+/// that a busy afternoon earns a lot of them — a sending-off, a substitute who
+/// scored, a late switch, a second-half surge and a siege at the end are all
+/// true at once, and the write-up printed all sixteen of them.
+///
+/// Six is the number a person reads without scrolling: the result, who scored,
+/// the one thing that defined it, how the other side played, the table and the
+/// next fixture. **It is a ceiling rather than a length** — a beat with nothing
+/// to say is still absent, so a goalless cup tie runs to three and is not
+/// padded up to six.
+const int reportBeatBudget = 6;
+
+/// What a beat is worth when [reportBeatBudget] bites. Lower is kept first.
+///
+/// **The order is what a reader came for, not what the match recorded.** The
+/// result and who scored it are the two facts nobody would file a report
+/// without; the table and the next fixture are what every one of the five
+/// summaries on the couch's phone closed on. After those it is whichever line
+/// carries the most that the headline has not already said — a sending-off and
+/// a substitute who scored change the match, the opposition's line is the half
+/// of the write-up the other set of supporters came for, and the board's
+/// verdict says what the ninety looked like.
+///
+/// The tail is the material that repeats something: the shape restates the
+/// arc the headline just gave, the clean sheet restates a nil, the opener
+/// restates a name the tally is about to use, and a booking was never worth a
+/// sentence in the first place — "if a team just got one booking… so what?!"
+int beatRank(String key) => switch (key) {
+  _ when key.startsWith('report.win.') => 0,
+  _ when key.startsWith('report.loss.') => 0,
+  _ when key.startsWith('report.draw.') => 0,
+  _ when key.startsWith('report.scorers.') => 1,
+  _ when key.startsWith('report.table.') => 2,
+  _ when key.startsWith('report.next.') => 3,
+  _ when key.startsWith('report.cards.our_red') => 4,
+  'report.subs.impact' => 5,
+  _ when key.startsWith('report.opp.') => 6,
+  _ when key.startsWith('report.stats.') => 7,
+  _ when key.startsWith('report.shape.') => 8,
+  _ when key.startsWith('report.late.') => 9,
+  _ when key.startsWith('report.goals.surge.') => 10,
+  _ when key.startsWith('report.tactic.') => 11,
+  _ when key.startsWith('report.cards.their_red') => 12,
+  'report.clean_sheet' => 13,
+  'report.goals.opened' => 14,
+  'report.cards.our_booked_many' => 15,
+  'report.subs.changes' => 16,
+  // A beat added without a rank sits above the material that repeats itself
+  // rather than below it, so a new sentence is seen rather than silently lost.
+  _ => 6,
+};
+
+/// The write-up cut to [budget] sentences, still in the order it is read in.
+///
+/// **The CUT is by rank and the RESULT is in narrative order**, which is why
+/// this is two passes rather than a sort. Sorting the beats by [beatRank] and
+/// taking the first six would print the table before the goals; what is wanted
+/// is the six most valuable sentences told in the order they happened, so the
+/// rank picks the survivors and the original index puts them back.
+///
+/// Ties keep the earlier beat, so a rank shared by a pool — the headlines, the
+/// scorers — never depends on the order a `switch` happens to test in.
+List<ReportBeat> trimToBudget(
+  List<ReportBeat> beats, {
+  int budget = reportBeatBudget,
+}) {
+  if (beats.length <= budget) return beats;
+  final order = [for (var i = 0; i < beats.length; i++) i]
+    ..sort((a, b) {
+      final byRank = beatRank(beats[a].key).compareTo(beatRank(beats[b].key));
+      return byRank != 0 ? byRank : a.compareTo(b);
+    });
+  final kept = order.take(budget).toList()..sort();
+  return [for (final i in kept) beats[i]];
 }
 
 /// Was our side ever behind, and were we ever ahead?

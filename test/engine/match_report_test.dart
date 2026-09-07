@@ -65,8 +65,31 @@ void main() {
     oppNextOpponent: oppNextOpponent,
   );
 
-  List<String> keysOf(ReportFacts f) =>
-      [for (final b in buildMatchReport(f)) b.key];
+  /// **WHAT A MATCH EARNS, with the length ceiling lifted.**
+  ///
+  /// The write-up prints at most [reportBeatBudget] sentences — see the BUDGET
+  /// group at the foot of this file — and that is a question about the
+  /// reader's patience rather than about the match. Everything above asks the
+  /// other question: given what happened, which sentences does this afternoon
+  /// deserve? Asking it through the ceiling would have quietly stopped
+  /// covering the tactics, the referee and the closing stages, because a
+  /// routine match already spends the six on the result, the scorers, the
+  /// opposition, the table and the next fixture.
+  const roomForAll = 99;
+  List<ReportBeat> earned(ReportFacts f) =>
+      buildMatchReport(f, budget: roomForAll);
+  List<String> keysOf(ReportFacts f) => [for (final b in earned(f)) b.key];
+
+  /// **THE PARAMETERS A BEAT CARRIES OF ITS OWN.**
+  ///
+  /// Every beat is also handed both clubs a second time — "the hosts", "the
+  /// visitors" — so an English pool can stop repeating the name. Those four
+  /// are on every beat by construction and say nothing about the beat under
+  /// test, so the assertions below are about what the beat added to them: the
+  /// point of each is that a line does NOT carry a minute or a team sheet.
+  const secondName = {'side', 'sideCap', 'oppSide', 'oppSideCap'};
+  Iterable<String> ownParams(ReportBeat b) =>
+      b.params.keys.where((k) => !secondName.contains(k));
 
   /// A board at the whistle, by the two things the write-up reads off it.
   ReportStats board(int possession, int shots, int theirShots) => (
@@ -92,7 +115,7 @@ void main() {
     });
 
     test('and the score travels with it, so the sentence can print it', () {
-      final beat = buildMatchReport(facts(ours: 3, theirs: 1)).first;
+      final beat = earned(facts(ours: 3, theirs: 1)).first;
       expect(beat.params['ours'], 3);
       expect(beat.params['theirs'], 1);
       expect(beat.params['opp'], 'Ayton');
@@ -111,13 +134,13 @@ void main() {
         (minute: minute, ours: ours, scorer: ours ? 'Bobby' : null);
 
     test('a one-goal win in the 88th is a late winner, not a siege', () {
-      final beats = buildMatchReport(facts(goals: [goal(88)]));
+      final beats = earned(facts(goals: [goal(88)]));
       expect(beats.first.key, 'report.win.late');
       expect(beats.first.params['minute'], '88th');
     });
 
     test('and the same goal in the 5th is the ordinary narrow win', () {
-      final beats = buildMatchReport(facts(goals: [goal(5)]));
+      final beats = earned(facts(goals: [goal(5)]));
       expect(beats.first.key, 'report.win.narrow');
       expect(beats.first.params.containsKey('minute'), isFalse);
     });
@@ -200,7 +223,7 @@ void main() {
     });
 
     test('and it outranks a late winner, with the total on it', () {
-      final beat = buildMatchReport(
+      final beat = earned(
         facts(
           ours: 4,
           theirs: 3,
@@ -398,7 +421,7 @@ void main() {
     // A first cut told every card and was sent back as too long: "if a team
     // just got one booking… so what?! dont even mention it!"
     test('a red of ours is a named player, and no minute', () {
-      final beat = buildMatchReport(
+      final beat = earned(
         facts(
           cards: const [
             (minute: 63, ours: true, player: 'Smith', red: true),
@@ -424,7 +447,7 @@ void main() {
         keysOf(facts(ourYellows: 1)).where((k) => k.startsWith('report.cards')),
         isEmpty,
       );
-      final many = buildMatchReport(
+      final many = earned(
         facts(ourYellows: 3),
       ).firstWhere((b) => b.key.startsWith('report.cards.'));
       expect(many.key, 'report.cards.our_booked_many');
@@ -468,7 +491,7 @@ void main() {
 
     test('who started it is one sentence, and it carries no minute', () {
       // Smith opened it and Jones took the headline with two.
-      final beat = buildMatchReport(
+      final beat = earned(
         facts(
           ours: 3,
           scorers: const ['Smith', 'Jones', 'Jones'],
@@ -486,7 +509,7 @@ void main() {
     test('and it stands aside for a SPREAD, which names them all in order', () {
       // "Smith got them going. Three names on the scoresheet, and none of them
       // carried it alone" stumbled over itself — reported from the couch.
-      final beats = buildMatchReport(
+      final beats = earned(
         facts(
           ours: 3,
           scorers: const ['Smith', 'Jones', 'Brown'],
@@ -583,7 +606,7 @@ void main() {
         (minute: minute, ours: ours, scorer: ours ? 'Bobby' : null);
 
     test('four after the break is a surge, and no number is printed', () {
-      final beat = buildMatchReport(
+      final beat = earned(
         facts(
           ours: 4,
           scorers: const ['A', 'B', 'C', 'D'],
@@ -591,7 +614,7 @@ void main() {
         ),
       ).firstWhere((b) => b.key.startsWith('report.goals.surge'));
       expect(beat.key, 'report.goals.surge.ours');
-      expect(beat.params.keys, unorderedEquals(['club', 'opp']));
+      expect(ownParams(beat), unorderedEquals(['club', 'opp']));
     });
 
     test('and it reads the other way when they are the ones scoring them', () {
@@ -639,7 +662,7 @@ void main() {
 
   group('THE CHANGES AND THE NUMBERS', () {
     test('a substitute who scored is the sentence; the team sheet is not', () {
-      final beats = buildMatchReport(
+      final beats = earned(
         facts(
           ours: 2,
           scorers: const ['Bobby', 'Brown'],
@@ -653,7 +676,7 @@ void main() {
       expect(beats.map((b) => b.key), ['report.subs.impact']);
       expect(beats.single.params['player'], 'Brown');
       // No list of names, and no minute against any of them.
-      expect(beats.single.params.keys, unorderedEquals(['club', 'player']));
+      expect(ownParams(beats.single), unorderedEquals(['club', 'player']));
     });
 
     test('changes that did nothing are a line only when there were enough', () {
@@ -685,7 +708,7 @@ void main() {
     test('the board is a verdict with no digits in it', () {
       // It read "{club} had 57% of the ball and 9 shots to Ayton's 4" — the
       // statistics panel, transcribed.
-      String boardKey(ReportStats s) => buildMatchReport(
+      String boardKey(ReportStats s) => earned(
         facts(stats: s),
       ).firstWhere((b) => b.key.startsWith('report.stats.')).key;
 
@@ -699,10 +722,10 @@ void main() {
       expect(boardKey(board(55, 8, 12)), 'report.stats.pinned_back');
       expect(boardKey(board(50, 12, 8)), 'report.stats.on_top');
 
-      final beat = buildMatchReport(
+      final beat = earned(
         facts(stats: board(62, 14, 4)),
       ).firstWhere((b) => b.key.startsWith('report.stats.'));
-      expect(beat.params.keys, unorderedEquals(['club', 'opp']));
+      expect(ownParams(beat), unorderedEquals(['club', 'opp']));
     });
 
     test('THE BOARD AND THE OPPOSITION LINE DO NOT ARGUE', () {
@@ -766,7 +789,7 @@ void main() {
         (minute: minute, ours: ours, scorer: ours ? 'Bobby' : null);
 
     test('behind going into the last of it, and nothing to show for it', () {
-      final beat = buildMatchReport(
+      final beat = earned(
         facts(ours: 1, goals: [g(20)]),
       ).firstWhere((b) => b.key.startsWith('report.late.'));
       expect(beat.key, 'report.late.held_out');
@@ -776,7 +799,7 @@ void main() {
     });
 
     test('a goal in the closing stages that was not enough is a consolation', () {
-      final beat = buildMatchReport(
+      final beat = earned(
         facts(ours: 2, theirs: 1, scorers: const ['A', 'B'], goals: [
           g(20),
           g(30),
@@ -788,7 +811,7 @@ void main() {
     });
 
     test('and the roles swap when it is our side doing the chasing', () {
-      final beat = buildMatchReport(
+      final beat = earned(
         facts(
           ours: 0,
           theirs: 2,
@@ -986,7 +1009,7 @@ void main() {
       // them, though, and that is what a locale gets if its overlay ever loses
       // the key, so the beat goes on passing them rather than risking a
       // literal `{minute}` at a player.
-      final beat = buildMatchReport(
+      final beat = earned(
         facts(lateSwitch: (minute: 72, tactic: 'parkTheBus')),
       ).firstWhere((b) => b.key.startsWith('report.tactic.'));
       expect(beat.params['minute'], 72);
@@ -1038,6 +1061,121 @@ void main() {
         ),
       ).where((k) => k.startsWith('report.tactic.')).toList();
       expect(keys, ['report.tactic.shut_up_shop']);
+    });
+  });
+
+  group('SIX SENTENCES IS THE CEILING', () {
+    // **The write-up was too long to be read, which is a different fault from
+    // being wrong.** Reported from the couch with five real full-time
+    // summaries as the language to aim at: "I don't want it to be this long
+    // though. I want it to be a bit shorter because people are not gonna read
+    // it too much." Every beat earns its place on the merits of the match, and
+    // a busy afternoon earns a lot of them at once.
+
+    /// A match with something to say in every section — a sending-off, a
+    /// substitute who scored, a second-half surge, a late switch and a siege
+    /// at the end are all true of it.
+    ReportFacts busy() => facts(
+      ours: 4,
+      theirs: 3,
+      scorers: const ['Bobby', 'Brown', 'Bobby', 'Green'],
+      wasBehind: true,
+      goals: const [
+        (minute: 5, ours: false, scorer: null),
+        (minute: 20, ours: true, scorer: 'Bobby'),
+        (minute: 30, ours: false, scorer: null),
+        (minute: 50, ours: true, scorer: 'Brown'),
+        (minute: 60, ours: true, scorer: 'Bobby'),
+        (minute: 70, ours: true, scorer: 'Green'),
+        (minute: 85, ours: false, scorer: null),
+      ],
+      ourReds: 1,
+      ourYellows: 2,
+      theirReds: 1,
+      subs: const [
+        (minute: 46, on: 'Brown', off: 'Smith'),
+        (minute: 60, on: 'Jones', off: null),
+        (minute: 75, on: 'Green', off: 'White'),
+      ],
+      lateSwitch: (minute: 78, tactic: 'parkTheBus'),
+      stats: board(62, 14, 4),
+      posDelta: 2,
+      oppNextOpponent: 'Beeches',
+    );
+
+    test('a match with everything in it still prints six sentences', () {
+      // Fourteen earned, six printed.
+      expect(keysOf(busy()).length, greaterThan(reportBeatBudget));
+      expect(buildMatchReport(busy()).length, reportBeatBudget);
+    });
+
+    test('and a quiet one is shorter than the ceiling, not padded to it', () {
+      // A beat with nothing to say is still absent; the budget is a ceiling
+      // rather than a length. A goalless cup tie has no shape to describe, no
+      // scorer to name and no table to move in, and gets what is left.
+      final quiet = buildMatchReport(
+        facts(ours: 0, theirs: 0, scorers: const [], isCup: true,
+            position: null, points: null, posDelta: null),
+      );
+      expect(quiet.length, lessThan(reportBeatBudget));
+      expect(quiet, isNotEmpty);
+    });
+
+    test('what survives is the result, the scorers, the table and what is next', () {
+      final kept = [for (final b in buildMatchReport(busy())) b.key];
+      expect(kept.first, startsWith('report.win.'));
+      expect(kept.where((k) => k.startsWith('report.scorers.')), isNotEmpty);
+      expect(kept.where((k) => k.startsWith('report.table.')), isNotEmpty);
+      expect(kept.last, startsWith('report.next.'));
+    });
+
+    test('and a sending-off outranks the lines that repeat the headline', () {
+      // A red card changes the match; the shape restates the arc the headline
+      // has just given, and the clean sheet restates a nil.
+      final kept = [for (final b in buildMatchReport(busy())) b.key];
+      expect(kept, contains('report.cards.our_red_named'));
+      expect(kept.where((k) => k.startsWith('report.shape.')), isEmpty);
+      expect(kept, isNot(contains('report.cards.our_booked_many')));
+    });
+
+    test('the cut is by rank and the result is still in narrative order', () {
+      // **Two passes rather than a sort.** Ranking the beats and taking the
+      // top six would print the table before the goals; the rank picks the
+      // survivors and the original order puts them back.
+      final all = earned(busy());
+      final kept = buildMatchReport(busy());
+      final order = [for (final b in all) b.key];
+      var at = -1;
+      for (final beat in kept) {
+        final next = order.indexOf(beat.key);
+        expect(next, greaterThan(at), reason: '${beat.key} moved');
+        at = next;
+      }
+      // And the paragraph index still only ever rises, which is what lets the
+      // card group consecutive runs without knowing any of the keys.
+      var para = 0;
+      for (final beat in kept) {
+        expect(beat.para, greaterThanOrEqualTo(para));
+        para = beat.para;
+      }
+    });
+
+    test('a tie in rank keeps the earlier beat', () {
+      // Two reds share `report.cards.our_red`'s rank; the first shown is the
+      // one that survives, rather than whichever a `switch` tests first.
+      final beats = trimToBudget([
+        (key: 'report.win.narrow', params: const {}, para: 0),
+        (key: 'report.cards.our_red_named', params: const {'n': 1}, para: 2),
+        (key: 'report.cards.our_red_named', params: const {'n': 2}, para: 2),
+      ], budget: 2);
+      expect(beats.length, 2);
+      expect(beats.last.params['n'], 1);
+    });
+
+    test('a beat nobody has ranked is kept over the material that repeats', () {
+      // A new sentence added to the engine without a line in [beatRank] should
+      // be seen rather than silently lost at the bottom of the list.
+      expect(beatRank('report.brand_new'), lessThan(beatRank('report.clean_sheet')));
     });
   });
 
@@ -1217,7 +1355,7 @@ void main() {
         addTearDown(resetLocale);
         final catalog = catalogFor(locale);
         for (final entry in shapes.entries) {
-          for (final beat in buildMatchReport(entry.value)) {
+          for (final beat in earned(entry.value)) {
             // **THE LOCALE'S OWN ENTRY, not the English fallback.** This read
             // `catalog[key] ?? englishCatalog[key]` and passed while thirty of
             // the sixty-five keys existed in English alone — so a French

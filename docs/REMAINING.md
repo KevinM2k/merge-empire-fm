@@ -11,6 +11,58 @@ rough sense of size, not a target.
 **The live queue for this session is `docs/PLAYTHROUGH3.md`**, which is where
 the couch's reports are ticked off one at a time. What follows is the summary.
 
+## Playtest, 7 Sep 2026 — the write-up was too long to be read
+
+Reported from the couch with five real full-time summaries from a live-scores
+app attached as the language to aim at: "I don't want it to be this long though.
+I want it to be a bit shorter because people are not gonna read it too much. But
+this is the kind of language here."
+
+**Six sentences is the ceiling now** (`reportBeatBudget`). Nothing was cut from
+what a match *earns* — every beat in `buildMatchReport` still fires on exactly
+the facts it always did, and a goalless cup
+tie still runs to three. What changed is
+that a busy afternoon earns all of them at once: a sending-off, a substitute who
+scored, a second-half surge, a late switch and a siege at the end are all true
+of the same ninety minutes, and the write-up could print all sixteen of them. `beatRank` says what a sentence is worth and `trimToBudget` keeps the six
+best in the order they are read in — the cut is by rank and the result is in
+narrative order, which is why it is two passes rather than a sort.
+
+**Selection and length are separate questions**, and `match_report_test` asks
+the first one with the ceiling lifted (`buildMatchReport(f, budget: 99)`).
+Asking it through the ceiling would have quietly stopped covering the tactics,
+the referee and the closing stages, because a routine match spends its six on
+the result, the scorers, the opposition, the table and the next fixture.
+
+**The language, in the same pass.** Two things separate the port's write-up from
+the summaries on the couch's phone. The first is that they stop repeating the
+club's name — "the hosts had to come from two goals down", "Spurs came out the
+blocks quickly" — and a 0-0 here said "Nottingham Forest" five times in five
+sentences, because six pools each knew only `{club}`. The port has no nicknames
+but it knows the venue, so every beat now carries `{side}` / `{oppSide}` ("the
+hosts", "the visitors") and `{sideCap}` / `{oppSideCap}` for a sentence that
+starts on one; the English pools reach for whichever reads, and the nine
+translated catalogues ignore them like any spare parameter. The second is the
+editorial tail — "which is a way of playing as much as an accident", "and
+anyone who was there for them will be talking about it all week" — which came
+off `report.opp.*`, `report.stats.*`, `report.tactic.*`, `report.subs.*`,
+`report.goals.surge.*` and `report.cards.*`. `report.table.*` lost "{n}
+place{s} up", which is the arithmetic of the move rather than where the club
+now is, and `report.scorers.spread` lost its digit.
+
+**And a goalless draw no longer says one side did not score.** "{club} did not
+score, and that is the part that will concern them most", under a headline that
+has just said "It's all over, goalless", is the same fact twice — and neither
+side scored, so singling one of them out reads as a write-up that forgot which
+match it was at. `report.scorers.none` now needs the other side to have scored.
+
+**Not changed, and worth saying why.** All five reference summaries put the
+score in their opening sentence. The port's headline pools deliberately do not,
+and that was itself a couch call from the 2 Sep session — the write-up sits
+directly under a scoreboard that prints it, where a live-scores app's summary
+sits under a one-line header. If that reads as wrong on the phone it is a
+one-line change in the headline pools in `lib/i18n/en_copy.dart`.
+
 ## Playtest, 3 Sep 2026 (third sitting) — two follow-ups, one of them big
 
 **The cup fixtures vanishing is fixed** and confirmed as the cup rows only —
