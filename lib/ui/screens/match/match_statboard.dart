@@ -103,23 +103,46 @@ LiveStats liveStatsFor({
           goalsThem++;
         }
         swing = swing * 0.7 + ((ours ?? true) ? 0.3 : -0.3);
+      // **A CHANCE IS NOT AUTOMATICALLY A BIG ONE, and this counted every one
+      // of them as one.** `bigUs++` sat on the same branch as `shotsUs++`,
+      // unconditionally, so the Shots row and the Big Chances row were the same
+      // number in every match ever played — two of a five-row board saying one
+      // thing. Reported from the couch off a goalless home win that read
+      // "Shots 14 / Big Chances 14" and looked like a robbery rather than a
+      // quiet afternoon.
+      //
+      // The flag was already there and already travelling: the engine marks
+      // `big` at xG 0.22 (`match_events.dart`) and `MatchClockEvent` carries it
+      // — `chanceFeedBigXg`'s note in `match_clock.dart` says in as many words
+      // that the engine's flag "marks what the match statistics count as a big
+      // chance", and the statistics were the one reader that ignored it.
+      //
+      // **And Big Missed was off-target shots**, which is a different stat
+      // wearing this one's name — a scuffed half-chance dragged wide counted,
+      // and a one-on-one saved did not. A `chance` event is a NON-goal by
+      // construction (the engine lists goals separately), so a big chance in
+      // this list is exactly a big chance missed. That leaves the board
+      // internally consistent for the first time: big chances = big missed +
+      // goals, which is what the goal folding below has always claimed.
+      //
+      // The JS could not be consulted — `../merge-empire-fc` is not in this
+      // container — so this follows the port's own flag rather than the
+      // spec's wording.
       case 'chance':
         if (ours ?? true) {
           shotsUs++;
-          if (e.shotResult == 'on_target') {
-            onTargetUs++;
-          } else {
+          if (e.shotResult == 'on_target') onTargetUs++;
+          if (e.big) {
+            bigUs++;
             bigMissedUs++;
           }
-          bigUs++;
         } else {
           shotsThem++;
-          if (e.shotResult == 'on_target') {
-            onTargetThem++;
-          } else {
+          if (e.shotResult == 'on_target') onTargetThem++;
+          if (e.big) {
+            bigThem++;
             bigMissedThem++;
           }
-          bigThem++;
         }
         swing = swing * 0.85 + ((ours ?? true) ? 0.15 : -0.15);
       case 'corner':
