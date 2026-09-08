@@ -1479,6 +1479,127 @@ void main() {
       expect(plain, contains(cardYellowInk));
       expect(plain, contains(cardRedInk));
     });
+
+    testWidgets('AND A MAN WHO HAS BEEN TAKEN OFF CANNOT BE SENT OFF', (
+      tester,
+    ) async {
+      // **Reported from the couch: "my player got a yellow card, I subbed
+      // them, then they got a red card."** The cards are minted once at
+      // kickoff, off the eleven that started — they cannot ride in the pinned
+      // event stream, so they are decided up front and merged into the
+      // timeline as the clock reaches them. Nothing then asked whether the man
+      // they were minted for was still ON the pitch, so the second yellow was
+      // shown to somebody sitting in the dugout.
+      //
+      // It looked harmless, and the report says why: "it didn't change rating
+      // cuz they weren't on the pitch." `_playerSentOff` found no slot to
+      // empty, so the side was not a man short and nothing visible moved. The
+      // damage was all downstream — a ban for the next fixture, a red on his
+      // record, and a dismissal in the write-up that never happened.
+      //
+      // `s3_m47` books ONE man twice and nobody else: c3 in the 22nd, and the
+      // second in the 80th. So he is taken off in between, and the eightieth
+      // minute has to arrive with nothing in it.
+      tester.view.physicalSize = const Size(420 * 3, 2000 * 3);
+      tester.view.devicePixelRatio = 3;
+      addTearDown(tester.view.reset);
+      final container = await pumpMatch(
+        tester,
+        matchResult(fixtureKey: 's3_m47'),
+        save: squadSave(),
+      );
+      final state = stateOf(tester);
+      final doomed = state.bookings.firstWhere(
+        (b) => '${b['card']}' == cardSecondYellow,
+      );
+      final id = '${doomed['playerInstanceId']}';
+      expect(
+        state.bookings.where((b) => b['playerInstanceId'] == id).length,
+        2,
+        reason: 'the fixture chosen no longer books the same man twice',
+      );
+
+      // **THE CLOCK STOPS WHILE A CHANCE IS BEING RETOLD** — see `_tick` — so a
+      // single long pump lands wherever the re-simulated remainder happens to
+      // have put a passage, which is a different minute every run. Wound on a
+      // minute at a time instead, with each passage answered the way the stage
+      // answers it, so this arrives past the caution and well short of the
+      // second card by construction rather than by luck.
+      for (var i = 0; i < 300 && state.frame.minute < 40; i++) {
+        if (state.clipPlaying) {
+          tester.widget<CutawayStage>(find.byType(CutawayStage)).onDone!(
+            CutawayOutcome.goal,
+          );
+          await tester.pump();
+          continue;
+        }
+        await tester.pump(minuteDurationFor(1));
+      }
+      expect(state.frame.minute, greaterThan(22));
+      expect(state.frame.minute, lessThan(80));
+
+      // Off he goes — through the panel, the way a manager reading the feed
+      // would answer a booking.
+      final slot = container
+          .read(pitchSlotsProvider)
+          .firstWhere((s) => s.cardInstanceId == id);
+      final bench = container.read(benchProvider).first;
+      // **THROUGH THE SCREEN'S OWN DOOR rather than the button.** The tip
+      // Colin gives about a booking is drawn over the control row and fades
+      // out on its own clock, so a tap aimed at Subs a few minutes after a card
+      // lands on the bubble instead. `openSubs` is the same call the button
+      // makes and the injury path already uses it.
+      final panel = state.openSubs();
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(ValueKey('sub-slot-${slot.slotId}')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('subs-bench-filter-ALL')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(ValueKey('sub-bench-${bench.instanceId}')));
+      await tester.pumpAndSettle();
+      await tester.tap(
+        find.byKey(const ValueKey('coach-action-common.confirm')),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('subs-done')));
+      await tester.pumpAndSettle();
+      await panel;
+
+      // **THE CARD IS OFF THE REFEREE'S LIST, and the caution he did collect
+      // is still on it.** One is a fact about a match he was playing in; the
+      // other is about one he was not.
+      expect(
+        state.bookings.where((b) => b['playerInstanceId'] == id).toList(),
+        hasLength(1),
+      );
+      expect(
+        state.bookings.singleWhere((b) => b['playerInstanceId'] == id)['card'],
+        cardYellow,
+      );
+      expect(
+        state.bookings.any((b) => '${b['card']}' == cardSecondYellow),
+        isFalse,
+      );
+
+      state.skipToEnd();
+      await tester.pumpAndSettle();
+
+      // And nothing downstream of the whistle heard about it either: no ban
+      // for the next fixture, no red beside his goals. The yellow is recorded,
+      // because he did get one.
+      final cells =
+          (container.read(gameProvider).state!['grid']
+              as Map<String, dynamic>)['cells']
+          as List;
+      final cell = cells.firstWhere(
+        (c) => c is Map<String, dynamic> && c['instanceId'] == id,
+      ) as Map<String, dynamic>;
+      expect(cell['suspendedUntilMatch'], isNull, reason: 'banned from a card he never got');
+      final stats = cell['stats'] as Map?;
+      expect(stats?['reds'], isNull);
+      expect(stats?['yellows'], 1);
+      await settleSave(tester);
+    });
   });
 
   testWidgets('THE FEED SAYS WHAT KIND OF THING HAPPENED', (tester) async {

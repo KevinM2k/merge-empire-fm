@@ -2010,6 +2010,53 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
   /// Slot id → the man the referee took out of it. See [_playerSentOff].
   final Map<String, PitchSlot> _sentOffSlots = <String, PitchSlot>{};
 
+  /// **THE REFEREE CANNOT BOOK A MAN WHO IS SITTING IN THE DUGOUT.**
+  ///
+  /// The cards are minted ONCE, at kickoff, off the eleven that started — see
+  /// [_rollBookings], and that is deliberate: they cannot ride in the pinned
+  /// event stream, so they are decided up front and merged into the timeline as
+  /// the clock reaches them. Nothing then asked whether the man they were
+  /// minted for was still ON. Reported from the couch: a player picked up a
+  /// yellow, was taken off for it, and collected the second one — a sending-off
+  /// — from the bench.
+  ///
+  /// It read as harmless because the visible half was: [_playerSentOff] found
+  /// no slot to empty, so the rating did not move and the side was not a man
+  /// short. The damage was all downstream — `applySuspensions` banned him from
+  /// the next fixture, `recordBookings` put a red on his record beside his
+  /// goals, and the report counted a dismissal that never happened.
+  ///
+  /// So a withdrawal takes his remaining cards off the list. **Off BOTH lists**,
+  /// because they are read by different things and half of this fix is worse
+  /// than none: [_bookings] is the feed, the skip's catch-up, the row the
+  /// summary counts and the ban the whistle writes; [_bookingRecords] is the
+  /// pair of counters that go on his card.
+  ///
+  /// **AFTER [minute] ONLY, and that is the whole of the rule.** A card he
+  /// actually collected is his: the yellow that prompted the change is the
+  /// reason the row above it exists, and the ten per cent it cost was paid
+  /// while he was on the pitch. Only the ones the clock has not reached yet
+  /// belong to a match he is no longer playing in.
+  ///
+  /// Ours only — `team: 'away'` rows are the opposition's synthetic eleven and
+  /// share this screen's list, and no substitution of ours withdraws one of
+  /// theirs.
+  void _dropBookingsAfter(String instanceId, int minute) {
+    // `_rollBookings` hands back a `const []` for a side with nobody in it, and
+    // `removeWhere` on one of those throws.
+    if (_bookings.isEmpty) return;
+    _bookings.removeWhere(
+      (b) =>
+          b['team'] != 'away' &&
+          b['playerInstanceId'] == instanceId &&
+          ((b['minute'] as num?) ?? 0) > minute,
+    );
+    _bookingRecords = [
+      for (final b in _bookingRecords)
+        if (b.instanceId != instanceId || b.minute <= minute) b,
+    ];
+  }
+
   /// Record a change the panel has already written to the save.
   ///
   /// **What the quests read is stamped here.** `subsUsed` and `subbedOnIds` are
@@ -2024,7 +2071,14 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
     // the casualty rather than null. He must not come back on either, and this
     // is the set that stops it. Still null for a slot that started empty —
     // there is genuinely nobody to remember.
-    if (sub.offId != null) _withdrawn.add(sub.offId!);
+    if (sub.offId != null) {
+      _withdrawn.add(sub.offId!);
+      // **AND THE REFEREE'S LIST GOES WITH HIM.** See [_dropBookingsAfter]:
+      // the cards were minted at kickoff off the eleven that started, and
+      // nothing asked whether the man was still on when the clock reached
+      // them.
+      _dropBookingsAfter(sub.offId!, _minute);
+    }
     widget.result['subsUsed'] = _subsUsed;
     final on = widget.result['subbedOnIds'];
     final onList = on is List ? on : <Object?>[];

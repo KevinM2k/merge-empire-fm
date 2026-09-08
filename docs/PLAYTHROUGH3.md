@@ -6,7 +6,7 @@ because that is the part worth keeping.
 
 ## Where this queue stands
 
-**117 done, 6 open, and one feature parked.** One open row is a report still
+**118 done, 6 open, and one feature parked.** One open row is a report still
 being narrowed (the trees' size, below); none of the rest is a fault.
 One is a feature that was built, tried and turned down; one is a balance
 question rather than work; one is a survey to run before building; and one is
@@ -1556,6 +1556,44 @@ Reported live on 7 Sep 2026, while the diorama work below was going on.
       **Shipped code with no caller, again**, which is the pattern the second
       batch named and the fifth one repeated: the mechanic, the two quests, the
       back-fill and the reward were all there and nothing ever said "he won".
+
+## Thirteenth batch — a card shown to a man in the dugout
+
+Reported live on 8 Sep 2026.
+
+- [x] **"My player got a yellow card, I subbed them, then they got a red card.
+      It didn't change rating cuz they weren't on the pitch, but the red card
+      should not have occurred."** The cards are minted ONCE, at kickoff, off
+      the eleven that started — see `booking_engine.dart` and `_rollBookings`.
+      That is not an accident: they cannot ride in the pinned event stream, so
+      they are decided up front against the match's own seed and merged into
+      the timeline as the clock reaches each one. Nothing then asked whether the
+      man they were minted for was still ON, so a player cautioned in the 22nd
+      and taken off in the 40th collected his second yellow in the 80th from the
+      bench.
+
+      **The report's own aside is why it survived: the visible half really was
+      harmless.** `_playerSentOff` looks for the slot the man is standing in and
+      finds none, so no square was emptied, the side was not a man short, and
+      `reSimulateRemainder` rolled the rest of the match against the eleven that
+      were actually playing. Everything downstream of the whistle believed it
+      though — `applySuspensions` banned him from the next fixture,
+      `recordBookings` put a red on his record beside his goals, and the
+      write-up counted a dismissal that never happened. A card that changes
+      nothing on the pitch and everything on the team sheet is the worst shape
+      this bug could have taken, because there is nothing on screen to report.
+
+      `_dropBookingsAfter` takes his remaining cards off the referee's list when
+      he is withdrawn — off `_bookings` AND `_bookingRecords`, because the feed,
+      the skip's catch-up, the summary's count, the ban and the two counters on
+      his card are read from one or the other and half of this fix is worse than
+      none. **After the withdrawal minute only**: the caution he actually
+      collected is his, it is the reason the row above it exists, and the ten
+      per cent it cost was paid while he was on the pitch.
+
+      An injured man counts as withdrawn on the same path — `SubMade.offId` is
+      the casualty when the hole is one the sim made — so a substitution covering
+      an injury clears his card list too.
 
 ## Open
 
