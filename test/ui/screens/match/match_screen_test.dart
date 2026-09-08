@@ -43,6 +43,7 @@ import 'package:merge_empire_fc/ui/theme/sky.dart';
 import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
 import 'package:merge_empire_fc/engine/squad_rating.dart' show CardStats;
 import 'package:merge_empire_fc/engine/booking_engine.dart';
+import 'package:merge_empire_fc/engine/coach_tip_engine.dart' show hasSeenTip;
 
 Map<String, dynamic> matchResult({
   bool won = true,
@@ -1598,6 +1599,273 @@ void main() {
       final stats = cell['stats'] as Map?;
       expect(stats?['reds'], isNull);
       expect(stats?['yellows'], 1);
+      await settleSave(tester);
+    });
+
+    /// A squad of exactly ELEVEN, so an injury has no bench to answer it.
+    ///
+    /// The whole point of the two tests below is the casualty nobody comes on
+    /// for: `_onInjuryShown` reads the hole's own line for cover and finds
+    /// none, so it says so and returns rather than opening the panel — which
+    /// is the case that never reaches `_onSub` and was therefore the one the
+    /// substitution fix could not reach either.
+    Map<String, dynamic> elevenSave() {
+      final state = createDefaultState();
+      final cells = (state['grid'] as Map<String, dynamic>)['cells'] as List;
+      final byPos = {
+        for (final pos in ['GK', 'DEF', 'MID', 'FWD'])
+          pos: players.firstWhere((p) => p.position == pos && p.tier == 1).id,
+      };
+      const order = [
+        'GK',
+        'DEF',
+        'DEF',
+        'DEF',
+        'DEF',
+        'MID',
+        'MID',
+        'MID',
+        'FWD',
+        'FWD',
+        'FWD',
+      ];
+      for (var i = 0; i < order.length; i++) {
+        cells[i] = {
+          'definitionId': byPos[order[i]]!,
+          'instanceId': 'c$i',
+          'variant': 0,
+        };
+      }
+      return state;
+    }
+
+    /// `s4_m27` books two men and nobody else is involved: c7 in the 51st, and
+    /// a STRAIGHT RED for c3 in the 76th. Neither side's referee shows anything
+    /// before that, which is what keeps the injected injury below in the feed —
+    /// a card re-simulates the remainder, and a re-sim throws away every event
+    /// AFTER its own minute.
+    ///
+    /// The injury is written the way the engine writes one: the `injury` event
+    /// is the JS's and carries a NAME and no id, and the port's own `no_sub`
+    /// marker goes in beside it at the same minute carrying the `instanceId`.
+    /// That marker is what the fix reads, because the event next to it cannot
+    /// be given a key — `match_orchestration_parity_test` compares the array
+    /// field for field.
+    Map<String, dynamic> injuredResult() => matchResult(
+      fixtureKey: 's4_m27',
+      events: [
+        {'minute': 30, 'type': 'injury', 'player': 'Smith'},
+        {
+          'minute': 30,
+          'type': 'no_sub',
+          'player': 'Smith',
+          'instanceId': 'c3',
+          'slotId': null,
+          'slotPosition': null,
+        },
+      ],
+    );
+
+    /// What the sim does to a casualty: the card is marked hurt and his square
+    /// is emptied.
+    ///
+    /// **BOTH HALVES, and the first is not decoration.** `removeInjuredFromLineup`
+    /// only empties the row; `candidate.raw['injured']` is set beside it, and
+    /// that is what keeps him off his own bench afterwards. Emptying the row
+    /// alone puts him back in the raw bench — the same trap the sending-off
+    /// tests above are about — and Colin then offers the injured man as cover
+    /// for the hole the injury just made.
+    void injure(ProviderContainer container, String id) {
+      container.read(gameProvider).update((s) {
+        for (final row
+            in (s['squad'] as Map<String, dynamic>)['lineup'] as List) {
+          if (row is Map<String, dynamic> && row['cardInstanceId'] == id) {
+            row['cardInstanceId'] = null;
+          }
+        }
+        for (final cell in (s['grid'] as Map<String, dynamic>)['cells'] as List) {
+          if (cell is Map<String, dynamic> && cell['instanceId'] == id) {
+            cell['injured'] = true;
+            cell['injuredAt'] = DateTime.now().millisecondsSinceEpoch;
+            cell['injuryDurationMs'] = const Duration(days: 2).inMilliseconds;
+          }
+        }
+      });
+    }
+
+    /// The referee's list, ours only, as `minute:who:card`.
+    List<String> ourCards(MatchScreenState state) => [
+      for (final b in state.bookings)
+        if (b['team'] != 'away')
+          '${b['minute']}:${b['playerInstanceId']}:${b['card']}',
+    ];
+
+    /// What the whistle wrote on a player: his ban, and the two counters.
+    ({Object? until, Object? yellows, Object? reds}) recordOf(
+      ProviderContainer container,
+      String id,
+    ) {
+      final cells =
+          (container.read(gameProvider).state!['grid']
+              as Map<String, dynamic>)['cells']
+          as List;
+      final cell =
+          cells.firstWhere(
+                (c) => c is Map<String, dynamic> && c['instanceId'] == id,
+              )
+              as Map<String, dynamic>;
+      final stats = cell['stats'] as Map?;
+      return (
+        until: cell['suspendedUntilMatch'],
+        yellows: stats?['yellows'],
+        reds: stats?['reds'],
+      );
+    }
+
+    testWidgets('AND A MAN WHO LIMPED OFF CANNOT BE SENT OFF EITHER', (
+      tester,
+    ) async {
+      // **THE OTHER DOOR OUT OF THE ELEVEN.** A substitution goes through
+      // `_onSub` and takes the man's remaining cards with it; an injury the
+      // bench cannot cover goes nowhere near it. The sim empties his square
+      // and the side plays on with ten, and he was still on the referee's
+      // list — so the same fault, in the case where there is not even a
+      // substitution to point at afterwards.
+      //
+      // Watched rather than skipped, because the two paths reach the rule
+      // through different doors: this one is the per-minute dispatch.
+      tester.view.physicalSize = const Size(420 * 3, 2000 * 3);
+      tester.view.devicePixelRatio = 3;
+      addTearDown(tester.view.reset);
+      final container = await pumpMatch(
+        tester,
+        injuredResult(),
+        save: elevenSave(),
+      );
+      final state = stateOf(tester);
+      expect(
+        ourCards(state),
+        ['51:c7:yellow', '76:c3:red'],
+        reason: 'the fixture chosen no longer shows those two cards',
+      );
+
+      // **THE SIM'S OWN MUTATION, and it happens before the clock gets
+      // there.** `removeInjuredFromLineup` empties the row at SIMULATION time,
+      // which is why the fix cannot ask the lineup who is on the pitch — by
+      // that reading a man hurt in the 70th was never on it at all.
+      injure(container, 'c3');
+
+      // Up to the injury. The clock stops while a chance is being retold and
+      // stops again for the card the injury raises, so it is wound a minute at
+      // a time — see the substitution test above.
+      for (var i = 0; i < 300 && state.frame.minute < 32 && !state.paused; i++) {
+        if (state.clipPlaying) {
+          tester.widget<CutawayStage>(find.byType(CutawayStage)).onDone!(
+            CutawayOutcome.goal,
+          );
+          await tester.pump();
+          continue;
+        }
+        await tester.pump(minuteDurationFor(1));
+      }
+      expect(state.frame.minute, greaterThanOrEqualTo(30));
+
+      // **HIS CARD IS OFF THE LIST, AND THE OTHER MAN'S IS NOT.** The prune is
+      // one player and one direction; a fix that cleared the list would pass
+      // every assertion below and none of this one.
+      expect(ourCards(state), ['51:c7:yellow']);
+      // **AND OFF THE TIMELINE WITH IT.** That is the half that decides
+      // whether the card is SHOWN: the dispatch deals off the merged snapshot
+      // rather than off `_bookings`, so a row dropped from the list and left
+      // in the snapshot is dealt out in the 76th regardless.
+      expect(
+        state.timeline.where(
+          (TimelineEvent e) => e.type == 'booking' && e.playerId == 'c3',
+        ),
+        isEmpty,
+      );
+
+      // **AND THEN THE 76TH IS WATCHED RATHER THAN SKIPPED TO**, which is what
+      // makes this test about the TIMELINE as well as the list. The per-minute
+      // dispatch deals the card off the merged snapshot rather than off
+      // `_bookings` — so a row dropped from the list and left in the snapshot
+      // is still shown, still empties a square and still writes a ban. The
+      // clock has to run over the minute for that to be proved.
+      //
+      // Colin holds the match whenever he has something to say — the word
+      // about the casualty, the team talk at half time — so anything he says
+      // on the way is answered rather than waited out.
+      final coachSpeaks = find.byWidgetPredicate(
+        (Widget w) =>
+            w.key is ValueKey<String> &&
+            (w.key! as ValueKey<String>).value.startsWith('coach-action-'),
+      );
+      for (var i = 0; i < 600 && !state.frame.finished; i++) {
+        // A card he has to answer is a ROUTE, so it is not on screen until the
+        // frames it opens over have run.
+        if (state.paused && coachSpeaks.evaluate().isEmpty) {
+          await tester.pumpAndSettle();
+        }
+        if (coachSpeaks.evaluate().isNotEmpty) {
+          await tester.tap(coachSpeaks.first);
+          await tester.pumpAndSettle();
+          continue;
+        }
+        if (state.clipPlaying) {
+          tester.widget<CutawayStage>(find.byType(CutawayStage)).onDone!(
+            CutawayOutcome.goal,
+          );
+          await tester.pump();
+          continue;
+        }
+        await tester.pump(minuteDurationFor(1));
+      }
+      await tester.pumpAndSettle();
+      expect(state.frame.finished, isTrue, reason: 'the clock never ran out');
+
+      // **AND THE 76TH MINUTE PASSED WITH NOTHING IN IT.** The red-card
+      // tutorial is spent the first time somebody is dismissed, so an unspent
+      // ledger is the whole match saying nobody was.
+      expect(
+        hasSeenTip(container.read(gameProvider).state, MatchScreenState.redCardTipId),
+        isFalse,
+      );
+      final him = recordOf(container, 'c3');
+      expect(him.until, isNull, reason: 'banned for a card he never got');
+      expect(him.reds, isNull);
+      // And the man who really was booked still has his, which is what says
+      // the whistle's paperwork ran at all rather than being skipped whole.
+      expect(recordOf(container, 'c7').yellows, 1);
+      await settleSave(tester);
+    });
+
+    testWidgets('and a SKIPPED match knows it too', (tester) async {
+      // The skip jumps the injuries as well as the cards — the per-minute
+      // dispatch never fires — so `_catchUpSendingsOff` has to apply the
+      // withdrawal itself, and BEFORE it deals the cards out. Watching and
+      // skipping have to agree about what the match WAS; that is the rule the
+      // whole catch-up exists for.
+      final container = await pumpMatch(
+        tester,
+        injuredResult(),
+        save: elevenSave(),
+      );
+      final state = stateOf(tester);
+      expect(ourCards(state), ['51:c7:yellow', '76:c3:red']);
+      injure(container, 'c3');
+
+      state.skipToEnd();
+      await tester.pumpAndSettle();
+
+      expect(ourCards(state), ['51:c7:yellow']);
+      expect(
+        hasSeenTip(container.read(gameProvider).state, MatchScreenState.redCardTipId),
+        isFalse,
+      );
+      final him = recordOf(container, 'c3');
+      expect(him.until, isNull);
+      expect(him.reds, isNull);
+      expect(recordOf(container, 'c7').yellows, 1);
       await settleSave(tester);
     });
   });

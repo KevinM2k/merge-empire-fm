@@ -6,7 +6,7 @@ because that is the part worth keeping.
 
 ## Where this queue stands
 
-**118 done, 6 open, and one feature parked.** One open row is a report still
+**119 done, 6 open, and one feature parked.** One open row is a report still
 being narrowed (the trees' size, below); none of the rest is a fault.
 One is a feature that was built, tried and turned down; one is a balance
 question rather than work; one is a survey to run before building; and one is
@@ -1594,6 +1594,41 @@ Reported live on 8 Sep 2026.
       An injured man counts as withdrawn on the same path — `SubMade.offId` is
       the casualty when the hole is one the sim made — so a substitution covering
       an injury clears his card list too.
+
+- [x] **And the other door out of the eleven: a casualty the bench cannot
+      cover.** Found while fixing the row above and confirmed to be the same
+      fault, one door along. A substitution goes through `_onSub`; an injury
+      with the changes spent, or with nobody for the square, goes nowhere near
+      it — the sim empties his row, the side plays on with ten, and he was
+      still on the referee's list. A man who limped off in the thirtieth could
+      be sent off in the seventy-sixth, with the ban and the red on his record
+      that go with it.
+
+      `_dropBookingsForInjuriesUpTo` keys off the **`no_sub` marker, not the
+      injury event**. The injury itself is the JS's — a minute, a type and a
+      NAME — and `match_orchestration_parity_test` compares that array field
+      for field, so it cannot be given an instance id. The marker beside it is
+      the port's own: inserted at the same minute for the subs panel to read
+      the vacated square off, and it already carries `instanceId`. Both paths
+      write one, the kickoff sim and the re-sim alike.
+
+      **Up to the clock's minute and no further, which is correctness rather
+      than caution.** A tactic change re-rolls the remainder and can cancel an
+      injury still ahead of it — see `injuryLog` in `reSimulateRemainder` — so
+      pruning off an injury that has not landed yet would delete a card for a
+      man who then plays the whole ninety. It is applied where the withdrawal
+      is: as the clock reaches the injury, and once over the whole ninety at
+      the head of `_catchUpSendingsOff` for a skip, where no tactic change can
+      cancel anything any more.
+
+      **And the merged timeline has to be rebuilt with it**, which is the half
+      that would have made the rest cosmetic: the per-minute dispatch deals the
+      card off `_timeline`, a snapshot, rather than off `_bookings`. A row
+      dropped from the list and left standing in the snapshot is still shown,
+      still empties a square and still writes a ban. `MatchScreenState.timeline`
+      is exposed as a seam so a test can say so directly rather than by
+      coincidence — the first version of the test passed with the rebuild
+      disabled, because a LATER card happened to rebuild it anyway.
 
 ## Open
 
