@@ -1,6 +1,6 @@
-A rougher pitch, a livelier ground, and two match fixes.
+Settings reorganised, plus a few polish fixes.
 
-• Skipping a match no longer shows one score on the pitch and a different one on the summary.
-• Season quests that ask you to win games now count them.
-• The home pitch matches your stadium: mud and puddles at the bottom of the pyramid, mown stripes at the top, and a touchline at every level.
-• More life around the ground — flags and scarves in the big crowds, lit windows at night.
+• Buttons now ripple and give haptic feedback when tapped.
+• Settings controls have been regrouped for easier navigation.
+• Fixed the home pitch's day/night clock.
+• The full-time report footer now stays pinned to the bottom of the screen instead of floating.
