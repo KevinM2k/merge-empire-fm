@@ -439,16 +439,28 @@ double rollSwingFactor(Strategy? strat) {
 
 /// Where the run of play sits before a ball is kicked, home-positive, 0..100.
 ///
-/// **THE ARROW AND THE CHANCES WERE TWO DIFFERENT FORMULAS.** The momentum
-/// arrow reads the stat board's possession — rating gap, tactic and the swing of
-/// the goals so far — while `generateMatchEvents` weighted chance attribution on
-/// the RATINGS alone. So the arrow could point hard one way, because of a tactic
-/// or a swing it knew about, and the chances went on falling the other way. That
-/// is exactly the thing a player calls "the arrow doesn't mean anything".
+/// **THE ARROW AND THE CHANCES ARE STILL TWO DIFFERENT FORMULAS, and this is
+/// the one the CHANCES DO NOT USE.** The board reads this; the feed does not.
+/// `buildMatchResult` weights chance attribution on the raw effective ratings
+/// and nothing else — see the note on `chanceWeights` in
+/// `match_orchestration.dart`, which is where the attempt to share this
+/// formula was reverted: putting possession into the attribution broke
+/// thirty-two rows of `match_orchestration_parity_test`, so the arrow moved
+/// and the engine did not.
 ///
-/// Unclamped: the caller clamps once, after adding whatever it knows that this
-/// does not — the board adds the live swing, and the kickoff weighting has no
-/// swing to add.
+/// **So the tactic term below moves the bar and moves no chance.** Measured
+/// over 200 matches a cell, against where the feed actually put them: on
+/// Balanced the bar and the real chance split agree to about a point at every
+/// rating gap (53.9 against 53.4, 37.7 against 39.2, 30.1 against 30.2). Under
+/// All Out Attack the bar reads about six points more our way than the chances
+/// fall, and under Park the Bus about six points less. Which is football —
+/// a side on the break has less of the ball and still gets its chances — but
+/// it means this figure is the RUN OF PLAY and not a forecast of the feed. The
+/// momentum arrow is the one that tracks the chances, because
+/// [chanceWeightsFor]'s counter lift is what puts the break back in.
+///
+/// Unclamped: [liveStatsFor] clamps once, after adding the live swing that
+/// this cannot know about.
 double restingPossessionHome({
   required double ratingDiffHome,
   required double possessionBiasHome,
