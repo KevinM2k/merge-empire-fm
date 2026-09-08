@@ -6,7 +6,7 @@ because that is the part worth keeping.
 
 ## Where this queue stands
 
-**117 done, 6 open, and one feature parked.** One open row is a report still
+**119 done, 6 open, and one feature parked.** One open row is a report still
 being narrowed (the trees' size, below); none of the rest is a fault.
 One is a feature that was built, tried and turned down; one is a balance
 question rather than work; one is a survey to run before building; and one is
@@ -1556,6 +1556,79 @@ Reported live on 7 Sep 2026, while the diorama work below was going on.
       **Shipped code with no caller, again**, which is the pattern the second
       batch named and the fifth one repeated: the mechanic, the two quests, the
       back-fill and the reward were all there and nothing ever said "he won".
+
+## Thirteenth batch — a card shown to a man in the dugout
+
+Reported live on 8 Sep 2026.
+
+- [x] **"My player got a yellow card, I subbed them, then they got a red card.
+      It didn't change rating cuz they weren't on the pitch, but the red card
+      should not have occurred."** The cards are minted ONCE, at kickoff, off
+      the eleven that started — see `booking_engine.dart` and `_rollBookings`.
+      That is not an accident: they cannot ride in the pinned event stream, so
+      they are decided up front against the match's own seed and merged into
+      the timeline as the clock reaches each one. Nothing then asked whether the
+      man they were minted for was still ON, so a player cautioned in the 22nd
+      and taken off in the 40th collected his second yellow in the 80th from the
+      bench.
+
+      **The report's own aside is why it survived: the visible half really was
+      harmless.** `_playerSentOff` looks for the slot the man is standing in and
+      finds none, so no square was emptied, the side was not a man short, and
+      `reSimulateRemainder` rolled the rest of the match against the eleven that
+      were actually playing. Everything downstream of the whistle believed it
+      though — `applySuspensions` banned him from the next fixture,
+      `recordBookings` put a red on his record beside his goals, and the
+      write-up counted a dismissal that never happened. A card that changes
+      nothing on the pitch and everything on the team sheet is the worst shape
+      this bug could have taken, because there is nothing on screen to report.
+
+      `_dropBookingsAfter` takes his remaining cards off the referee's list when
+      he is withdrawn — off `_bookings` AND `_bookingRecords`, because the feed,
+      the skip's catch-up, the summary's count, the ban and the two counters on
+      his card are read from one or the other and half of this fix is worse than
+      none. **After the withdrawal minute only**: the caution he actually
+      collected is his, it is the reason the row above it exists, and the ten
+      per cent it cost was paid while he was on the pitch.
+
+      An injured man counts as withdrawn on the same path — `SubMade.offId` is
+      the casualty when the hole is one the sim made — so a substitution covering
+      an injury clears his card list too.
+
+- [x] **And the other door out of the eleven: a casualty the bench cannot
+      cover.** Found while fixing the row above and confirmed to be the same
+      fault, one door along. A substitution goes through `_onSub`; an injury
+      with the changes spent, or with nobody for the square, goes nowhere near
+      it — the sim empties his row, the side plays on with ten, and he was
+      still on the referee's list. A man who limped off in the thirtieth could
+      be sent off in the seventy-sixth, with the ban and the red on his record
+      that go with it.
+
+      `_dropBookingsForInjuriesUpTo` keys off the **`no_sub` marker, not the
+      injury event**. The injury itself is the JS's — a minute, a type and a
+      NAME — and `match_orchestration_parity_test` compares that array field
+      for field, so it cannot be given an instance id. The marker beside it is
+      the port's own: inserted at the same minute for the subs panel to read
+      the vacated square off, and it already carries `instanceId`. Both paths
+      write one, the kickoff sim and the re-sim alike.
+
+      **Up to the clock's minute and no further, which is correctness rather
+      than caution.** A tactic change re-rolls the remainder and can cancel an
+      injury still ahead of it — see `injuryLog` in `reSimulateRemainder` — so
+      pruning off an injury that has not landed yet would delete a card for a
+      man who then plays the whole ninety. It is applied where the withdrawal
+      is: as the clock reaches the injury, and once over the whole ninety at
+      the head of `_catchUpSendingsOff` for a skip, where no tactic change can
+      cancel anything any more.
+
+      **And the merged timeline has to be rebuilt with it**, which is the half
+      that would have made the rest cosmetic: the per-minute dispatch deals the
+      card off `_timeline`, a snapshot, rather than off `_bookings`. A row
+      dropped from the list and left standing in the snapshot is still shown,
+      still empties a square and still writes a ban. `MatchScreenState.timeline`
+      is exposed as a seam so a test can say so directly rather than by
+      coincidence — the first version of the test passed with the rebuild
+      disabled, because a LATER card happened to rebuild it anyway.
 
 ## Open
 

@@ -378,6 +378,13 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
   ({int yellows, int sendOffs}) get oppCards =>
       (yellows: _oppYellows, sendOffs: _oppSendOffs);
 
+  /// The merged feed the per-minute dispatch actually deals off. **A test
+  /// seam**, and a different list from [bookings] in the one way that matters:
+  /// it is a SNAPSHOT taken at every rebuild, so a card dropped from
+  /// [_bookings] and left standing here is still shown, still empties a square
+  /// and still writes a ban. See [_dropBookingsForInjuriesUpTo].
+  List<TimelineEvent> get timeline => _timeline;
+
   late List<TimelineEvent> _timeline = timelineOf(
     widget.result,
     bookings: _bookings,
@@ -912,6 +919,11 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
           }
         case 'injury':
           unawaited(sound.play('injury'));
+          // **AND HE IS OFF THE REFEREE'S LIST FROM HERE**, whether or not the
+          // bench can cover him. See [_dropBookingsForInjuriesUpTo]: it reads
+          // the `no_sub` marker sitting on this same minute, because the injury
+          // event itself is the JS's and carries no instance id.
+          _dropBookingsForInjuriesUpTo(event.minute);
           // Ours only: the opponent's physio is not our problem, and there is
           // no hole in OUR side to cover.
           if (ours) {
@@ -2010,6 +2022,104 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
   /// Slot id → the man the referee took out of it. See [_playerSentOff].
   final Map<String, PitchSlot> _sentOffSlots = <String, PitchSlot>{};
 
+  /// **THE REFEREE CANNOT BOOK A MAN WHO IS SITTING IN THE DUGOUT.**
+  ///
+  /// The cards are minted ONCE, at kickoff, off the eleven that started — see
+  /// [_rollBookings], and that is deliberate: they cannot ride in the pinned
+  /// event stream, so they are decided up front and merged into the timeline as
+  /// the clock reaches them. Nothing then asked whether the man they were
+  /// minted for was still ON. Reported from the couch: a player picked up a
+  /// yellow, was taken off for it, and collected the second one — a sending-off
+  /// — from the bench.
+  ///
+  /// It read as harmless because the visible half was: [_playerSentOff] found
+  /// no slot to empty, so the rating did not move and the side was not a man
+  /// short. The damage was all downstream — `applySuspensions` banned him from
+  /// the next fixture, `recordBookings` put a red on his record beside his
+  /// goals, and the report counted a dismissal that never happened.
+  ///
+  /// So a withdrawal takes his remaining cards off the list. **Off BOTH lists**,
+  /// because they are read by different things and half of this fix is worse
+  /// than none: [_bookings] is the feed, the skip's catch-up, the row the
+  /// summary counts and the ban the whistle writes; [_bookingRecords] is the
+  /// pair of counters that go on his card.
+  ///
+  /// **AFTER [minute] ONLY, and that is the whole of the rule.** A card he
+  /// actually collected is his: the yellow that prompted the change is the
+  /// reason the row above it exists, and the ten per cent it cost was paid
+  /// while he was on the pitch. Only the ones the clock has not reached yet
+  /// belong to a match he is no longer playing in.
+  ///
+  /// Ours only — `team: 'away'` rows are the opposition's synthetic eleven and
+  /// share this screen's list, and no substitution of ours withdraws one of
+  /// theirs.
+  /// Returns whether anything was actually taken off, which is what says the
+  /// timeline has to be rebuilt: [_timeline] is a SNAPSHOT of the merge, and
+  /// the per-minute dispatch reads the card off that rather than off
+  /// [_bookings]. Dropping a row and leaving the old snapshot standing would
+  /// show the card anyway and change nothing but the paperwork.
+  bool _dropBookingsAfter(String instanceId, int minute) {
+    // `_rollBookings` hands back a `const []` for a side with nobody in it, and
+    // `removeWhere` on one of those throws.
+    if (_bookings.isEmpty) return false;
+    final was = _bookings.length;
+    _bookings.removeWhere(
+      (b) =>
+          b['team'] != 'away' &&
+          b['playerInstanceId'] == instanceId &&
+          ((b['minute'] as num?) ?? 0) > minute,
+    );
+    _bookingRecords = [
+      for (final b in _bookingRecords)
+        if (b.instanceId != instanceId || b.minute <= minute) b,
+    ];
+    return _bookings.length != was;
+  }
+
+  /// **AND LIMPING OFF TAKES A MAN OFF THE PITCH JUST AS A SUBSTITUTION DOES.**
+  ///
+  /// The withdrawal above is the manager's decision and arrives through
+  /// [_onSub]; this is the half he never chose. A casualty the bench cannot
+  /// cover — the changes are spent, or there is nobody for the square — leaves
+  /// the side playing on with ten and never goes near `SubMade`, so he was
+  /// still on the referee's list. Same fault as the reported one, same shape,
+  /// different door.
+  ///
+  /// **IT KEYS OFF THE `no_sub` MARKER RATHER THAN THE INJURY EVENT.** The
+  /// injury itself is the JS's — minute, type and a NAME, no instance id —
+  /// and `match_orchestration_parity_test` compares that array field for
+  /// field, so a key cannot be added to it. The marker beside it is the
+  /// PORT'S: it is inserted at the same minute for the subs panel to read the
+  /// vacated square off, and it carries `instanceId`. Both paths make one, the
+  /// kickoff sim and the re-sim alike.
+  ///
+  /// **UP TO [minute] AND NO FURTHER, which is not caution but correctness.**
+  /// The remainder is re-rolled by every tactic change, and an injury still
+  /// ahead of the clock is one of the things a change can cancel — see
+  /// `injuryLog` in `reSimulateRemainder`. Pruning a card off an injury that
+  /// has not happened yet would delete it for a man who then plays the whole
+  /// ninety.
+  ///
+  /// Ours by construction: injuries are drawn from our own squad, and
+  /// [_dropBookingsAfter] refuses the opposition's rows anyway — their marker
+  /// ids are `oppcard-N`, which no card instance can ever be.
+  void _dropBookingsForInjuriesUpTo(int minute) {
+    if (_bookings.isEmpty) return;
+    final raw = widget.result['events'];
+    var dropped = false;
+    for (final e in raw is List ? raw : const []) {
+      if (e is! Map<String, dynamic> || e['type'] != 'no_sub') continue;
+      final at = ((e['minute'] as num?) ?? 0).toInt();
+      if (at > minute) continue;
+      if (e['instanceId'] case final String id) {
+        dropped |= _dropBookingsAfter(id, at);
+      }
+    }
+    if (dropped && mounted) {
+      setState(() => _timeline = timelineOf(widget.result, bookings: _bookings));
+    }
+  }
+
   /// Record a change the panel has already written to the save.
   ///
   /// **What the quests read is stamped here.** `subsUsed` and `subbedOnIds` are
@@ -2024,7 +2134,14 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
     // the casualty rather than null. He must not come back on either, and this
     // is the set that stops it. Still null for a slot that started empty —
     // there is genuinely nobody to remember.
-    if (sub.offId != null) _withdrawn.add(sub.offId!);
+    if (sub.offId != null) {
+      _withdrawn.add(sub.offId!);
+      // **AND THE REFEREE'S LIST GOES WITH HIM.** See [_dropBookingsAfter]:
+      // the cards were minted at kickoff off the eleven that started, and
+      // nothing asked whether the man was still on when the clock reached
+      // them.
+      _dropBookingsAfter(sub.offId!, _minute);
+    }
     widget.result['subsUsed'] = _subsUsed;
     final on = widget.result['subbedOnIds'];
     final onList = on is List ? on : <Object?>[];
@@ -2203,6 +2320,15 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
   /// clock. The ban itself is written separately and was never affected — it
   /// comes off `_bookingRecords` at the whistle.
   void _catchUpSendingsOff() {
+    // **THE CASUALTIES FIRST, because a card is only caught up for a man who
+    // was still on to receive it.** A skip jumps the injuries as well as the
+    // cards, so the withdrawal a watched match applies as the clock reaches it
+    // has to be applied here too — and BEFORE the loop below, or a booking
+    // minted for somebody who limped off in the fortieth would be dealt out
+    // and re-simulated against. Every `no_sub` in the list is an injury that
+    // really happened: no tactic change can cancel one now, which is what lets
+    // this ask about the whole ninety at once.
+    _dropBookingsForInjuriesUpTo(_end);
     // **EVERY CARD, not only the ones that ended somebody's afternoon.** This
     // caught up the sendings-off and nothing else, which was right while a
     // dismissal was the only card that changed anything. It is not any more: a
