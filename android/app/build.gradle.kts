@@ -1,3 +1,4 @@
+import com.google.firebase.crashlytics.buildtools.gradle.CrashlyticsExtension
 import java.util.Properties
 
 plugins {
@@ -93,12 +94,21 @@ android {
                 )
                 signingConfigs.getByName("debug")
             }
+            // A native (engine/GPU-driver) crash previously left no report at
+            // all — only Dart and JVM exceptions were caught.
+            configure<CrashlyticsExtension> {
+                nativeSymbolUploadEnabled = true
+            }
         }
     }
 }
 
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
+    // Same BOM version firebase_core's own gradle.properties pins, so this
+    // doesn't drag in a different Firebase SDK version.
+    implementation(platform("com.google.firebase:firebase-bom:34.17.0"))
+    implementation("com.google.firebase:firebase-crashlytics-ndk")
 }
 
 flutter {
