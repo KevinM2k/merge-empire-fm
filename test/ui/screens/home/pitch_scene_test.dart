@@ -23,11 +23,14 @@ void main() {
     Mood mood = Mood.neutral,
     int tier = 1,
     Brightness brightness = Brightness.dark,
+    Size size = const Size(400, 800),
+    double devicePixelRatio = 1,
   }) => tester.pumpWidget(
     MaterialApp(
       home: MediaQuery(
-        data: const MediaQueryData(
-          size: Size(400, 800),
+        data: MediaQueryData(
+          size: size,
+          devicePixelRatio: devicePixelRatio,
           disableAnimations: true,
         ),
         // An inner `Theme` rather than `MaterialApp.theme`: the app's own is
@@ -167,6 +170,37 @@ void main() {
       await tester.pump(const Duration(seconds: 3));
       expect(standStrips(tester).first.controller.allowSnapshotting, isTrue);
     });
+
+    testWidgets(
+      'and a wide screen at a high pixel ratio never asks for an oversized texture',
+      (tester) async {
+        // The strip's picture is close to a full screen width; on a wide
+        // device at a high ratio that texture can exceed what the GPU will
+        // allocate — reported live as "Failed to rasterize a picture: unable
+        // to create texture render target at specified size 4320x338", a
+        // fatal error `SnapshotMode.permissive` does not catch.
+        await pumpScene(
+          tester,
+          tier: 8,
+          size: const Size(1440, 800),
+          devicePixelRatio: 3,
+        );
+        const maxTextureDimension = 4096.0;
+        final elements = find
+            .descendant(
+              of: find.byKey(const ValueKey('pitch-stand')),
+              matching: find.byType(SnapshotWidget),
+            )
+            .evaluate();
+        expect(elements, isNotEmpty);
+        for (final element in elements) {
+          final ratio = MediaQuery.of(element).devicePixelRatio;
+          final size = (element.renderObject! as RenderBox).size;
+          expect(size.width * ratio, lessThanOrEqualTo(maxTextureDimension));
+          expect(size.height * ratio, lessThanOrEqualTo(maxTextureDimension));
+        }
+      },
+    );
   });
 
   group('THE GROUND IS TIERED, and the port had one ground', () {

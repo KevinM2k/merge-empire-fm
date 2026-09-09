@@ -1,6 +1,4 @@
-Settings reorganised, plus a few polish fixes.
+Fixed a crash on some devices.
 
-• Buttons now ripple and give haptic feedback when tapped.
-• Settings controls have been regrouped for easier navigation.
-• Fixed the home pitch's day/night clock.
-• The full-time report footer now stays pinned to the bottom of the screen instead of floating.
+• Fixed a crash on wide screens with a high pixel density.
+• Improved crash reporting under the hood.

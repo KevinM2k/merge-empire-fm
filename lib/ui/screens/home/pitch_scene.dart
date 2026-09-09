@@ -4755,9 +4755,36 @@ class _StillStripState extends State<_StillStrip> {
   // is one-and-a-bit device pixels and the strip cannot be moved by a whole
   // number of both — the snap in [_Scroller] only holds when a raster pixel
   // IS a device pixel.
-  Widget build(BuildContext context) => SnapshotWidget(
-    controller: _controller,
-    mode: SnapshotMode.permissive,
-    child: RepaintBoundary(child: widget.child),
+  //
+  // **Except when that raster would not fit.** `count * segmentWidth` is a
+  // full screen width plus two segments, and on a wide device at a high
+  // ratio the texture that makes exceeds the GPU's max size — reported live
+  // as `Failed to rasterize a picture: unable to create texture render
+  // target at specified size 4320x338`, a fatal `FlutterError` on the raster
+  // thread that `SnapshotMode.permissive` does not catch (it only covers a
+  // degenerate zero-size child, not a texture the driver refuses). Capped
+  // here to whatever ratio keeps both dimensions under a safe ceiling.
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      final media = MediaQuery.of(context);
+      final dpr = media.devicePixelRatio;
+      const maxTextureDimension = 4096.0;
+      final ceilings = <double>[
+        dpr,
+        if (constraints.maxWidth.isFinite)
+          maxTextureDimension / constraints.maxWidth,
+        if (constraints.maxHeight.isFinite)
+          maxTextureDimension / constraints.maxHeight,
+      ];
+      final safeDpr = ceilings.reduce(math.min).clamp(0.5, dpr);
+      return MediaQuery(
+        data: media.copyWith(devicePixelRatio: safeDpr),
+        child: SnapshotWidget(
+          controller: _controller,
+          mode: SnapshotMode.permissive,
+          child: RepaintBoundary(child: widget.child),
+        ),
+      );
+    },
   );
 }
