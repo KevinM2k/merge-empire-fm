@@ -373,6 +373,46 @@ void main() {
       expect(ear.played, isNot(contains('woodwork')));
       expect(ear.played, isNot(contains('crowdOoh')));
     });
+
+    testWidgets(
+      'A CHANCE WITH NO CUTAWAY IS SILENT, whatever the feed prints',
+      (tester) async {
+        // `playKick()` in the JS lives inside `ChanceCutaway.js` and nowhere
+        // else — a chance the pitch is not retelling is silent in the shipped
+        // game. This used to fire `kick`/`crowdOoh` off the FEED instead, which
+        // is a few minutes looser than the pitch's own gap (`chanceFeedGap` 10
+        // vs `cutawayGapMinutes` 12, both the JS's own) — so a big, on-target
+        // chance for the switched-off side printed a line, with sound, and no
+        // picture. Reported as miss sounds with no 2D pitch to belong to.
+        final save = createDefaultState();
+        (save['settings'] as Map<String, dynamic>)['cutawayOpponent'] = false;
+        final sound = earOn();
+        await pumpMatch(
+          tester,
+          matchResult(
+            events: [
+              {
+                'minute': 22,
+                'type': 'chance',
+                'team': 'away',
+                'xg': 0.5,
+                'shotResult': 'on_target',
+                'big': true,
+              },
+            ],
+          ),
+          save: save,
+          reduceMotion: false,
+          overrides: [soundServiceProvider.overrideWithValue(sound.service)],
+        );
+        final state = stateOf(tester);
+        await tester.pump(minuteDurationFor(22));
+        await tester.pump();
+        expect(state.clipPlaying, isFalse, reason: 'the switch is off');
+        expect(sound.ear.played, isNot(contains('kick')));
+        expect(sound.ear.played, isNot(contains('crowdOoh')));
+      },
+    );
   });
 
   group('THE DUGOUT CAM', () {
@@ -2148,6 +2188,64 @@ void main() {
       expect(state.frame.ourGoals, 1);
       expect(state.frame.theirGoals, 0);
     });
+
+    testWidgets(
+      'AND EVERY CUTAWAY OF OURS ATTACKS THE SAME END, chance or goal',
+      (tester) async {
+        // The engine lists a GOAL ours-first and ROLLS a CHANCE venue-first —
+        // see `eventIsOurs` — so a regression in either reading is invisible
+        // until an away fixture puts both conventions in the same match.
+        // Reported from the couch: an away chance and an away goal, both
+        // ours, played the pitch toward opposite ends — the goal looked like
+        // it had gone into our own net.
+        await pumpMatch(
+          tester,
+          matchResult(
+            isHome: false,
+            events: [
+              // Venue-tagged: `away` is US on the road.
+              {
+                'minute': 10,
+                'type': 'chance',
+                'team': 'away',
+                'shotResult': 'on_target',
+                'big': true,
+              },
+              // NOT venue-tagged: `home` is US regardless of ground.
+              {'minute': 25, 'type': 'goal', 'team': 'home', 'scorer': 'Ada'},
+            ],
+          ),
+          reduceMotion: false,
+        );
+        final state = stateOf(tester);
+
+        await tester.pump(minuteDurationFor(10));
+        await tester.pump();
+        expect(state.clipPlaying, isTrue, reason: 'the chance drew no clip');
+        final chanceRight = tester
+            .widget<CutawayStage>(find.byType(CutawayStage))
+            .clip!
+            .attackingRight;
+        await endClip(tester);
+
+        await tester.pump(minuteDurationFor(15));
+        await tester.pump();
+        expect(state.clipPlaying, isTrue, reason: 'the goal drew no clip');
+        final goalRight = tester
+            .widget<CutawayStage>(find.byType(CutawayStage))
+            .clip!
+            .attackingRight;
+
+        expect(
+          goalRight,
+          chanceRight,
+          reason: 'two chances of ours ran toward different ends',
+        );
+        // The away end specifically: `ourSideLeft` is `isHome`, so we attack
+        // LEFT on the road.
+        expect(chanceRight, isFalse);
+      },
+    );
   });
 
   group('A GOAL IS WATCHED AGAIN ON THE REPORT, NOT IN THE FEED', () {

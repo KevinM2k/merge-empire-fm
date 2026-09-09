@@ -1,0 +1,2 @@
+[] there are sometimes miss sounds that play on the match page but no 2d match popup comes up.
+[]  was away team and a chance cut out came in... where my own team scored in there own goal and it counted as a goal for opposition, we've had this bug before and I thought we had a test for it! fix it and ensure thereare tests to prevent this failing again. I was home and there was a match chance, but my team went towards me... they missed but still... buggy

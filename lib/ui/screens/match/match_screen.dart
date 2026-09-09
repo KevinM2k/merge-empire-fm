@@ -852,30 +852,32 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
 
   /// Whatever landed on this minute, in sound.
   ///
-  /// Read off the timeline rather than off the cutaway, because a chance the 2D
-  /// pitch is not showing — the player has it switched off, or it is the
-  /// opponent's — still happened and still deserves the crowd's reaction.
+  /// A goal is heard even without a clip; a chance is heard ONLY through one.
+  ///
+  /// **THE PITCH IS WHERE A CHANCE'S SOUND LIVES, and nowhere else.** The JS's
+  /// `playKick()` is called from inside `ChanceCutaway.js` itself — there is no
+  /// separate trigger anywhere that fires it off the feed or the raw event —
+  /// so a chance with no cutaway is silent in the shipped game, whether that is
+  /// because the switch is off, it is the opponent's, the gap has not cleared,
+  /// or it was too small to cut to. This method used to fire `kick`/`crowdOoh`
+  /// for every chance the FEED printed, on the reasoning that a line without a
+  /// sound was worse than the reverse. It was the wrong "no action" to gate on:
+  /// the feed prints a chance a few minutes looser than the pitch cuts to one
+  /// (`chanceFeedGap` is 10, `cutawayGapMinutes` is 12, both the JS's own), so a
+  /// chance could clear the feed's pacing and print a line, with a kick and a
+  /// groan, one or two minutes before the pitch's own gap would have allowed a
+  /// picture to go with it. Reported as miss sounds with no 2D pitch to belong
+  /// to — the very thing this method was written to stop, in a new shape.
   ///
   /// **EXCEPT THE ONE THE PITCH IS RETELLING.** That event's shot and crowd ride
   /// the clip's own beats instead — see [_clipStruck] and [_clipVerdict]. This
   /// method fires on the MINUTE TICK, and a passage runs a second or two of
   /// run-ups and passes before anybody shoots, so a goal was heard while the
   /// ball was still in midfield and the net then bulged in silence. The fixed
-  /// 180ms and 200ms gaps below are right for a chance with no clip, where there
-  /// is no picture to be late for; they were never a flight time.
+  /// 180ms gap below is right for a GOAL with no clip, where there is no
+  /// picture to be late for; it was never a flight time.
   void _soundFor(int minute) {
     final sound = ref.read(soundServiceProvider);
-    // The chances the feed will actually print, up to and including this
-    // minute — the same window the screen is drawing. The gap filter counts
-    // from the last SHOWN chance, so it has to be run over the run of events
-    // rather than asked about one. See [feedChanceMinutes].
-    final heard = feedChanceMinutes(
-      [
-        for (final e in _timeline)
-          if (e.minute <= minute) e,
-      ],
-      clippedChanceKeys: _clippedChanceKeys,
-    );
     for (final event in _timeline) {
       if (event.minute != minute) continue;
       // The clip will play this one's shot when it takes it.
@@ -897,26 +899,10 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
             () => unawaited(sound.play(ours ? 'goal' : 'goalAgainst')),
           );
         case 'chance':
-          // **AND ONLY IF THE PLAYER IS SHOWN IT.** The feed prints three or
-          // four of a match's thirteen chances — big, on target, and clear of
-          // the last one — and this fired on all thirteen, so nine or ten kicks
-          // a match landed with nothing on screen to belong to, half of them
-          // with the crowd's groan behind them. Reported as miss noises with no
-          // action, and the report states the rule: if no action, no noise.
-          // See [feedChanceMinutes], which asks the feed rather than repeating
-          // its arithmetic.
-          if (!heard.contains(event.minute)) break;
-          unawaited(sound.play('kick'));
-          // A chance that hit the target and stayed out is the one the crowd
-          // reacts to; a wild one off target is not worth a sound. **The crowd,
-          // not the post**: nothing on this path was shown hitting anything,
-          // and `woodwork` played for every one of their saves.
-          if (event.shotResult == 'on_target') {
-            _cue(
-              const Duration(milliseconds: 200),
-              () => unawaited(sound.play('crowdOoh')),
-            );
-          }
+          // Silent, by design: this event was not `_clippedEvent` above, so no
+          // cutaway is retelling it, and a chance's sound lives ONLY on the
+          // pitch — see this method's own doc comment.
+          break;
         case 'injury':
           unawaited(sound.play('injury'));
           // **AND HE IS OFF THE REFEREE'S LIST FROM HERE**, whether or not the
