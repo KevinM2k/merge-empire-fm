@@ -9,7 +9,9 @@ library;
 
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:in_app_purchase/in_app_purchase.dart' show InAppPurchase;
 import 'package:in_app_purchase_platform_interface/in_app_purchase_platform_interface.dart';
 import 'package:merge_empire_fc/engine/iap_billing_policy.dart';
 import 'package:merge_empire_fc/services/iap_billing.dart';
@@ -87,6 +89,24 @@ PurchaseDetails _purchase(
 
 void main() {
   late _FakePlatform platform;
+
+  setUpAll(() {
+    // `InAppPurchase.instance` registers a REAL platform-specific plugin the
+    // FIRST time it is ever touched in the process, as a side effect of the
+    // getter — `wireNativeBilling` calls it to build `_LiveStore`, and
+    // without this that registration would run against whatever fake a test
+    // below has set, overwriting it (and, on Android, trying to open a real
+    // billing connection that throws later, off a test that already
+    // finished). Spent here once, under a target platform neither the
+    // Android nor iOS/macOS branch recognises, so nothing real registers and
+    // the only thing cached is the (stateless) wrapper — every later
+    // `InAppPurchase.instance` call, from any test, just returns it without
+    // touching the platform singleton again.
+    final original = debugDefaultTargetPlatformOverride;
+    debugDefaultTargetPlatformOverride = TargetPlatform.fuchsia;
+    InAppPurchase.instance;
+    debugDefaultTargetPlatformOverride = original;
+  });
 
   setUp(() {
     platform = _FakePlatform();

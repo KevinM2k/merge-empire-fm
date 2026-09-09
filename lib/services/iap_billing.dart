@@ -27,8 +27,6 @@ library;
 import 'dart:async';
 
 import 'package:in_app_purchase/in_app_purchase.dart';
-import 'package:in_app_purchase_platform_interface/in_app_purchase_platform_interface.dart'
-    show InAppPurchasePlatform;
 import 'package:merge_empire_fc/engine/iap_billing_policy.dart';
 
 /// What the store has told us about, keyed by SKU — or **null when billing is
@@ -134,15 +132,7 @@ Future<Set<String>> restoreOwnedSkus() async {
 class _LiveStore {
   _LiveStore(this._plugin, {this.onUnclaimed});
 
-  // **THE RAW PLATFORM, not the `InAppPurchase` wrapper.** The wrapper's own
-  // `.instance` getter registers the real platform as a SIDE EFFECT of being
-  // read for the first time in the process — fine at boot, but it means the
-  // only way to test this class was to let that registration run first and
-  // then hope nothing else touched `.instance` again. Every method this class
-  // calls is on `InAppPurchasePlatform` too, already registered by Flutter's
-  // own plugin bootstrap before any app code runs, so reading the interface
-  // directly changes nothing at runtime and needs no such trick in a test.
-  final InAppPurchasePlatform _plugin;
+  final InAppPurchase _plugin;
 
   /// A purchase that arrived with nobody in [_waiting] for it — a session
   /// that died mid-payment gets it redelivered on the next launch, once
@@ -341,7 +331,7 @@ void wireNativeBilling(
   void Function(String storeSku, {required bool isRestore})? onUnclaimedPurchase,
 }) {
   final store = _live ??= _LiveStore(
-    InAppPurchasePlatform.instance,
+    InAppPurchase.instance,
     onUnclaimed: onUnclaimedPurchase,
   );
   iapBillingSource = () => store.catalogue(skus);
