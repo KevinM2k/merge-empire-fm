@@ -102,10 +102,13 @@ class ArtImage extends StatelessWidget {
       alignment: alignment,
       width: width,
       height: height,
-      cacheWidth: want == null ? null : (want * dpr).round().clamp(1, 2048),
+      // Floor of 64, not 1: dart:ui derives the other side with `~/`, so a
+      // 1px hint on the 1024x572 stadium is a 1x0 decode. Skia refuses it;
+      // Impeller blits into a 1x0 texture, fatal on some GLES drivers.
+      cacheWidth: want == null ? null : (want * dpr).round().clamp(64, 2048),
       cacheHeight: want != null || tall == null
           ? null
-          : (tall * dpr).round().clamp(1, 2048),
+          : (tall * dpr).round().clamp(64, 2048),
       filterQuality: FilterQuality.medium,
       errorBuilder: (_, _, _) =>
           SizedBox(width: width, height: height, child: fallback),
