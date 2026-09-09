@@ -1,6 +1,4 @@
-Fixed a crash on some devices, and made purchases more reliable.
+Fixed a crash on image loading and improved crash reporting.
 
-• Fixed a crash on wide screens with a high pixel density.
-• Fixed a rare case where a completed purchase could go undelivered.
-• Match sounds now always match what plays out on the pitch.
-• Improved crash reporting under the hood.
+• Fixed a crash on some devices during startup.
+• Improved crash reporting to help us fix issues faster.
