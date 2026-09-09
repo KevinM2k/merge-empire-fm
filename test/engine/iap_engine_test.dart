@@ -10,6 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:merge_empire_fc/engine/gem_engine.dart';
 import 'package:merge_empire_fc/engine/iap_engine.dart';
 import 'package:merge_empire_fc/data/manager_looks.dart';
+import 'package:merge_empire_fc/util/analytics.dart';
 import 'package:merge_empire_fc/util/event_bus.dart';
 import 'package:merge_empire_fc/util/time.dart';
 
@@ -202,6 +203,41 @@ void main() {
       expect(() => purchaseProduct(state, 'coins_small'), returnsNormally);
       expect(_coins(state), 5000);
       expect((state['shop'] as Map)['totalSpent'], 0.99);
+    });
+
+    test('a restored entitlement is not counted as new spend', () {
+      // `restorePurchases` re-applies an owned non-consumable's grant with no
+      // payment behind it — see `logPurchase` on `purchaseProduct` — so it must
+      // not inflate the lifetime total the way a real sale does.
+      final state = _state();
+      purchaseProduct(state, 'style_vault', logPurchase: false);
+      expect((state['shop'] as Map)['totalSpent'], isNull);
+    });
+  });
+
+  group('purchase analytics', () {
+    setUp(() => setAnalyticsSink(null));
+    tearDown(() => setAnalyticsSink(null));
+
+    test('a real purchase logs iap_purchase', () {
+      final events = <(String, Map<String, Object?>)>[];
+      setAnalyticsSink((name, params) => events.add((name, params)));
+      final state = _state();
+      purchaseProduct(state, 'style_vault');
+      expect(events.map((e) => e.$1), contains('iap_purchase'));
+    });
+
+    test('a RESTORE never logs iap_purchase', () {
+      // The event this gates is the analytics half of the same divergence:
+      // the port grants a restored entitlement where the JS's restore is a
+      // no-op, and doing that must not also report a sale nobody made — see
+      // `purchaseProduct`'s `logPurchase`. Reported live: `iap_purchase`
+      // events with no matching revenue, traced to every restore re-firing it.
+      final events = <(String, Map<String, Object?>)>[];
+      setAnalyticsSink((name, params) => events.add((name, params)));
+      final state = _state();
+      purchaseProduct(state, 'style_vault', logPurchase: false);
+      expect(events.map((e) => e.$1), isNot(contains('iap_purchase')));
     });
   });
 

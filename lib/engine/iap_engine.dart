@@ -411,7 +411,22 @@ typedef PurchaseResult = ({bool ok, String? reason, IapProduct? product});
 /// This is the reward step, not the payment step: it runs synchronously once
 /// native billing has completed, and directly with no payment on a dev build. The
 /// payment half is M4.
-PurchaseResult purchaseProduct(Map<String, dynamic> state, String? productId) {
+///
+/// [logPurchase] gates the `iap_purchase` analytics event, not the grant.
+/// `restorePurchases` reuses this to re-apply a non-consumable's entitlement
+/// without a NEW payment behind it — the JS's own restore never re-grants at
+/// all (`store.restorePurchases()` fires `.verified()` only when a `buy()` is
+/// pending, so a restore that matches nothing waiting does nothing), and the
+/// port's version of actually restoring the entitlement is worth keeping. But
+/// logging the same event a real purchase does made every restore look like a
+/// fresh sale — `price_value` and all — with no payment behind it, live in the
+/// funnel as "someone paid" for a re-install granting back what was already
+/// bought once.
+PurchaseResult purchaseProduct(
+  Map<String, dynamic> state,
+  String? productId, {
+  bool logPurchase = true,
+}) {
   final product = getProduct(productId);
   if (product == null) {
     return (ok: false, reason: 'unknown_product', product: null);
@@ -511,7 +526,11 @@ PurchaseResult purchaseProduct(Map<String, dynamic> state, String? productId) {
     }
   }
 
-  shop['totalSpent'] = (_num(shop['totalSpent']) ?? 0) + product.priceValue;
+  // A restore is not a new payment — see [logPurchase] — so it must not
+  // inflate lifetime spend for an entitlement the player already paid for.
+  if (logPurchase) {
+    shop['totalSpent'] = (_num(shop['totalSpent']) ?? 0) + product.priceValue;
+  }
 
   emit('coins:updated', resources['fanCoins']);
   if (product.energy != null || product.energyAdd != null) {
@@ -519,14 +538,16 @@ PurchaseResult purchaseProduct(Map<String, dynamic> state, String? productId) {
   }
   emit('purchase:complete', {'product': product.id});
 
-  logAppEvent('iap_purchase', {
-    'product_id': productId,
-    'price_value': product.priceValue,
-    'currency': 'GBP',
-    'one_time': product.oneTime,
-    'division':
-        _map(state['progression'])?['currentDivision'] ?? 'unknown',
-  });
+  if (logPurchase) {
+    logAppEvent('iap_purchase', {
+      'product_id': productId,
+      'price_value': product.priceValue,
+      'currency': 'GBP',
+      'one_time': product.oneTime,
+      'division':
+          _map(state['progression'])?['currentDivision'] ?? 'unknown',
+    });
+  }
 
   return (ok: true, reason: null, product: product);
 }

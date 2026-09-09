@@ -15,6 +15,7 @@ import 'package:merge_empire_fc/engine/iap_engine.dart';
 import 'package:merge_empire_fc/services/iap_billing.dart';
 import 'package:merge_empire_fc/services/iap_purchase.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
+import 'package:merge_empire_fc/util/analytics.dart';
 import 'package:merge_empire_fc/util/time.dart';
 
 late List<({String sku, bool nonConsumable})> bought;
@@ -314,6 +315,21 @@ void main() {
         (state['shop'] as Map<String, dynamic>)['purchasedIds'],
         ['style_vault'],
       );
+    });
+
+    test('grants the entitlement but reports no sale', () async {
+      // A restore has no payment behind it; logging `iap_purchase` for one
+      // put a re-install's grant into the funnel as a fresh sale — reported
+      // live as `iap_purchase` events with no matching revenue.
+      final vault = getProduct('style_vault')!;
+      iapRestoreSource = () async => {vault.sku};
+      final state = createDefaultState();
+      final events = <(String, Map<String, Object?>)>[];
+      setAnalyticsSink((name, params) => events.add((name, params)));
+      addTearDown(() => setAnalyticsSink(null));
+      final result = await restorePurchases(state, mutatorFor(state));
+      expect(result.granted, ['style_vault']);
+      expect(events.map((e) => e.$1), isNot(contains('iap_purchase')));
     });
   });
 }

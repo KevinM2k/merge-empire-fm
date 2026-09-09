@@ -155,7 +155,11 @@ Future<RestoreResult> restorePurchases(
     final shop = state['shop'];
     final already = shop is Map<String, dynamic> ? shop['purchasedIds'] : null;
     if (already is List && already.contains(product.id)) continue;
-    final result = mutate((s) => purchaseProduct(s, product.id));
+    // Not a new payment — see `purchaseProduct`'s `logPurchase` — so it must
+    // not fire the same `iap_purchase` analytics a real sale does.
+    final result = mutate(
+      (s) => purchaseProduct(s, product.id, logPurchase: false),
+    );
     if (result.ok) granted.add(product.id);
   }
   return (restored: owned, granted: granted);
