@@ -127,7 +127,27 @@ class _GameHostState extends ConsumerState<GameHost>
     // redelivering from a session that died mid-payment, and a subscription
     // opened per tap would miss the second kind entirely. Which is how a
     // paid-for pack goes missing.
-    wireNativeBilling({for (final product in products) product.sku});
+    //
+    // **AND A REDELIVERY IS GRANTED, not just acknowledged.** Nobody is
+    // waiting on the Completer `buy` used last session — that future is long
+    // gone — so without this the store was told the purchase was delivered
+    // and the save never heard about it. Unrecoverable for a consumable:
+    // `restorePurchases` only ever asks the store about non-consumables.
+    // `isRestore` is the store's OWN "you already own this", so it is granted
+    // without being logged as a new sale — the same rule `restorePurchases`
+    // applies to its own restore.
+    wireNativeBilling(
+      {for (final product in products) product.sku},
+      onUnclaimedPurchase: (storeSku, {required isRestore}) {
+        final product = products
+            .where((p) => p.sku == storeSku)
+            .firstOrNull;
+        if (product == null) return;
+        _runner.game.update(
+          (s) => purchaseProduct(s, product.id, logPurchase: !isRestore),
+        );
+      },
+    );
     unawaited(storeCatalogue());
     // **THE LEADERBOARD LISTENS FROM HERE, not from `game_wiring`.** That file
     // is bus listeners that change the SAVE and nothing else, and this one

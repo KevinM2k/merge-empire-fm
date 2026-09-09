@@ -75,6 +75,9 @@ dependencies:
   sign_in_with_apple: ^7.0.1
   crypto: ^3.0.7 # the SHA-256 Apple's nonce is hashed with
   in_app_purchase: ^3.3.0 # engine/iapClient.js — cordova-plugin-purchase
+  # `_LiveStore` reads this directly rather than the `InAppPurchase` wrapper —
+  # see services/iap_billing.dart — so it isn't only pulled in transitively.
+  in_app_purchase_platform_interface: ^1.4.1
   # utils/analytics.js — @capacitor-firebase/analytics and /crashlytics. The one
   # place the port DOES take the Firebase SDK: a crash reporter has to be native
   # (it catches the process dying), and analytics has no REST route without a

@@ -27,6 +27,8 @@ library;
 import 'dart:async';
 
 import 'package:in_app_purchase/in_app_purchase.dart';
+import 'package:in_app_purchase_platform_interface/in_app_purchase_platform_interface.dart'
+    show InAppPurchasePlatform;
 import 'package:merge_empire_fc/engine/iap_billing_policy.dart';
 
 /// What the store has told us about, keyed by SKU — or **null when billing is
@@ -60,11 +62,16 @@ Future<PurchaseOutcome> _noPurchase(String sku, {required bool nonConsumable}) a
 Future<Set<String>> _noRestore() async => const {};
 
 /// Put them back. For tests.
+///
+/// Clears [_live] too, not just the seams: `wireNativeBilling` only ever
+/// builds one `_LiveStore` (`??=`) and a test that wires a fresh fake platform
+/// without this would hand it a store still listening on the OLD one.
 void resetIapBillingSource() {
   iapBillingSource = _noStore;
   iapPurchaseSource = _noPurchase;
   iapRestoreSource = _noRestore;
   forgetStoreCatalogue();
+  _live = null;
 }
 
 /// What the store knows, or null. Cached for the process: a store's catalogue
@@ -125,9 +132,25 @@ Future<Set<String>> restoreOwnedSkus() async {
 /// subscription opened per tap would miss the second kind entirely, which is
 /// how a paid-for pack goes missing.
 class _LiveStore {
-  _LiveStore(this._plugin);
+  _LiveStore(this._plugin, {this.onUnclaimed});
 
-  final InAppPurchase _plugin;
+  // **THE RAW PLATFORM, not the `InAppPurchase` wrapper.** The wrapper's own
+  // `.instance` getter registers the real platform as a SIDE EFFECT of being
+  // read for the first time in the process — fine at boot, but it means the
+  // only way to test this class was to let that registration run first and
+  // then hope nothing else touched `.instance` again. Every method this class
+  // calls is on `InAppPurchasePlatform` too, already registered by Flutter's
+  // own plugin bootstrap before any app code runs, so reading the interface
+  // directly changes nothing at runtime and needs no such trick in a test.
+  final InAppPurchasePlatform _plugin;
+
+  /// A purchase that arrived with nobody in [_waiting] for it — a session
+  /// that died mid-payment gets it redelivered on the next launch, once
+  /// `buy`'s own Completer is long gone. [isRestore] is true for
+  /// `PurchaseStatus.restored`, the store's own "you already own this", so the
+  /// caller can grant it without logging it as a new sale — the same
+  /// distinction `restorePurchases` draws for its own restore.
+  final void Function(String storeSku, {required bool isRestore})? onUnclaimed;
 
   StreamSubscription<List<PurchaseDetails>>? _listener;
 
@@ -159,13 +182,30 @@ class _LiveStore {
     for (final purchase in purchases) {
       switch (purchase.status) {
         case PurchaseStatus.pending:
-          // Still with the store — a slow card, or a parental approval. There
-          // is nothing to answer yet.
+          // Still with the store — a slow card, a cash payment, Ask to Buy,
+          // which can run for days. Left unsettled, the waiting caller hung
+          // forever and the SKU's slot in `_waiting` was never freed, so a
+          // retry answered `alreadyInFlight` for the rest of the session.
+          // Settled as a failure now instead; if the store resolves it for
+          // real later, that purchase arrives with nobody waiting for it any
+          // more and is caught by [onUnclaimed] below, same as a redelivery.
+          _settle(purchase.productID, purchaseFailed(PurchaseFailure.paymentFailed));
           continue;
         case PurchaseStatus.purchased:
         case PurchaseStatus.restored:
           _restoring?.add(purchase.productID);
-          _settle(purchase.productID, purchaseSucceeded);
+          if (!_settle(purchase.productID, purchaseSucceeded)) {
+            // Nobody was waiting — a redelivery, or the late resolution of a
+            // `pending` this store already settled as failed above. Handing
+            // it to `_settle` alone would complete a Completer nobody reads
+            // and the grant would be lost for good: `completePurchase` below
+            // still runs, and a consumable it acknowledges with no grant
+            // behind it can never be redelivered again.
+            onUnclaimed?.call(
+              purchase.productID,
+              isRestore: purchase.status == PurchaseStatus.restored,
+            );
+          }
         case PurchaseStatus.canceled:
           _settle(purchase.productID, purchaseFailed(PurchaseFailure.cancelled));
         case PurchaseStatus.error:
@@ -186,11 +226,25 @@ class _LiveStore {
         await _plugin.completePurchase(purchase);
       }
     }
+    // **THE PLUGIN GIVES NO "RESTORE FINISHED" SIGNAL OF ITS OWN** — see
+    // `restore`'s own note — so a restore in progress that has heard from the
+    // store AT ALL is the closest thing to one: in practice every owned SKU
+    // arrives in one batch to this same callback. Completing here turns
+    // "always wait the full 4 seconds" into "usually return the moment the
+    // store answers", while an account that owns nothing still falls back to
+    // `restore`'s own timeout, because this callback is never reached for it.
+    if (_restoring != null && purchases.isNotEmpty) {
+      final done = _restoreDone;
+      if (done != null && !done.isCompleted) done.complete();
+    }
   }
 
-  void _settle(String productId, PurchaseOutcome outcome) {
+  /// Settle the buy waiting on [productId], if one is. True when one was.
+  bool _settle(String productId, PurchaseOutcome outcome) {
     final pending = _waiting.remove(productId);
-    if (pending != null && !pending.isCompleted) pending.complete(outcome);
+    if (pending == null) return false;
+    if (!pending.isCompleted) pending.complete(outcome);
+    return true;
   }
 
   Future<StoreCatalogue> catalogue(Set<String> skus) async {
@@ -277,8 +331,19 @@ _LiveStore? _live;
 ///
 /// Called once at boot with the SKUs this build knows. Separate from the file's
 /// own state so that importing it does not start a plugin.
-void wireNativeBilling(Set<String> skus) {
-  final store = _live ??= _LiveStore(InAppPurchase.instance);
+///
+/// [onUnclaimedPurchase] is where a redelivered or late-resolved purchase with
+/// nobody waiting for it is granted — see `_LiveStore.onUnclaimed`. Optional
+/// because this file does not import the engine that would apply a grant;
+/// the caller wires one against its own save.
+void wireNativeBilling(
+  Set<String> skus, {
+  void Function(String storeSku, {required bool isRestore})? onUnclaimedPurchase,
+}) {
+  final store = _live ??= _LiveStore(
+    InAppPurchasePlatform.instance,
+    onUnclaimed: onUnclaimedPurchase,
+  );
   iapBillingSource = () => store.catalogue(skus);
   iapPurchaseSource = store.buy;
   iapRestoreSource = store.restore;
