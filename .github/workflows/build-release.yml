@@ -96,8 +96,13 @@ jobs:
 
       - name: Build App Bundle and APK
         run: |
-          flutter build appbundle --release
-          flutter build apk --release
+          flutter build appbundle --release --split-debug-info=build/symbols
+          flutter build apk --release --split-debug-info=build/symbols
+
+      # Not a dependency of assemble/bundleRelease — nothing ran it, hence "Missing Build ID".
+      - name: Upload native symbols to Crashlytics
+        working-directory: android
+        run: ./gradlew :app:uploadCrashlyticsSymbolFileRelease
 
       # Play rejects native libs not 16 KB-aligned; catch a regressed dependency here.
       - name: Verify 16 KB ELF alignment of native libs
@@ -157,6 +162,12 @@ jobs:
           path: |
             build/app/outputs/bundle/release/*.aab
             build/app/outputs/flutter-apk/*.apk
+
+      # For `flutter symbolize` on a libapp.so frame; Crashlytics does not read these.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dart-symbols-${{ steps.version.outputs.version }}
+          path: build/symbols
 
       # Lets a moved tag re-run without colliding with an existing release.
       - name: Check existing GitHub Release
