@@ -273,6 +273,8 @@ SeasonOutcome endSeason(Map<String, dynamic> state) {
     'payout': payout,
   });
   prog['lastSeasonPayout'] = payout;
+  // A new season's payout has not been doubled yet — see [grantSeasonDouble].
+  prog['lastSeasonDoubled'] = false;
 
   // A league title is going up — a top-two finish in the division — OR winning
   // the top flight, which cannot go up.
@@ -384,6 +386,41 @@ SeasonOutcome endSeason(Map<String, dynamic> state) {
   });
 
   return result;
+}
+
+/// What the season summary's rewarded video is worth, and zero when there is
+/// no offer to make. The screen warms the ad on this and hides the button on
+/// it, so the two can never disagree.
+int seasonDoubleOffer(Map<String, dynamic>? state) {
+  final prog = state?['progression'];
+  if (prog is! Map<String, dynamic> || prog['lastSeasonDoubled'] == true) {
+    return 0;
+  }
+  return math.max(0, (_num(prog['lastSeasonPayout']) ?? 0).toInt());
+}
+
+/// Pay the season payout a SECOND time, for the video on the season summary.
+///
+/// **The JS doubles a payout nobody has been given yet and this cannot.**
+/// `LeagueScreen.js` holds a projected figure, offers the video against it and
+/// banks `payout * 2` on continue; here `runSeasonEnd` calls [endSeason] before
+/// the screen exists, because the screen is built out of what it returns. So
+/// the offer pays the half still owed rather than doubling a pending figure —
+/// identical from the player's seat, and the divergence stays on the screen
+/// the way CLAUDE.md asks.
+///
+/// Guarded by `lastSeasonDoubled` rather than trusting the caller: the summary
+/// is a route that survives a rebuild, and a second grant is a free season's
+/// pay. Returns what was actually paid, so zero means the offer was already
+/// taken.
+int grantSeasonDouble(Map<String, dynamic> state) {
+  final payout = seasonDoubleOffer(state);
+  if (payout <= 0) return 0;
+  _branch(state, 'progression')['lastSeasonDoubled'] = true;
+  final resources = _branch(state, 'resources');
+  resources['fanCoins'] = (_num(resources['fanCoins']) ?? 0) + payout;
+  emit('coins:updated', resources['fanCoins']);
+  return payout;
 }
 
 /// Who came up, who went down and who lifted the title — stamped now so the

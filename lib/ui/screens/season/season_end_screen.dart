@@ -19,9 +19,12 @@ import 'package:merge_empire_fc/data/divisions.dart';
 import 'package:merge_empire_fc/engine/season_end.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
+import 'package:merge_empire_fc/services/rewarded_ads.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/report_scroll.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
+import 'package:merge_empire_fc/ui/widgets/store_button.dart';
+import 'package:merge_empire_fc/util/event_bus.dart';
 import 'package:merge_empire_fc/util/format.dart';
 
 /// Is the season over and waiting to be closed?
@@ -29,6 +32,11 @@ final seasonCompleteProvider = savePick<bool>((s) {
   final prog = s['progression'];
   return prog is Map<String, dynamic> && prog['seasonComplete'] == true;
 });
+
+/// The placement the season summary's video spends. A key from `ad_units.dart`,
+/// and it had no caller: the unit was declared in both stores and nothing in
+/// `lib/` ever asked for the video. `LeagueScreen.js:3592` is the spec.
+const String doubleSeasonPlacement = 'double_season';
 
 final seasonJustEndedProvider = savePick<int>((s) {
   final prog = s['progression'];
@@ -47,6 +55,7 @@ class SeasonEndScreen extends ConsumerStatefulWidget {
     this.cup,
     this.finalTable = const [],
     this.quests = const [],
+    this.doubleOffer = 0,
     this.onContinue,
   });
 
@@ -80,6 +89,15 @@ class SeasonEndScreen extends ConsumerStatefulWidget {
   /// The season that just finished, captured BEFORE `endSeason` rolled it on.
   final int seasonNumber;
 
+  /// What the rewarded video on this page is worth, or zero for no offer.
+  ///
+  /// **Handed in rather than read off the save**, like the record and the
+  /// winner above and for the same reason as the ad it belongs to: the caller
+  /// is where the save is, and [runSeasonEnd] warms the video off this exact
+  /// figure at the moment it pushes the route. A page that read it itself
+  /// would ask the same question twice and could answer it differently.
+  final int doubleOffer;
+
   final VoidCallback? onContinue;
 
   @override
@@ -92,6 +110,24 @@ class _SeasonEndScreenState extends ConsumerState<SeasonEndScreen> {
   /// table is there for the one who wants to check the club below them. The JS
   /// folds it the same way.
   bool _tableOpen = false;
+
+  /// Taken, and the prize line says so.
+  bool _doubled = false;
+
+  /// Take the video, and pay the half still owed.
+  Future<void> _double() async {
+    final outcome = await watchRewardedAd(ref, doubleSeasonPlacement);
+    if (!mounted) return;
+    if (outcome == AdOutcome.unavailable) {
+      emit('toast:info', t('toast.ad_unavailable'));
+      return;
+    }
+    // Backing out is a choice, not a fault: the offer stays where it was.
+    if (outcome != AdOutcome.rewarded) return;
+    final paid = ref.read(gameProvider).update(grantSeasonDouble);
+    if (!mounted || paid <= 0) return;
+    setState(() => _doubled = true);
+  }
 
   /// The league you have just moved into, in the player's own language.
   ///
@@ -236,7 +272,16 @@ class _SeasonEndScreenState extends ConsumerState<SeasonEndScreen> {
                           children: [
                             _Line(
                               label: t('season.end.prize_label'),
-                              value: formatCoins(widget.outcome.payout),
+                              // **THE LINE IS THE RECEIPT.** Doubling pays a
+                              // second `payout` into the bank and nothing else
+                              // on this page moves, so without this the player
+                              // watches a video and the figure they were
+                              // doubling sits there unchanged.
+                              value: formatCoins(
+                                _doubled
+                                    ? widget.outcome.payout * 2
+                                    : widget.outcome.payout,
+                              ),
                               valueKey: 'season-end-payout',
                             ),
                             if (widget.outcome.gemsAwarded > 0)
@@ -248,6 +293,25 @@ class _SeasonEndScreenState extends ConsumerState<SeasonEndScreen> {
                           ],
                         ),
                       ),
+                      // **THE VIDEO, above Continue rather than beside it.**
+                      // The two are not alternatives the way the energy
+                      // sheet's are — one collects and one is the way off the
+                      // page — so stacking keeps Continue where it has always
+                      // been and puts the offer in front of it. Gone once
+                      // taken, because a page that stays up after the grant
+                      // would otherwise show a button that pays nothing.
+                      if (widget.doubleOffer > 0 && !_doubled) ...[
+                        const SizedBox(height: 8),
+                        StoreButton(
+                          key: const ValueKey('season-end-double'),
+                          tone: StoreTone.ad,
+                          label:
+                              '${t('match.double_reward')} → '
+                              '${formatCoins(widget.doubleOffer * 2)}',
+                          leading: const GameIcon('video', size: 14),
+                          onTap: _double,
+                        ),
+                      ],
                       const SizedBox(height: 8),
                       ElevatedButton(
                         key: const ValueKey('season-end-continue'),

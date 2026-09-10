@@ -14,6 +14,8 @@ import 'package:merge_empire_fc/state/game_state.dart';
 import 'package:merge_empire_fc/state/save_slots.dart';
 import 'package:merge_empire_fc/state/save_store.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
+import 'package:merge_empire_fc/ui/popups/energy_sheet.dart'
+    show energyPlacement;
 import 'package:merge_empire_fc/ui/screens/shop/shop_copy.dart' show gemItemDesc;
 import 'package:merge_empire_fc/ui/shell/app_shell.dart';
 import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
@@ -24,6 +26,7 @@ import 'package:merge_empire_fc/util/time.dart';
 /// An SDK that always pays out, so the wiring is what is under test.
 class PayingAds implements RewardedAds {
   final List<String> shown = [];
+  final List<String> prepared = [];
 
   @override
   Future<AdOutcome> show(String placement) async {
@@ -36,7 +39,7 @@ class PayingAds implements RewardedAds {
   }
 
   @override
-  void prepare(String placement) {}
+  void prepare(String placement) => prepared.add(placement);
 
 
   @override
@@ -333,4 +336,35 @@ void main() {
     await tester.pump(const Duration(milliseconds: saveDebounceMs + 100));
   });
 
+
+  group('the video is warmed as the sheet goes up', () {
+    testWidgets('opening it with room in the tank warms one', (tester) async {
+      // The sheet is several seconds of reading before the button, and both
+      // doors into it are opened by a player who wants energy.
+      final ads = PayingAds();
+      await pumpShell(tester, energy: 4, ads: ads);
+      expect(ads.prepared, isEmpty);
+
+      await tester.tap(find.byKey(const ValueKey('hud-energy-plus')));
+      await tester.pumpAndSettle();
+
+      expect(ads.prepared, [energyPlacement]);
+    });
+
+    testWidgets('and a FULL tank warms nothing', (tester) async {
+      // The ad row is dead with a full tank — nothing to top up — and the app
+      // has ONE warm slot (`admob_ads.dart`), so warming here would take it
+      // off a placement the player can actually reach.
+      final ads = PayingAds();
+      await pumpShell(tester, energy: 999, ads: ads);
+
+      await tester.tap(find.byKey(const ValueKey('hud-energy-plus')));
+      await tester.pumpAndSettle();
+
+      expect(ads.prepared, isEmpty);
+      // And the sheet says so where the offer would have been, so the
+      // warm-up and the control agree about there being nothing to add to.
+      expect(find.text(t('hud.energy_full')), findsWidgets);
+    });
+  });
 }

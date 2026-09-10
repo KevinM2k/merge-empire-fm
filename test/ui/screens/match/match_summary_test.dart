@@ -1248,5 +1248,64 @@ group('a tie decided on penalties', () {
     });
   });
 
+  group('the offer and the warm-up ask the SAME question', () {
+    // They did not, and both answers were wrong. `initState` warmed on
+    // `_base > 0` — the match FEE alone — while the button draws on
+    // `_base + _quests > 0 && tutorialFinished`. With ONE warm ad for the
+    // whole app (`admob_ads.dart`) each disagreement costs a real placement:
+    // a warm-up with no button takes the slot off whatever the player reached
+    // next, and a button with no warm-up makes the tap pay the full load.
+    testWidgets('an ordinary paying match warms one', (tester) async {
+      final ads = FakeAds(AdOutcome.rewarded);
+      await pumpSummary(tester, result(coins: 500), ads: ads);
+      expect(find.byKey(const ValueKey('summary-double')), findsOneWidget);
+      expect(ads.prepared, 1);
+    });
 
+    testWidgets('THE TUTORIAL MATCH WARMS NOTHING', (tester) async {
+      // It drew no button and warmed an ad anyway.
+      final ads = FakeAds(AdOutcome.rewarded);
+      await pumpSummary(
+        tester,
+        result(coins: 500),
+        ads: ads,
+        tutorial: true,
+      );
+      expect(find.byKey(const ValueKey('summary-double')), findsNothing);
+      expect(ads.prepared, 0);
+    });
+
+    testWidgets('AND A QUESTS-ONLY MATCH WARMS ONE', (tester) async {
+      // No fee and 120 in quest money: the offer is about the whole figure, so
+      // the button is there — and the old `_base > 0` warmed nothing for it.
+      final ads = FakeAds(AdOutcome.rewarded);
+      await pumpSummary(
+        tester,
+        result(
+          coins: 0,
+          questResults: [
+            {
+              'id': 'match_clean_sheet',
+              'icon': '🧱',
+              'target': 1,
+              'passed': true,
+              'coins': 120,
+            },
+          ],
+        ),
+        ads: ads,
+      );
+      expect(find.byKey(const ValueKey('summary-double')), findsOneWidget);
+      expect(ads.prepared, 1);
+    });
+
+    testWidgets('and a match that paid nothing at all warms nothing', (
+      tester,
+    ) async {
+      final ads = FakeAds(AdOutcome.rewarded);
+      await pumpSummary(tester, result(coins: 0), ads: ads);
+      expect(find.byKey(const ValueKey('summary-double')), findsNothing);
+      expect(ads.prepared, 0);
+    });
+  });
 }

@@ -166,6 +166,20 @@ bool isPackLocked(Map<String, dynamic>? state, String kind, String id) {
   return lookRequirement(kind, id)?.packId != null;
 }
 
+/// Whether this axis has anything a video could open right now — the condition
+/// the warm-up is gated on.
+///
+/// Both halves earn their place, and the app has ONE warm slot to spend (see
+/// `admob_ads.dart`), so a warm-up that is not going to be tapped is the slot
+/// taken off a placement that was. An axis whose every item is already unlocked
+/// has nothing to sell; so does one whose locks are all Fan Zone tiers or cups,
+/// which a video cannot open — that is what [isPackLocked] separates. And past
+/// the gate's three-per-five-minutes the tap is a countdown rather than a
+/// video, which is [canWatchPackAd].
+bool axisHasPackAd(Map<String, dynamic>? state, String kind) =>
+    canWatchPackAd(state) &&
+    _idsFor(kind).any((id) => isPackLocked(state, kind, id));
+
 class ManagerCustomiser extends ConsumerStatefulWidget {
   const ManagerCustomiser({super.key});
 
@@ -245,6 +259,7 @@ class _ManagerCustomiserState extends ConsumerState<ManagerCustomiser> {
     super.didChangeDependencies();
     if (_filling) return;
     _filling = true;
+    _prepareLookAd();
     // After the sheet has landed: each chip is a rig rasterised once, and six
     // of them under a rising sheet ran the rise at ~30fps.
     final entrance = ModalRoute.of(context)?.animation;
@@ -275,6 +290,19 @@ class _ManagerCustomiserState extends ConsumerState<ManagerCustomiser> {
   int _axis = 0;
 
   Map<String, dynamic>? get _save => ref.read(gameProvider).state;
+
+  /// Warm the pack video if the axis on screen has one to offer.
+  ///
+  /// **Per axis, not per sheet.** Opening the customiser is not the signal —
+  /// the player who opens it on Build, where they own everything, is not about
+  /// to watch anything. The signal is a tab with locked items ON it, which is
+  /// why this runs again on every tab change: those are the chips carrying the
+  /// padlock the player is about to tap.
+  void _prepareLookAd() {
+    if (axisHasPackAd(_save, lookAxes[_axis].kind)) {
+      ref.read(rewardedAdsProvider).prepare(lookPackPlacement);
+    }
+  }
 
   /// Write one field, through the SANITISER rather than straight in.
   ///
@@ -615,6 +643,8 @@ class _ManagerCustomiserState extends ConsumerState<ManagerCustomiser> {
                 _offer = null;
               });
               _fillNextChip();
+              // The new tab is a new set of padlocks — see [_prepareLookAd].
+              _prepareLookAd();
             },
           ),
         ),

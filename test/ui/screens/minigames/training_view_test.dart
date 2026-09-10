@@ -369,4 +369,75 @@ void main() {
     );
     expect(formatDuration(0), isNotEmpty);
   });
+
+  group('the skip video is warmed when the button goes live', () {
+    testWidgets('walking in with everything cooling warms one', (tester) async {
+      final ads = _FakeAds();
+      await pumpTraining(
+        tester,
+        mutate: (s) {
+          trainingTier(s, 6);
+          for (final kind in MiniGameKind.all) {
+            startMiniGame(s, kind);
+          }
+        },
+        ads: ads,
+      );
+      expect(ads.prepared, 1);
+    });
+
+    testWidgets('AND SO DOES PLAYING THE LAST ONE, which it never did', (
+      tester,
+    ) async {
+      // **The ordinary path warmed nothing.** `initState` was the only caller,
+      // and the tab is almost always opened with a game still ready — so the
+      // condition turned true a moment after anybody had asked it, and the tap
+      // paid the full load every time.
+      late ProviderContainer container;
+      final ads = _FakeAds();
+      await pumpTraining(
+        tester,
+        mutate: (s) {
+          trainingTier(s, 6);
+          // All but one played: the button is not live yet.
+          for (final kind in MiniGameKind.all.skip(1)) {
+            startMiniGame(s, kind);
+          }
+        },
+        onContainer: (c) => container = c,
+        ads: ads,
+      );
+      expect(ads.prepared, 0, reason: 'warmed with a drill still ready');
+
+      container.read(gameProvider).update(
+        (s) => startMiniGame(s, MiniGameKind.all.first),
+      );
+      await tester.pumpAndSettle();
+      // The update schedules a debounced save; drain it or the binding
+      // complains about a pending timer.
+      await tester.pump(const Duration(milliseconds: saveDebounceMs + 100));
+
+      expect(ads.prepared, 1);
+    });
+
+    testWidgets('and past the day\'s three it warms nothing', (tester) async {
+      // Past the cap the button is a gem purchase and shows no ad at all, so
+      // warming would take the app's ONE slot off a placement that pays.
+      final ads = _FakeAds();
+      await pumpTraining(
+        tester,
+        mutate: (s) {
+          trainingTier(s, 6);
+          for (final kind in MiniGameKind.all) {
+            startMiniGame(s, kind);
+          }
+          for (var i = 0; i < Minigame.skipCapPerDay; i++) {
+            recordSkipAd(s);
+          }
+        },
+        ads: ads,
+      );
+      expect(ads.prepared, 0);
+    });
+  });
 }

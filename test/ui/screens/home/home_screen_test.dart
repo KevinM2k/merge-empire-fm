@@ -23,6 +23,7 @@ import 'package:merge_empire_fc/ui/screens/home/coach_bubble.dart'
     show coachTipsProvider;
 import 'package:merge_empire_fc/ui/screens/home/fixture_caption.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
+import 'package:merge_empire_fc/services/rewarded_ads.dart';
 import 'package:merge_empire_fc/state/game_state.dart';
 import 'package:merge_empire_fc/state/save_slots.dart';
 import 'package:merge_empire_fc/state/save_store.dart';
@@ -50,6 +51,10 @@ Future<ProviderContainer> pumpHome(
   /// which is the one thing on this page that cannot be watched with motion
   /// switched off.
   bool motion = false,
+
+  /// The customiser warms the look-pack video for the axis on screen, so a
+  /// test about that has to have something for it to warm.
+  RewardedAds? ads,
 }) async {
   final state = createDefaultState();
   mutate?.call(state);
@@ -59,6 +64,7 @@ Future<ProviderContainer> pumpHome(
       saveStoreProvider.overrideWithValue(
         MemorySaveStore({saveKeyPrimary: jsonEncode(state)}),
       ),
+      if (ads != null) rewardedAdsProvider.overrideWithValue(ads),
     ],
   );
   addTearDown(container.dispose);

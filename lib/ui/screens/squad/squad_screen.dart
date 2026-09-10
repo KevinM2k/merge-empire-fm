@@ -776,8 +776,31 @@ class _BenchSheetState extends ConsumerState<_BenchSheet> {
 /// where an injured man is looked at — and it keeps its place with nobody hurt,
 /// which is what `squad.heal_all_none` is for: a control that appears only when
 /// it is needed cannot be found before it is.
-class _HealAllRow extends ConsumerWidget {
+class _HealAllRow extends ConsumerStatefulWidget {
   const _HealAllRow();
+
+  @override
+  ConsumerState<_HealAllRow> createState() => _HealAllRowState();
+}
+
+class _HealAllRowState extends ConsumerState<_HealAllRow> {
+  @override
+  void initState() {
+    super.initState();
+    // **WARMED WHEN THE BENCH OPENS, and only then.** This row lives inside
+    // `_BenchSheet`, so it mounts on the tap that opens the bench and nowhere
+    // else — the player is looking at the injured men at the moment this runs,
+    // which is the whole signal.
+    //
+    // Both halves of the button's own condition, because the app has ONE warm
+    // slot (see `admob_ads.dart`): nobody hurt and the button is dead, and past
+    // the day's three the video is refused anyway. Warming for either would
+    // take the slot off a placement the player can actually reach.
+    if (ref.read(injuredCountProvider) > 0 &&
+        ref.read(healAllUsedProvider) < healAllAdCapPerDay) {
+      ref.read(rewardedAdsProvider).prepare(healAllPlacement);
+    }
+  }
 
   Future<void> _watch(WidgetRef ref) async {
     final outcome = await watchRewardedAd(ref, healAllPlacement);
@@ -800,7 +823,7 @@ class _HealAllRow extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final hurt = ref.watch(injuredCountProvider);
     final spent = ref.watch(healAllUsedProvider) >= healAllAdCapPerDay;
     return Padding(

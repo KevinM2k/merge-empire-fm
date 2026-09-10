@@ -129,6 +129,13 @@ class TrainingView extends ConsumerWidget {
 /// its video back.
 const String skipCooldownPlacement = 'skip_cooldown';
 
+/// Whether the skip button's video is worth warming, straight off the engine.
+///
+/// A provider rather than a call in `build` so the answer can be LISTENED to:
+/// the tab is almost always opened with a game still ready, and the moment the
+/// last one is played is when the button goes live. See [_SkipAllState.build].
+final _skipAdPrefetchProvider = savePick<bool>(shouldPrefetchSkipAd);
+
 class _SkipAll extends ConsumerStatefulWidget {
   const _SkipAll();
 
@@ -208,6 +215,18 @@ class _SkipAllState extends ConsumerState<_SkipAll> {
 
   @override
   Widget build(BuildContext context) {
+    // **AND AGAIN WHEN THE LAST GAME GOES OFF.** `initState` above is only the
+    // player who walks in with everything already cooling; the ordinary way to
+    // reach this button is to open the tab with a game still ready and play
+    // it, and that path warmed nothing — the condition turned true after the
+    // one moment anybody was asking it. Edge-triggered, so a rebuild while it
+    // is still true does not re-ask: `prepare` is cheap but it is not free,
+    // and this tab rebuilds on every cooldown tick.
+    ref.listen<bool>(_skipAdPrefetchProvider, (was, isNow) {
+      if (isNow && was != true) {
+        ref.read(rewardedAdsProvider).prepare(skipCooldownPlacement);
+      }
+    });
     final resting = ref
         .watch(miniGamesProvider)
         .where((g) => g.unlocked && g.playable && !g.ready)

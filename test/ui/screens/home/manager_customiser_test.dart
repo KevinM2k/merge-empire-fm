@@ -19,7 +19,24 @@ import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/util/event_bus.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
 
+import 'package:merge_empire_fc/engine/ad_gate_engine.dart';
+import 'package:merge_empire_fc/services/rewarded_ads.dart';
+
 import 'home_screen_test.dart' show pumpHome, settleSave;
+
+/// Records what the customiser warmed, and for which axis.
+class _PackAds implements RewardedAds {
+  final List<String> prepared = [];
+
+  @override
+  Future<AdOutcome> show(String placement) async => AdOutcome.rewarded;
+
+  @override
+  void prepare(String placement) => prepared.add(placement);
+
+  @override
+  void refresh() {}
+}
 
 void main() {
   tearDown(resetLocale);
@@ -814,6 +831,58 @@ void main() {
         t('customise.locked.fanzone', {'tier': 1}),
       );
       await settleSave(tester);
+    });
+  });
+
+  group('the pack video is warmed per AXIS, not per sheet', () {
+    // Opening the customiser is not the signal — the player who opens it on
+    // Build, where a default save owns everything, is not about to watch
+    // anything. The signal is a tab with padlocks a video can open, and the
+    // app has ONE warm slot (`admob_ads.dart`) to spend on it.
+    test('an axis is only worth warming if a VIDEO could open something', () {
+      final save = createDefaultState();
+      // Everything on these is owned from the start, so there is no offer.
+      for (final kind in ['build', 'outfit', 'skin', 'hair']) {
+        expect(axisHasPackAd(save, kind), isFalse, reason: kind);
+      }
+      // And these carry pack locks, which is the one kind a video opens.
+      for (final kind in ['hat', 'face', 'emote']) {
+        expect(axisHasPackAd(save, kind), isTrue, reason: kind);
+      }
+    });
+
+    test('and never past the frequency gate, whatever is locked', () {
+      // Past the day's three the tap is a countdown rather than a video —
+      // see `canWatchPackAd`.
+      final save = createDefaultState();
+      expect(axisHasPackAd(save, 'hat'), isTrue);
+      for (var i = 0; i < adPackLimit; i++) {
+        recordPackAd(save);
+      }
+      expect(canWatchPackAd(save), isFalse);
+      expect(axisHasPackAd(save, 'hat'), isFalse);
+    });
+
+    testWidgets('opening on an axis with nothing to unlock warms nothing', (
+      tester,
+    ) async {
+      phone(tester);
+      final ads = _PackAds();
+      await pumpHome(tester, ads: ads);
+      await openCustomiser(tester);
+      // Build is the axis it opens on, and a default save owns all of it.
+      expect(ads.prepared, isEmpty);
+    });
+
+    testWidgets('AND CHANGING TO ONE WITH PADLOCKS WARMS ONE', (tester) async {
+      phone(tester);
+      final ads = _PackAds();
+      await pumpHome(tester, ads: ads);
+      await openCustomiser(tester);
+      expect(ads.prepared, isEmpty);
+
+      await openAxis(tester, 'hat');
+      expect(ads.prepared, [lookPackPlacement]);
     });
   });
 }

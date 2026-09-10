@@ -141,6 +141,28 @@ class DailyRewardSheetState extends ConsumerState<DailyRewardSheet> {
   /// and two of them in flight is two claims against one day.
   bool _busy = false;
 
+  @override
+  void initState() {
+    super.initState();
+    // **WARMED ON THE WAY IN, and it does not matter which of the two it is
+    // warmed for.** Every placement serves from one unit now, so the ad loaded
+    // for `daily_double` is the ad `streak_repair` shows — see
+    // `globalRewardedUnitAndroid`. The two are mutually exclusive on this sheet
+    // anyway: a broken streak draws the repair and nothing else.
+    //
+    // This sheet is the strongest signal in the game — it arrives through the
+    // popup queue on the first screen of a session, it is a decision the player
+    // has to answer, and the video is one of the two ways to answer it.
+    final state = ref.read(gameProvider).state ?? const <String, dynamic>{};
+    final status = getDailyRewardStatus(state);
+    final repairable = status.broken && canRepairStreak(state);
+    if (repairable || !status.claimedToday) {
+      ref
+          .read(rewardedAdsProvider)
+          .prepare(repairable ? streakRepairPlacement : dailyDoublePlacement);
+    }
+  }
+
   /// Claim at double, if the video is watched to the end.
   Future<void> _claimDoubled() async {
     setState(() => _busy = true);

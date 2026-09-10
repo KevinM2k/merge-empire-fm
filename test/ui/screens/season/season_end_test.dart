@@ -20,11 +20,85 @@ import 'package:merge_empire_fc/engine/league_table.dart' show LeagueRow;
 import 'package:merge_empire_fc/engine/match_tactics.dart'
     show matchesPerSeason;
 import 'package:merge_empire_fc/engine/season_end.dart';
+import 'package:merge_empire_fc/services/rewarded_ads.dart';
 import 'package:merge_empire_fc/ui/screens/match/play_button.dart';
 import 'package:merge_empire_fc/ui/screens/season/season_end_screen.dart';
 import 'package:merge_empire_fc/ui/theme/app_theme.dart';
 import 'package:merge_empire_fc/ui/widgets/report_scroll.dart';
 import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
+import 'package:merge_empire_fc/util/format.dart';
+
+/// Answers the summary's rewarded video, and records what was warmed for what.
+/// The real one is `RewardedAds`; nothing in a test may reach AdMob.
+class _FakeAds implements RewardedAds {
+  _FakeAds({this.outcome = AdOutcome.rewarded});
+
+  final AdOutcome outcome;
+  int shown = 0;
+  final List<String> prepared = [];
+
+  @override
+  Future<AdOutcome> show(String placement) async {
+    shown++;
+    return outcome;
+  }
+
+  @override
+  void prepare(String placement) => prepared.add(placement);
+
+  @override
+  void refresh() {}
+}
+
+int coinsOf(ProviderContainer c) =>
+    ((c.read(gameProvider).state!['resources']
+            as Map<String, dynamic>)['fanCoins']
+        as num)
+        .toInt();
+
+/// The summary on its own, over a save that has just settled a season.
+///
+/// The page takes the offer as a parameter — [runSeasonEnd] is what works it
+/// out — but the GRANT goes through the save, so both have to be set up and
+/// they are set up from the same figure.
+Future<ProviderContainer> pumpSummary(
+  WidgetTester tester, {
+  required RewardedAds ads,
+  required int payout,
+  required int doubleOffer,
+  int coins = 0,
+}) async {
+  final state = createDefaultState();
+  final prog = state['progression'] as Map<String, dynamic>;
+  prog['lastSeasonPayout'] = payout;
+  prog['lastSeasonDoubled'] = false;
+  (state['resources'] as Map<String, dynamic>)['fanCoins'] = coins;
+  final container = ProviderContainer(
+    overrides: [
+      saveStoreProvider.overrideWithValue(
+        MemorySaveStore({saveKeyPrimary: jsonEncode(state)}),
+      ),
+      rewardedAdsProvider.overrideWithValue(ads),
+    ],
+  );
+  addTearDown(container.dispose);
+  container.read(gameProvider).load();
+  await tester.pumpWidget(
+    UncontrolledProviderScope(
+      container: container,
+      child: MaterialApp(
+        theme: buildAppTheme(kitId: '#4caf50', light: false),
+        home: SeasonEndScreen(
+          outcome: outcome(position: 1),
+          seasonNumber: 1,
+          doubleOffer: doubleOffer,
+        ),
+      ),
+    ),
+  );
+  await tester.pumpAndSettle();
+  return container;
+}
 
 Map<String, dynamic> finishedSeason({bool complete = true}) {
   final s = createDefaultState();
@@ -64,13 +138,17 @@ Map<String, dynamic> finishedSeason({bool complete = true}) {
 
 Future<ProviderContainer> pumpPlayArea(
   WidgetTester tester,
-  Map<String, dynamic> state,
-) async {
+  Map<String, dynamic> state, {
+  /// `runSeasonEnd` warms the summary's video on its way past, so a test that
+  /// presses End Season has to have something for it to warm.
+  RewardedAds? ads,
+}) async {
   final container = ProviderContainer(
     overrides: [
       saveStoreProvider.overrideWithValue(
         MemorySaveStore({saveKeyPrimary: jsonEncode(state)}),
       ),
+      if (ads != null) rewardedAdsProvider.overrideWithValue(ads),
     ],
   );
   addTearDown(container.dispose);
@@ -698,5 +776,171 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('season-end-quests')), findsNothing);
+  });
+
+  group('the season payout can be doubled', () {
+    testWidgets('no offer, no button — the page is what it always was', (
+      tester,
+    ) async {
+      // `doubleOffer` defaults to nothing, which is the every-other-test case
+      // above: a caller that has not worked out an offer draws no video.
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: buildAppTheme(kitId: '#4caf50', light: false),
+          home: SeasonEndScreen(outcome: outcome(position: 1), seasonNumber: 1),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('season-end-double')), findsNothing);
+      expect(find.byKey(const ValueKey('season-end-continue')), findsOneWidget);
+    });
+
+    testWidgets('the offer is on the page, above the way out', (tester) async {
+      final ads = _FakeAds();
+      await pumpSummary(tester, ads: ads, payout: 1200, doubleOffer: 1200);
+      expect(find.byKey(const ValueKey('season-end-double')), findsOneWidget);
+      // Above Continue rather than beside it — one collects, one leaves.
+      expect(
+        tester.getRect(find.byKey(const ValueKey('season-end-double'))).bottom,
+        lessThan(
+          tester.getRect(find.byKey(const ValueKey('season-end-continue'))).top,
+        ),
+      );
+    });
+
+    testWidgets('watching it pays the payout a SECOND time', (tester) async {
+      // `endSeason` banked 1200 before this page existed — see
+      // `grantSeasonDouble`, which is why the offer pays rather than doubles.
+      final ads = _FakeAds();
+      final container = await pumpSummary(
+        tester,
+        ads: ads,
+        payout: 1200,
+        coins: 500,
+        doubleOffer: 1200,
+      );
+      await tester.tap(find.byKey(const ValueKey('season-end-double')));
+      await tester.pumpAndSettle();
+      await settleSave(tester);
+      expect(ads.shown, 1);
+      expect(coinsOf(container), 1700);
+      // Gone once taken: a button that pays nothing is worse than no button.
+      expect(find.byKey(const ValueKey('season-end-double')), findsNothing);
+    });
+
+    testWidgets('and the prize line becomes the doubled figure', (
+      tester,
+    ) async {
+      // The grant lands in the bank and nothing else on this page moves, so
+      // without this the player watches a video and the figure they were
+      // doubling sits there unchanged.
+      final ads = _FakeAds();
+      await pumpSummary(
+        tester,
+        ads: ads,
+        payout: 1200,
+        doubleOffer: 1200,
+      );
+      expect(
+        tester
+            .widget<Text>(find.byKey(const ValueKey('season-end-payout')))
+            .data,
+        formatCoins(1200),
+      );
+      await tester.tap(find.byKey(const ValueKey('season-end-double')));
+      await tester.pumpAndSettle();
+      await settleSave(tester);
+      expect(
+        tester
+            .widget<Text>(find.byKey(const ValueKey('season-end-payout')))
+            .data,
+        formatCoins(2400),
+      );
+    });
+
+    testWidgets('an unavailable video pays nothing and keeps the offer', (
+      tester,
+    ) async {
+      // No fill is not the player's fault and nothing is owed — the offer has
+      // to survive it, or a bad network costs them the season's double.
+      final ads = _FakeAds(outcome: AdOutcome.unavailable);
+      final container = await pumpSummary(
+        tester,
+        ads: ads,
+        payout: 1200,
+        coins: 500,
+        doubleOffer: 1200,
+      );
+      await tester.tap(find.byKey(const ValueKey('season-end-double')));
+      await tester.pumpAndSettle();
+      expect(coinsOf(container), 500);
+      expect(find.byKey(const ValueKey('season-end-double')), findsOneWidget);
+    });
+
+    testWidgets('and backing out of it does the same', (tester) async {
+      final ads = _FakeAds(outcome: AdOutcome.dismissed);
+      final container = await pumpSummary(
+        tester,
+        ads: ads,
+        payout: 1200,
+        coins: 500,
+        doubleOffer: 1200,
+      );
+      await tester.tap(find.byKey(const ValueKey('season-end-double')));
+      await tester.pumpAndSettle();
+      expect(coinsOf(container), 500);
+      expect(find.byKey(const ValueKey('season-end-double')), findsOneWidget);
+    });
+
+    testWidgets('THE ROUTE WARMS IT, and only when there is one to warm', (
+      tester,
+    ) async {
+      // The warm-up lives in `runSeasonEnd` rather than on the page, so this
+      // goes through the End Season button — see `season_end_button.dart`.
+      // A season that paid is warmed on the way in; the run-up is the whole
+      // page, which is the longest any offer in the game gets.
+      final ads = _FakeAds();
+      // A season won outright: top of the table AND promoted, so `endSeason`
+      // banks a position bonus and there is something to double.
+      final state = finishedSeason();
+      final prog = state['progression'] as Map<String, dynamic>;
+      // `seasonAwardedPlayed` is what the table counts — `seasonMatchesPlayed`
+      // moves while a sim is still running. See `buildLeagueTable`.
+      prog['seasonMatchesPlayed'] = matchesPerSeason;
+      prog['seasonAwardedPlayed'] = matchesPerSeason;
+      prog['seasonWins'] = matchesPerSeason;
+      final container = await pumpPlayArea(tester, state, ads: ads);
+      await tester.tap(find.byKey(const ValueKey('end-season')));
+      await tester.pumpAndSettle();
+      await settleSave(tester);
+      expect(
+        seasonDoubleOffer(container.read(gameProvider).state),
+        greaterThan(0),
+      );
+      expect(ads.prepared, [doubleSeasonPlacement]);
+      expect(find.byKey(const ValueKey('season-end-double')), findsOneWidget);
+    });
+
+    testWidgets('and a season that paid nothing warms nothing', (
+      tester,
+    ) async {
+      // **ONE warm slot for the whole app** (`admob_ads.dart`), so the two
+      // have to be the same question: warming for a button that is not drawn
+      // takes the slot off a placement the player can reach, and drawing one
+      // that was not warmed makes the tap pay the full load. They were two
+      // different conditions on the match summary and both were wrong — see
+      // `_canDouble` there.
+      final ads = _FakeAds();
+      final container = await pumpPlayArea(tester, finishedSeason(), ads: ads);
+      await tester.tap(find.byKey(const ValueKey('end-season')));
+      await tester.pumpAndSettle();
+      await settleSave(tester);
+      final offer = seasonDoubleOffer(container.read(gameProvider).state);
+      expect(ads.prepared, offer > 0 ? [doubleSeasonPlacement] : isEmpty);
+      expect(
+        find.byKey(const ValueKey('season-end-double')),
+        offer > 0 ? findsOneWidget : findsNothing,
+      );
+    });
   });
 }

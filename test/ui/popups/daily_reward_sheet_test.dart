@@ -63,6 +63,7 @@ class FakeAds implements RewardedAds {
 
   AdOutcome outcome;
   final List<String> shown = [];
+  final List<String> prepared = [];
 
   @override
   Future<AdOutcome> show(String placement) async {
@@ -71,7 +72,7 @@ class FakeAds implements RewardedAds {
   }
 
   @override
-  void prepare(String placement) {}
+  void prepare(String placement) => prepared.add(placement);
 
 
   @override
@@ -747,6 +748,38 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('daily-claim-double')));
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('daily-claim')), findsOneWidget);
+    });
+  });
+
+  group('the video is warmed as the sheet opens', () {
+    // The strongest signal in the game: this arrives through the popup queue
+    // on the first screen of a session, it is a decision that has to be
+    // answered, and the video is one of the two ways to answer it.
+    testWidgets('an unclaimed day warms the double', (tester) async {
+      final ads = FakeAds();
+      await pumpSheet(tester, save(lastClaimDaysAgo: 1), ads: ads);
+      expect(find.byKey(const ValueKey('daily-claim-double')), findsOneWidget);
+      expect(ads.prepared, [dailyDoublePlacement]);
+    });
+
+    testWidgets('and a BROKEN streak warms the repair instead', (tester) async {
+      // The two are mutually exclusive on this sheet, and one warm ad serves
+      // whichever is tapped anyway — every placement is the same unit now
+      // (`globalRewardedUnitAndroid`). The placement is the analytics
+      // dimension, so it still has to be the right one.
+      final ads = FakeAds();
+      await pumpSheet(tester, save(lastClaimDaysAgo: 3), ads: ads);
+      expect(find.byKey(const ValueKey('daily-repair')), findsOneWidget);
+      expect(ads.prepared, [streakRepairPlacement]);
+    });
+
+    testWidgets('and a day already claimed warms nothing', (tester) async {
+      // Nothing to double and nothing to repair: with ONE warm slot for the
+      // whole app this would be taken off a placement the player can reach.
+      final ads = FakeAds();
+      await pumpSheet(tester, save(lastClaimDaysAgo: 0), ads: ads);
+      expect(find.byKey(const ValueKey('daily-claim-double')), findsNothing);
+      expect(ads.prepared, isEmpty);
     });
   });
 }

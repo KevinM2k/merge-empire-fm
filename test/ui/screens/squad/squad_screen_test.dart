@@ -26,6 +26,7 @@ import 'package:merge_empire_fc/ui/screens/squad/player_detail_sheet.dart';
 import 'package:merge_empire_fc/engine/trait_engine.dart';
 import 'package:merge_empire_fc/data/traits.dart';
 import 'package:merge_empire_fc/data/players.dart';
+import 'package:merge_empire_fc/services/rewarded_ads.dart';
 import 'package:merge_empire_fc/ui/screens/squad/squad_providers.dart';
 import 'package:merge_empire_fc/ui/screens/squad/squad_screen.dart';
 import 'package:merge_empire_fc/ui/screens/squad/pitch_token.dart';
@@ -60,10 +61,28 @@ List<Map<String, dynamic>> _squad(int n) {
   ];
 }
 
+/// Records what the bench warmed, so the heal-all warm-up can be checked.
+/// The real one is `RewardedAds`; nothing in a test may reach AdMob.
+class BenchAds implements RewardedAds {
+  final List<String> prepared = [];
+
+  @override
+  Future<AdOutcome> show(String placement) async => AdOutcome.rewarded;
+
+  @override
+  void prepare(String placement) => prepared.add(placement);
+
+  @override
+  void refresh() {}
+}
+
 Future<ProviderContainer> pumpSquad(
   WidgetTester tester, {
   int cards = 14,
   void Function(Map<String, dynamic> state)? mutate,
+
+  /// The bench warms the heal-all video when it opens with somebody hurt.
+  RewardedAds? ads,
 }) async {
   final state = createDefaultState();
   final cells =
@@ -79,6 +98,7 @@ Future<ProviderContainer> pumpSquad(
       saveStoreProvider.overrideWithValue(
         MemorySaveStore({saveKeyPrimary: jsonEncode(state)}),
       ),
+      if (ads != null) rewardedAdsProvider.overrideWithValue(ads),
     ],
   );
   addTearDown(container.dispose);
@@ -2198,6 +2218,45 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('squad-heal-all')), findsOneWidget);
       expect(find.text(t('squad.heal_all_none')), findsOneWidget);
+    });
+
+    testWidgets('AND THE VIDEO IS WARMED WHEN THE BENCH OPENS', (
+      tester,
+    ) async {
+      // The row lives inside the bench sheet, so it mounts on the tap that
+      // opens the bench and nowhere else — the player is looking at the
+      // injured men at the moment it runs.
+      final ads = BenchAds();
+      final container = await pumpSquad(tester, cards: 14, ads: ads);
+      final hurt = container.read(benchProvider).first.instanceId;
+      container.read(gameProvider).update((s) {
+        for (final raw in (s['grid'] as Map<String, dynamic>)['cells'] as List) {
+          if (raw is Map<String, dynamic> && raw['instanceId'] == hurt) {
+            raw['injured'] = true;
+            raw['injuredAt'] = now();
+            raw['injuryDurationMs'] = 30 * 60 * 1000;
+          }
+        }
+      });
+      await settleSave(tester);
+      // Nothing yet: the squad page is not the bench.
+      expect(ads.prepared, isEmpty);
+
+      await tester.tap(find.byKey(const ValueKey('squad-subs')));
+      await tester.pumpAndSettle();
+
+      expect(ads.prepared, [healAllPlacement]);
+    });
+
+    testWidgets('and NOBODY HURT warms nothing', (tester) async {
+      // The button is dead with nobody hurt, and the app has ONE warm slot
+      // (`admob_ads.dart`) — warming here takes it off a placement the player
+      // can actually reach.
+      final ads = BenchAds();
+      await pumpSquad(tester, cards: 14, ads: ads);
+      await tester.tap(find.byKey(const ValueKey('squad-subs')));
+      await tester.pumpAndSettle();
+      expect(ads.prepared, isEmpty);
     });
   });
 

@@ -228,13 +228,26 @@ class MatchSummaryScreenState extends ConsumerState<MatchSummaryScreen>
   /// is not needed at all.
   late final int _quests;
 
+  /// Whether the offer is on the page at all — the ONE condition, asked by the
+  /// button that shows it and by the warm-up that pays for it.
+  ///
+  /// **They used to be two different questions and both were wrong.** The
+  /// warm-up asked `_base > 0`, the fee alone: a match whose fee was nothing
+  /// but whose quests paid drew the button and warmed nothing, so the tap ate
+  /// the full load; and the tutorial match, which deliberately shows no offer,
+  /// warmed an ad anyway — and with ONE warm slot for the whole app (see
+  /// `admob_ads.dart`) that is not a wasted request, it is the slot taken off
+  /// whichever placement the player actually reached next.
+  bool get _canDouble =>
+      _base + _quests > 0 && tutorialFinished(ref.read(gameProvider).state);
+
   @override
   void initState() {
     super.initState();
     _tally = AnimationController(vsync: this, duration: coinTallyRun);
     _base = _num(widget.result['coinsEarned']).toInt();
     _quests = questCoins(widget.result);
-    if (_base > 0) {
+    if (_canDouble) {
       ref.read(rewardedAdsProvider).prepare(doubleMatchPlacement);
     }
     // **THE PAPER GETS ITS BANG.** `playFirework` is the one effect in the game
@@ -298,8 +311,7 @@ class MatchSummaryScreenState extends ConsumerState<MatchSummaryScreen>
     // for from the couch: one Continue, and the offer back the moment the
     // script is over. `tutorialFinished` reads a save with no flag as done,
     // so nobody who has ever played loses the offer.
-    final canDouble =
-        _base + _quests > 0 && tutorialFinished(ref.read(gameProvider).state);
+    final canDouble = _canDouble;
     final questRows = result['questResults'];
     final hasQuests = questRows is List && questRows.isNotEmpty;
 

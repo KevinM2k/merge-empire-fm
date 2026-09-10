@@ -87,6 +87,17 @@ final energyStatusProvider = savePick<EnergyStatus>((s) {
 });
 
 Future<void> showEnergySheet(BuildContext context, WidgetRef ref) {
+  // **WARMED AS THE SHEET GOES UP.** Both doors into this open it because the
+  // player wants energy — the HUD's `+`, and the play button's detour when the
+  // tank is too empty to kick off — so the video is the reason they are here
+  // and the sheet is several seconds of reading before they reach the button.
+  //
+  // A full tank is the one case with nothing to top up: the ad row goes dead
+  // (`status.full` below) and warming for a button nobody can press spends the
+  // app's ONE warm slot on nothing. See `admob_ads.dart`.
+  if (!ref.read(energyStatusProvider).full) {
+    ref.read(rewardedAdsProvider).prepare(energyPlacement);
+  }
   return showBottomSheetPopup<void>(
     context,
     // Taller since the refill moved onto it: the sheet carries the meter, the
