@@ -18,6 +18,7 @@ PODS:
     - FlutterMacOS
   - connectivity_plus (0.0.1):
     - Flutter
+  - FBAudienceNetwork (6.21.0)
   - Firebase/CoreOnly (12.17.0):
     - FirebaseCore (~> 12.17.0)
   - Firebase/Crashlytics (12.17.0):
@@ -90,6 +91,12 @@ PODS:
   - games_services (5.0.1):
     - Flutter
     - FlutterMacOS
+  - gma_mediation_meta (1.5.0):
+    - Flutter
+    - GoogleMobileAdsMediationFacebook (~> 6.21.0.0)
+  - gma_mediation_unity (1.6.3):
+    - Flutter
+    - GoogleMobileAdsMediationUnity (~> 4.16.3.0)
   - Google-Mobile-Ads-SDK (12.2.0):
     - GoogleUserMessagingPlatform (>= 1.1)
   - google_mobile_ads (6.0.0):
@@ -131,6 +138,12 @@ PODS:
   - GoogleDataTransport (10.1.1):
     - nanopb (~> 3.30910.0)
     - PromisesObjC (~> 2.4)
+  - GoogleMobileAdsMediationFacebook (6.21.0.1):
+    - FBAudienceNetwork (= 6.21.0)
+    - Google-Mobile-Ads-SDK (~> 12.0)
+  - GoogleMobileAdsMediationUnity (4.16.3.0):
+    - Google-Mobile-Ads-SDK (~> 12.0)
+    - UnityAds (= 4.16.3)
   - GoogleSignIn (9.2.0):
     - AppAuth (~> 2.1)
     - AppCheckCore (~> 11.0)
@@ -198,6 +211,7 @@ PODS:
     - FlutterMacOS
   - sign_in_with_apple (0.0.1):
     - Flutter
+  - UnityAds (4.16.3)
   - url_launcher_ios (0.0.1):
     - Flutter
   - wakelock_plus (0.0.1):
@@ -216,6 +230,8 @@ DEPENDENCIES:
   - Flutter (from `Flutter`)
   - flutter_local_notifications (from `.symlinks/plugins/flutter_local_notifications/ios`)
   - games_services (from `.symlinks/plugins/games_services/darwin`)
+  - gma_mediation_meta (from `.symlinks/plugins/gma_mediation_meta/ios`)
+  - gma_mediation_unity (from `.symlinks/plugins/gma_mediation_unity/ios`)
   - google_mobile_ads (from `.symlinks/plugins/google_mobile_ads/ios`)
   - google_sign_in_ios (from `.symlinks/plugins/google_sign_in_ios/darwin`)
   - in_app_purchase_storekit (from `.symlinks/plugins/in_app_purchase_storekit/darwin`)
@@ -233,6 +249,7 @@ SPEC REPOS:
   trunk:
     - AppAuth
     - AppCheckCore
+    - FBAudienceNetwork
     - Firebase
     - FirebaseAnalytics
     - FirebaseCore
@@ -246,6 +263,8 @@ SPEC REPOS:
     - GoogleAdsOnDeviceConversion
     - GoogleAppMeasurement
     - GoogleDataTransport
+    - GoogleMobileAdsMediationFacebook
+    - GoogleMobileAdsMediationUnity
     - GoogleSignIn
     - GoogleUserMessagingPlatform
     - GoogleUtilities
@@ -255,6 +274,7 @@ SPEC REPOS:
     - PromisesObjC
     - PromisesSwift
     - RecaptchaInterop
+    - UnityAds
 
 EXTERNAL SOURCES:
   app_tracking_transparency:
@@ -275,6 +295,10 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/flutter_local_notifications/ios"
   games_services:
     :path: ".symlinks/plugins/games_services/darwin"
+  gma_mediation_meta:
+    :path: ".symlinks/plugins/gma_mediation_meta/ios"
+  gma_mediation_unity:
+    :path: ".symlinks/plugins/gma_mediation_unity/ios"
   google_mobile_ads:
     :path: ".symlinks/plugins/google_mobile_ads/ios"
   google_sign_in_ios:
@@ -306,6 +330,7 @@ SPEC CHECKSUMS:
   AppCheckCore: e215d35177a9cf469927863e69c13e220df32a8b
   audioplayers_darwin: 835ced6edd4c9fc8ebb0a7cc9e294a91d99917d5
   connectivity_plus: cb623214f4e1f6ef8fe7403d580fdad517d2f7dd
+  FBAudienceNetwork: f4ab9e073ab98c884dbdb5ffe7c861272b380bc2
   Firebase: e8400c058702940d53f31fc0653e4e7a06332326
   firebase_analytics: 4dc4986181e6f58d24f879716f175a53e837c914
   firebase_core: c94f9efeed0ded590b7eecaf6110a374eb865d7a
@@ -321,12 +346,16 @@ SPEC CHECKSUMS:
   Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
   flutter_local_notifications: 643a3eda1ce1c0599413ca31672536d423dee214
   games_services: ef0e2cfe158a00045dfa747117deac4fb15c2ac9
+  gma_mediation_meta: b6d4555a5619bfe4d3b0600e73aa96f84dcfd62c
+  gma_mediation_unity: 2fc6bb5945af83b1b202d454229f5bab8a401a8f
   Google-Mobile-Ads-SDK: 1dfb0c3cb46c7e2b00b0f4de74a1e06d9ea25d67
   google_mobile_ads: 535223588a6791b7a3cc3513a1bc7b89d12f3e62
   google_sign_in_ios: 000870aa06da9b28d1d0bf7ef70ff0213059dd28
   GoogleAdsOnDeviceConversion: e3b71da24ff4cf01cf520756ac1c2b93c07b86ff
   GoogleAppMeasurement: 2234668e2451f9da37b93dad7830e457600c008f
   GoogleDataTransport: a24e58982ab3ba2f64d79613e027fe7f57e88539
+  GoogleMobileAdsMediationFacebook: a8379733e6e593e9a5ea278bdc16e747ec952a18
+  GoogleMobileAdsMediationUnity: 2861f3dc5abe7c13fafd11bd4484fbd5a762778c
   GoogleSignIn: e449a40a92e9f2eea56e98b5214d13725dc5a00a
   GoogleUserMessagingPlatform: befe603da6501006420c206222acd449bba45a9c
   GoogleUtilities: 766ace00c6b10d8148408f329d10c4f051931850
@@ -343,6 +372,7 @@ SPEC CHECKSUMS:
   RecaptchaInterop: 11e0b637842dfb48308d242afc3f448062325aba
   shared_preferences_foundation: 7036424c3d8ec98dfe75ff1667cb0cd531ec82bb
   sign_in_with_apple: c5dcc141574c8c54d5ac99dd2163c0c72ad22418
+  UnityAds: 64164885dd38214bfc556eb074ab1995cc613fbf
   url_launcher_ios: 7a95fa5b60cc718a708b8f2966718e93db0cef1b
   wakelock_plus: e29112ab3ef0b318e58cfa5c32326458be66b556
   webview_flutter_wkwebview: 8ebf4fded22593026f7dbff1fbff31ea98573c8d

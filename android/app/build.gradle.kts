@@ -94,6 +94,7 @@ android {
                 )
                 signingConfigs.getByName("debug")
             }
+            proguardFiles("proguard-rules.pro")
             // A native (engine/GPU-driver) crash previously left no report at
             // all — only Dart and JVM exceptions were caught.
             configure<CrashlyticsExtension> {
