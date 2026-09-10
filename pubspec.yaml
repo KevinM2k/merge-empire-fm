@@ -26,7 +26,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # because a whole reimplementation is a new major, and because it leaves
 # the 1.1.x line free for anything the old build still has to ship.
 # Pinned by `test/native_version_test.dart`.
-version: 2.0.5+20005
+version: 2.0.6+20006
 
 environment:
   sdk: ^3.10.1

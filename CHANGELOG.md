@@ -1,3 +1,9 @@
+## v2.0.6
+
+- Double your end-of-season payout by watching a video, with new video rewards across training, the squad and daily rewards.
+- Fixed a crash when loading images on some older Android devices.
+- The version shown in Settings is correct again.
+
 ## v2.0.5
 
 - Fixed a crash on image decoding with zero-width boxes (affected the Club tab on boot on some devices).
