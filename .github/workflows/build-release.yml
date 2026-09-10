@@ -188,8 +188,8 @@ jobs:
         run: |
           VERSION="${{ steps.version.outputs.version }}"
           if [ -f CHANGELOG.md ]; then
-            awk -v tag="## $VERSION " '
-              index($0, tag) == 1 { found = 1; print; next }
+            awk -v tag="## $VERSION" '
+              $0 == tag          { found = 1; print; next }
               found && /^## v/   { exit }
               found              { print }
             ' CHANGELOG.md > release-notes.md
