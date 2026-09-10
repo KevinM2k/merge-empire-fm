@@ -5,6 +5,7 @@ import 'dart:ui' show PlatformDispatcher;
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:merge_empire_fc/services/gpu_capability.dart';
 import 'package:merge_empire_fc/i18n/detect.dart';
 import 'package:merge_empire_fc/providers/press_providers.dart';
 import 'package:merge_empire_fc/providers/boot_gate.dart';
@@ -47,6 +48,8 @@ Future<void> main() async {
   // sees. Not awaited beyond its own init — every step inside is guarded, and a
   // build with no Firebase leaves the default sink, which drops.
   unawaited(startAnalytics());
+  // Before the first frame: ArtImage reads this synchronously on every build.
+  await initGpuCapability();
   final store = await PrefsSaveStore.open();
   // **The ad SDK starts AFTER the splash, and nothing waits for it.**
   // `startAds` asks for consent first, and the UMP form's future does not

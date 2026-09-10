@@ -13,6 +13,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:merge_empire_fc/services/gpu_capability.dart';
 
 /// Luminance weights — the same ones CSS `grayscale()` is defined against, so a
 /// dimmed tile here and a dimmed tile in the JS are the same grey.
@@ -102,13 +103,10 @@ class ArtImage extends StatelessWidget {
       alignment: alignment,
       width: width,
       height: height,
-      // Floor of 64, not 1: dart:ui derives the other side with `~/`, so a
-      // 1px hint on the 1024x572 stadium is a 1x0 decode. Skia refuses it;
-      // Impeller blits into a 1x0 texture, fatal on some GLES drivers.
-      cacheWidth: want == null ? null : (want * dpr).round().clamp(64, 2048),
-      cacheHeight: want != null || tall == null
-          ? null
-          : (tall * dpr).round().clamp(64, 2048),
+      // Any hint that differs from the file's size makes Impeller resize on the
+      // GPU, which GLES 2 drivers cannot do and abort the process over.
+      cacheWidth: _hint(want, dpr),
+      cacheHeight: want != null ? null : _hint(tall, dpr),
       filterQuality: FilterQuality.medium,
       errorBuilder: (_, _, _) =>
           SizedBox(width: width, height: height, child: fallback),
@@ -122,4 +120,9 @@ class ArtImage extends StatelessWidget {
     }
     return image;
   }
+
+  // Withheld on GLES 2, where the resize a hint triggers aborts the process.
+  static int? _hint(double? want, double dpr) => want == null || decodeHintsUnsafe
+      ? null
+      : (want * dpr).round().clamp(64, 2048);
 }

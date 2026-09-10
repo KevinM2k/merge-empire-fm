@@ -1,5 +1,6 @@
 package com.mergeempirefc.app
 
+import android.app.ActivityManager
 import android.content.Context
 import android.os.Build
 import android.os.Bundle
@@ -8,6 +9,7 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
 private const val CHANNEL = "com.mergeempirefc.app/legacy_save"
+private const val GPU_CHANNEL = "com.mergeempirefc.app/gpu"
 
 // Matches @capacitor/preferences: SharedPreferences file "CapacitorStorage",
 // keys stored unprefixed.
@@ -90,6 +92,19 @@ class MainActivity : FlutterActivity() {
                     else -> result.notImplemented()
                 }
             }
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, GPU_CHANNEL)
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "glesMajorVersion" -> result.success(glesMajorVersion())
+                    else -> result.notImplemented()
+                }
+            }
+    }
+
+    // Upper 16 bits of reqGlEsVersion are the major version.
+    private fun glesMajorVersion(): Int {
+        val am = getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
+        return am.deviceConfigurationInfo.reqGlEsVersion ushr 16
     }
 
     private fun readLegacySave(): String? =
