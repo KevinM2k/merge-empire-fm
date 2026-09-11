@@ -1,3 +1,8 @@
+## v2.0.7
+
+- Fixed a crash when sound effects finished playing on some Android devices.
+- Fixed a crash on devices that cannot afford the blurred top bar; the bar keeps its tint there.
+
 ## v2.0.6
 
 - Double your end-of-season payout by watching a video, with new video rewards across training, the squad and daily rewards.

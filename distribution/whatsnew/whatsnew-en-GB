@@ -1,6 +1,4 @@
-Double your season payout, plus a crash fix.
+Two crash fixes.
 
-• Watch a video at the end of a season to double your payout.
-• New video rewards on training, the squad and daily rewards.
-• Fixed a crash when loading images on some older devices.
-• The version in Settings is correct again.
+• Fixed a crash when sound effects finished playing on some devices.
+• Fixed a crash on devices that cannot afford the blurred top bar — it keeps its tint there instead.
