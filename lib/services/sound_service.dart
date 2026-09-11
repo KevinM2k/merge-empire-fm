@@ -460,6 +460,10 @@ class AudioPlayersBackend implements SoundBackend {
 
   static bool _sessionConfigured = false;
 
+  /// One-shots are RELEASED at the end, not stopped: `stop` re-prepares the
+  /// player inside Android's completion callback, where a throw is fatal.
+  static const ReleaseMode oneShotMode = ReleaseMode.release;
+
   /// A player with its release mode already set. The cascade form leaves an
   /// un-awaited platform call behind, and on a slow first frame that raced the
   /// `play` that followed it.
@@ -491,7 +495,7 @@ class AudioPlayersBackend implements SoundBackend {
     if (overlap) {
       // A copy of its own, disposed when it finishes — a sound whose tail can
       // still be rolling when the next one starts must not cut itself off.
-      final player = await _newPlayer(ReleaseMode.stop);
+      final player = await _newPlayer(oneShotMode);
       _oneShots.add(player);
       unawaited(
         whenDone(player.onPlayerComplete, () {
@@ -525,7 +529,7 @@ class AudioPlayersBackend implements SoundBackend {
     // effect is stopped before the new one starts, which is what "back to the
     // top rather than a second copy" means.
     await _kill(name);
-    final player = await _newPlayer(ReleaseMode.stop);
+    final player = await _newPlayer(oneShotMode);
     _players[name] = player;
 
     // **ARMED BEFORE ANYTHING THAT CAN THROW.** The whole block is inside
@@ -548,7 +552,7 @@ class AudioPlayersBackend implements SoundBackend {
   @override
   Future<void> playAsset(String asset, {required double volume}) =>
       _quietly(() async {
-        final player = await _newPlayer(ReleaseMode.stop);
+        final player = await _newPlayer(oneShotMode);
         _oneShots.add(player);
         unawaited(
           whenDone(player.onPlayerComplete, () {

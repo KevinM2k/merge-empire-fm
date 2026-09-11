@@ -474,6 +474,29 @@ void _sessionGroup() {
     });
   });
 
+  group('A ONE-SHOT IS RELEASED, NOT STOPPED', () {
+    test('because `stop` re-prepares inside the completion callback', () {
+      // Fatal, from the field, on a `MediaPlayer` event looper:
+      //
+      //   java.lang.IllegalStateException
+      //     at android.media.MediaPlayer.prepareAsync
+      //     at MediaPlayerWrapper.prepare(MediaPlayerWrapper.kt:88)
+      //     at WrappedPlayer.stop(WrappedPlayer.kt:238)
+      //     at WrappedPlayer.onCompletion(WrappedPlayer.kt:300)
+      //
+      // `WrappedPlayer.stop` puts a finished clip back on its feet — stop,
+      // then `prepareAsync` — whenever the release mode is not `release` and
+      // the platform could not report a duration. Reached from a method call
+      // that is what it says it is; reached from `onCompletion` there is no
+      // `catch` between it and `Looper.loop`, so the throw is the process.
+      //
+      // Nothing here ever replays a player: every one is made for a single
+      // sound and disposed when it ends. So `stop`'s promise to keep it ready
+      // bought the backend nothing and cost it that crash.
+      expect(AudioPlayersBackend.oneShotMode, ReleaseMode.release);
+    });
+  });
+
   group('A BED FADES OUT FROM WHERE IT WAS', () {
     // Reported from the couch: "in between transitions the music briefly hits
     // 100% volume then respects the volume switch again." It did. The outgoing
