@@ -585,6 +585,15 @@ const Color hudTroughInk = Color(0xFFE9EFF5);
 /// A blur has to be CLIPPED to be a band: a `BackdropFilter` with nothing
 /// bounding it samples the whole layer, so the fade at the bottom edge is what
 /// makes it a bar rather than a smear over the screen.
+///
+/// **AND IT IS GATED LIKE EVERY OTHER PANE, which it was not.** This one is on
+/// screen for every tab but Play and it is at the ROOT, so Impeller takes it as
+/// `requires_readback` and allocates a full-screen offscreen for the root pass
+/// each frame. A device that cannot afford that allocation does not degrade —
+/// the engine aborts on the next draw with `Check failed: back_texture`, which
+/// is a crash in the field on low-end Vulkan. `GlassPanel` has asked
+/// [GlassQuality] since the low-end policy shipped; this bar never did, so a
+/// struggling device got unblurred panes under a blurred bar.
 class _FrostedBar extends StatelessWidget {
   const _FrostedBar({required this.child});
 
@@ -593,26 +602,28 @@ class _FrostedBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final kit = Theme.of(context).extension<KitTheme>()!;
-    return ClipRect(
-      key: const ValueKey('hud-glass'),
-      child: BackdropFilter(
-        filter: ui.ImageFilter.blur(sigmaX: 12, sigmaY: 12),
-        child: DecoratedBox(
-          decoration: BoxDecoration(gradient: hudChrome(kit, context)),
-          // **THE SAFE AREA IS INSIDE THE GLASS.** The shell used to wrap the
-          // whole HUD in a `SafeArea`, which pushed the frosted band below the
-          // notch and left the strip above it showing the raw page — a white bar
-          // across the top of the Shop and the Squad tab in light mode, with the
-          // blurred bar starting underneath it. Padding the band rather than
-          // insetting it means the blur and the tint run to the top of the
-          // screen and the chips still sit clear of the notch.
-          child: Padding(
-            padding: EdgeInsets.only(top: MediaQuery.paddingOf(context).top),
-            child: child,
-          ),
-        ),
+    Widget band = DecoratedBox(
+      decoration: BoxDecoration(gradient: hudChrome(kit, context)),
+      // **THE SAFE AREA IS INSIDE THE GLASS.** The shell used to wrap the
+      // whole HUD in a `SafeArea`, which pushed the frosted band below the
+      // notch and left the strip above it showing the raw page — a white bar
+      // across the top of the Shop and the Squad tab in light mode, with the
+      // blurred bar starting underneath it. Padding the band rather than
+      // insetting it means the blur and the tint run to the top of the
+      // screen and the chips still sit clear of the notch.
+      child: Padding(
+        padding: EdgeInsets.only(top: MediaQuery.paddingOf(context).top),
+        child: child,
       ),
     );
+    // The tint carries legibility and the blur carries depth — `glass.dart`.
+    if (GlassQuality.of(context)) {
+      band = BackdropFilter(
+        filter: ui.ImageFilter.blur(sigmaX: 12, sigmaY: 12),
+        child: band,
+      );
+    }
+    return ClipRect(key: const ValueKey('hud-glass'), child: band);
   }
 }
 

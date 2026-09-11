@@ -19,6 +19,7 @@ import 'package:merge_empire_fc/ui/shell/shell_controller.dart';
 import 'package:merge_empire_fc/ui/shell/tabs.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/theme/app_theme.dart';
+import 'package:merge_empire_fc/ui/theme/glass.dart';
 import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
 import 'package:merge_empire_fc/util/event_bus.dart';
 
@@ -33,6 +34,11 @@ Future<ProviderContainer> pumpHud(
   /// The HUD is written for dark glass on the Play tab and for the app's own
   /// surface everywhere else, so the tab decides which build is under test.
   ShellTab tab = ShellTab.home,
+
+  /// Null leaves the policy unstated, which is what every other case wants —
+  /// `GlassQuality.of` then answers true, as it does for any screen built
+  /// outside the app's own root.
+  bool? blurAllowed,
 }) async {
   final state = createDefaultState();
   mutate(state);
@@ -58,7 +64,13 @@ Future<ProviderContainer> pumpHud(
               size: const Size(400, 800),
               padding: EdgeInsets.only(top: topPadding),
             ),
-            child: Scaffold(body: Hud(onSettings: onSettings)),
+            child: switch (blurAllowed) {
+              null => Scaffold(body: Hud(onSettings: onSettings)),
+              final allowed => GlassQuality(
+                blurAllowed: allowed,
+                child: Scaffold(body: Hud(onSettings: onSettings)),
+              ),
+            },
           ),
         ),
       ),
@@ -104,6 +116,33 @@ void main() {
       final coins = tester.getRect(find.byKey(const ValueKey('hud-coins')));
       expect(coins.top, greaterThanOrEqualTo(44));
       expect(coins.bottom, lessThanOrEqualTo(glass.bottom + 0.5));
+    });
+  });
+
+  group('THE BAND IS GLASS THE DEVICE CAN AFFORD', () {
+    // A root-level `BackdropFilter` makes Impeller allocate a full-screen
+    // offscreen for the root pass every frame — `requires_readback` in
+    // `canvas.cc` — and a device that cannot afford that allocation aborts
+    // inside the engine rather than degrading:
+    //
+    //   [FATAL:impeller/display_list/canvas.cc(1471)]
+    //   Check failed: back_texture. Context is valid:0
+    //
+    // Reported from the field on low-end Vulkan. This bar is on screen for
+    // every tab but Play, so it was the one pane paying that cost on a device
+    // that had already been told to turn the cosmetic GPU work down.
+    testWidgets('a capable device gets the blur', (tester) async {
+      await pumpHud(tester, (_) {}, tab: ShellTab.grid, blurAllowed: true);
+      expect(find.byType(BackdropFilter), findsWidgets);
+    });
+
+    testWidgets('AND A STRUGGLING ONE STILL GETS THE BAND', (tester) async {
+      // The tint is what makes it a bar rather than four dark boxes with the
+      // page sliding between them, so it stays — only the depth goes.
+      await pumpHud(tester, (_) {}, tab: ShellTab.grid, blurAllowed: false);
+      expect(find.byType(BackdropFilter), findsNothing);
+      expect(find.byKey(const ValueKey('hud-glass')), findsOneWidget);
+      expect(find.byKey(const ValueKey('hud-coins')), findsOneWidget);
     });
   });
 
