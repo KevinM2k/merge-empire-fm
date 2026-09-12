@@ -286,12 +286,25 @@ CupSponsorDrop? settleCupRound(Map<String, dynamic> state, CupTie tie) {
   tie.result['won'] = won;
   tie.result['drawn'] = false;
 
+  // **AND THE SHOOTOUT'S GOAL COMES BACK OUT OF WHAT IS RECORDED.**
+  //
+  // `prepareCupRound` folds it into the scoreline so the engine's `won` and its
+  // own score agree — the JS does the same and the parity harness pins the
+  // field — while the FEED is built from the ninety minutes without it. So the
+  // player watched a 1-1 and the bracket stored a 2-1, which is what the cup
+  // fixtures sheet then printed. Same fault the summary has `regulationScore`
+  // for, one screen along, and unfolded here for the same reason: `won` travels
+  // separately, so the score is free to be the ninety minutes that were played.
+  final shootout = _map(tie.result['penaltyShootout']);
+  final recordedHome = finalHome - (shootout != null && won ? 1 : 0);
+  final recordedAway = finalAway - (shootout != null && !won ? 1 : 0);
+
   final drop = commitCupRound(
     state,
     won,
     tie.prepared,
-    homeGoals: finalHome,
-    awayGoals: finalAway,
+    homeGoals: recordedHome < 0 ? 0 : recordedHome,
+    awayGoals: recordedAway < 0 ? 0 : recordedAway,
   );
   tie.result['questResults'] = [
     for (final outcome in resolveMatchQuests(state, tie.result))

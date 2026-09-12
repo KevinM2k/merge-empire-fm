@@ -515,4 +515,108 @@ void main() {
       }
     });
   });
+
+  group('A TIE WON ON PENALTIES IS RECORDED AS THE DRAW IT WAS', () {
+    // `prepareCupRound` folds the shootout's winning goal into the scoreline so
+    // the engine's `won` and its own score agree — the JS does the same, and
+    // the parity harness compares the field. The FEED is built without it, so
+    // the player watches 1-1; the bracket then stored 2-1 and the fixtures
+    // sheet printed it. Same fault as the summary's, one screen along, and it
+    // is unfolded in the same place the port unfolds every other divergence.
+
+    /// A tie that really did go to penalties, built the way the screen does.
+    CupTie penaltyTie(Map<String, dynamic> s, {required bool weWin}) {
+      final tie = beginCupRound(s)!;
+      // Level after ninety, decided from the spot — the shape `prepareCupRound`
+      // produces, written out so the test does not hunt for a seed.
+      tie.result['homeGoals'] = weWin ? 2 : 1;
+      tie.result['awayGoals'] = weWin ? 1 : 2;
+      tie.result['won'] = weWin;
+      tie.result['penaltyShootout'] = <String, dynamic>{
+        'playerWins': weWin,
+        'homeScore': weWin ? 4 : 3,
+        'awayScore': weWin ? 3 : 4,
+        'kicks': <Map<String, dynamic>>[],
+      };
+      return tie;
+    }
+
+    test('a shootout WON goes in as the level score, not a one-goal win', () {
+      final s = cupState();
+      settleCupRound(s, penaltyTie(s, weWin: true));
+
+      final stored = _map(_cupResults(s).single)!;
+      expect(
+        [stored['homeGoals'], stored['awayGoals']],
+        [1, 1],
+        reason: 'the bracket recorded a goal the feed never played',
+      );
+      // And going through is still recorded, which is the whole point of `won`
+      // travelling separately from the score.
+      expect(stored['won'], isTrue);
+    });
+
+    test('and a shootout LOST goes in level too', () {
+      final s = cupState();
+      settleCupRound(s, penaltyTie(s, weWin: false));
+
+      final stored = _map(_cupResults(s).single)!;
+      expect([stored['homeGoals'], stored['awayGoals']], [1, 1]);
+      expect(stored['won'], isFalse);
+    });
+
+    test('but a tie won in NORMAL time keeps its winning goal', () {
+      // The control: no shootout, nothing to unfold.
+      final s = cupState();
+      final tie = beginCupRound(s)!;
+      tie.result['homeGoals'] = 2;
+      tie.result['awayGoals'] = 1;
+      tie.result['won'] = true;
+      tie.result['penaltyShootout'] = null;
+      settleCupRound(s, tie);
+
+      final stored = _map(_cupResults(s).single)!;
+      expect([stored['homeGoals'], stored['awayGoals']], [2, 1]);
+    });
+
+    test('AND THE SHEET PRINTS WHAT THE FEED PLAYED', () {
+      // The end of the chain, on ties the ENGINE really did send to penalties
+      // rather than a hand-built one: `ourCupTiesProvider` reads the stored
+      // figures straight through and `league_sheets` prints them, so the
+      // bracket has to agree with the feed the screen was given.
+      var seen = 0;
+      for (var seed = 0; seed < 120; seed++) {
+        setSeed(seed);
+        final s = cupState();
+        final tie = beginCupRound(s);
+        if (tie == null || tie.result['penaltyShootout'] == null) continue;
+        seen++;
+        var ours = 0;
+        var theirs = 0;
+        for (final e in tie.result['events'] as List) {
+          final row = _map(e);
+          if (row == null || row['type'] != 'goal') continue;
+          if (row['team'] == 'away') {
+            theirs++;
+          } else {
+            ours++;
+          }
+        }
+        settleCupRound(s, tie);
+        final stored = _map(_cupResults(s).single)!;
+        expect(
+          [stored['homeGoals'], stored['awayGoals']],
+          [ours, theirs],
+          reason: 'seed $seed: the sheet and the feed are different ties',
+        );
+        // A shootout is only ever rolled on a level ninety minutes.
+        expect(stored['homeGoals'], stored['awayGoals'], reason: 'seed $seed');
+      }
+      expect(
+        seen,
+        greaterThan(0),
+        reason: 'no tie in 120 seeds reached penalties, so nothing was tested',
+      );
+    });
+  });
 }
