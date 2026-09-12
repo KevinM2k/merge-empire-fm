@@ -26,25 +26,20 @@ import 'package:merge_empire_fc/util/time.dart';
 /// An SDK that always pays out, so the wiring is what is under test.
 class PayingAds implements RewardedAds {
   final List<String> shown = [];
-  final List<String> prepared = [];
 
   @override
-  Future<AdOutcome> show(String placement) async {
+  Future<AdOutcome> show(String placement, {void Function()? onShown}) async {
     shown.add(placement);
-    // **It takes TIME, which is the whole point.** A video that resolves on the
+    // **IT TAKES TIME, which is the whole point.** A video that resolves on the
     // next microtask lands while the sheet's route is still being torn down and
-    // hides the defect this file's last test is about.
+    // hides the defect this file's last test is about — and with nothing
+    // preloaded, a load the player waits on IS the ordinary case.
     await Future<void>.delayed(const Duration(seconds: 2));
+    // Then it goes on screen, which is what brings the sheet down.
+    onShown?.call();
     return AdOutcome.rewarded;
   }
 
-  @override
-  void prepare(String placement) => prepared.add(placement);
-
-
-  @override
-
-  void refresh() {}
 }
 
 Future<ProviderContainer> pumpShell(
@@ -322,11 +317,13 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.tap(find.byKey(const ValueKey('energy-watch-ad-btn')));
-    // The sheet is gone well before the video ends.
-    await tester.pumpAndSettle();
-    expect(find.byKey(const ValueKey('energy-sheet')), findsNothing);
+    // **`pump`, not `pumpAndSettle`.** The button is spinning now and a
+    // spinner never settles; the load is what the test is waiting out.
+    await tester.pump();
     await tester.pump(const Duration(seconds: 3));
     await tester.pumpAndSettle();
+    // The sheet goes when the video goes up, and the video is still running.
+    expect(find.byKey(const ValueKey('energy-sheet')), findsNothing);
 
     expect(ads.shown, isNotEmpty, reason: 'no video was even asked for');
     expect(
@@ -336,34 +333,58 @@ void main() {
     await tester.pump(const Duration(milliseconds: saveDebounceMs + 100));
   });
 
-
-  group('the video is warmed as the sheet goes up', () {
-    testWidgets('opening it with room in the tank warms one', (tester) async {
-      // The sheet is several seconds of reading before the button, and both
-      // doors into it are opened by a player who wants energy.
+  group('NOTHING IS ASKED FOR UNTIL THE BUTTON IS PRESSED', () {
+    // The sheet used to warm a video on its way up. It fed one warm slot for
+    // the whole app — an ad request spent on an offer the player might walk
+    // past, sitting there expiring. See `services/rewarded_ads.dart`.
+    testWidgets('opening it asks for no ad at all', (tester) async {
       final ads = PayingAds();
       await pumpShell(tester, energy: 4, ads: ads);
-      expect(ads.prepared, isEmpty);
 
       await tester.tap(find.byKey(const ValueKey('hud-energy-plus')));
       await tester.pumpAndSettle();
 
-      expect(ads.prepared, [energyPlacement]);
+      expect(ads.shown, isEmpty, reason: 'the sheet warmed one on the way up');
     });
 
-    testWidgets('and a FULL tank warms nothing', (tester) async {
-      // The ad row is dead with a full tank — nothing to top up — and the app
-      // has ONE warm slot (`admob_ads.dart`), so warming here would take it
-      // off a placement the player can actually reach.
+    testWidgets('AND THE SHEET STAYS UP WHILE THE VIDEO LOADS', (tester) async {
+      // It popped on the tap and started the video behind it, which was right
+      // when a warm ad opened in the same frame. With every tap paying a cold
+      // load, the sheet went and nothing replaced it: the player was left on
+      // the screen they came from with no sign anything had happened.
+      final ads = PayingAds();
+      await pumpShell(tester, energy: 4, ads: ads);
+      await tester.tap(find.byKey(const ValueKey('hud-energy-plus')));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const ValueKey('energy-watch-ad-btn')));
+      await tester.pump();
+      expect(ads.shown, [energyPlacement]);
+      expect(
+        find.byKey(const ValueKey('energy-sheet')),
+        findsOneWidget,
+        reason: 'the sheet went before the video did',
+      );
+      // And the button the player pressed says so, rather than the sheet
+      // sitting there looking untouched.
+      expect(find.byKey(const ValueKey('store-button-busy')), findsOneWidget);
+
+      // `PayingAds` presents after two seconds; the sheet goes with it.
+      await tester.pump(const Duration(seconds: 3));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('energy-sheet')), findsNothing);
+      await tester.pump(const Duration(milliseconds: saveDebounceMs + 100));
+      await tester.pumpAndSettle();
+    });
+
+    testWidgets('and a FULL tank offers nothing to press', (tester) async {
       final ads = PayingAds();
       await pumpShell(tester, energy: 999, ads: ads);
 
       await tester.tap(find.byKey(const ValueKey('hud-energy-plus')));
       await tester.pumpAndSettle();
 
-      expect(ads.prepared, isEmpty);
-      // And the sheet says so where the offer would have been, so the
-      // warm-up and the control agree about there being nothing to add to.
+      expect(ads.shown, isEmpty);
       expect(find.text(t('hud.energy_full')), findsWidgets);
     });
   });

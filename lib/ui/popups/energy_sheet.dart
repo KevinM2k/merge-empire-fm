@@ -44,12 +44,15 @@ const String energyPlacement = 'energy_pip';
 /// match fitness is the gate — so the same video buys a quarter of everyone's
 /// fitness back rather than three of a currency that does not exist. The JS
 /// branches on exactly this and so does the toast.
-Future<void> watchEnergyAd(WidgetRef ref) async {
-  final outcome = await watchRewardedAd(ref, energyPlacement);
-  if (outcome == AdOutcome.unavailable) {
-    emit('toast:info', t('toast.no_ad'));
-    return;
-  }
+///
+/// The refusal line is `watchRewardedAd`'s now, for every offer in the game at
+/// once — see its own note.
+Future<void> watchEnergyAd(WidgetRef ref, {VoidCallback? onShown}) async {
+  final outcome = await watchRewardedAd(
+    ref,
+    energyPlacement,
+    onShown: onShown,
+  );
   if (outcome != AdOutcome.rewarded) return;
   final game = ref.read(gameProvider);
   final pro = game.state?['settings'] is Map<String, dynamic> &&
@@ -87,17 +90,6 @@ final energyStatusProvider = savePick<EnergyStatus>((s) {
 });
 
 Future<void> showEnergySheet(BuildContext context, WidgetRef ref) {
-  // **WARMED AS THE SHEET GOES UP.** Both doors into this open it because the
-  // player wants energy — the HUD's `+`, and the play button's detour when the
-  // tank is too empty to kick off — so the video is the reason they are here
-  // and the sheet is several seconds of reading before they reach the button.
-  //
-  // A full tank is the one case with nothing to top up: the ad row goes dead
-  // (`status.full` below) and warming for a button nobody can press spends the
-  // app's ONE warm slot on nothing. See `admob_ads.dart`.
-  if (!ref.read(energyStatusProvider).full) {
-    ref.read(rewardedAdsProvider).prepare(energyPlacement);
-  }
   return showBottomSheetPopup<void>(
     context,
     // Taller since the refill moved onto it: the sheet carries the meter, the
@@ -168,19 +160,36 @@ Future<void> showEnergySheet(BuildContext context, WidgetRef ref) {
                       tint: kit.accentBright,
                       tone: StoreTone.ad,
                       cta: t('shop.claim_cta'),
-                      // **THE CALLER'S `ref`, NOT THE SHEET'S.** Popping first
-                      // is right — the video takes the screen — but `sheetRef`
-                      // belongs to a `Consumer` inside the route being popped,
-                      // so awaiting a video on it and then reading the game
-                      // reads through a disposed element. Reported as "I
-                      // watched the ad and got no energy", which is exactly
-                      // what that looks like from the couch.
+                      // **THE SHEET STAYS UP WHILE THE AD LOADS.** It used to
+                      // pop on the tap and start the video behind it, which was
+                      // right when a warm ad opened in the same frame and is
+                      // wrong now that every tap pays a cold load: the sheet
+                      // went, nothing replaced it, and the player was looking
+                      // at the screen they came from with no sign anything had
+                      // happened. So the button spins where they pressed it and
+                      // the sheet goes when the video does. On a refusal it
+                      // stays, which is what the toast needs — a line about a
+                      // sheet that is no longer there explains nothing.
+                      busy: sheetRef.watch(adLoadingProvider(energyPlacement)),
+                      // **THE CALLER'S `ref`, NOT THE SHEET'S**, for the game
+                      // read AFTER the video. `sheetRef` belongs to a
+                      // `Consumer` inside the route this pops, so awaiting a
+                      // video on it and then reading the game reads through a
+                      // disposed element. Reported as "I watched the ad and got
+                      // no energy", which is exactly what that looks like from
+                      // the couch.
                       onTap: status.full
                           ? null
-                          : () {
-                              Navigator.of(sheetContext).pop();
-                              unawaited(watchEnergyAd(ref));
-                            },
+                          : () => unawaited(
+                              watchEnergyAd(
+                                ref,
+                                onShown: () {
+                                  if (sheetContext.mounted) {
+                                    Navigator.of(sheetContext).pop();
+                                  }
+                                },
+                              ),
+                            ),
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -357,6 +366,7 @@ class _EnergyOption extends StatelessWidget {
     required this.cta,
     required this.onTap,
     this.leading,
+    this.busy = false,
   });
 
   final Key optionKey;
@@ -382,6 +392,9 @@ class _EnergyOption extends StatelessWidget {
   final String? note;
   final Color tint;
   final VoidCallback? onTap;
+
+  /// The option's own video is loading. Straight through to [StoreButton].
+  final bool busy;
 
   @override
   Widget build(BuildContext context) {
@@ -454,6 +467,7 @@ class _EnergyOption extends StatelessWidget {
                 tone: tone,
                 label: cta,
                 small: true,
+                busy: busy,
                 leading:
                     leading ??
                     (tone == StoreTone.ad

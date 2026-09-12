@@ -129,13 +129,6 @@ class TrainingView extends ConsumerWidget {
 /// its video back.
 const String skipCooldownPlacement = 'skip_cooldown';
 
-/// Whether the skip button's video is worth warming, straight off the engine.
-///
-/// A provider rather than a call in `build` so the answer can be LISTENED to:
-/// the tab is almost always opened with a game still ready, and the moment the
-/// last one is played is when the button goes live. See [_SkipAllState.build].
-final _skipAdPrefetchProvider = savePick<bool>(shouldPrefetchSkipAd);
-
 class _SkipAll extends ConsumerStatefulWidget {
   const _SkipAll();
 
@@ -146,25 +139,6 @@ class _SkipAll extends ConsumerStatefulWidget {
 class _SkipAllState extends ConsumerState<_SkipAll> {
   /// Dead while the video is up. Two taps is two videos for one skip.
   bool _watching = false;
-
-  @override
-  void initState() {
-    super.initState();
-    // **WARMED, and `shouldPrefetchSkipAd` finally has a caller.** The engine
-    // has known when to do this since the skip went in — everything the player
-    // owns is cooling down and there is a free video left — and nothing in
-    // `lib/` asked it, so the button always paid the full load on the tap.
-    // Exactly the dead-engine shape `tool/unreached.sh` is for.
-    //
-    // Its own note explains the second half of the condition: past the day's
-    // three the button is a gem purchase and shows no ad, and the plugin
-    // caches ONE rewarded ad globally, so warming this any earlier evicts a
-    // placement the player was likelier to reach.
-    final save = ref.read(gameProvider).state;
-    if (save != null && shouldPrefetchSkipAd(save)) {
-      ref.read(rewardedAdsProvider).prepare(skipCooldownPlacement);
-    }
-  }
 
   /// **THE VIDEO, which this button never showed.**
   ///
@@ -189,9 +163,8 @@ class _SkipAllState extends ConsumerState<_SkipAll> {
       // for a fourth. `skipAllMiniGameCooldowns` returns false and touches
       // nothing when the day is spent.
       ref.read(gameProvider).update(skipAllMiniGameCooldowns);
-    } else if (outcome == AdOutcome.unavailable) {
-      emit('toast:info', t('toast.ad_unavailable'));
     }
+    // A refusal says so on its own — see `watchRewardedAd`.
   }
 
   /// **AND PAST THE DAY'S THREE IT REPRICES, rather than dying.**
@@ -215,18 +188,6 @@ class _SkipAllState extends ConsumerState<_SkipAll> {
 
   @override
   Widget build(BuildContext context) {
-    // **AND AGAIN WHEN THE LAST GAME GOES OFF.** `initState` above is only the
-    // player who walks in with everything already cooling; the ordinary way to
-    // reach this button is to open the tab with a game still ready and play
-    // it, and that path warmed nothing — the condition turned true after the
-    // one moment anybody was asking it. Edge-triggered, so a rebuild while it
-    // is still true does not re-ask: `prepare` is cheap but it is not free,
-    // and this tab rebuilds on every cooldown tick.
-    ref.listen<bool>(_skipAdPrefetchProvider, (was, isNow) {
-      if (isNow && was != true) {
-        ref.read(rewardedAdsProvider).prepare(skipCooldownPlacement);
-      }
-    });
     final resting = ref
         .watch(miniGamesProvider)
         .where((g) => g.unlocked && g.playable && !g.ready)
@@ -249,14 +210,19 @@ class _SkipAllState extends ConsumerState<_SkipAll> {
         // one on the screen that actually clears the board looked like a
         // footnote. Reported from the couch, naming the height and the font.
         stretch: true,
-        leading: _watching
-            ? null
-            : GameIcon(byAd ? 'video' : 'gem', size: 14),
+        // The gem half is an instant purchase and never waits; only the video
+        // does. See `StoreButton.busy`.
+        busy: byAd && ref.watch(adLoadingProvider(skipCooldownPlacement)),
+        leading: GameIcon(byAd ? 'video' : 'gem', size: 14),
         // `minigame.skip_all_left` is "{n} left" — the day's ledger, which the
         // player has no other way of seeing. Past it the chip is the price.
-        label: _watching
-            ? t('common.loading')
-            : byAd
+        //
+        // **AND THE LOADING FACE IS NOT SPELLED OUT HERE ANY MORE.** It was
+        // this button's own `_watching` branch swapping the label for
+        // `common.loading` and dropping the glyph; every rewarded-video control
+        // in the game wears the same face now, off one flag — see
+        // `StoreButton.busy`.
+        label: byAd
             ? '${t('minigame.skip_all_ad')} · '
                   '${t('minigame.skip_all_left', {'n': skipsLeft})}'
             : '${t('minigame.skip_all_ad')} · ${Minigame.skipGemCost}',

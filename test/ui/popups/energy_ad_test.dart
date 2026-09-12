@@ -26,18 +26,11 @@ class _Ads implements RewardedAds {
   final List<String> shown = [];
 
   @override
-  Future<AdOutcome> show(String placement) async {
+  Future<AdOutcome> show(String placement, {void Function()? onShown}) async {
     shown.add(placement);
     return outcome;
   }
 
-  @override
-  void prepare(String placement) {}
-
-
-  @override
-
-  void refresh() {}
 }
 
 /// A container with a save and a stand-in SDK, and a `ref` to reach them by.
@@ -178,8 +171,11 @@ void main() {
       _Ads(AdOutcome.unavailable),
       mutate: (s) => (s['energy'] as Map<String, dynamic>)['current'] = 1,
     );
+    // **`toast:error`, and raised by `watchRewardedAd` rather than here.** One
+    // line for every offer in the game, so an offer that fails says so whether
+    // or not whoever wrote that screen remembered to.
     final toasts = <Object?>[];
-    on('toast:info', toasts.add);
+    on('toast:error', toasts.add);
 
     await watchEnergyAd(ref);
 

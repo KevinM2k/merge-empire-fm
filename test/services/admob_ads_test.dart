@@ -12,16 +12,26 @@ import 'package:merge_empire_fc/services/rewarded_ads.dart';
 import 'package:merge_empire_fc/util/analytics.dart';
 
 class _Handle implements RewardedHandle {
-  _Handle({this.earns = true});
+  _Handle({this.earns = true, this.presents = true});
 
   final bool earns;
+
+  /// The SDK could put it on screen. False is the one that used to arrive as a
+  /// dismissal the player never made.
+  final bool presents;
   int shows = 0;
   bool disposed = false;
 
+  /// The presented signal was raised — what takes the button's spinner off.
+  bool announced = false;
+
   @override
-  Future<bool> show() async {
+  Future<AdOutcome> show({void Function()? onShown}) async {
     shows += 1;
-    return earns;
+    if (!presents) return AdOutcome.unavailable;
+    announced = true;
+    onShown?.call();
+    return earns ? AdOutcome.rewarded : AdOutcome.dismissed;
   }
 
   @override
@@ -29,10 +39,11 @@ class _Handle implements RewardedHandle {
 }
 
 class _Loader implements RewardedAdLoader {
-  _Loader({this.fill = true, this.earns = true});
+  _Loader({this.fill = true, this.earns = true, this.presents = true});
 
   bool fill;
   bool earns;
+  bool presents;
   final List<String> asked = [];
   final List<_Handle> handed = [];
 
@@ -40,30 +51,18 @@ class _Loader implements RewardedAdLoader {
   Future<RewardedHandle?> load(String unitId) async {
     asked.add(unitId);
     if (!fill) return null;
-    final handle = _Handle(earns: earns);
+    final handle = _Handle(earns: earns, presents: presents);
     handed.add(handle);
     return handle;
   }
 }
 
-AdMobRewardedAds _ads(
-  _Loader loader, {
-  bool permitted = true,
-  DateTime Function()? clock,
-}) => AdMobRewardedAds(
-  loader: loader,
-  platform: 'android',
-  permitted: () => permitted,
-  clock: clock,
-);
-
-/// A clock the test winds on by hand. Staleness is an age, so it needs one.
-class _Clock {
-  DateTime now = DateTime.utc(2026, 1, 1, 12);
-
-  DateTime call() => now;
-  void advance(Duration by) => now = now.add(by);
-}
+AdMobRewardedAds _ads(_Loader loader, {bool permitted = true}) =>
+    AdMobRewardedAds(
+      loader: loader,
+      platform: 'android',
+      permitted: () => permitted,
+    );
 
 void main() {
   group('the manifests carry the APP ids, and a wrong one CRASHES on start', () {
@@ -179,11 +178,29 @@ void main() {
       expect(loader.asked, hasLength(1));
     });
 
-    test('but a WATCHED one lines the next up before it returns', () async {
+    test('AND A WATCHED ONE DOES NOT LINE THE NEXT UP EITHER', () async {
+      // **The warm slot is gone, in both directions.** A show used to prefetch
+      // on its way out, which is a request spent on the assumption the player
+      // is about to take a second video — and an ad that then sat there going
+      // off. One tap, one load, and the next tap asks again.
       final loader = _Loader();
       await _ads(loader).show('energy_pip');
-      expect(loader.asked, hasLength(2));
+      await Future<void>.delayed(Duration.zero);
+      expect(loader.asked, hasLength(1));
     });
+
+    test('A PRESENT THAT FAILS IS `unavailable`, NOT A DISMISSAL', () async {
+      // It resolved `false` alongside a player who closed the video early, so
+      // the SDK holding an ad it could not put on screen paid nothing AND said
+      // nothing — the one outcome that most needs the toast, filed as the one
+      // that deliberately has none.
+      expect(
+        await _ads(_Loader(presents: false)).show('energy_pip'),
+        AdOutcome.unavailable,
+      );
+    });
+
+
 
     test('NO FILL IS `unavailable`, AND THAT IS A REAL ANSWER', () async {
       // A video fails to fill far more often than anyone expects, and every
@@ -196,35 +213,39 @@ void main() {
 
   });
 
-  group('ONE WARM AD FOR THE WHOLE APP', () {
-    test('the ad warmed HERE is the ad shown THERE', () async {
-      // The point of the global unit. Eleven slots meant the warm one was
-      // almost never the one that got tapped and the player waited anyway.
+  group('NOTHING IS PRELOADED', () {
+    // There was one warm ad for the whole app, primed by six screens and topped
+    // up on every resume. A single global slot meant a request spent on
+    // whichever offer the player happened to walk past, sitting there going off
+    // — AdMob expires a loaded rewarded ad about an hour later and says nothing
+    // about it, so a tap on a stale slot failed at the moment of the tap and
+    // arrived as a dismissal nobody made.
+    test('THE LOAD HAPPENS ON THE TAP, and only on the tap', () async {
       final loader = _Loader();
-      final ads = _ads(loader)..prepare('skip_cooldown');
+      final ads = _ads(loader);
       await Future<void>.delayed(Duration.zero);
-      expect(loader.asked, hasLength(1));
+      expect(loader.asked, isEmpty, reason: 'something warmed an ad up');
 
       expect(await ads.show('lucky_boot'), AdOutcome.rewarded);
-      expect(loader.handed.first.shows, 1, reason: 'the warm ad went unused');
-      // Two loads: the prefetch, and the next one lined up after the show. The
-      // show itself did not have to load.
-      expect(loader.asked, hasLength(2));
+      expect(loader.asked, hasLength(1));
+      expect(loader.handed.single.shows, 1);
     });
 
-    test('and warming twice over two placements still loads once', () async {
+    test('and a second tap loads a second ad, not the same object', () async {
+      // One ad object is ONE SHOWING: the SDK's rewarded ad is loaded, shown
+      // once and disposed, and a second `show` of the same handle is an SDK
+      // error rather than a second video.
       final loader = _Loader();
-      final ads = _ads(loader)
-        ..prepare('energy_pip')
-        ..prepare('daily_double');
-      await Future<void>.delayed(Duration.zero);
-      ads.prepare('lucky_boot');
-      expect(loader.asked, hasLength(1));
+      final ads = _ads(loader);
+      await ads.show('energy_pip');
+      await ads.show('energy_pip');
+      expect(loader.asked, hasLength(2));
+      expect(loader.handed.map((h) => h.shows), [1, 1]);
     });
 
     test('A SECOND SHOW MID-VIDEO IS A NO-OP, not a second ad', () async {
       // The UI holds a flag of its own; the adapter must not depend on every
-      // caller having behaved. One ad object is one showing.
+      // caller having behaved.
       final loader = _Loader();
       final ads = _ads(loader);
       final first = ads.show('energy_pip');
@@ -235,126 +256,35 @@ void main() {
     });
   });
 
-  group('AND A WARM AD GOES OFF', () {
-    // AdMob expires a loaded rewarded ad about an hour after it loads and says
-    // nothing — it fails at the tap, arriving as a dismissal nobody made.
-    test('a stale one is disposed rather than shown', () async {
-      final clock = _Clock();
+  group('THE PRESENTED SIGNAL', () {
+    // The future is the DISMISSAL, seconds after the video went up. A button
+    // that held its spinner until then would still be turning under a video
+    // that is already playing — and the player comes back to a control that
+    // looks like it is still waiting on the thing they just watched.
+    test('is handed to the ad, and raised before the answer', () async {
       final loader = _Loader();
-      final ads = _ads(loader, clock: clock.call)..prepare('energy_pip');
-      await Future<void>.delayed(Duration.zero);
-      final stale = loader.handed.first;
-
-      clock.advance(adFreshness + const Duration(minutes: 1));
-      expect(await ads.show('energy_pip'), AdOutcome.rewarded);
-      expect(stale.disposed, isTrue, reason: 'the expired ad was kept');
-      expect(stale.shows, 0, reason: 'the expired ad was SHOWN');
-      // [1], not `.last` — the show lines the NEXT one up before it returns.
-      expect(loader.handed[1].shows, 1);
+      var answered = false;
+      var raisedInTime = false;
+      await _ads(loader).show(
+        'energy_pip',
+        onShown: () => raisedInTime = !answered,
+      );
+      answered = true;
+      expect(loader.handed.single.announced, isTrue);
+      expect(raisedInTime, isTrue, reason: 'the signal waited for the answer');
     });
 
-    test('and a fresh one is left exactly where it is', () async {
-      final clock = _Clock();
-      final loader = _Loader();
-      final ads = _ads(loader, clock: clock.call)..prepare('energy_pip');
-      await Future<void>.delayed(Duration.zero);
+    test('AND NEVER FIRES WHEN THERE WAS NOTHING TO SHOW', () async {
+      var announced = false;
+      await _ads(
+        _Loader(fill: false),
+      ).show('energy_pip', onShown: () => announced = true);
+      expect(announced, isFalse);
 
-      clock.advance(adFreshness - const Duration(minutes: 1));
-      await ads.show('energy_pip');
-      expect(loader.handed.first.shows, 1);
-      expect(loader.handed.first.disposed, isFalse);
-    });
-
-    test('REFRESH RELOADS A STALE SLOT, which is what resume is for', () async {
-      final clock = _Clock();
-      final loader = _Loader();
-      final ads = _ads(loader, clock: clock.call)..prepare('energy_pip');
-      await Future<void>.delayed(Duration.zero);
-      final stale = loader.handed.first;
-
-      clock.advance(adFreshness + const Duration(minutes: 1));
-      ads.refresh();
-      await Future<void>.delayed(Duration.zero);
-      expect(stale.disposed, isTrue);
-      expect(loader.asked, hasLength(2), reason: 'nothing was warmed back up');
-    });
-
-    test('and refreshing a fresh slot costs nothing at all', () async {
-      // A resume must not spend an ad request every time the player glances at
-      // the app.
-      final clock = _Clock();
-      final loader = _Loader();
-      final ads = _ads(loader, clock: clock.call)..prepare('energy_pip');
-      await Future<void>.delayed(Duration.zero);
-
-      clock.advance(const Duration(minutes: 5));
-      ads.refresh();
-      await Future<void>.delayed(Duration.zero);
-      expect(loader.asked, hasLength(1));
-      expect(loader.handed.first.disposed, isFalse);
-    });
-
-    test('and refreshing an EMPTY slot fills it', () async {
-      // **This asserted the opposite, and the opposite was the bug.** The
-      // reasoning was "nothing has expired because nothing was ever there" —
-      // true, and it left the app's first ad tap paying a cold load however
-      // long the player had been in the game. It made sense when eleven
-      // placements each had their own slot and warming one evicted another;
-      // every placement serves from ONE unit now, so there is exactly one ad to
-      // keep ready and no wrong one to warm. Asked directly from the couch.
-      final loader = _Loader();
-      _ads(loader).refresh();
-      await Future<void>.delayed(Duration.zero);
-      expect(loader.asked, hasLength(1));
-    });
-
-    test('but a slot that already has one is left alone', () async {
-      // The de-duplication that makes the above free: a resume with a fresh ad
-      // in the slot must not throw it away and ask for another.
-      final loader = _Loader();
-      final ads = _ads(loader);
-      ads.prepare('x');
-      await Future<void>.delayed(Duration.zero);
-      ads.refresh();
-      await Future<void>.delayed(Duration.zero);
-      expect(loader.asked, hasLength(1));
-    });
-
-    test('and the shipping default has a refresh that does nothing', () {
-      expect(() => const NoRewardedAds().refresh(), returnsNormally);
-    });
-  });
-
-  group('ONE AD OBJECT IS ONE SHOWING', () {
-    test('so a warmed ad is consumed, not re-shown', () async {
-      // The SDK's rewarded ad is not reusable: loaded, shown once, disposed. A
-      // second tap that re-showed the same object is an SDK error rather than a
-      // second video.
-      final loader = _Loader();
-      final ads = _ads(loader);
-      ads.prepare('energy_pip');
-      await Future<void>.delayed(Duration.zero);
-      expect(loader.asked, hasLength(1), reason: 'the prefetch did not run');
-
-      await ads.show('energy_pip');
-      expect(loader.handed.first.shows, 1);
-      // And it lines up the NEXT one while the player is still on the screen.
-      await Future<void>.delayed(Duration.zero);
-      expect(loader.asked, hasLength(2));
-
-      await ads.show('energy_pip');
-      expect(loader.handed[0].shows, 1, reason: 'shown twice');
-      expect(loader.handed[1].shows, 1);
-    });
-
-    test('and preparing twice loads once', () async {
-      final loader = _Loader();
-      final ads = _ads(loader)
-        ..prepare('lucky_boot')
-        ..prepare('lucky_boot');
-      await Future<void>.delayed(Duration.zero);
-      ads.prepare('lucky_boot');
-      expect(loader.asked, hasLength(1));
+      await _ads(
+        _Loader(presents: false),
+      ).show('energy_pip', onShown: () => announced = true);
+      expect(announced, isFalse, reason: 'a failed present announced itself');
     });
   });
 
@@ -449,22 +379,12 @@ void main() {
       expect(sent.single.params.containsKey('reason'), isFalse);
     });
 
-    test('A WARM-HERE SHOWN-THERE HOP IS ON THE RECORD', () async {
-      // One warm ad for the whole app means the training screen loads ads the
-      // shop spends. A per-placement load count that ignored this would read as
-      // the training screen wasting inventory.
-      final ads = _ads(_Loader())..prepare('skip_cooldown');
-      await Future<void>.delayed(Duration.zero);
-      await ads.show('lucky_boot');
-      expect(sent.single.params['placement'], 'lucky_boot');
-      expect(sent.single.params['warmed_for'], 'skip_cooldown');
-    });
-
-    test('and it is left off when the two are the same place', () async {
-      final ads = _ads(_Loader())..prepare('lucky_boot');
-      await Future<void>.delayed(Duration.zero);
-      await ads.show('lucky_boot');
-      expect(sent.single.params.containsKey('warmed_for'), isFalse);
+    test('AND A BROKEN PRESENT IS `show_failed`, its own third reason', () async {
+      // A third problem behind the one outcome: not consent, not inventory,
+      // but the SDK holding an ad it could not put on screen.
+      await _ads(_Loader(presents: false)).show('heal_all');
+      expect(sent.single.name, 'ad_failed');
+      expect(sent.single.params['reason'], 'show_failed');
     });
 
     test('a double tap is not an ad ask, so it reports nothing', () async {

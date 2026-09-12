@@ -36,18 +36,11 @@ class _FakeAds implements RewardedAds {
   int prepared = 0;
 
   @override
-  Future<AdOutcome> show(String placement) async {
+  Future<AdOutcome> show(String placement, {void Function()? onShown}) async {
     shown++;
     return AdOutcome.rewarded;
   }
 
-  @override
-  void prepare(String placement) => prepared++;
-
-
-  @override
-
-  void refresh() {}
 }
 
 Future<void> pumpTraining(
@@ -313,7 +306,6 @@ void main() {
       }
     });
 
-
     /// **AND IT SAYS "UP TO".** The figure is a PERFECT run — every drill,
     /// every shot — and quoted as a bare coin badge it read as the price of
     /// playing rather than as a ceiling. Reported from the couch. The row
@@ -370,8 +362,14 @@ void main() {
     expect(formatDuration(0), isNotEmpty);
   });
 
-  group('the skip video is warmed when the button goes live', () {
-    testWidgets('walking in with everything cooling warms one', (tester) async {
+  group('NOTHING IS WARMED UP AHEAD OF THE TAP', () {
+    // The tab primed the skip video whenever the button went live — on the way
+    // in, and again the moment the last drill went off. It fed one warm slot
+    // for the whole app, and an ad loaded for a button the player has not
+    // pressed is an ad sitting there expiring. See `services/rewarded_ads.dart`.
+    testWidgets('walking in with everything cooling asks for nothing', (
+      tester,
+    ) async {
       final ads = _FakeAds();
       await pumpTraining(
         tester,
@@ -383,16 +381,11 @@ void main() {
         },
         ads: ads,
       );
-      expect(ads.prepared, 1);
+      expect(find.byKey(const ValueKey('training-skip-all')), findsOneWidget);
+      expect(ads.shown, 0);
     });
 
-    testWidgets('AND SO DOES PLAYING THE LAST ONE, which it never did', (
-      tester,
-    ) async {
-      // **The ordinary path warmed nothing.** `initState` was the only caller,
-      // and the tab is almost always opened with a game still ready — so the
-      // condition turned true a moment after anybody had asked it, and the tap
-      // paid the full load every time.
+    testWidgets('AND NEITHER DOES PLAYING THE LAST ONE', (tester) async {
       late ProviderContainer container;
       final ads = _FakeAds();
       await pumpTraining(
@@ -407,7 +400,7 @@ void main() {
         onContainer: (c) => container = c,
         ads: ads,
       );
-      expect(ads.prepared, 0, reason: 'warmed with a drill still ready');
+      expect(ads.shown, 0);
 
       container.read(gameProvider).update(
         (s) => startMiniGame(s, MiniGameKind.all.first),
@@ -417,12 +410,31 @@ void main() {
       // complains about a pending timer.
       await tester.pump(const Duration(milliseconds: saveDebounceMs + 100));
 
-      expect(ads.prepared, 1);
+      expect(ads.shown, 0, reason: 'the button going live asked for an ad');
     });
 
-    testWidgets('and past the day\'s three it warms nothing', (tester) async {
-      // Past the cap the button is a gem purchase and shows no ad at all, so
-      // warming would take the app's ONE slot off a placement that pays.
+    testWidgets('and THE TAP is what asks, once', (tester) async {
+      final ads = _FakeAds();
+      await pumpTraining(
+        tester,
+        mutate: (s) {
+          trainingTier(s, 6);
+          for (final kind in MiniGameKind.all) {
+            startMiniGame(s, kind);
+          }
+        },
+        ads: ads,
+      );
+      await tester.tap(find.byKey(const ValueKey('training-skip-all')));
+      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: saveDebounceMs + 100));
+      expect(ads.shown, 1);
+    });
+
+    testWidgets('and past the day\'s three the tap is a gem price', (
+      tester,
+    ) async {
+      // Past the cap the button is a purchase and shows no ad at all.
       final ads = _FakeAds();
       await pumpTraining(
         tester,
@@ -437,7 +449,10 @@ void main() {
         },
         ads: ads,
       );
-      expect(ads.prepared, 0);
+      await tester.tap(find.byKey(const ValueKey('training-skip-all')));
+      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: saveDebounceMs + 100));
+      expect(ads.shown, 0);
     });
   });
 }

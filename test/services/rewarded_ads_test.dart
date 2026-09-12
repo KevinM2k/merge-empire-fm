@@ -1,5 +1,6 @@
-/// The adapter the app boots with, before the SDK behind it has started. The
-/// SDK's own behaviour is not tested here — see `test/services/admob_ads_test.dart`.
+/// The adapter the app boots with, before the SDK behind it has started, and
+/// the one gate every offer in the game goes through. The SDK's own behaviour
+/// is not tested here — see `test/services/admob_ads_test.dart`.
 library;
 
 import 'dart:async';
@@ -8,54 +9,48 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:merge_empire_fc/services/rewarded_ads.dart';
+import 'package:merge_empire_fc/util/event_bus.dart';
 
 class _Recording implements RewardedAds {
   final List<String> shown = [];
-  final List<String> prepared = [];
 
   @override
-  Future<AdOutcome> show(String placement) async {
+  Future<AdOutcome> show(String placement, {void Function()? onShown}) async {
     shown.add(placement);
+    onShown?.call();
     return AdOutcome.rewarded;
   }
-
-  @override
-  void prepare(String placement) => prepared.add(placement);
-
-  @override
-  void refresh() => refreshed += 1;
-
-  int refreshed = 0;
 }
 
-/// One whose video the test decides the length of.
+/// One whose video the test decides the length of, and the moment it goes up.
 class _Held implements RewardedAds {
   final Completer<AdOutcome> gate = Completer<AdOutcome>();
   final List<String> shown = [];
+  void Function()? _announce;
+
+  /// Put the video on screen — what the SDK's own presented callback does.
+  void present() => _announce?.call();
 
   @override
-  Future<AdOutcome> show(String placement) {
+  Future<AdOutcome> show(String placement, {void Function()? onShown}) {
     shown.add(placement);
+    _announce = onShown;
     return gate.future;
   }
-
-  @override
-  void prepare(String placement) {}
-
-  @override
-  void refresh() {}
 }
 
 /// And one that falls over, which is what the `finally` is for.
 class _Throwing implements RewardedAds {
   @override
-  Future<AdOutcome> show(String placement) async => throw StateError('no');
+  Future<AdOutcome> show(String placement, {void Function()? onShown}) async =>
+      throw StateError('no');
+}
 
+/// One that never fills, which is the answer the toast is for.
+class _Empty implements RewardedAds {
   @override
-  void prepare(String placement) {}
-
-  @override
-  void refresh() {}
+  Future<AdOutcome> show(String placement, {void Function()? onShown}) async =>
+      AdOutcome.unavailable;
 }
 
 /// A real `WidgetRef`, which is what `watchRewardedAd` takes and what a
@@ -90,14 +85,13 @@ void main() {
       expect(live.shown, ['energy_pip']);
     });
 
-    test('and a prepare is replayed onto it', () async {
-      final live = _Recording();
-      final ads = PendingRewardedAds(Future.value(live));
-
-      ads.prepare('double_or_nothing');
-      await Future<void>.delayed(Duration.zero);
-
-      expect(live.prepared, ['double_or_nothing']);
+    test('and the presented signal is carried across the seam', () async {
+      // The adapter in front must not swallow it: the button's spinner comes
+      // off on this and nothing else.
+      final ads = PendingRewardedAds(Future.value(_Recording()));
+      var announced = false;
+      await ads.show('energy_pip', onShown: () => announced = true);
+      expect(announced, isTrue);
     });
 
     test('a consent form nobody answers is unavailable, not a hang', () async {
@@ -159,34 +153,116 @@ void main() {
       await first;
     });
 
+    testWidgets('AND IT IS STILL SHUT WHILE THE VIDEO IS PLAYING', (
+      tester,
+    ) async {
+      // The button behind the ad stops spinning, which is not the same thing as
+      // the app being open for a second ask.
+      final ads = _Held();
+      final ref = await _pumpRef(tester, ads);
+      final first = watchRewardedAd(ref, 'energy_pip');
+      ads.present();
+      await tester.pump();
+
+      expect(await watchRewardedAd(ref, 'lucky_boot'), AdOutcome.dismissed);
+      expect(ads.shown, ['energy_pip']);
+      ads.gate.complete(AdOutcome.rewarded);
+      await first;
+    });
+
     testWidgets('AND A THROW STILL PUTS THE FLAG DOWN', (tester) async {
       // A stuck flag is every offer in the app dead for the session, which is
       // a worse failure than the one that caused it.
       final ref = await _pumpRef(tester, _Throwing());
-      await expectLater(
-        watchRewardedAd(ref, 'energy_pip'),
-        throwsStateError,
-      );
+      await expectLater(watchRewardedAd(ref, 'energy_pip'), throwsStateError);
       expect(ref.read(adBusyProvider), isNull);
     });
+  });
 
-    testWidgets('a warm ad never asks for a spinner', (tester) async {
-      // It opens on the tap. A spinner shown unconditionally is a one-frame
-      // flicker on every offer in the game.
+  group('THE BUTTON THAT WAS TAPPED SAYS SO', () {
+    testWidgets('it is loading from the tap, with no delay at all', (
+      tester,
+    ) async {
+      // **NOTHING IS PRELOADED**, so a tap with no answer yet is the normal
+      // case rather than the exception, and a control that waits 150ms to admit
+      // it has been pressed reads as a button that missed the press.
       final ads = _Held();
       final ref = await _pumpRef(tester, ads);
       final watching = watchRewardedAd(ref, 'energy_pip');
-      expect(ref.read(adBusyProvider)?.slow, isFalse);
+
+      expect(ref.read(adLoadingProvider('energy_pip')), isTrue);
+      ads.gate.complete(AdOutcome.dismissed);
+      await watching;
+      expect(ref.read(adLoadingProvider('energy_pip')), isFalse);
+    });
+
+    testWidgets('AND ONLY THAT ONE — the others are shut, not spinning', (
+      tester,
+    ) async {
+      final ads = _Held();
+      final ref = await _pumpRef(tester, ads);
+      final watching = watchRewardedAd(ref, 'energy_pip');
+
+      expect(ref.read(adLoadingProvider('lucky_boot')), isFalse);
+      ads.gate.complete(AdOutcome.rewarded);
+      await watching;
+    });
+
+    testWidgets('IT STOPS WHEN THE VIDEO GOES UP, not when it ends', (
+      tester,
+    ) async {
+      // A spinner held to the dismissal is still turning under a video that is
+      // already playing, and the player comes back to a control that looks like
+      // it is waiting on the thing they just watched.
+      final ads = _Held();
+      final ref = await _pumpRef(tester, ads);
+      final watching = watchRewardedAd(ref, 'energy_pip');
+      expect(ref.read(adLoadingProvider('energy_pip')), isTrue);
+
+      ads.present();
+      expect(ref.read(adLoadingProvider('energy_pip')), isFalse);
+      expect(
+        ref.read(adBusyProvider)?.showing,
+        isTrue,
+        reason: 'the video is up and the flag does not say so',
+      );
 
       ads.gate.complete(AdOutcome.rewarded);
       await watching;
-      await tester.pump(adSpinnerDelay * 2);
-      expect(ref.read(adBusyProvider), isNull, reason: 'a late spinner fired');
     });
 
-    testWidgets('and one that is really loading does ask, after the delay', (
+    testWidgets('and the caller is told at the same moment', (tester) async {
+      // The energy sheet comes down when the video goes up rather than on the
+      // tap, so the button the player pressed is still there to spin.
+      final ads = _Held();
+      final ref = await _pumpRef(tester, ads);
+      var announced = false;
+      final watching = watchRewardedAd(
+        ref,
+        'energy_pip',
+        onShown: () => announced = true,
+      );
+
+      expect(announced, isFalse);
+      ads.present();
+      expect(announced, isTrue);
+
+      ads.gate.complete(AdOutcome.rewarded);
+      await watching;
+    });
+
+    testWidgets('a failure never says the video went up', (tester) async {
+      final ref = await _pumpRef(tester, _Empty());
+      var announced = false;
+      await watchRewardedAd(ref, 'energy_pip', onShown: () => announced = true);
+      expect(announced, isFalse);
+    });
+
+    testWidgets('the scrim waits, and comes down when the video is up', (
       tester,
     ) async {
+      // The heavier cue is the delayed one: an ask that answers in a frame or
+      // two would otherwise flash a full-screen scrim on every offer.
       final ads = _Held();
       final ref = await _pumpRef(tester, ads);
       final watching = watchRewardedAd(ref, 'energy_pip');
@@ -196,9 +272,73 @@ void main() {
       await tester.pump(const Duration(milliseconds: 40));
       expect(ref.read(adBusyProvider)?.slow, isTrue);
 
+      ads.present();
+      expect(ref.read(adBusyProvider)?.slow, isFalse);
       ads.gate.complete(AdOutcome.dismissed);
       await watching;
       expect(ref.read(adBusyProvider), isNull);
+    });
+
+    testWidgets('and a late spinner cannot fire after the answer', (
+      tester,
+    ) async {
+      final ads = _Held();
+      final ref = await _pumpRef(tester, ads);
+      final watching = watchRewardedAd(ref, 'energy_pip');
+      ads.gate.complete(AdOutcome.rewarded);
+      await watching;
+
+      await tester.pump(adSpinnerDelay * 2);
+      expect(ref.read(adBusyProvider), isNull, reason: 'a late spinner fired');
+    });
+  });
+
+  group('AND A FAILURE IS SAID OUT LOUD', () {
+    late List<String> lines;
+    late BusHandler listener;
+
+    setUp(() {
+      lines = [];
+      listener = (args) => lines.add('$args');
+      on('toast:error', listener);
+    });
+
+    tearDown(() => off('toast:error', listener));
+
+    testWidgets('every offer gets the line, because it is raised HERE', (
+      tester,
+    ) async {
+      // Six of the eight raised their own and two raised nothing, across three
+      // different keys saying the same sentence — so an offer that failed told
+      // the player so only if whoever wrote that screen had remembered.
+      final ref = await _pumpRef(tester, _Empty());
+      for (final placement in ['energy_pip', 'lucky_boot', 'daily_double']) {
+        expect(await watchRewardedAd(ref, placement), AdOutcome.unavailable);
+      }
+      expect(lines, hasLength(3));
+      expect(lines.first, isNotEmpty);
+    });
+
+    testWidgets('a video the player closed early says nothing', (tester) async {
+      // Backing out is a choice, not a fault.
+      final ads = _Held();
+      final ref = await _pumpRef(tester, ads);
+      final watching = watchRewardedAd(ref, 'energy_pip');
+      ads.gate.complete(AdOutcome.dismissed);
+      await watching;
+      expect(lines, isEmpty);
+    });
+
+    testWidgets('AND NEITHER DOES A DOUBLE TAP', (tester) async {
+      // A tap that never asked for an ad is not an ad that failed.
+      final ads = _Held();
+      final ref = await _pumpRef(tester, ads);
+      final first = watchRewardedAd(ref, 'energy_pip');
+      expect(await watchRewardedAd(ref, 'energy_pip'), AdOutcome.dismissed);
+      expect(lines, isEmpty);
+
+      ads.gate.complete(AdOutcome.rewarded);
+      await first;
     });
   });
 }

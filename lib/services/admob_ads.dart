@@ -9,25 +9,22 @@
 /// **`unavailable` is still a real answer and the flow still has to handle it.**
 /// A video fails to fill far more often than anyone expects, and the JS's path
 /// for it — take the single reward, say why — is the path the screens follow
-/// whether an SDK is present or not. Nothing above this file changes.
+/// whether an SDK is present or not. The saying-why is now one line in
+/// [watchRewardedAd] rather than eight screens each remembering to.
+///
+/// **NOTHING IS PRELOADED.** There was one warm ad for the whole app, primed by
+/// six screens and topped up on every resume, and it is gone: a single global
+/// slot meant a request spent on whichever offer the player happened to walk
+/// past, sitting there going off — AdMob expires a loaded rewarded ad about an
+/// hour after it loads and says nothing about it, so a tap on a stale slot
+/// failed at the moment of the tap and arrived as a dismissal nobody made. The
+/// staleness clock, the resume refresh and the per-screen priming all existed
+/// to manage that one slot. Now the load happens on the tap that wants it, the
+/// button says so while it runs, and there is no window in which anything can
+/// go off.
 ///
 /// **One ad object is ONE SHOWING.** The SDK's rewarded ad is not reusable: it
-/// is loaded, shown once and disposed. So the cache holds at most one preloaded
-/// ad and the show path always clears it — a second tap that re-showed the same
-/// object would be an SDK error rather than a second video.
-///
-/// **And there is ONE slot for the whole app, not one per placement.** Every
-/// rewarded placement serves from the same unit now, so the ad warmed on the
-/// training screen is the ad the shop's lucky boot shows. That is the point of
-/// the global unit: with eleven slots the warm ad was almost never the one that
-/// got tapped, and the player waited on a load anyway. See
-/// `globalRewardedUnitAndroid` in `data/ad_units.dart`.
-///
-/// **A warm ad goes off.** AdMob expires one about an hour after it loads and
-/// says nothing — it fails at the tap, arriving as a dismissal the player never
-/// made. [adFreshness] is checked whenever something is about to want an ad,
-/// and on app resume via [RewardedAds.refresh]. No timer: an app in the
-/// background must not be spending ad requests.
+/// is loaded, shown once and disposed — which is now the only life it has.
 ///
 /// **NOTHING IS VERIFIED ON A DEVICE.** `flutter analyze` and the suite are the
 /// only evidence in this repo and neither can exercise an ad SDK; the seam is
@@ -51,24 +48,6 @@ import 'package:merge_empire_fc/util/analytics.dart';
 /// `unavailable`.
 const Duration adLoadTimeout = Duration(seconds: 10);
 
-/// How long a warmed ad is worth showing.
-///
-/// **AdMob expires a loaded rewarded ad about an hour after it loads**, and an
-/// expired one does not announce itself: it fails at the moment of the tap and
-/// arrives as a dismissal the player never made. Ten minutes short of the hour,
-/// because the check happens when something is about to want an ad rather than
-/// on a timer — the load it triggers has to fit inside the margin too.
-const Duration adFreshness = Duration(minutes: 50);
-
-/// A warm ad and the moment it loaded. The pair is the whole point: a handle on
-/// its own cannot say whether it is still good.
-class _Warm {
-  _Warm(this.handle, this.loadedAt);
-
-  final RewardedHandle handle;
-  final DateTime loadedAt;
-}
-
 String adPlatform() {
   try {
     if (Platform.isIOS) return 'ios';
@@ -87,8 +66,19 @@ abstract class RewardedAdLoader {
 
 /// One loaded ad, which can be shown exactly once.
 abstract class RewardedHandle {
-  /// Show it. Resolves to true when the reward was earned.
-  Future<bool> show();
+  /// Show it.
+  ///
+  /// **[onShown] fires when the video is PRESENTED**, which is the signal the
+  /// tapped button is waiting on — the future below is the dismissal, seconds
+  /// later, and a spinner held until then would still be turning under a video
+  /// that is already playing.
+  ///
+  /// Resolves to [AdOutcome.rewarded] when the reward was earned,
+  /// [AdOutcome.dismissed] when the player backed out, and
+  /// [AdOutcome.unavailable] when the SDK could not present it at all — which
+  /// is a failure the player should be told about rather than a choice they
+  /// made, and was being reported as the latter.
+  Future<AdOutcome> show({void Function()? onShown});
 
   void dispose();
 }
@@ -125,17 +115,21 @@ class _PluginHandle implements RewardedHandle {
   final RewardedAd _ad;
 
   @override
-  Future<bool> show() async {
-    final closed = Completer<bool>();
+  Future<AdOutcome> show({void Function()? onShown}) async {
+    final closed = Completer<AdOutcome>();
     var earned = false;
     _ad.fullScreenContentCallback = FullScreenContentCallback(
+      // The moment the video covers the app. See [RewardedHandle.show].
+      onAdShowedFullScreenContent: (_) => onShown?.call(),
       onAdDismissedFullScreenContent: (ad) {
         unawaited(ad.dispose());
-        if (!closed.isCompleted) closed.complete(earned);
+        if (!closed.isCompleted) {
+          closed.complete(earned ? AdOutcome.rewarded : AdOutcome.dismissed);
+        }
       },
       onAdFailedToShowFullScreenContent: (ad, _) {
         unawaited(ad.dispose());
-        if (!closed.isCompleted) closed.complete(false);
+        if (!closed.isCompleted) closed.complete(AdOutcome.unavailable);
       },
     );
     try {
@@ -144,7 +138,7 @@ class _PluginHandle implements RewardedHandle {
       unawaited(_ad.show(onUserEarnedReward: (_, _) => earned = true));
     } catch (_) {
       unawaited(_ad.dispose());
-      if (!closed.isCompleted) closed.complete(false);
+      if (!closed.isCompleted) closed.complete(AdOutcome.unavailable);
     }
     return closed.future;
   }
@@ -158,11 +152,9 @@ class AdMobRewardedAds implements RewardedAds {
     RewardedAdLoader? loader,
     String? platform,
     bool Function()? permitted,
-    DateTime Function()? clock,
   }) : _loader = loader ?? const _PluginLoader(),
        _platform = platform ?? adPlatform(),
-       _permitted = permitted ?? (() => adsPermitted),
-       _clock = clock ?? DateTime.now;
+       _permitted = permitted ?? (() => adsPermitted);
 
   final RewardedAdLoader _loader;
   final String _platform;
@@ -172,24 +164,6 @@ class AdMobRewardedAds implements RewardedAds {
   /// granted would carry on serving afterwards.
   final bool Function() _permitted;
 
-  /// The clock, as a seam. A stale ad is an age, and an age needs a now.
-  final DateTime Function() _clock;
-
-  /// **ONE warm ad for the whole app, not one per placement.** Every placement
-  /// serves from the same unit now, so the ad warmed for the training screen is
-  /// the ad the shop's lucky boot shows — which is the point: eleven separate
-  /// slots meant the one that was warm was almost never the one that was
-  /// tapped. See [globalRewardedUnitAndroid].
-  _Warm? _warm;
-
-  /// The in-flight load, so a prepare followed by a show does not load twice.
-  Future<RewardedHandle?>? _loading;
-
-  /// The placement a warm ad was loaded FOR, which is not necessarily where it
-  /// gets shown. Reported on the outcome so the hop is visible rather than
-  /// looking like a placement that loads ads it never uses.
-  String? _warmedFor;
-
   /// **A show that is already running.** Re-entrancy is guarded in the UI by
   /// `adBusyProvider`, and guarded again here because the adapter must not
   /// depend on every caller having behaved: one ad object is one showing, and a
@@ -197,65 +171,7 @@ class AdMobRewardedAds implements RewardedAds {
   bool _showing = false;
 
   @override
-  void prepare(String placement) {
-    _dropIfStale();
-    if (_warm != null || _loading != null) return;
-    // Never awaited: a prefetch that fails must not hold up the thing that
-    // asked for it.
-    unawaited(_load(placement));
-  }
-
-  @override
-  void refresh() {
-    // **AND AN EMPTY SLOT IS FILLED, not just a stale one.** This returned
-    // early whenever nothing had expired — including the case where nothing had
-    // ever been loaded — so the app's first ad tap always paid a cold load, and
-    // only two screens in the game primed one ahead of time. Asked directly:
-    // with one unit serving every placement, is there always one ready?
-    //
-    // There is now. `prepare` is the same question and already de-duplicates
-    // against a warm ad and an in-flight load, so a resume that lost nothing
-    // still costs nothing.
-    _dropIfStale();
-    if (_warm != null || _loading != null) return;
-    // `'resume'` is not a placement and is not pretending to be one: it is what
-    // `warmed_for` will say about the ad this loads, which is the truth — no
-    // screen asked for it, a resume did.
-    unawaited(_load('resume'));
-  }
-
-  /// Throw away a warm ad past [adFreshness]. True when one was thrown away.
-  ///
-  /// **The SDK will not tell us.** An expired rewarded ad fails at the moment
-  /// it is shown, which lands as a dismissal the player never made — so the age
-  /// is tracked here rather than discovered there.
-  bool _dropIfStale() {
-    final warm = _warm;
-    if (warm == null) return false;
-    if (_clock().difference(warm.loadedAt) < adFreshness) return false;
-    warm.handle.dispose();
-    _warm = null;
-    _warmedFor = null;
-    return true;
-  }
-
-  Future<RewardedHandle?> _load(String placement) {
-    final unit = rewardedUnitFor(_platform, placement);
-    if (unit == null) return Future.value(null);
-    final future = _loader.load(unit).then((handle) {
-      _loading = null;
-      if (handle != null) {
-        _warm = _Warm(handle, _clock());
-        _warmedFor = placement;
-      }
-      return handle;
-    });
-    _loading = future;
-    return future;
-  }
-
-  @override
-  Future<AdOutcome> show(String placement) async {
+  Future<AdOutcome> show(String placement, {void Function()? onShown}) async {
     // **Consent first, and a refusal is `unavailable` rather than an error.**
     // Serving without it in the EEA is the thing the gate exists to stop.
     if (!_permitted()) {
@@ -266,42 +182,33 @@ class AdMobRewardedAds implements RewardedAds {
 
     _showing = true;
     try {
-      _dropIfStale();
-      final warmedFor = _warmedFor;
-      var handle = _take();
-      handle ??= await (_loading ?? _load(placement));
-      // A load that resolved into the slot while we awaited it is the same
-      // object — take it out so nothing shows it twice.
-      _take();
+      final unit = rewardedUnitFor(_platform, placement);
+      if (unit == null) {
+        return _report(placement, AdOutcome.unavailable, reason: 'no_unit');
+      }
+      // **LOADED HERE, on the tap that wants it, and nowhere else.** The warm
+      // slot is gone — see this file's header — so this is the whole life of an
+      // ad object: loaded, shown once, disposed. `adLoadTimeout` is what stops
+      // it being an indefinite wait, and the player is watching a spinner on
+      // the button they pressed for the length of it.
+      final handle = await _loader.load(unit);
       if (handle == null) {
-        // **NOTHING IS WARMED UP AFTER A NO-FILL.** The load that just failed
-        // is the evidence there is no inventory, and lining another one up on
-        // the spot spends a second request to be told so again — two per tap,
-        // each with `adLoadTimeout` behind it. The next `prepare` is a screen
-        // saying an offer is coming, which is a better moment to ask.
         return _report(placement, AdOutcome.unavailable, reason: 'no_fill');
       }
 
-      final earned = await handle.show();
-      // And line up the next one while the player is still on the screen that
-      // asked for this one.
-      prepare(placement);
+      // **A PRESENT THAT FAILS IS A FAILURE, not a dismissal.** It used to
+      // resolve `false` alongside a player who closed the video early, so a
+      // broken showing paid nothing AND said nothing — the one outcome that
+      // most needs the toast, filed as the one that deliberately has none.
+      final outcome = await handle.show(onShown: onShown);
       return _report(
         placement,
-        earned ? AdOutcome.rewarded : AdOutcome.dismissed,
-        warmedFor: warmedFor,
+        outcome,
+        reason: outcome == AdOutcome.unavailable ? 'show_failed' : null,
       );
     } finally {
       _showing = false;
     }
-  }
-
-  /// Take the warm ad out of the slot, if there is one.
-  RewardedHandle? _take() {
-    final warm = _warm;
-    _warm = null;
-    _warmedFor = null;
-    return warm?.handle;
   }
 
   /// **Every ask, answered on the record.** The three outcomes are three
@@ -314,12 +221,7 @@ class AdMobRewardedAds implements RewardedAds {
   /// `personalised` rides along because it is the other half of an eCPM: on iOS
   /// a fill rate is not comparable between an ATT-authorised device and a
   /// contextual one. See `services/app_tracking.dart`.
-  AdOutcome _report(
-    String placement,
-    AdOutcome outcome, {
-    String? reason,
-    String? warmedFor,
-  }) {
+  AdOutcome _report(String placement, AdOutcome outcome, {String? reason}) {
     // **THREE NAMES, which are the JS's three.** One event with an `outcome`
     // param is the tidier shape and it is the wrong one here: FC has been
     // sending `ad_watched`, `ad_dismissed` and `ad_failed` into this same
@@ -349,17 +251,12 @@ class AdMobRewardedAds implements RewardedAds {
       'personalised': trackingAuthorised,
       // **`reason` splits the one outcome that was two problems.** Consent and
       // no-fill both answer `unavailable` and want opposite responses: one is a
-      // choice the player made and the other is inventory. It mattered less
-      // when a placement had its own unit and AdMob's own fill rate could be
-      // read next to it; with one unit for everything, this is the only place
-      // the split exists.
+      // choice the player made and the other is inventory — and `show_failed`
+      // is a third, which is the SDK holding an ad it could not put on screen.
+      // It mattered less when a placement had its own unit and AdMob's own fill
+      // rate could be read next to it; with one unit for everything, this is
+      // the only place the split exists.
       'reason': ?reason,
-      // **Where the ad was WARMED, when that is not where it was shown.** One
-      // warm ad for the whole app is the point of the global unit, and the
-      // consequence is that the training screen loads ads the shop spends. A
-      // load count per placement that ignored this would read as the training
-      // screen wasting inventory.
-      if (warmedFor != null && warmedFor != placement) 'warmed_for': warmedFor,
     });
     return outcome;
   }

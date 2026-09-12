@@ -18,7 +18,6 @@ library;
 
 import 'dart:math' as math;
 
-import 'package:merge_empire_fc/data/club_assets.dart';
 import 'package:merge_empire_fc/data/config.dart';
 import 'package:merge_empire_fc/engine/energy_engine.dart' show getEnergyMax;
 import 'package:merge_empire_fc/data/divisions.dart';
@@ -281,17 +280,6 @@ bool skipAllMiniGameCooldowns(Map<String, dynamic> state, [String? today]) {
   return true;
 }
 
-/// Is every game the player can actually PLAY cooling down?
-///
-/// Unlocked only. A locked game has never been played, so it reads as ready
-/// forever — count those and a save below Training tier 6 could never satisfy
-/// this, which is precisely the save that gets the most out of a skip.
-bool allMiniGamesOnCooldown(Map<String, dynamic> state) {
-  final unlocked = getUnlockedMinigames(_map(state['clubAssets']));
-  return unlocked.isNotEmpty &&
-      unlocked.every((kind) => !miniGameReady(state, kind));
-}
-
 /// Free skips spent today.
 ///
 /// The ledger resets on a date STRING rather than a rolling window — the same
@@ -316,16 +304,6 @@ void recordSkipAd(Map<String, dynamic> state, [String? today]) {
   }
   shop['skipAdCount'] = (_num(shop['skipAdCount'])?.toInt() ?? 0) + 1;
 }
-
-/// Should the Play tab warm the rewarded ad for the skip button?
-///
-/// Only when the tap is actually coming: everything the player owns is cooling
-/// down, so the button is live, and there is a free video left to spend on it —
-/// past that the button is a gem purchase and shows no ad at all. The plugin
-/// caches ONE rewarded ad globally, so warming it earlier evicts a placement
-/// the player was more likely to reach.
-bool shouldPrefetchSkipAd(Map<String, dynamic> state) =>
-    allMiniGamesOnCooldown(state) && skipAdsLeftToday(state) > 0;
 
 // ── Banking a session ───────────────────────────────────────────────────────
 

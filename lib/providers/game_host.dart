@@ -39,7 +39,6 @@ import 'package:merge_empire_fc/services/notifications.dart';
 import 'package:merge_empire_fc/services/platform_seams.dart';
 import 'package:merge_empire_fc/engine/idle_engine.dart';
 import 'package:merge_empire_fc/engine/notification_plan.dart';
-import 'package:merge_empire_fc/services/rewarded_ads.dart';
 import 'package:merge_empire_fc/services/weather_service.dart';
 import 'package:merge_empire_fc/state/game_state.dart';
 import 'package:merge_empire_fc/util/region.dart';
@@ -80,13 +79,6 @@ class _GameHostState extends ConsumerState<GameHost>
     setAnalyticsStateReader(() => _runner.game.state);
     // The cold-boot half of the same thing — see [_warmArt].
     _warmArt();
-    // **AND ONE AD IS WARM BEFORE ANYBODY ASKS.** Every placement serves from
-    // a single unit now, so there is exactly one to keep ready and no risk of
-    // warming the wrong one — and until this, only the training sheet and the
-    // match summary primed it, which left every other offer in the game paying
-    // a cold load on the tap. `refresh` fills an empty slot as well as a stale
-    // one; it is a no-op once there is an ad in it.
-    ref.read(rewardedAdsProvider).refresh();
     logAppBoot();
     _weather = ref.read(weatherProvider.notifier);
     _ensureRegion(_runner.game, dispatcher.locale.toLanguageTag());
@@ -376,12 +368,6 @@ class _GameHostState extends ConsumerState<GameHost>
         // the game interrupting itself.
         unawaited(clearNotices());
         unawaited(flushFeedbackQueue());
-        // **AND THE WARM AD HAS GONE OFF while the phone was in a pocket.**
-        // AdMob expires a loaded rewarded ad about an hour after it loads and
-        // says nothing; it fails at the tap, as a dismissal nobody made. A slot
-        // that is still fresh is left alone, so this is free when it is not
-        // needed — which is why there is no timer.
-        ref.read(rewardedAdsProvider).refresh();
         // **AND THE SQUAD'S FACES ARE DECODED AGAIN.** Android trims the image
         // cache when an app goes to the background, so the first scroll back is
         // thirty-eight decodes on the raster thread with a thumb already

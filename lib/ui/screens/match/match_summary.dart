@@ -51,7 +51,6 @@ import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/theme/sky.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 import 'package:merge_empire_fc/ui/widgets/store_button.dart';
-import 'package:merge_empire_fc/util/event_bus.dart';
 import 'package:merge_empire_fc/util/format.dart';
 
 Map<String, dynamic>? _map(Object? v) => v is Map<String, dynamic> ? v : null;
@@ -247,9 +246,6 @@ class MatchSummaryScreenState extends ConsumerState<MatchSummaryScreen>
     _tally = AnimationController(vsync: this, duration: coinTallyRun);
     _base = _num(widget.result['coinsEarned']).toInt();
     _quests = questCoins(widget.result);
-    if (_canDouble) {
-      ref.read(rewardedAdsProvider).prepare(doubleMatchPlacement);
-    }
     // **THE PAPER GETS ITS BANG.** `playFirework` is the one effect in the game
     // that is a RECORDING rather than a synth — the reason the audio backend
     // has a second entry point at all — and `assets/audio/firework.mp3` has
@@ -286,10 +282,8 @@ class MatchSummaryScreenState extends ConsumerState<MatchSummaryScreen>
       // Count it up where the offer was, then leave — see [_tally].
       await _runTally();
       if (!mounted) return;
-    } else if (outcome == AdOutcome.unavailable) {
-      // The UI's own refusal line, on the bus the toast host listens to.
-      emit('toast:info', t('toast.ad_unavailable'));
     }
+    // The refusal line is `watchRewardedAd`'s, for every offer at once.
     if (mounted) Navigator.of(context).pop();
   }
 
@@ -417,9 +411,18 @@ class MatchSummaryScreenState extends ConsumerState<MatchSummaryScreen>
                                                         ))
                                                 .round()
                                             : both;
+                                        final loading = ref.watch(
+                                          adLoadingProvider(
+                                            doubleMatchPlacement,
+                                          ),
+                                        );
                                         return StoreButton(
                                           key: const ValueKey('summary-double'),
                                           tone: StoreTone.ad,
+                                          // The spinner and its word are the
+                                          // button's own now — see
+                                          // `StoreButton.busy`.
+                                          busy: loading,
                                           // While it climbs the label is the figure
                                           // and nothing else: the offer has been
                                           // taken, so "2× Coins" is a description of

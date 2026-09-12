@@ -25,7 +25,6 @@ import 'package:merge_empire_fc/engine/daily_reward_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/services/rewarded_ads.dart';
-import 'package:merge_empire_fc/util/event_bus.dart';
 import 'package:merge_empire_fc/state/game_state.dart';
 import 'package:merge_empire_fc/ui/hud/hud.dart'
     show hudBadgeColour, hudBadgeInk, hudCoinInk, hudEnergyInk, hudGemInk;
@@ -141,38 +140,15 @@ class DailyRewardSheetState extends ConsumerState<DailyRewardSheet> {
   /// and two of them in flight is two claims against one day.
   bool _busy = false;
 
-  @override
-  void initState() {
-    super.initState();
-    // **WARMED ON THE WAY IN, and it does not matter which of the two it is
-    // warmed for.** Every placement serves from one unit now, so the ad loaded
-    // for `daily_double` is the ad `streak_repair` shows — see
-    // `globalRewardedUnitAndroid`. The two are mutually exclusive on this sheet
-    // anyway: a broken streak draws the repair and nothing else.
-    //
-    // This sheet is the strongest signal in the game — it arrives through the
-    // popup queue on the first screen of a session, it is a decision the player
-    // has to answer, and the video is one of the two ways to answer it.
-    final state = ref.read(gameProvider).state ?? const <String, dynamic>{};
-    final status = getDailyRewardStatus(state);
-    final repairable = status.broken && canRepairStreak(state);
-    if (repairable || !status.claimedToday) {
-      ref
-          .read(rewardedAdsProvider)
-          .prepare(repairable ? streakRepairPlacement : dailyDoublePlacement);
-    }
-  }
-
   /// Claim at double, if the video is watched to the end.
+  ///
+  /// **The refusal line is not raised here.** `watchRewardedAd` says it once
+  /// for every offer in the game — see its own note.
   Future<void> _claimDoubled() async {
     setState(() => _busy = true);
     final outcome = await watchRewardedAd(ref, dailyDoublePlacement);
     if (!mounted) return;
     setState(() => _busy = false);
-    if (outcome == AdOutcome.unavailable) {
-      emit('toast:info', t('toast.no_ad'));
-      return;
-    }
     // Dismissed early is a choice, not a fault: nothing is owed and nothing is
     // said. The single-rate button is still there.
     if (outcome != AdOutcome.rewarded) return;
@@ -189,10 +165,6 @@ class DailyRewardSheetState extends ConsumerState<DailyRewardSheet> {
     final outcome = await watchRewardedAd(ref, streakRepairPlacement);
     if (!mounted) return;
     setState(() => _busy = false);
-    if (outcome == AdOutcome.unavailable) {
-      emit('toast:info', t('toast.no_ad'));
-      return;
-    }
     if (outcome != AdOutcome.rewarded) return;
     // **The engine decides whether it CAN be repaired, not this.** The window
     // is its own — a streak broken long enough ago is gone — and re-deciding it
@@ -246,6 +218,7 @@ class DailyRewardSheetState extends ConsumerState<DailyRewardSheet> {
             streak: status.streak,
             onStartOver: () => setState(() => _repairDeclined = true),
             onRepair: _busy ? null : _repairStreak,
+            repairing: ref.watch(adLoadingProvider(streakRepairPlacement)),
           )
         else ...[
           // The whole week, so the player can see where day seven is. Today is
@@ -314,6 +287,7 @@ class DailyRewardSheetState extends ConsumerState<DailyRewardSheet> {
                   tone: StoreTone.ad,
                   label: t('daily.claim_double'),
                   leading: const GameIcon('video', size: 14),
+                  busy: ref.watch(adLoadingProvider(dailyDoublePlacement)),
                   onTap: _busy ? null : _claimDoubled,
                 ),
               ],
@@ -950,6 +924,7 @@ class _BrokenStreak extends StatelessWidget {
     required this.streak,
     required this.onStartOver,
     required this.onRepair,
+    required this.repairing,
   });
 
   final int streak;
@@ -957,6 +932,9 @@ class _BrokenStreak extends StatelessWidget {
 
   /// Null while a video is already up.
   final VoidCallback? onRepair;
+
+  /// The repair's video is loading. See `StoreButton.busy`.
+  final bool repairing;
 
   @override
   Widget build(BuildContext context) {
@@ -979,13 +957,19 @@ class _BrokenStreak extends StatelessWidget {
           style: TextStyle(color: kit.textMuted, fontSize: 12, height: 1.4),
         ),
         const SizedBox(height: 12),
-        SizedBox(
-          width: double.infinity,
-          child: ElevatedButton(
-            key: const ValueKey('daily-repair'),
-            onPressed: onRepair,
-            child: Text(t('daily.repair')),
-          ),
+        // **IT IS AN AD BUTTON, so it looks like one.** It was an
+        // `ElevatedButton` in the club accent while the double below it wore
+        // the video yellow and the AD chip — the same fault that button's own
+        // comment describes, on the only other rewarded-video control on this
+        // sheet. And being a [StoreButton] is what gives it the spinner: a
+        // repair is a cold load like any other now.
+        StoreButton(
+          key: const ValueKey('daily-repair'),
+          tone: StoreTone.ad,
+          label: t('daily.repair'),
+          leading: const GameIcon('video', size: 14),
+          busy: repairing,
+          onTap: onRepair,
         ),
         const SizedBox(height: 6),
         SizedBox(

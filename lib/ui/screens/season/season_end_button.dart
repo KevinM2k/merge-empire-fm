@@ -19,7 +19,6 @@ import 'package:merge_empire_fc/engine/rating_prompt.dart';
 import 'package:merge_empire_fc/engine/season_end.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
-import 'package:merge_empire_fc/services/rewarded_ads.dart';
 import 'package:merge_empire_fc/services/store_review.dart';
 import 'package:merge_empire_fc/ui/popups/champions_card.dart';
 import 'package:merge_empire_fc/ui/popups/offseason_report_card.dart';
@@ -64,18 +63,11 @@ Future<void> runSeasonEnd(BuildContext context, WidgetRef ref) async {
   final outcome = game.update(endSeason);
   if (!context.mounted) return;
 
-  // **WHAT THE VIDEO IS WORTH, AND THE VIDEO WARMED FOR IT.** The JS does both
-  // on the line that renders the page — `if (projectedPayout > 0)
-  // prepareRewardedAd('double_season')` — and here rather than inside the
-  // screen because this is where the save is, the same as the record and the
-  // winner above. The page is a takeover the player reads for several seconds
-  // before they reach the footer, so it is the longest run-up any offer in the
-  // game gets; with ONE warm slot for the whole app (`admob_ads.dart`) a
-  // season with no payout must not spend it.
+  // **WHAT THE VIDEO IS WORTH**, read here rather than inside the screen
+  // because this is where the save is, the same as the record and the winner
+  // above. The JS warms an ad on this line as well; nothing in the port does
+  // any more — see `services/rewarded_ads.dart`.
   final doubleOffer = seasonDoubleOffer(game.state);
-  if (doubleOffer > 0) {
-    ref.read(rewardedAdsProvider).prepare(doubleSeasonPlacement);
-  }
 
   // **The NAVIGATOR's context, captured before the route goes up.** This
   // button is a `ConsumerWidget` and it is the first thing to disappear —
