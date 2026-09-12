@@ -5,6 +5,22 @@ import 'package:merge_empire_fc/engine/match_tactics.dart';
 import 'package:merge_empire_fc/engine/pitch_influence.dart';
 import 'package:merge_empire_fc/engine/pitch_space.dart';
 
+/// Which zone a point lands in, for pinning the frame: floor to a lane and a
+/// band, the far edges folded onto the grid.
+int zoneAt(PitchPoint p) {
+  final lane = (p.x.clamp(0, 100) / laneWidth).floor().clamp(0, pitchLanes - 1);
+  final band = (p.y.clamp(0, 100) / bandDepth).floor().clamp(0, pitchBands - 1);
+  return zoneIndex(lane, band);
+}
+
+List<InfluenceMap> teamAttackingInfluence(List<FormationSlot> slots) => [
+  for (final s in slots) attackingInfluence(s),
+];
+
+List<InfluenceMap> teamDefensiveInfluence(List<FormationSlot> slots) => [
+  for (final s in slots) defensiveInfluence(s),
+];
+
 FormationSlot _slot(String formation, String id) =>
     formations[formation]!.slots.firstWhere((s) => s.slotId == id);
 
@@ -181,8 +197,16 @@ void main() {
     test('move where the work lands and never how much of it there is', () {
       for (final role in playerRoles.values) {
         final withRole = attackingInfluence(rf, role: role);
-        expect(withRole.mass, closeTo(attackingInfluence(rf).mass, 1e-9), reason: role.id);
-        expect(withRole.zones, isNot(attackingInfluence(rf).zones), reason: role.id);
+        expect(
+          withRole.mass,
+          closeTo(attackingInfluence(rf).mass, 1e-9),
+          reason: role.id,
+        );
+        expect(
+          withRole.zones,
+          isNot(attackingInfluence(rf).zones),
+          reason: role.id,
+        );
       }
       expect(defensiveInfluence(rf).zones, defensiveInfluence(rf).zones);
     });
@@ -191,9 +215,18 @@ void main() {
       final natural = attackingInfluence(rf);
       final inside = attackingInfluence(rf, role: playerRoles['insideForward']);
       final winger = attackingInfluence(rf, role: playerRoles['winger']);
-      expect(inside.flankMass(Flank.centre), greaterThan(natural.flankMass(Flank.centre) * 1.5));
-      expect(winger.flankMass(Flank.right), greaterThanOrEqualTo(natural.flankMass(Flank.right)));
-      expect(winger.flankMass(Flank.centre), lessThan(natural.flankMass(Flank.centre)));
+      expect(
+        inside.flankMass(Flank.centre),
+        greaterThan(natural.flankMass(Flank.centre) * 1.5),
+      );
+      expect(
+        winger.flankMass(Flank.right),
+        greaterThanOrEqualTo(natural.flankMass(Flank.right)),
+      );
+      expect(
+        winger.flankMass(Flank.centre),
+        lessThan(natural.flankMass(Flank.centre)),
+      );
     });
 
     test('inward is toward the centre from EITHER side', () {
@@ -208,11 +241,19 @@ void main() {
         }
         return sum / m.mass;
       }
-      expect(meanLane(right), greaterThan(meanLane(attackingInfluence(rf)) + 0.4));
+
+      expect(
+        meanLane(right),
+        greaterThan(meanLane(attackingInfluence(rf)) + 0.4),
+      );
       expect(meanLane(left), lessThan(meanLane(attackingInfluence(lf)) - 0.4));
       // Mirror images of each other, to rounding.
       for (var z = 0; z < pitchZones; z++) {
-        expect(left[z], closeTo(right[zoneIndex(4 - zoneLane(z), zoneBand(z))], 1e-9), reason: 'zone $z');
+        expect(
+          left[z],
+          closeTo(right[zoneIndex(4 - zoneLane(z), zoneBand(z))], 1e-9),
+          reason: 'zone $z',
+        );
       }
     });
 

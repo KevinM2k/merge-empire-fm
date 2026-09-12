@@ -79,12 +79,5 @@ void main() {
         {'rf': 'insideForward', 'lm': 'winger'},
       );
     });
-
-    test('roleFor is the role or null', () {
-      expect(roleFor({'rf': 'winger'}, 'rf'), playerRoles['winger']);
-      expect(roleFor({'rf': 'winger'}, 'lf'), isNull);
-      expect(roleFor({'rf': 'nonsense'}, 'rf'), isNull);
-      expect(roleFor(null, 'rf'), isNull);
-    });
   });
 }

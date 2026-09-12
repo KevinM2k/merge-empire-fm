@@ -2,27 +2,20 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:merge_empire_fc/data/formations.dart';
 import 'package:merge_empire_fc/engine/pitch_space.dart';
 
+/// Which zone a point lands in, for pinning the frame: floor to a lane and a
+/// band, the far edges folded onto the grid.
+int zoneAt(PitchPoint p) {
+  final lane = (p.x.clamp(0, 100) / laneWidth).floor().clamp(0, pitchLanes - 1);
+  final band = (p.y.clamp(0, 100) / bandDepth).floor().clamp(0, pitchBands - 1);
+  return zoneIndex(lane, band);
+}
+
 void main() {
   group('the grid', () {
     test('is five lanes by four bands', () {
       expect(pitchLanes, 5);
       expect(pitchBands, 4);
       expect(pitchZones, 20);
-    });
-
-    test('lane and band round down and clamp the far edges onto the grid', () {
-      expect(laneOf(0), 0);
-      expect(laneOf(19.9), 0);
-      expect(laneOf(20), 1);
-      expect(laneOf(99), 4);
-      expect(laneOf(100), 4);
-      expect(laneOf(-5), 0);
-      expect(laneOf(140), 4);
-      expect(bandOf(0), 0);
-      expect(bandOf(24.9), 0);
-      expect(bandOf(25), 1);
-      expect(bandOf(90), 3);
-      expect(bandOf(100), 3);
     });
 
     test('zone index is band-major and round-trips through lane and band', () {
@@ -43,8 +36,8 @@ void main() {
       final cf = f.slots.firstWhere((s) => s.slotId == 'cf');
       expect(zoneBand(zoneAt(slotPoint(gk))), 3);
       expect(zoneBand(zoneAt(slotPoint(cf))), 0);
-      expect(isAttackingBand(zoneAt(slotPoint(cf))), isTrue);
-      expect(isAttackingBand(zoneAt(slotPoint(gk))), isFalse);
+      expect(zoneBand(zoneAt(slotPoint(cf))) == 0, isTrue);
+      expect(zoneBand(zoneAt(slotPoint(gk))) == 0, isFalse);
     });
   });
 

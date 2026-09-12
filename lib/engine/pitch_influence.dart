@@ -165,12 +165,4 @@ InfluenceMap influenceAround(
   return InfluenceMap([for (final w in raw) w / total * mass]);
 }
 
-/// Every slot's attacking map, in slot order.
-List<InfluenceMap> teamAttackingInfluence(List<FormationSlot> slots) => [
-  for (final s in slots) attackingInfluence(s),
-];
 
-/// Every slot's defensive map, in slot order.
-List<InfluenceMap> teamDefensiveInfluence(List<FormationSlot> slots) => [
-  for (final s in slots) defensiveInfluence(s),
-];

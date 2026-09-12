@@ -434,10 +434,15 @@ void main() {
       expect(out, isEmpty);
     });
 
-    test('effectiveDefence is the bare number while support is off', () {
-      expect(supportCoeff, 0);
-      expect(effectiveDefence(70, 3), 70);
+    test('effectiveDefence rises with support and saturates', () {
+      expect(supportCoeff, greaterThan(0));
       expect(effectiveDefence(70, 0), 70);
+      expect(effectiveDefence(70, -1), 70);
+      expect(effectiveDefence(70, 0.5), greaterThan(70));
+      expect(effectiveDefence(70, 1.0), greaterThan(effectiveDefence(70, 0.5)));
+      // Ten men in the box are worth a bounded lift, not ten men.
+      expect(effectiveDefence(70, 10), lessThan(70 * (1 + supportCoeff) + 1e-9));
+      expect(effectiveDefence(70, 2), greaterThan(70 * (1 + supportCoeff) * 0.85));
     });
 
     test('central shots are worth most and a better shooter more', () {

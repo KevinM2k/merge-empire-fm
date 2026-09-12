@@ -69,12 +69,6 @@ bool isWideSlot(FormationSlot slot) =>
     slot.slotPosition != 'DEF' &&
     (slot.x <= 25 || slot.x >= 75);
 
-/// The role a save gives [slotId], or null for none or nonsense.
-PlayerRole? roleFor(Map<String, dynamic>? roles, String slotId) {
-  final id = roles?[slotId];
-  return id is String ? playerRoles[id] : null;
-}
-
 /// `state['squad']['roles']` as a clean slotId → roleId map, dropping anything
 /// that is not a known role.
 Map<String, String> rolesOf(Map<String, dynamic>? squad) {

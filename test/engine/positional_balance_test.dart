@@ -560,4 +560,50 @@ void main() {
       expect(winger, lessThanOrEqualTo(natural + 0.01));
     });
   });
+
+  group('defensive support', () {
+    double shotsAgainst(String theirShape) {
+      seeded.setSeed(41);
+      final ours = _side(70, '4-3-3', ours: true);
+      final theirs = _side(70, theirShape);
+      var shots = 0;
+      const n = 3000;
+      for (var i = 0; i < n; i++) {
+        final out = <PositionalEvent>[];
+        positionalWindowGoals(
+          ctx: SequenceContext(attackers: ours, defenders: theirs, side: 'ours'),
+          lambda: 1.35,
+          fromMinute: 0,
+          toMinute: 90,
+          out: out,
+        );
+        shots += out.where((e) => e.type == 'shot' && e.outcome != 'blocked').length;
+      }
+      return shots / n;
+    }
+
+    test('a packed defence concedes fewer shots on the same lambda', () {
+      final block = shotsAgainst('5-4-1');
+      final open = shotsAgainst('3-4-3');
+      expect(block, lessThan(open * 0.96));
+    });
+
+    test('and the same goals', () {
+      // λ conservation is the guarantee; this is it seen from the other end.
+      seeded.setSeed(42);
+      final ours = _side(70, '4-3-3', ours: true);
+      var goals = 0;
+      const n = 4000;
+      for (var i = 0; i < n; i++) {
+        goals += positionalWindowGoals(
+          ctx: SequenceContext(attackers: ours, defenders: _side(70, '5-4-1'), side: 'ours'),
+          lambda: 1.35,
+          fromMinute: 0,
+          toMinute: 90,
+          out: <PositionalEvent>[],
+        );
+      }
+      expect(goals / n, closeTo(1.35, 0.06));
+    });
+  });
 }

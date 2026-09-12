@@ -34,6 +34,11 @@
 /// attacks; band 3 holds its own keeper. Lanes collapse to three flanks for
 /// analysis copy — lanes 0–1 right, lane 2 centre, lanes 3–4 left.
 ///
+/// The sim only ever goes from a zone INDEX outward — a map is sampled at
+/// [zoneCentre] and a sequence moves by [zoneIndex] — so there is no
+/// point-to-zone lookup here; the tests that pin the frame do that arithmetic
+/// themselves.
+///
 /// Deliberately Flutter-free so it runs under plain `dart test`.
 library;
 
@@ -54,23 +59,6 @@ typedef PitchPoint = ({double x, double y});
 /// right — lanes 0 and 1, low x.
 enum Flank { right, centre, left }
 
-/// Lane index of an across coordinate. x = 100 is the far touchline and lands
-/// in the last lane rather than off the grid.
-int laneOf(num x) {
-  final lane = (x.clamp(0, 100) / laneWidth).floor();
-  return lane >= pitchLanes ? pitchLanes - 1 : lane;
-}
-
-/// Band index of an along coordinate, same edge rule as [laneOf].
-int bandOf(num y) {
-  final band = (y.clamp(0, 100) / bandDepth).floor();
-  return band >= pitchBands ? pitchBands - 1 : band;
-}
-
-int zoneOf(num x, num y) => bandOf(y) * pitchLanes + laneOf(x);
-
-int zoneAt(PitchPoint p) => zoneOf(p.x, p.y);
-
 int zoneLane(int zone) => zone % pitchLanes;
 
 int zoneBand(int zone) => zone ~/ pitchLanes;
@@ -89,9 +77,6 @@ Flank laneFlank(int lane) => lane <= 1
     : Flank.left;
 
 Flank zoneFlank(int zone) => laneFlank(zoneLane(zone));
-
-/// Band 0: the band in front of the goal this frame's team attacks.
-bool isAttackingBand(int zone) => zoneBand(zone) == 0;
 
 /// A slot's point in its own team's frame.
 PitchPoint slotPoint(FormationSlot slot) =>

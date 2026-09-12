@@ -360,3 +360,37 @@ into eleven issues. Match the surrounding style by hand.
 - **The self-generated golden** pins whatever it is given. The balance suite is
   what makes retiring the JS fixtures survivable, so it is not deferrable to a
   later phase.
+
+---
+
+## Outcome (12 September 2026)
+
+Implemented in seven commits on `feature/positional-play`, Phases 1–7 in the
+order above. What moved from the plan as written, and why:
+
+- **Attack count is 39 a side, not tuned to 34.** With defensive support on
+  (Phase 7, `supportCoeff = 0.25`) the same 34 attacks gave 10.6 shots a match;
+  39 puts it back at ~12.2, inside the 11.5–14.5 band the balance suite holds.
+- **The dispersion fix is analytic, not a tuned jitter.** A fixed ±0.7 spread
+  matched the Poisson's draw rate at 1.3 goals and over-spread a 3-goal
+  favourite, costing it points. `calibrationSpread` now sets the width from
+  the shots themselves so the variance equals the Poisson's at every λ.
+- **A won duel is pulled toward the attackers ahead** (`laneAttraction`).
+  Without it a star winger finished what arrived on his flank but never drew
+  play there; with it his side's right share moves ~3 points.
+- **The "all-out-attack exploit stays dead" assertion was wrong about the goal
+  model itself**, not about this layer: a 56-rated side against a 74 gains
+  ~0.2 expected points from All Out Attack under plain Poisson too, because its
+  own λ nearly doubles while the opponent's is already at the soft cap. The
+  suite now asserts the positional layer earns exactly what the Poisson earns
+  per tactic, which is the guarantee λ conservation actually gives. Whether the
+  goal model should reward an underdog for attacking is a `goal_model` question
+  and is left open.
+- **The default-state schema was not touched.** `game_state_test` compares its
+  keys with the JS fixture, so `attackSide` and `roles` are defaulted by the
+  migration and read with a fallback, the way `strategyId` already was.
+- **Roles are set from the player sheet** (a wide slot's detail sheet gets a
+  Role row) and shown on the pitch token's position plate, so the feature is
+  reachable rather than data-only.
+- **The event cup nets stayed green** and were not moved; only the league, cup
+  and season nets went to Dart goldens.

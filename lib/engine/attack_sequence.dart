@@ -285,10 +285,12 @@ PitchPlayer _player({
 // ── The attack ───────────────────────────────────────────────────────────────
 
 /// Attacks one side mounts over a full ninety. With a start in the middle two
-/// bands and roughly even duels, about a fifth of them end in a shot, which
-/// lands both sides together on the ~13 shots a match the feed was already
-/// showing before any of this existed — the figure to preserve.
-const int attacksPerMatch = 34;
+/// bands and roughly even duels, about a sixth of them end in a shot once the
+/// defence's support is counted, which lands both sides together on the ~13
+/// shots a match the feed was already showing before any of this existed —
+/// the figure to preserve. It was 34 before [supportCoeff] came off zero and
+/// took two shots a match with it.
+const int attacksPerMatch = 39;
 
 /// Duels an attack may take before it fizzles. Band 2 to a shot is three.
 const int maxSequenceSteps = 4;
@@ -312,10 +314,15 @@ const double laneAttraction = 1.0;
 const double shotCap = 0.95;
 
 /// How much the other defenders in a zone stiffen the one who meets the ball.
-/// **Zero until Phase 7**: the hook is here so turning it on is a constant and
-/// a tuning pass. The combination is saturating — see [effectiveDefence] — so
-/// a crowded zone cannot manufacture a defender better than any real one.
-const double supportCoeff = 0.0;
+///
+/// The combination is saturating — see [effectiveDefence] — so a crowded zone
+/// cannot manufacture a defender better than any real one: at most a quarter
+/// better than the man himself, and a packed box gets most of that with two
+/// bodies. Measured at this value a 4-3-3 gets eight per cent fewer shots away
+/// against a 5-4-1 than against a 3-4-3, on the same λ, and the goals do not
+/// move — which is the point: a deep block makes you work for the same
+/// chances, it does not change how many the goal model says you get.
+const double supportCoeff = 0.25;
 
 /// Raw xG of a shot from each lane of the band in front of goal, before the
 /// shooter's own quality. Central is worth three times wide; the calibration
