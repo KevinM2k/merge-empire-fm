@@ -487,6 +487,139 @@ void main() {
     });
   });
 
+  /// The brief's own test, and the one claim the whole feature rests on: with
+  /// the SAME eleven and the SAME lambda, which flank you attack has to matter,
+  /// because the defender waiting there is a different man.
+  ///
+  /// Their back four is lopsided on purpose — a 50 left-back, 75 centre-backs,
+  /// an 85 right-back — and their `lb` is mirrored onto OUR RIGHT, so our right
+  /// is the soft side. Our two wingers are the same 95-ATK player, which is what
+  /// makes the gap between them attributable to the opposition and nothing else.
+  group('a weak flank is the side to attack', () {
+    /// An AI 4-4-2 with that back four. Everyone else is left exactly as
+    /// `pitchSideForAi` built him, maps included — only four DEF numbers move.
+    PitchSide lopsided() {
+      const defence = {'lb': 50.0, 'lcb': 75.0, 'rcb': 75.0, 'rb': 85.0};
+      return PitchSide([
+        for (final p in _side(70, '4-4-2').players)
+          if (defence.containsKey(p.slotId))
+            PitchPlayer(
+              id: p.id,
+              slotId: p.slotId,
+              slotPosition: p.slotPosition,
+              name: p.name,
+              attack: p.attack,
+              defence: defence[p.slotId]!,
+              attacking: p.attacking,
+              defending: p.defending,
+            )
+          else
+            p,
+      ]);
+    }
+
+    final us = _lineupSide(tiers: {'rf': 8, 'lf': 8});
+    final them = lopsided();
+    final lambda = goalRateLambda(us.teamMeans.attack, them.teamMeans.defence);
+
+    /// 3,000 matches of our attacks at [side], lambda from the two sides' own
+    /// means so the goal model is handed what `simulateMatch` would hand it.
+    ({Map<String, dynamic> sum, double goals, int duels, double duelWin}) season(
+      String side,
+    ) {
+      seeded.setSeed(404);
+      final out = <PositionalEvent>[];
+      var goals = 0;
+      const n = 3000;
+      for (var i = 0; i < n; i++) {
+        goals += positionalWindowGoals(
+          ctx: SequenceContext(
+            attackers: us,
+            defenders: them,
+            side: 'ours',
+            laneBias: laneBiasFor(side),
+          ),
+          lambda: lambda,
+          fromMinute: 0,
+          toMinute: 90,
+          out: out,
+        );
+      }
+      final sum = positionalSummary(out);
+      var w = 0, l = 0;
+      for (final p in us.players) {
+        final d = (sum['duels'] as Map)[p.id] as Map?;
+        if (d == null) continue;
+        w += d['w'] as int;
+        l += d['l'] as int;
+      }
+      return (
+        sum: sum,
+        goals: goals / n,
+        duels: w + l,
+        duelWin: w / (w + l),
+      );
+    }
+
+    double wingerWin(Map<String, dynamic> s, String slotId) {
+      final d = (s['duels'] as Map)[slotId] as Map;
+      return (d['w'] as int) / ((d['w'] as int) + (d['l'] as int));
+    }
+
+    test('the two wingers are the same player and the flanks are not', () {
+      final rf = us.players.firstWhere((p) => p.slotId == 'rf');
+      final lf = us.players.firstWhere((p) => p.slotId == 'lf');
+      expect(rf.attack, lf.attack);
+      expect(rf.attack, greaterThan(90));
+      // Their left-back — the one our `rf` meets — against their right-back.
+      expect(them.players.firstWhere((p) => p.slotId == 'lb').defence, 50);
+      expect(them.players.firstWhere((p) => p.slotId == 'rb').defence, 85);
+    });
+
+    test('the winger facing the 50 wins materially more than the one facing '
+        'the 85', () {
+      final s = season('balanced').sum;
+      final right = wingerWin(s, 'rf');
+      final left = wingerWin(s, 'lf');
+      // Measured 0.654 against 0.559 over ~7,200 and ~5,700 duels; the gap's
+      // own sampling error is 0.0086, so 0.06 is four sigma inside it.
+      expect(
+        right,
+        greaterThan(left + 0.06),
+        reason: 'rf $right vs lf $left',
+      );
+    });
+
+    test('committing to the weak side wins more of the duels', () {
+      final right = season('right');
+      final left = season('left');
+      // 0.200 against 0.176 over ~134,000 duels, where a sigma is 0.0011.
+      expect(
+        right.duelWin,
+        greaterThan(left.duelWin + 0.012),
+        reason: '${right.duelWin} vs ${left.duelWin}',
+      );
+    });
+
+    test('and gets materially more shots away', () {
+      final right = (season('right').sum['shots'] as Map)['ours'] as int;
+      final left = (season('left').sum['shots'] as Map)['ours'] as int;
+      // 8,623 against 6,910 — a quarter more, on one unchanged lambda.
+      expect(right, greaterThan((left * 1.15).round()), reason: '$right/$left');
+    });
+
+    test('and scores exactly the goals the goal model said, either way', () {
+      // THE point of the calibration bridge: picking the soft flank changes
+      // where the match is played and how much of it your winger sees, and it
+      // cannot change how many goals a side of this quality scores against a
+      // defence of that quality. 0.055 is three standard errors at 3,000
+      // matches.
+      for (final side in attackSides) {
+        expect(season(side).goals, closeTo(lambda, 0.055), reason: side);
+      }
+    });
+  });
+
   group('the side dial', () {
     ({double right, double goals}) season(String side) {
       seeded.setSeed(21);

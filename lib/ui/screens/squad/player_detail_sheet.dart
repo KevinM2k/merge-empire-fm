@@ -2450,10 +2450,12 @@ class _RoleRow extends ConsumerWidget {
       children: [
         Text(
           t('role.label').toUpperCase(),
+          // The sheet's other section labels — fitness, trait — are all 12/1.2,
+          // and 12 is `architecture_test`'s type floor besides.
           style: TextStyle(
-            fontSize: 11,
+            fontSize: 12,
             fontWeight: FontWeight.w800,
-            letterSpacing: 1.1,
+            letterSpacing: 1.2,
             color: kit.textMuted,
           ),
         ),
