@@ -101,13 +101,33 @@ Future<StoreCatalogue> storeCatalogue() async {
   return _inFlight ??= _askTheStore();
 }
 
+/// Bumped by [forgetStoreCatalogue], so an ask that was already out cannot
+/// land on top of the forgetting.
+///
+/// A restore is the one thing that changes what this build owns, and it calls
+/// `forgetStoreCatalogue` the moment the store answers it — while a catalogue
+/// query started before it may still be in flight. Without this, that older
+/// query writes its PRE-restore answer into `_cached` when it resolves, and a
+/// SKU the player has just restored goes on being sold to them. Clearing
+/// `_inFlight` alone does not help: the future is still running, it simply has
+/// nobody waiting on it.
+int _generation = 0;
+
 Future<StoreCatalogue> _askTheStore() async {
+  final asOf = _generation;
+  StoreCatalogue answer;
   try {
-    _cached = await iapBillingSource();
+    answer = await iapBillingSource();
   } catch (_) {
     // A store that will not answer is a store that is not there.
-    _cached = null;
+    answer = null;
   }
+  // Forgotten while this was out: the answer is about a state of the world that
+  // has been superseded, so it is dropped rather than cached. The caller still
+  // gets it — they asked before the forgetting, and a null here would read to
+  // them as "no store" rather than "ask again".
+  if (asOf != _generation) return answer;
+  _cached = answer;
   _inFlight = null;
   return _cached;
 }
@@ -117,6 +137,7 @@ Future<StoreCatalogue> _askTheStore() async {
 void forgetStoreCatalogue() {
   _cached = null;
   _inFlight = null;
+  _generation++;
 }
 
 /// Whether native billing is up at all.

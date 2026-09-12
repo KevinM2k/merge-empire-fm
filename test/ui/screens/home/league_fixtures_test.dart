@@ -14,6 +14,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:merge_empire_fc/data/cups.dart';
 import 'package:merge_empire_fc/data/divisions.dart';
+import 'package:merge_empire_fc/data/players.dart' show players;
 import 'package:merge_empire_fc/engine/cup_engine.dart'
     show activeCup, commitCupRound, prepareCupRound;
 import 'package:merge_empire_fc/i18n/i18n.dart';
@@ -25,7 +26,8 @@ import 'package:merge_empire_fc/ui/screens/home/league_providers.dart'
     show ourCupTiesProvider;
 import 'package:merge_empire_fc/ui/screens/home/league_sheets.dart';
 import 'package:merge_empire_fc/ui/screens/match/cup_launcher.dart'
-    show cupDueAfterMatches;
+    show beginCupRound, cupDueAfterMatches, settleCupRound;
+import 'package:merge_empire_fc/util/random.dart' show setSeed;
 import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
 
 Future<ProviderContainer> pumpFixtures(
@@ -125,6 +127,32 @@ void main() {
     }
   });
 
+
+  /// Eleven fit cards on the grid and in the lineup.
+  ///
+  /// `beginCupRound` goes through `matchStartBlocked`, which refuses a squad
+  /// too small — and a booted default save has nobody on the grid, so without
+  /// this every attempt comes back null and a seeded search for a shootout
+  /// searches nothing at all. (It did: 400 seeds, no ties.)
+  void fieldASide(Map<String, dynamic> save) {
+    final def = players.firstWhere((p) => p.tier == 1);
+    final cells = (save['grid'] as Map<String, dynamic>)['cells'] as List;
+    for (var i = 0; i < 11; i++) {
+      cells[i] = <String, dynamic>{
+        'definitionId': def.id,
+        'instanceId': 'c\$i',
+        'variant': 0,
+      };
+    }
+    (save['squad'] as Map<String, dynamic>)['lineup'] = [
+      for (var i = 0; i < 11; i++)
+        <String, dynamic>{
+          'slotId': 's\$i',
+          'slotPosition': 'MID',
+          'cardInstanceId': 'c\$i',
+        },
+    ];
+  }
 
   /// A quarter-final due next, with the bracket drawn and nothing played of it.
   /// The shape the screenshot was taken in.
@@ -237,6 +265,78 @@ void main() {
       reason: 'a 1-1 beside a W with nothing to explain it',
     );
     expect(find.text(t('fixtures.on_pens')), findsOneWidget);
+  });
+
+  testWidgets('AND A REAL SHOOTOUT WALKS THE WHOLE WAY TO THE SHEET', (
+    tester,
+  ) async {
+    // **The journey, not the pieces.** The test above hand-commits a 1-1, which
+    // proves the ROW and assumes the engine can produce one; `cup_launcher`'s
+    // own tests prove the settle and never draw anything. This is the report
+    // end to end: a tie the engine really did send to penalties, settled the
+    // way the screen settles it, landing on the sheet the player then opens.
+    //
+    // Seeded until one comes up rather than hand-built, so the score, `won` and
+    // the shootout all come from the same roll — which is the thing that was
+    // disagreeing.
+    late Map<String, dynamic> shootout;
+    var found = false;
+    final container = await pumpFixtures(tester, mutate: (save) {
+      fieldASide(save);
+      cupDueNext(save);
+      for (var seed = 0; seed < 400 && !found; seed++) {
+        setSeed(seed);
+        // A pip per attempt: `beginCupRound` spends one, and a save that runs
+        // dry stops handing back ties rather than saying so.
+        (save['energy'] as Map<String, dynamic>)['current'] = 10;
+        (save['progression'] as Map<String, dynamic>)['lastMatchAt'] = 0;
+        final tie = beginCupRound(save);
+        if (tie == null) continue;
+        final pens = tie.result['penaltyShootout'];
+        if (pens is! Map<String, dynamic>) {
+          // Not a shootout: put the round back and roll again.
+          cupDueNext(save);
+          continue;
+        }
+        shootout = pens;
+        settleCupRound(save, tie);
+        found = true;
+      }
+    });
+    expect(found, isTrue, reason: 'no seed in 400 produced a shootout');
+
+    final tie = container.read(ourCupTiesProvider).first;
+    // The ninety minutes, level — the shootout's winning goal is not in here.
+    expect(
+      tie.ourGoals,
+      tie.theirGoals,
+      reason: 'the winning penalty was folded back into the scoreline',
+    );
+    // And whoever won the penalties won the tie.
+    expect(tie.won, shootout['playerWins']);
+    expect(
+      shootout['homeScore'],
+      isNot(shootout['awayScore']),
+      reason: 'a shootout that settled nothing',
+    );
+    expect(
+      (shootout['homeScore'] as int) > (shootout['awayScore'] as int),
+      tie.won,
+      reason: 'the tie went to the side with fewer penalties',
+    );
+
+    // On the sheet: the level score, the marker that explains it, and the dot.
+    final row = cupDueAfterMatches.first - 1;
+    expect(find.byKey(ValueKey('fixture-cup-score-$row')), findsOneWidget);
+    expect(find.byKey(ValueKey('fixture-cup-pens-$row')), findsOneWidget);
+    final dot = tester.widget<Widget>(
+      find.byKey(ValueKey('fixture-cup-result-$row')),
+    );
+    expect(
+      (dot as dynamic).result,
+      tie.won ? 'W' : 'L',
+      reason: 'the dot disagrees with the shootout',
+    );
   });
 
   testWidgets('and a tie settled inside the ninety says nothing extra', (

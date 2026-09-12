@@ -25,8 +25,11 @@ import 'package:merge_empire_fc/i18n/catalogs.g.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/services/iap_billing.dart';
 import 'package:merge_empire_fc/ui/popups/age_gate_sheet.dart';
+import 'package:merge_empire_fc/ui/screens/shop/currency_sheet.dart';
+import 'package:merge_empire_fc/ui/screens/shop/shop_looks.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_paid.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_screen.dart';
+import 'package:merge_empire_fc/ui/shell/shell_controller.dart' show ShopSection;
 import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
 
 import 'shop_helpers.dart';
@@ -190,6 +193,125 @@ void main() {
     expect(find.textContaining('€'), findsWidgets);
   });
 
+  testWidgets('EVERY REAL-MONEY SHELF PRICES IN EUROS, not just offers', (
+    tester,
+  ) async {
+    // "ALL costs in GBP" was the report, and the offers shelf was only where
+    // they happened to be looking. Each of these draws its own tile — the
+    // three heroes, `GemPackTile`, `CoinPackTile` and the Looks vault — and
+    // `GemPackTile` is the one that had been rendering `IapProduct.price`
+    // directly rather than resolving it, so "they all go through `priceFor`"
+    // is a claim worth checking rather than asserting.
+    iapBillingSource = () async => _italianStore();
+
+    for (final shelf in <(String, Widget)>[
+      ('offers', const OffersSection()),
+      ('gems', const GemPacksSection()),
+      ('coins', const CoinPacksSection()),
+      ('looks', const LooksSection()),
+      ('hud coin sheet', const CurrencySheet(which: ShopSection.coins)),
+      ('hud gem sheet', const CurrencySheet(which: ShopSection.gems)),
+    ]) {
+      forgetStoreCatalogue();
+      final container = shopContainer((_) {});
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: Consumer(
+            builder: (context, ref, _) => MaterialApp(
+              theme: ref.watch(appThemeProvider),
+              home: Scaffold(
+                body: SingleChildScrollView(child: shelf.$2),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        find.textContaining('£'),
+        findsNothing,
+        reason: '${shelf.$1} is still priced in pounds',
+      );
+      expect(
+        find.textContaining('€'),
+        findsWidgets,
+        reason: '${shelf.$1} shows no price at all',
+      );
+    }
+  });
+
+  testWidgets('AND THE HUD SHEET RECOVERS TOO, not only the Shop tab', (
+    tester,
+  ) async {
+    // **The hole the first fix left.** The re-ask went into
+    // `ShopScreenState.initState` alone, and the HUD's coin and gem chips open
+    // `CurrencySheet` directly — so the commonest route to the packs never
+    // built the tab, never re-asked, and went on printing sterling. Both
+    // surfaces call `askStoreAgainIfItNeverAnswered` now.
+    var up = false;
+    iapBillingSource = () async => up ? _italianStore() : null;
+
+    final container = shopContainer((_) {});
+    Future<void> pump() async {
+      await tester.pumpWidget(
+        UncontrolledProviderScope(
+          container: container,
+          child: Consumer(
+            builder: (context, ref, _) => MaterialApp(
+              theme: ref.watch(appThemeProvider),
+              home: const Scaffold(
+                body: SingleChildScrollView(
+                  child: CurrencySheet(which: ShopSection.coins),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+    }
+
+    await pump();
+    expect(find.textContaining('£'), findsWidgets);
+
+    up = true;
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pumpAndSettle();
+    await pump();
+    expect(
+      find.textContaining('£'),
+      findsNothing,
+      reason: 'the sheet the HUD opens never asked the store again',
+    );
+    expect(find.textContaining('€'), findsWidgets);
+  });
+
+  test('A RESTORE DROPS AN ANSWER THAT WAS ALREADY OUT', () async {
+    // `restorePurchases` forgets the catalogue the moment the store answers it,
+    // because a SKU bought on another device is now this build's to sell
+    // against. A query started BEFORE that is still in flight, and it used to
+    // write its pre-restore answer into the cache when it resolved — so the
+    // forgetting was undone by the thing it was racing.
+    final gate = Completer<Map<String, StoreProduct>>();
+    iapBillingSource = () async => gate.future;
+    final pending = storeCatalogue();
+
+    forgetStoreCatalogue();
+    gate.complete(_italianStore());
+    await pending;
+
+    expect(
+      billingReady,
+      isFalse,
+      reason: 'the superseded answer was cached over the forgetting',
+    );
+
+    // And the next ask is a real one, against whatever the store says now.
+    iapBillingSource = () async => <String, StoreProduct>{};
+    expect(await storeCatalogue(), isEmpty);
+  });
+
   testWidgets('THE CONSENT NOTICE QUOTES THE STORE, not sterling', (
     tester,
   ) async {
@@ -209,6 +331,48 @@ void main() {
     expect(
       find.textContaining('€${range.dearest.priceValue.toStringAsFixed(2)}'),
       findsOneWidget,
+    );
+    expect(find.textContaining('£'), findsNothing);
+  });
+
+  testWidgets('AND THE CONFIRM CARD, which is the last thing before paying', (
+    tester,
+  ) async {
+    // Every tile hands its own resolved price to `confirmRealMoneyPurchase`,
+    // which is a parameter rather than another lookup — so the card is only as
+    // right as its caller, and it is the screen a player reads with their
+    // thumb over the button. Nothing checked it.
+    iapBillingSource = () async => _italianStore();
+
+    final container = shopContainer((_) {});
+    await tester.pumpWidget(
+      UncontrolledProviderScope(
+        container: container,
+        child: Consumer(
+          builder: (context, ref, _) => MaterialApp(
+            theme: ref.watch(appThemeProvider),
+            home: const Scaffold(
+              body: SingleChildScrollView(child: OffersSection()),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final starter = getProduct('starter_pack')!;
+    await tester.tap(find.byKey(ValueKey('shop-buy-${starter.id}')));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(ValueKey('paid-confirm-${starter.id}')),
+      findsOneWidget,
+      reason: 'the confirm card did not open, so nothing was checked',
+    );
+    expect(
+      find.textContaining('€${starter.priceValue.toStringAsFixed(2)}'),
+      findsWidgets,
+      reason: 'the card quotes a price the store did not give it',
     );
     expect(find.textContaining('£'), findsNothing);
   });

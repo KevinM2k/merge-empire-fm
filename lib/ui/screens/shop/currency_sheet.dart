@@ -37,17 +37,33 @@ Future<void> showCurrencySheet(
   child: CurrencySheet(which: which),
 );
 
-class CurrencySheet extends ConsumerWidget {
+class CurrencySheet extends ConsumerStatefulWidget {
   const CurrencySheet({super.key, required this.which});
 
   final ShopSection which;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final shelf = currencyShelves[which]!;
+  ConsumerState<CurrencySheet> createState() => _CurrencySheetState();
+}
+
+class _CurrencySheetState extends ConsumerState<CurrencySheet> {
+  @override
+  void initState() {
+    super.initState();
+    // **THIS IS HOW MOST PLAYERS REACH THE PACKS.** The HUD's coin and gem
+    // chips open this sheet directly, so a session whose boot never heard from
+    // Play priced every tile here in sterling and had nothing to ask again —
+    // the Shop tab's own re-ask does not run, because the tab is never built.
+    // Reported from Italy as the store quoting GBP.
+    askStoreAgainIfItNeverAnswered(ref, stillThere: () => mounted);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final shelf = currencyShelves[widget.which]!;
 
     return Column(
-      key: ValueKey('currency-sheet-${which.name}'),
+      key: ValueKey('currency-sheet-${widget.which.name}'),
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [

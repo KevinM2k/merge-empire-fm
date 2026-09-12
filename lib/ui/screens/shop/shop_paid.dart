@@ -158,6 +158,35 @@ final storeCatalogueProvider = FutureProvider<StoreCatalogue>(
   (ref) => storeCatalogue(),
 );
 
+/// **ASK THE STORE AGAIN IF IT HAS NEVER ANSWERED**, from a surface that is
+/// about to price real money.
+///
+/// Every real-money tile falls back to the catalogue's own price when billing
+/// has said nothing, and the catalogue is priced in pounds — so a boot where
+/// Play was not up yet left a player in Italy reading sterling for the rest of
+/// the session, because [storeCatalogueProvider] holds what it first resolved
+/// to.
+///
+/// **Called from every surface that sells, not just the Shop tab.** The first
+/// fix put this in `ShopScreenState.initState` alone, which missed the way most
+/// players actually reach the packs: the HUD's coin and gem chips open
+/// `CurrencySheet` directly and never build the tab at all. Two surfaces, one
+/// answer — a second copy of these three lines is how one of them goes stale.
+///
+/// `billingReady` is false only while NOTHING has ever come back —
+/// `storeCatalogue` caches a real answer, an empty one included — so this costs
+/// a round trip in exactly the session that needs one, and it is a no-op the
+/// moment the store has spoken once.
+///
+/// Must run off a frame rather than in a `build`: invalidating a provider
+/// during a build is an error.
+void askStoreAgainIfItNeverAnswered(WidgetRef ref, {required bool Function() stillThere}) {
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    if (!stillThere() || billingReady) return;
+    ref.invalidate(storeCatalogueProvider);
+  });
+}
+
 /// The tiles for one paid category, without a shelf around them — the currency
 /// sheet draws its own frame around the same tiles the tab shows.
 List<Widget> paidTilesFor(

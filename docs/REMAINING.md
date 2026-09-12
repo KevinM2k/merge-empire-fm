@@ -48,6 +48,30 @@ PARENT what their child can spend, naming "£0.99 – £12.99" to a parent who d
 not pay in pounds. `store_price_test`'s last case is the general guard: no
 shipped string in any of the ten writes a currency symbol.
 
+**Two more faults found by auditing the fix rather than the report**, and the
+first is the one that would have kept the bug alive:
+
+- **The re-ask went into `ShopScreenState.initState` alone**, and the HUD's coin
+  and gem chips open `CurrencySheet` *directly* — `showCurrencySheet`, not a tab
+  switch. So the commonest route to the packs never built the tab, never
+  re-asked, and went on printing sterling. Both surfaces call
+  `askStoreAgainIfItNeverAnswered` now, which exists so there is one answer
+  rather than two copies of three lines.
+- **A restore could be undone by the query it was racing.** `restorePurchases`
+  forgets the catalogue the moment the store answers it, because a SKU bought on
+  another device is now this build's to sell against — and a catalogue query
+  started before that is still in flight. It wrote its PRE-restore answer into
+  the cache when it resolved. `_generation` drops an answer that has been
+  superseded; clearing `_inFlight` alone never helped, because the future is
+  still running, it simply has nobody waiting on it.
+
+**And the euro coverage was one shelf wide.** "ALL costs in GBP" was the report
+and Special Offers was only where they happened to be looking, so the test now
+walks the offers shelf, the gem packs, the coin packs, the Looks vault, both HUD
+sheets and the confirm card — the last of which is the screen a player reads
+with their thumb over the button, and it takes its price as a PARAMETER, so it
+is only ever as right as its caller.
+
 ### Forty-three keys were English in all nine catalogues at once
 
 Reported as "lots of UK language that wasn't translated". `t()` cannot see this:
@@ -71,6 +95,20 @@ and one that fails in three of the four was never translated for anybody.
 copy for a feature the port has not built: the pre-match tactical read that
 names the tactic and the opponent. They are listed one by one in the test's
 allowlist rather than by prefix, so building it has to come back through there.
+
+**The guard was half a guard.** Reading the four non-Latin catalogues cannot see
+a key left English in Italian alone, and that is the half the report came from —
+so there is a second, narrower check over the Latin five on equality with
+English. It is weaker (it cannot tell a bad translation from a good one, and it
+stops seeing a key the moment English is reworded around it) and it is still
+what would have caught the subs panel. The nine dead tactic tips are excused
+once, in `_noCaller`, rather than in both allowlists.
+
+**And a catalogue test cannot see a screen.** `untranslated_test` proves the
+Italian resolves; what was reported was a PANEL. `match_screen_test` now opens
+the subs panel in it, fr and de and checks the strings on it are the locale's
+own — both assertions were mutation-checked by putting the English back and
+watching them fail.
 
 ### And the ball was a BUBBLE
 
@@ -98,6 +136,13 @@ what nothing asked was whether the list of kicks is a SHOOTOUT.
 are the totals, sudden death never ends on a half-finished round so the away
 side always gets its answer, and the side with more penalties is the side the
 tie is awarded to.
+
+The pieces were each covered and the JOURNEY was not: `cup_launcher`'s tests
+settle a tie and draw nothing, and the fixtures test hand-commits a 1-1 and
+assumes the engine can produce one. `league_fixtures_test` now seeds until the
+engine really does send a tie to penalties, settles it the way the screen does,
+and reads the sheet the player then opens — level score, the marker, and a dot
+that agrees with who won the shootout.
 
 **One thing WAS left over from unfolding the shootout's goal.** The bracket
 records the ninety minutes now — it used to fold the winning penalty in, so a

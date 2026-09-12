@@ -17,8 +17,6 @@ import 'package:merge_empire_fc/ui/screens/shop/shop_paid.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_section.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_spend.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
-import 'package:merge_empire_fc/services/iap_billing.dart'
-    show billingReady;
 import 'package:merge_empire_fc/ui/shell/shell_controller.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 
@@ -48,23 +46,10 @@ class ShopScreenState extends ConsumerState<ShopScreen> {
     // The tab may be built by the very frame that set the deep link, so the
     // first jump happens here rather than only on a later change.
     WidgetsBinding.instance.addPostFrameCallback((_) => _openPending());
-    // **AND THE STORE IS ASKED AGAIN IF IT HAS NEVER ANSWERED.**
-    //
-    // Every real-money tile falls back to the catalogue's own price when
-    // billing has said nothing, and the catalogue is priced in pounds — so a
-    // boot where Play was not up yet left a player in Italy reading sterling
-    // for the rest of the session, because `storeCatalogueProvider` holds what
-    // it first resolved to. This is the shop, which is the screen where that
-    // matters; opening it is the natural moment to try again.
-    //
-    // `billingReady` is false only while NOTHING has ever come back —
-    // `storeCatalogue` caches a real answer, an empty one included — so this
-    // costs a round trip in exactly the session that needs one, and the
-    // invalidate is a no-op the moment the store has spoken once.
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted || billingReady) return;
-      ref.invalidate(storeCatalogueProvider);
-    });
+    // Opening the shop is a natural moment to try the store again — see
+    // [askStoreAgainIfItNeverAnswered]. `CurrencySheet` does the same, because
+    // the HUD's chips reach the packs without ever building this tab.
+    askStoreAgainIfItNeverAnswered(ref, stillThere: () => mounted);
   }
 
   /// **A DEEP LINK SELECTS A TAB now, rather than scrolling to a heading.**

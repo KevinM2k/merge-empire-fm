@@ -570,4 +570,8 @@ const Map<String, String> frCopy = <String, String>{
   // What settled a level cup tie. Under the score in a 42pt slot,
   // so it is an abbreviation. See `league_sheets.dart`.
   'fixtures.on_pens': 't.a.b.',
+
+  // `cup.round.final` in this same catalogue says "Finale"; the short form
+  // was left as the English "Final", which is not a word for it here.
+  'cup.round_short.final': 'Finale',
 };

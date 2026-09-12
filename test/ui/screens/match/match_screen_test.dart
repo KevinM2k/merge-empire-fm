@@ -14,6 +14,7 @@ import 'package:merge_empire_fc/providers/sound_providers.dart';
 import 'package:merge_empire_fc/services/sound_service.dart';
 import 'package:merge_empire_fc/data/config.dart';
 import 'package:merge_empire_fc/data/players.dart';
+import 'package:merge_empire_fc/i18n/catalogs.g.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/state/save_slots.dart';
@@ -2820,6 +2821,43 @@ void main() {
       await tester.pumpAndSettle();
     }
 
+    /// **THE PANEL A PLAYER IN ITALY WAS LOOKING AT.**
+    ///
+    /// Every `match.subs.*` string was the ENGLISH sentence in all nine
+    /// translated catalogues — the generator copies whatever `en.js`'s siblings
+    /// hold, and a line added to English and pasted into them as a placeholder
+    /// arrives looking exactly like a translation. `untranslated_test` proves
+    /// the catalogue resolves to Italian now; this proves it reaches the panel,
+    /// which is a different question and the one that was reported.
+    Future<void> expectPanelSpeaks(WidgetTester tester, String id) async {
+      setLocale(id);
+      addTearDown(resetLocale);
+      final container = await pumpMatch(
+        tester,
+        matchResult(),
+        save: squadSave(),
+      );
+      addTearDown(container.dispose);
+      await openSubs(tester);
+      expect(find.byKey(const ValueKey('subs-panel')), findsOneWidget);
+      for (final key in const [
+        'match.subs',
+        'match.subs.bench',
+        'match.subs.pick_off',
+      ]) {
+        expect(
+          find.textContaining(t(key)),
+          findsWidgets,
+          reason: '$key is not on the panel in $id',
+        );
+        expect(
+          t(key),
+          isNot(catalogs['en']![key]),
+          reason: '$key is still the English string in $id',
+        );
+      }
+    }
+
     /// Say yes to the "X off, Y on" card, and let the bench close behind it.
     Future<void> confirmSub(WidgetTester tester) async {
       await tester.tap(
@@ -2980,6 +3018,20 @@ void main() {
       await openSubs(tester);
       expect(find.byKey(const ValueKey('subs-panel')), findsOneWidget);
       expect(find.byKey(const ValueKey('pitch-board')), findsOneWidget);
+
+      // And the same panel, in the language it was reported in. Kept beside
+      // the structural checks rather than in the i18n folder: what broke was
+      // this screen, and a catalogue test cannot see a screen.
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pumpAndSettle();
+      for (final id in const ['it', 'fr', 'de']) {
+        await expectPanelSpeaks(tester, id);
+      }
+      setLocale('en');
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pumpAndSettle();
+      await pumpMatch(tester, matchResult(), save: squadSave());
+      await openSubs(tester);
       final slots = container.read(pitchSlotsProvider);
       expect(slots.length, 11);
       for (final slot in slots) {

@@ -572,4 +572,8 @@ const Map<String, String> deCopy = <String, String>{
   // Der Rest des Spiels sagt "Schuh" — `product.lucky_boot.name` und
   // `manager.lucky_boot` beide. Ein Stiefel ist kein Fußballschuh.
   'shop.lucky_boot_ad_name': 'Glücksschuh gratis',
+
+  // `cup.round.final` in this same catalogue says "Finale"; the short form
+  // was left as the English "Final", which is not a word for it here.
+  'cup.round_short.final': 'Finale',
 };

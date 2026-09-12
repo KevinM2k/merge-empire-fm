@@ -25,6 +25,14 @@
 ///
 /// So this is a work queue with an allowlist, not a grammar check. Every entry
 /// in [_allowed] says why it is allowed to be Latin.
+///
+/// **AND THE LATIN FIVE GET THEIR OWN, NARROWER CHECK.** Italian left in
+/// English and Italian translated are both Latin script, so the only signal
+/// there is equality with the English string — which goes silent the moment
+/// English itself is reworded, and says nothing about a bad translation. It is
+/// worth having anyway: it is what catches a key added to `en.js` and pasted
+/// into its siblings, which is how all forty-three of these arrived. See
+/// [_allowedLatin] for the loanwords it has to be told about.
 library;
 
 import 'package:flutter_test/flutter_test.dart';
@@ -54,12 +62,23 @@ const Map<String, String> _allowed = <String, String>{
   // A platform name, which is the same in every store.
   'leaderboard.platform_android': 'a proper noun',
 
-  // **NINE STRINGS NOTHING CAN PRINT.** `coach.tactic_tip.*` has no caller
-  // anywhere in `lib/` — not a literal, not a key built from a prefix — so
-  // these are shipped copy for a feature the port has not built. Translating
-  // them would be translating dead text; see `docs/REMAINING.md`. They are
-  // listed one by one rather than by prefix so that building the feature has
-  // to come back through here.
+  // And the nine nothing can print — see [_noCaller], which both allowlists
+  // fold in, because the reason is the same in either script.
+  ..._noCaller,
+};
+
+/// **NINE STRINGS NOTHING CAN PRINT.**
+///
+/// `coach.tactic_tip.*` has no caller anywhere in `lib/` — not a literal, not a
+/// key built from a prefix — so these are shipped copy for a feature the port
+/// has not built: the pre-match tactical read that names the tactic and the
+/// opponent. Translating them would be translating dead text; see
+/// `docs/REMAINING.md`.
+///
+/// Listed one by one rather than by prefix so that building the feature has to
+/// come back through here, and held apart from the two allowlists so the reason
+/// is written once rather than in both scripts.
+const Map<String, String> _noCaller = <String, String>{
   'coach.tactic_tip.open_dominant': 'no caller in lib/',
   'coach.tactic_tip.open_favoured': 'no caller in lib/',
   'coach.tactic_tip.open_even': 'no caller in lib/',
@@ -69,6 +88,32 @@ const Map<String, String> _allowed = <String, String>{
   'coach.tactic_tip.park_underdog': 'no caller in lib/',
   'coach.tactic_tip.tight_favoured': 'no caller in lib/',
   'coach.tactic_tip.tight_underdog': 'no caller in lib/',
+};
+
+/// The five Latin catalogues, where equality with English is the only tell.
+const List<String> _latin = <String>['it', 'fr', 'de', 'es', 'pt'];
+
+/// Keys that are legitimately the English word in four or more of the Latin
+/// five. Mostly loanwords the languages have taken as they are.
+const Map<String, String> _allowedLatin = <String, String>{
+  'scene.dock.global': 'a loanword in all five',
+  'leaderboard.platform_android': 'a proper noun',
+  'settings.difficulty.easy': '"Casual" is the mode\'s name, not a word',
+  'shop.section.premium': 'a loanword',
+  'shop.section.premium_emoji': 'a loanword',
+  'product.vip_pass.bonus': 'a loanword',
+  'squad.formation.auto': 'a loanword, and it is a button 44pt wide',
+  'asset.media_t3': 'a loanword',
+  'settings.tab.audio': 'a loanword',
+  'customise.item.hair.afro': 'a loanword',
+  'cup.round_short.final': 'the word in es and pt; fr and de override it',
+  ..._noCaller,
+  // Placeholders and glyphs, the same as the list above.
+  'leaderboard.pill_division_regional': 'two placeholders and a separator',
+  'toast.payout_suffix': 'a separator and a placeholder',
+  'event.toast.reward_claimed': 'two emoji and a placeholder',
+  'game.throughball.score': 'a tick and a fraction',
+  'card.tier_locked': 'T{tier} MAX — a badge that has to fit a card corner',
 };
 
 void main() {
@@ -106,6 +151,47 @@ void main() {
           'them in lib/i18n/copy/, or say in _allowed why they are Latin:\n'
           '${offenders.join('\n')}',
     );
+  });
+
+  test('nor in it, fr, de, es and pt at once', () {
+    // The Latin half. Weaker than the check above — it cannot tell a bad
+    // translation from a good one, and it stops seeing a key the moment
+    // English is reworded around it — but it is the half that would have
+    // caught the subs panel, and it costs an allowlist of loanwords.
+    final offenders = <String>[];
+    for (final entry in catalogs['en']!.entries) {
+      if (_allowedLatin.containsKey(entry.key)) continue;
+      if (!latin.hasMatch(entry.value)) continue;
+      final same = _latin
+          .where((id) => catalogFor(id)[entry.key] == entry.value)
+          .toList();
+      if (same.length >= 4) {
+        offenders.add('${entry.key}  (${same.join(', ')})');
+      }
+    }
+    expect(
+      offenders,
+      isEmpty,
+      reason:
+          'these are the English sentence in four or more of the Latin five — '
+          'translate them in lib/i18n/copy/, or say in _allowedLatin why they '
+          'are the English word:\n${offenders.join('\n')}',
+    );
+  });
+
+  test('and the Latin allowlist has no stale entry either', () {
+    final stale = <String>[];
+    for (final key in _allowedLatin.keys) {
+      if (!catalogs['en']!.containsKey(key)) {
+        stale.add('$key: not in the English catalogue any more');
+        continue;
+      }
+      final english = catalogs['en']![key];
+      final translated =
+          _latin.where((id) => catalogFor(id)[key] != english).toList();
+      if (translated.length >= 4) stale.add('$key: translated in $translated');
+    }
+    expect(stale, isEmpty, reason: stale.join('\n'));
   });
 
   test('the allowlist has no stale entry', () {
