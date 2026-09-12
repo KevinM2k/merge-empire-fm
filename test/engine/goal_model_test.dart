@@ -1,5 +1,8 @@
+import 'dart:math' as math;
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:merge_empire_fc/engine/goal_model.dart';
+import 'package:merge_empire_fc/engine/squad_rating.dart' show winProbExponent;
 import 'package:merge_empire_fc/state/card_instance.dart';
 import 'package:merge_empire_fc/util/random.dart' as seeded;
 
@@ -212,6 +215,44 @@ void main() {
         if (poissonGoals(maxGoalRate) > maxGoalRate) sawMore = true;
       }
       expect(sawMore, isTrue);
+    });
+  });
+
+  group('duelProbability', () {
+    test('is even between equals and floored at a rating of one', () {
+      expect(duelProbability(70, 70), 0.5);
+      expect(duelProbability(0, 0), 0.5);
+      expect(duelProbability(-5, 1), 0.5);
+    });
+
+    test('a 90 against a 55 is a 73% duel, not the 87% match curve', () {
+      expect(duelProbability(90, 55), closeTo(0.7281, 0.0005));
+      expect(duelExponent, lessThan(winProbExponent));
+      // Same pairing through the match model, for the record.
+      final a = math.pow(90, winProbExponent);
+      final b = math.pow(55, winProbExponent);
+      expect(a / (a + b), closeTo(0.8776, 0.0005));
+    });
+
+    test('is zero-sum and symmetric', () {
+      for (final pair in [(90, 55), (30, 80), (64, 65), (100, 1)]) {
+        expect(
+          duelProbability(pair.$1, pair.$2) + duelProbability(pair.$2, pair.$1),
+          closeTo(1, 1e-12),
+        );
+      }
+    });
+
+    test('rises with the attacker and falls with the defender', () {
+      for (var a = 20; a < 100; a++) {
+        expect(duelProbability(a + 1, 60), greaterThan(duelProbability(a, 60)));
+        expect(duelProbability(60, a + 1), lessThan(duelProbability(60, a)));
+      }
+    });
+
+    test('stays strictly inside the unit interval', () {
+      expect(duelProbability(100, 1), lessThan(1));
+      expect(duelProbability(1, 100), greaterThan(0));
     });
   });
 

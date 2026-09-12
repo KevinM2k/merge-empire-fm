@@ -132,6 +132,30 @@ double goalRateLambda(num attackerRating, num defenderRating) {
       span * (1 - math.exp(-(raw - evenMatchLambda) / span));
 }
 
+/// Bradley-Terry exponent for ONE step of a positional attack.
+///
+/// Deliberately flatter than [winProbExponent]. That curve is tuned for a
+/// whole match — a 90-against-55 side SHOULD win 87% of them — but a sequence
+/// takes four or five duels to reach a shot and the same exponent step by step
+/// made a good winger beat an ordinary full-back nearly every time and a
+/// weaker one almost never, so every attack down one flank ended the same way.
+/// At 2.0 the same pairing is a 73% duel: the better player wins clearly more
+/// than he loses and still loses often enough that the heatmap has more than
+/// one colour on it. Tuned against `positional_balance_test`.
+const double duelExponent = 2.0;
+
+/// The chance an attacker beats a defender in one step of an attack.
+///
+/// Zero-sum and symmetric: `duelProbability(a, b) + duelProbability(b, a)` is
+/// one. Floored at a rating of one on both sides so an empty slot cannot
+/// divide by zero. Ratings only — where the two players are standing is the
+/// caller's business, and that is the whole point of the positional sim.
+double duelProbability(num attacker, num defender) {
+  final a = math.pow(math.max(1, attacker), duelExponent);
+  final b = math.pow(math.max(1, defender), duelExponent);
+  return a / (a + b);
+}
+
 /// Samples a goal count from a Poisson distribution with mean [lambda], using
 /// Knuth's algorithm.
 ///

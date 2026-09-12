@@ -113,7 +113,11 @@ const double oppBaseAtkShare = 0.45;
 const double oppBiasShare = 0.17;
 
 /// Player positions' typical attack share — the ratio-range midpoints.
-const Map<String, double> _posRatio = {
+///
+/// Public because the positional sim builds an AI side's eleven pseudo-players
+/// from it, with the same call [teamSplitForFormation] makes, so their
+/// per-player numbers and the team's ATK/DEF agree by construction.
+const Map<String, double> positionAttackRatio = {
   'GK': 0.025,
   'DEF': 0.20,
   'MID': 0.50,
@@ -198,7 +202,7 @@ TeamSplit teamSplitForFormation(num rating, String? formationId) {
   var dDen = 0.0;
 
   for (final pos in positions) {
-    final s = getCardAtkDefSplit(_posRatio[pos], rating);
+    final s = getCardAtkDefSplit(positionAttackRatio[pos], rating);
     final aw = attackWeights[pos] ?? 0.5;
     final dw = defenceWeights[pos] ?? 0.5;
     aNum += s.attack * aw;
@@ -387,7 +391,7 @@ double _shapeCommitment(String formationId) {
     // rounds AND clamps to 100, and both destroy the signal here — at a high
     // rating every stat clamps flat, at a low one the rounding is a quarter of
     // the read.
-    final ratio = _posRatio[pos]!;
+    final ratio = positionAttackRatio[pos]!;
     final spec = math.min(1.0, (ratio - 0.5).abs() * 2);
     final strong = 1 + spec * peakLift;
     final weak = 1 - spec * offStatDrop;
