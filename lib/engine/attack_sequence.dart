@@ -22,6 +22,7 @@ library;
 import 'dart:math' as math;
 
 import 'package:merge_empire_fc/data/formations.dart';
+import 'package:merge_empire_fc/data/player_roles.dart';
 import 'package:merge_empire_fc/data/players.dart';
 import 'package:merge_empire_fc/engine/goal_model.dart';
 import 'package:merge_empire_fc/engine/match_tactics.dart';
@@ -171,7 +172,9 @@ PitchPlayer? pickDefender(PitchSide side, int zone, double roll) {
 /// Coordinates come from the formation slot with the same id and fall back to
 /// the same index for a lineup out of step with its shape. [scale] is the
 /// per-player rating factor Pro mode applies for fatigue and the referee's
-/// booking; it multiplies both stats.
+/// booking; it multiplies both stats. [roles] is `squad['roles']` cleaned by
+/// `rolesOf`: a role on a wide slot moves that player's attacking anchor and
+/// nothing else — see `data/player_roles.dart`.
 PitchSide pitchSideFromLineup({
   required List<CardInstance> cards,
   required List<Map<String, dynamic>> lineup,
@@ -179,6 +182,7 @@ PitchSide pitchSideFromLineup({
   Map<String, dynamic> definitionRatios = const {},
   double Function(CardInstance card)? scale,
   bool mirrored = false,
+  Map<String, String> roles = const {},
 }) {
   final byId = {for (final c in cards) c.instanceId: c};
   final bySlotId = {for (final s in slots) s.slotId: s};
@@ -208,6 +212,7 @@ PitchSide pitchSideFromLineup({
         attack: st.attack * k,
         defence: st.defence * k,
         mirrored: mirrored,
+        role: isWideSlot(slot) ? playerRoles[roles[slot.slotId]] : null,
       ),
     );
   }
@@ -249,6 +254,7 @@ PitchPlayer _player({
   required double defence,
   required bool mirrored,
   String name = '',
+  PlayerRole? role,
 }) {
   // The maps are a property of the SLOT position, not the card's — a striker
   // parked at centre-back attacks from where a centre-back stands.
@@ -258,7 +264,7 @@ PitchPlayer _player({
     x: slot.x,
     y: slot.y,
   );
-  var atk = attackingInfluence(placed);
+  var atk = attackingInfluence(placed, role: role);
   var def = defensiveInfluence(placed);
   if (mirrored) {
     atk = atk.mirrored();

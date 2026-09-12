@@ -11,6 +11,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:merge_empire_fc/util/time.dart' show now;
 import 'package:merge_empire_fc/data/divisions.dart';
 import 'package:merge_empire_fc/data/formations.dart';
+import 'package:merge_empire_fc/data/player_roles.dart' show roleIds;
 import 'package:merge_empire_fc/engine/attack_sequence.dart'
     show attackSides, defaultAttackSide;
 import 'package:merge_empire_fc/engine/match_tactics.dart';
@@ -472,6 +473,54 @@ void main() {
       expect(container.read(attackSideProvider), 'right');
       // The sheet stays up, re-marked, for the manager to compare.
       expect(find.byKey(const ValueKey('side-picker')), findsOneWidget);
+    });
+
+    testWidgets('a wide player can be given a role, and the token says so', (
+      tester,
+    ) async {
+      final container = await pumpSquad(tester);
+      final wide = container
+          .read(pitchSlotsProvider)
+          .firstWhere((s) => s.slotId == 'rm' && s.cardInstanceId != null);
+      await tester.tap(find.byKey(ValueKey('squad-slot-${wide.slotId}')));
+      await tester.pumpAndSettle();
+      await scrollSheetTo(tester, 'detail-role');
+      expect(find.byKey(const ValueKey('detail-role')), findsOneWidget);
+      for (final id in roleIds) {
+        expect(find.byKey(ValueKey('detail-role-$id')), findsOneWidget);
+      }
+
+      await tester.tap(find.byKey(const ValueKey('detail-role-insideForward')));
+      await tester.pumpAndSettle();
+      await settleSave(tester);
+      expect(container.read(slotRolesProvider), {'rm': 'insideForward'});
+      expect(
+        tester.widget<Text>(find.byKey(const ValueKey('detail-role-hint'))).data,
+        t('role.insideForward.hint'),
+      );
+
+      // Back to natural takes the entry away rather than writing a word.
+      await tester.tap(find.byKey(const ValueKey('detail-role-natural')));
+      await tester.pumpAndSettle();
+      await settleSave(tester);
+      expect(container.read(slotRolesProvider), isEmpty);
+
+      await tester.tap(find.byKey(const ValueKey('detail-role-winger')));
+      await tester.pumpAndSettle();
+      await settleSave(tester);
+      await tester.tapAt(const Offset(5, 5));
+      await tester.pumpAndSettle();
+      expect(find.text('MID · ${t('role.winger.short')}'), findsOneWidget);
+    });
+
+    testWidgets('a central player is offered no role', (tester) async {
+      final container = await pumpSquad(tester);
+      final gk = container
+          .read(pitchSlotsProvider)
+          .firstWhere((s) => s.slotId == 'gk' && s.cardInstanceId != null);
+      await tester.tap(find.byKey(ValueKey('squad-slot-${gk.slotId}')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('detail-role')), findsNothing);
     });
 
     testWidgets('every tactic states its trade', (tester) async {

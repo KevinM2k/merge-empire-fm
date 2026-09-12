@@ -337,6 +337,8 @@ void _migrateSquad(Map<String, dynamic> data) {
   if (!attackSides.contains(squad['attackSide'])) {
     squad['attackSide'] = defaultAttackSide;
   }
+  // Roles by slot, same vintage and same reason for living outside the schema.
+  if (squad['roles'] is! Map) squad['roles'] = <String, dynamic>{};
 
   final grid = _map(data['grid']);
   final rawCells = grid?['cells'];

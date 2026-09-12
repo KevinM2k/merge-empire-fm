@@ -510,8 +510,13 @@ class PitchToken extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 3),
+          // The role rides on the position plate — "MID · IF" — because the
+          // four corners are spoken for and the plate is what says what he is
+          // doing there.
           _Chip(
-            label: slot.slotPosition,
+            label: slot.role == null
+                ? slot.slotPosition
+                : '${slot.slotPosition} · ${t('role.${slot.role}.short')}',
             fill: pBg.withValues(alpha: 0.93),
             edge: pColor,
             ink: pColor,

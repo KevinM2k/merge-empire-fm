@@ -413,4 +413,18 @@ const Map<String, String> jaCopy = <String, String>{
   'squad.side.centre.hint': '攻撃の大半が中央から始まる。',
   'squad.side.right': '右',
   'squad.side.right.hint': '攻撃の大半が右サイドから始まる。',
+
+  // ── Roles on the wide slots ───────────────────────────────────────────
+  'role.label': '役割',
+  'role.natural': '通常',
+  'role.natural.hint': 'フォーメーション通りのポジションで動く。',
+  'role.winger': 'ウインガー',
+  'role.winger.hint': '外に張ってゴールラインまで行く。どこで攻めるかであり、どれだけ上手いかではない。',
+  'role.winger.short': 'W',
+  'role.insideForward': 'インサイドフォワード',
+  'role.insideForward.hint': 'サイドから内側のハーフスペースとボックスへ入っていく。',
+  'role.insideForward.short': 'IF',
+  'role.widePlaymaker': 'ワイドプレーメーカー',
+  'role.widePlaymaker.hint': '下がってビルドアップに関わり、早い段階から多くのプレーが彼を経由する。',
+  'role.widePlaymaker.short': 'WP',
 };

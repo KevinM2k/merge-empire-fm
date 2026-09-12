@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:merge_empire_fc/data/formations.dart';
+import 'package:merge_empire_fc/data/player_roles.dart';
 import 'package:merge_empire_fc/engine/match_tactics.dart';
 import 'package:merge_empire_fc/engine/pitch_influence.dart';
 import 'package:merge_empire_fc/engine/pitch_space.dart';
@@ -170,6 +171,56 @@ void main() {
           reason: id,
         );
       });
+    });
+  });
+
+  group('roles', () {
+    final rf = _slot('4-3-3', 'rf');
+    final lf = _slot('4-3-3', 'lf');
+
+    test('move where the work lands and never how much of it there is', () {
+      for (final role in playerRoles.values) {
+        final withRole = attackingInfluence(rf, role: role);
+        expect(withRole.mass, closeTo(attackingInfluence(rf).mass, 1e-9), reason: role.id);
+        expect(withRole.zones, isNot(attackingInfluence(rf).zones), reason: role.id);
+      }
+      expect(defensiveInfluence(rf).zones, defensiveInfluence(rf).zones);
+    });
+
+    test('an inside forward comes in off the flank, a winger stays out', () {
+      final natural = attackingInfluence(rf);
+      final inside = attackingInfluence(rf, role: playerRoles['insideForward']);
+      final winger = attackingInfluence(rf, role: playerRoles['winger']);
+      expect(inside.flankMass(Flank.centre), greaterThan(natural.flankMass(Flank.centre) * 1.5));
+      expect(winger.flankMass(Flank.right), greaterThanOrEqualTo(natural.flankMass(Flank.right)));
+      expect(winger.flankMass(Flank.centre), lessThan(natural.flankMass(Flank.centre)));
+    });
+
+    test('inward is toward the centre from EITHER side', () {
+      final right = attackingInfluence(rf, role: playerRoles['insideForward']);
+      final left = attackingInfluence(lf, role: playerRoles['insideForward']);
+      // The mean lane, not the peak: a slot on a lane boundary peaks by
+      // tie-break, and the tie breaks the same way on both sides.
+      double meanLane(InfluenceMap m) {
+        var sum = 0.0;
+        for (var z = 0; z < pitchZones; z++) {
+          sum += zoneLane(z) * m[z];
+        }
+        return sum / m.mass;
+      }
+      expect(meanLane(right), greaterThan(meanLane(attackingInfluence(rf)) + 0.4));
+      expect(meanLane(left), lessThan(meanLane(attackingInfluence(lf)) - 0.4));
+      // Mirror images of each other, to rounding.
+      for (var z = 0; z < pitchZones; z++) {
+        expect(left[z], closeTo(right[zoneIndex(4 - zoneLane(z), zoneBand(z))], 1e-9), reason: 'zone $z');
+      }
+    });
+
+    test('a wide playmaker drops in, so more of him is in the band behind', () {
+      final natural = attackingInfluence(rf);
+      final maker = attackingInfluence(rf, role: playerRoles['widePlaymaker']);
+      expect(maker.bandMass(1), greaterThan(natural.bandMass(1) * 1.5));
+      expect(maker.bandMass(0), lessThan(natural.bandMass(0)));
     });
   });
 }

@@ -495,4 +495,18 @@ const Map<String, String> frCopy = <String, String>{
   'squad.side.centre.hint': 'La plupart des attaques partent par l\'axe.',
   'squad.side.right': 'La droite',
   'squad.side.right.hint': 'La plupart des attaques partent côté droit.',
+
+  // ── Roles on the wide slots ───────────────────────────────────────────
+  'role.label': 'Rôle',
+  'role.natural': 'Naturel',
+  'role.natural.hint': 'Joue le poste tel que la formation le dessine.',
+  'role.winger': 'Ailier',
+  'role.winger.hint': 'Reste large et va jusqu\'à la ligne. Où il attaque, pas à quel niveau.',
+  'role.winger.short': 'AI',
+  'role.insideForward': 'Ailier rentrant',
+  'role.insideForward.hint': 'Rentre de l\'aile vers le demi-espace et la surface.',
+  'role.insideForward.short': 'AR',
+  'role.widePlaymaker': 'Meneur excentré',
+  'role.widePlaymaker.hint': 'Décroche pour construire : plus de jeu passe par lui, plus tôt.',
+  'role.widePlaymaker.short': 'ME',
 };

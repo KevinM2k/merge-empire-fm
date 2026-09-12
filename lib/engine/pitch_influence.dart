@@ -38,6 +38,7 @@ library;
 import 'dart:math' as math;
 
 import 'package:merge_empire_fc/data/formations.dart';
+import 'package:merge_empire_fc/data/player_roles.dart';
 import 'package:merge_empire_fc/engine/match_tactics.dart';
 import 'package:merge_empire_fc/engine/pitch_space.dart';
 
@@ -113,13 +114,24 @@ class InfluenceMap {
 }
 
 /// A slot's attacking map in its own team's frame.
-InfluenceMap attackingInfluence(FormationSlot slot) {
+///
+/// A [role] moves the anchor — inward is toward the centre line from
+/// whichever side the slot is on, forward is toward goal — and scales the
+/// spread. The mass is the position's regardless: a role is a place, not a
+/// rating.
+InfluenceMap attackingInfluence(FormationSlot slot, {PlayerRole? role}) {
   final weight = attackWeights[slot.slotPosition] ?? 0.5;
   final p = slotPoint(slot);
-  return influenceAround((
-    x: p.x,
-    y: p.y - weight * attackPushUp,
-  ), mass: weight);
+  final toCentre = p.x <= 50 ? 1.0 : -1.0;
+  return influenceAround(
+    (
+      x: p.x + (role?.inward ?? 0) * toCentre,
+      y: p.y - weight * attackPushUp - (role?.forward ?? 0),
+    ),
+    mass: weight,
+    across: influenceAcross * (role?.across ?? 1),
+    along: influenceAlong * (role?.along ?? 1),
+  );
 }
 
 /// A slot's defensive map in its own team's frame.

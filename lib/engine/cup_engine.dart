@@ -13,6 +13,7 @@ import 'dart:math' as math;
 import 'package:merge_empire_fc/data/cups.dart';
 import 'package:merge_empire_fc/data/divisions.dart';
 import 'package:merge_empire_fc/data/formations.dart';
+import 'package:merge_empire_fc/data/player_roles.dart';
 import 'package:merge_empire_fc/data/players.dart';
 import 'package:merge_empire_fc/engine/attack_sequence.dart';
 import 'package:merge_empire_fc/engine/gem_engine.dart';
@@ -755,6 +756,7 @@ PreparedCupRound? prepareCupRound(Map<String, dynamic> state) {
     lineup: _lineup(state),
     slots: ourSlots,
     definitionRatios: ratios,
+    roles: rolesOf(_map(state['squad'])),
     scale: fatigue ? (c) => fatigueRatingFactor(energyPct(c)) : null,
   ).scaledToTeam(attack: attack, defence: defence);
   void window(double atk, double def, double from, double to) {

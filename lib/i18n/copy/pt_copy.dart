@@ -477,4 +477,18 @@ const Map<String, String> ptCopy = <String, String>{
   'squad.side.centre.hint': 'A maioria dos ataques começa pelo meio.',
   'squad.side.right': 'Direita',
   'squad.side.right.hint': 'A maioria dos ataques começa pelo lado direito.',
+
+  // ── Roles on the wide slots ───────────────────────────────────────────
+  'role.label': 'Função',
+  'role.natural': 'Natural',
+  'role.natural.hint': 'Joga a posição como a formação a desenha.',
+  'role.winger': 'Ponta',
+  'role.winger.hint': 'Fica aberto e vai até a linha de fundo. Onde ataca, não quão bem.',
+  'role.winger.short': 'PT',
+  'role.insideForward': 'Ponta interior',
+  'role.insideForward.hint': 'Entra da ponta para o meio-espaço e a área.',
+  'role.insideForward.short': 'PI',
+  'role.widePlaymaker': 'Armador aberto',
+  'role.widePlaymaker.hint': 'Recua para construir, e mais jogo passa por ele mais cedo.',
+  'role.widePlaymaker.short': 'AA',
 };

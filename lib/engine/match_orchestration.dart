@@ -42,6 +42,7 @@ import 'package:merge_empire_fc/data/club_assets.dart';
 import 'package:merge_empire_fc/data/config.dart';
 import 'package:merge_empire_fc/data/divisions.dart';
 import 'package:merge_empire_fc/data/formations.dart';
+import 'package:merge_empire_fc/data/player_roles.dart';
 import 'package:merge_empire_fc/data/players.dart';
 import 'package:merge_empire_fc/data/transfer_market.dart';
 import 'package:merge_empire_fc/engine/attack_sequence.dart';
@@ -157,6 +158,7 @@ HardSim _simulateHardGoals({
   required PitchSide oppSide,
   required List<PositionalEvent> positional,
   List<double>? laneBias,
+  Map<String, String> roles = const {},
 }) {
   const seg = PlayerEnergy.segments;
   const minutesPerSeg = 90 / seg;
@@ -291,6 +293,7 @@ HardSim _simulateHardGoals({
       lineup: lineup,
       slots: ourSlots,
       definitionRatios: definitionRatios,
+      roles: roles,
       scale: (card) {
         if (weightAt(card, s) <= 0) return 0;
         final max = getMaxEnergy(card);
@@ -768,12 +771,14 @@ MatchResult simulateMatch(
   // Where our attacks start — the squad screen's side dial. Ours only: the
   // AI has no dial, and where THEY come is their shape's business.
   final laneBias = laneBiasFor(attackSideOf(squad));
+  final roles = rolesOf(squad);
   final positional = <PositionalEvent>[];
   PitchSide ourSideNow(double attack, double defence) => pitchSideFromLineup(
     cards: _cards(state),
     lineup: _lineupOf(state) ?? const [],
     slots: ourSlots,
     definitionRatios: ratios,
+    roles: roles,
     scale: fatigue ? (c) => fatigueRatingFactor(energyPct(c)) : null,
   ).scaledToTeam(attack: attack, defence: defence);
   final theirSide = oppSideBase.scaledToTeam(
@@ -922,6 +927,7 @@ MatchResult simulateMatch(
       oppSide: oppSideBase,
       positional: positional,
       laneBias: laneBias,
+      roles: roles,
     );
     homeGoals = sim.homeGoals;
     awayGoals = sim.awayGoals;
@@ -1913,6 +1919,7 @@ List<Map<String, dynamic>> reSimulateRemainder(
             _map(state?['squad'])?['formation'] as String? ?? defaultFormation,
           ).slots,
           definitionRatios: _map(state?['definitionRatios']) ?? const {},
+          roles: rolesOf(_map(state?['squad'])),
           scale: (c) =>
               (bookedMultipliers[c.instanceId] ?? 1.0) *
               (hardMode ? fatigueRatingFactor(energyPct(c)) : 1.0),

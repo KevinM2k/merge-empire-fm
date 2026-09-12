@@ -36,6 +36,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/data/art_paths.dart';
 import 'package:merge_empire_fc/providers/sound_providers.dart';
+import 'package:merge_empire_fc/data/formations.dart' show FormationSlot, getFormation;
+import 'package:merge_empire_fc/data/player_roles.dart'
+    show isWideSlot, naturalRole, roleIds;
 import 'package:merge_empire_fc/data/players.dart';
 import 'package:merge_empire_fc/data/traits.dart';
 import 'package:merge_empire_fc/engine/booking_engine.dart'
@@ -48,6 +51,8 @@ import 'package:merge_empire_fc/ui/widgets/injury_cross.dart';
 import 'package:merge_empire_fc/engine/loan_engine.dart';
 import 'package:merge_empire_fc/engine/player_energy_engine.dart';
 import 'package:merge_empire_fc/engine/squad_rating.dart';
+import 'package:merge_empire_fc/ui/screens/squad/squad_pickers.dart'
+    show setSlotRole, slotRolesProvider;
 import 'package:merge_empire_fc/data/divisions.dart' show divisions;
 import 'package:merge_empire_fc/engine/goal_model.dart' show getInjuryChance;
 import 'package:merge_empire_fc/engine/trait_engine.dart';
@@ -216,6 +221,8 @@ class _PlayerDetailState extends ConsumerState<_PlayerDetail> {
       definitionRatios: _map(state?['definitionRatios']) ?? const {},
     );
 
+    final wideSlot = slotId == null ? null : _wideSlot(state, slotId);
+
     return ListView(
       key: ValueKey('player-detail-$instanceId'),
       padding: const EdgeInsets.all(16),
@@ -262,6 +269,13 @@ class _PlayerDetailState extends ConsumerState<_PlayerDetail> {
               ),
           ],
         ),
+        // **HIS ROLE, for a wide slot.** Where the positional sim puts his
+        // attacking work: a winger stays wide, an inside forward cuts in, a
+        // wide playmaker drops in to build. Never a rating — the hint says so.
+        if (wideSlot != null) ...[
+          const SizedBox(height: 12),
+          _RoleRow(slotId: wideSlot.slotId),
+        ],
         const SizedBox(height: detailGap),
 
         if (proMode) ...[_Fitness(card: card), const SizedBox(height: detailGap)],
@@ -2407,4 +2421,90 @@ class _EaseOutPow extends Curve {
 
   @override
   double transformInternal(double t) => 1 - math.pow(1 - t, power).toDouble();
+}
+
+
+/// The formation slot behind [slotId], when it may carry a role.
+FormationSlot? _wideSlot(Map<String, dynamic>? state, String slotId) {
+  final squad = _map(state?['squad']);
+  final slots = getFormation(squad?['formation'] as String?).slots;
+  for (final slot in slots) {
+    if (slot.slotId == slotId) return isWideSlot(slot) ? slot : null;
+  }
+  return null;
+}
+
+class _RoleRow extends ConsumerWidget {
+  const _RoleRow({required this.slotId});
+
+  final String slotId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final kit = Theme.of(context).extension<KitTheme>()!;
+    final current = ref.watch(slotRolesProvider)[slotId] ?? naturalRole;
+    final ink = Theme.of(context).colorScheme.onSurface;
+    return Column(
+      key: const ValueKey('detail-role'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          t('role.label').toUpperCase(),
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 1.1,
+            color: kit.textMuted,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          children: [
+            for (final id in roleIds)
+              Material(
+                color: id == current
+                    ? kit.accent.withValues(alpha: 0.16)
+                    : Colors.transparent,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  side: BorderSide(
+                    color: id == current ? kit.accent : kit.border,
+                    width: 1.5,
+                  ),
+                ),
+                child: InkWell(
+                  key: ValueKey('detail-role-$id'),
+                  borderRadius: BorderRadius.circular(10),
+                  onTap: id == current
+                      ? null
+                      : () => setSlotRole(ref, slotId, id),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 6,
+                    ),
+                    child: Text(
+                      t('role.$id'),
+                      style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                        color: id == current ? kit.accentBright : ink,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        Text(
+          t('role.$current.hint'),
+          key: const ValueKey('detail-role-hint'),
+          style: TextStyle(fontSize: 12, color: kit.textMuted),
+        ),
+      ],
+    );
+  }
 }

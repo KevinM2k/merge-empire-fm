@@ -971,4 +971,21 @@ const Map<String, String> enCopy = <String, String>{
   'squad.side.centre.hint': 'Most attacks start through the centre.',
   'squad.side.right': 'The right',
   'squad.side.right.hint': 'Most attacks start down the right flank.',
+
+  // ── Roles on the wide slots ───────────────────────────────────────────────
+  //
+  // `data/player_roles.dart`: a role moves where a wide player's attacking
+  // work lands and never his rating, and every hint keeps to that.
+  'role.label': 'Role',
+  'role.natural': 'Natural',
+  'role.natural.hint': 'Plays the slot as the shape draws it.',
+  'role.winger': 'Winger',
+  'role.winger.hint': 'Stays wide and gets to the byline. Where the attacks go, not how well they go.',
+  'role.winger.short': 'W',
+  'role.insideForward': 'Inside forward',
+  'role.insideForward.hint': 'Cuts in off the flank into the half-space and the box.',
+  'role.insideForward.short': 'IF',
+  'role.widePlaymaker': 'Wide playmaker',
+  'role.widePlaymaker.hint': 'Drops in to build, so more of the play comes through that flank earlier.',
+  'role.widePlaymaker.short': 'WP',
 };

@@ -27,6 +27,8 @@ import 'package:merge_empire_fc/ui/screens/grid/grid_providers.dart';
 import 'package:merge_empire_fc/ui/screens/squad/squad_providers.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/theme/tactic_style.dart';
+import 'package:merge_empire_fc/data/player_roles.dart'
+    show naturalRole, roleIds, rolesOf;
 import 'package:merge_empire_fc/engine/attack_sequence.dart'
     show attackSideOf, attackSides, laneBiasFor;
 import 'package:merge_empire_fc/ui/screens/squad/pitch_token.dart';
@@ -68,6 +70,28 @@ void setAttackSide(WidgetRef ref, String side) {
     if (squad is Map<String, dynamic>) squad['attackSide'] = side;
   });
 }
+
+/// Give a slot a role, or [naturalRole] to take it away.
+void setSlotRole(WidgetRef ref, String slotId, String roleId) {
+  if (!roleIds.contains(roleId)) return;
+  ref.read(gameProvider).update((s) {
+    final squad = s['squad'];
+    if (squad is! Map<String, dynamic>) return;
+    final roles = squad['roles'] is Map<String, dynamic>
+        ? squad['roles'] as Map<String, dynamic>
+        : (squad['roles'] = <String, dynamic>{});
+    if (roleId == naturalRole) {
+      roles.remove(slotId);
+    } else {
+      roles[slotId] = roleId;
+    }
+  });
+}
+
+final slotRolesProvider = savePick<Map<String, String>>((s) {
+  final squad = s['squad'];
+  return rolesOf(squad is Map<String, dynamic> ? squad : null);
+});
 
 final attackSideProvider = savePick<String>((s) {
   final squad = s['squad'];

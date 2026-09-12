@@ -484,4 +484,18 @@ const Map<String, String> esCopy = <String, String>{
   'squad.side.centre.hint': 'La mayoría de los ataques nacen por el medio.',
   'squad.side.right': 'La derecha',
   'squad.side.right.hint': 'La mayoría de los ataques nacen por la banda derecha.',
+
+  // ── Roles on the wide slots ───────────────────────────────────────────
+  'role.label': 'Rol',
+  'role.natural': 'Natural',
+  'role.natural.hint': 'Juega la posición tal como la dibuja la formación.',
+  'role.winger': 'Extremo',
+  'role.winger.hint': 'Se mantiene abierto y llega hasta la línea de fondo. Dónde ataca, no cuánto.',
+  'role.winger.short': 'EX',
+  'role.insideForward': 'Extremo interior',
+  'role.insideForward.hint': 'Se mete desde la banda hacia el carril interior y el área.',
+  'role.insideForward.short': 'EI',
+  'role.widePlaymaker': 'Creador de banda',
+  'role.widePlaymaker.hint': 'Retrocede para construir, y más juego pasa por él antes.',
+  'role.widePlaymaker.short': 'CB',
 };

@@ -112,7 +112,11 @@ CardInstance _card(String id, String pos, int tier) => CardInstance({
 });
 
 /// Our 4-3-3 from real cards, every slot at [tier] except the overrides.
-PitchSide _lineupSide({int tier = 5, Map<String, int> tiers = const {}}) {
+PitchSide _lineupSide({
+  int tier = 5,
+  Map<String, int> tiers = const {},
+  Map<String, String> roles = const {},
+}) {
   final slots = formations['4-3-3']!.slots;
   final cards = [
     for (final s in slots)
@@ -126,7 +130,12 @@ PitchSide _lineupSide({int tier = 5, Map<String, int> tiers = const {}}) {
         'cardInstanceId': s.slotId,
       },
   ];
-  return pitchSideFromLineup(cards: cards, lineup: lineup, slots: slots);
+  return pitchSideFromLineup(
+    cards: cards,
+    lineup: lineup,
+    slots: slots,
+    roles: roles,
+  );
 }
 
 void main() {
@@ -517,6 +526,38 @@ void main() {
       for (final side in attackSides) {
         expect(season(side).goals, closeTo(1.35, 0.06), reason: side);
       }
+    });
+  });
+
+  group('roles', () {
+    test('an inside forward takes more of his shots from the middle', () {
+      double centreShare(Map<String, String> roles) {
+        seeded.setSeed(31);
+        final us = _lineupSide(roles: roles);
+        final them = _side(64, '4-4-2');
+        final out = <PositionalEvent>[];
+        for (var i = 0; i < 2000; i++) {
+          positionalWindowGoals(
+            ctx: SequenceContext(attackers: us, defenders: them, side: 'ours'),
+            lambda: 1.4,
+            fromMinute: 0,
+            toMinute: 90,
+            out: out,
+          );
+        }
+        var centre = 0, total = 0;
+        for (final e in out) {
+          if (e.type != 'shot' || e.playerId != 'rf') continue;
+          total++;
+          if (zoneLane(e.zone) == 2) centre++;
+        }
+        return centre / total;
+      }
+      final natural = centreShare(const {});
+      final inside = centreShare(const {'rf': 'insideForward'});
+      final winger = centreShare(const {'rf': 'winger'});
+      expect(inside, greaterThan(natural + 0.05));
+      expect(winger, lessThanOrEqualTo(natural + 0.01));
     });
   });
 }

@@ -777,4 +777,38 @@ void main() {
       expect(rightStart('balanced'), closeTo(0.4, 0.05));
     });
   });
+
+  group('roles on the lineup', () {
+    PitchSide side(Map<String, String> roles) {
+      final xi = _xi('4-3-3');
+      return pitchSideFromLineup(
+        cards: xi.cards,
+        lineup: xi.lineup,
+        slots: formations['4-3-3']!.slots,
+        roles: roles,
+      );
+    }
+
+    test('a role on a wide slot moves that player and nobody else', () {
+      final natural = side(const {});
+      final inside = side(const {'rf': 'insideForward'});
+      expect(
+        _by(inside, 'rf').attacking.flankMass(Flank.centre),
+        greaterThan(_by(natural, 'rf').attacking.flankMass(Flank.centre) * 1.5),
+      );
+      expect(_by(inside, 'rf').attack, _by(natural, 'rf').attack);
+      expect(_by(inside, 'rf').defending.zones, _by(natural, 'rf').defending.zones);
+      for (final id in ['gk', 'rb', 'cm', 'cf', 'lf']) {
+        expect(_by(inside, id).attacking.zones, _by(natural, id).attacking.zones, reason: id);
+      }
+    });
+
+    test('a role on a central slot, or an unknown role, changes nothing', () {
+      final natural = side(const {});
+      expect(_by(side(const {'cf': 'insideForward'}), 'cf').attacking.zones,
+          _by(natural, 'cf').attacking.zones);
+      expect(_by(side(const {'rf': 'libero'}), 'rf').attacking.zones,
+          _by(natural, 'rf').attacking.zones);
+    });
+  });
 }

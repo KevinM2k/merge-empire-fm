@@ -496,4 +496,18 @@ const Map<String, String> deCopy = <String, String>{
   'squad.side.centre.hint': 'Die meisten Angriffe beginnen durch die Mitte.',
   'squad.side.right': 'Rechts',
   'squad.side.right.hint': 'Die meisten Angriffe beginnen über die rechte Seite.',
+
+  // ── Roles on the wide slots ───────────────────────────────────────────
+  'role.label': 'Rolle',
+  'role.natural': 'Natürlich',
+  'role.natural.hint': 'Spielt die Position so, wie die Aufstellung sie zeichnet.',
+  'role.winger': 'Flügelspieler',
+  'role.winger.hint': 'Bleibt breit und geht bis zur Grundlinie. Wo er angreift, nicht wie gut.',
+  'role.winger.short': 'FL',
+  'role.insideForward': 'Inverser Flügel',
+  'role.insideForward.hint': 'Zieht vom Flügel in den Halbraum und den Strafraum.',
+  'role.insideForward.short': 'IF',
+  'role.widePlaymaker': 'Spielmacher außen',
+  'role.widePlaymaker.hint': 'Lässt sich zum Aufbau fallen, sodass mehr Spiel früher über ihn läuft.',
+  'role.widePlaymaker.short': 'SA',
 };

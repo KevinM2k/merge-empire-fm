@@ -154,6 +154,15 @@ void main() {
       expect(right, greaterThan(left * 2));
     });
 
+    test('roles on the lineup reach the sim and the result still encodes', () {
+      seeded.setSeed(5);
+      final state = _state();
+      (state['squad'] as Map)['roles'] = {'rm': 'insideForward', 'lm': 'winger', 'gk': 'winger'};
+      final result = simulateMatch(state, null);
+      expect((result['positional'] as Map)['ev'], isNotEmpty);
+      expect(() => jsonEncode(result), returnsNormally);
+    });
+
     test('a finished, settled match encodes as JSON', () {
       // A cup win puts a result into the save, so anything on it that cannot be
       // encoded throws on the first save after the match rather than here.

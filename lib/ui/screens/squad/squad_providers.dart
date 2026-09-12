@@ -10,6 +10,7 @@ import 'package:merge_empire_fc/engine/booking_engine.dart'
     show suspendedIn;
 import 'package:merge_empire_fc/data/divisions.dart';
 import 'package:merge_empire_fc/data/formations.dart';
+import 'package:merge_empire_fc/data/player_roles.dart' show rolesOf;
 import 'package:merge_empire_fc/engine/fixture_preview.dart';
 import 'package:merge_empire_fc/engine/lineup_engine.dart';
 import 'package:merge_empire_fc/engine/match_tactics.dart';
@@ -52,6 +53,9 @@ typedef PitchSlot = ({
   /// injury sub should show the swap like every other one.
   String? vacatedById,
   bool outOfPosition,
+
+  /// The role the save gives this slot, or null — see `data/player_roles.dart`.
+  String? role,
 
   /// What this player is worth IN THIS SLOT, fatigue included — not their card
   /// rating. A striker at left back is the same card and a different player, and
@@ -221,6 +225,7 @@ final pitchSlotsProvider = savePick<List<PitchSlot>>((s) {
           // Named rather than punished here: the penalty is the engine's, and
           // the screen's job is to say WHY a rating looks low.
           outOfPosition: view != null && view.position != slot.slotPosition,
+          role: rolesOf(_map(s['squad']))[slot.slotId],
           // **ZERO IF HE CANNOT PLAY**, because that is what the sim scores him.
           // `computeSquadRating` zeroes an injured or unavailable man in the
           // lineup outright, and the token went on showing his card rating — so

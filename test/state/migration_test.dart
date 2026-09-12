@@ -573,6 +573,15 @@ void main() {
       expect((junk['squad'] as Map)['attackSide'], 'balanced');
     });
 
+    test('gives the squad a roles map and keeps one it has', () {
+      final fresh = migrate(_legacy({'squad': {'formation': '4-3-3'}}))!;
+      expect((fresh['squad'] as Map)['roles'], <String, dynamic>{});
+      final kept = migrate(
+        _legacy({'squad': {'formation': '4-3-3', 'roles': {'rf': 'winger'}}}),
+      )!;
+      expect((kept['squad'] as Map)['roles'], {'rf': 'winger'});
+    });
+
     test('migrates the removed 4-2-4 formation to 4-3-3', () {
       final s = migrate(_legacy({'squad': {'formation': '4-2-4'}}))!;
       expect((s['squad'] as Map)['formation'], '4-3-3');

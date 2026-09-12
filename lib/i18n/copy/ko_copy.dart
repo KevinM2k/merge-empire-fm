@@ -441,4 +441,18 @@ const Map<String, String> koCopy = <String, String>{
   'champ.prestige_teaser': '일요 리그부터 다시 시작해 영구적인 <strong>수입 ×{mult} 보너스</strong>와 함께 다시 올라가세요. 커리어 업적은 영원히 당신과 함께합니다.',
   'champ.new_adventure': '🌟 새로운 모험 시작',
   'champ.defend': '⚽ 타이틀 방어',
+
+  // ── Roles on the wide slots ───────────────────────────────────────────
+  'role.label': '역할',
+  'role.natural': '기본',
+  'role.natural.hint': '포메이션이 그린 대로 자리를 지킵니다.',
+  'role.winger': '윙어',
+  'role.winger.hint': '측면에 넓게 서서 골라인까지 갑니다. 얼마나 잘하느냐가 아니라 어디서 공격하느냐입니다.',
+  'role.winger.short': 'W',
+  'role.insideForward': '인사이드 포워드',
+  'role.insideForward.hint': '측면에서 하프스페이스와 박스 안으로 파고듭니다.',
+  'role.insideForward.short': 'IF',
+  'role.widePlaymaker': '와이드 플레이메이커',
+  'role.widePlaymaker.hint': '내려와서 빌드업에 가담하므로 더 많은 플레이가 더 일찍 그를 거칩니다.',
+  'role.widePlaymaker.short': 'WP',
 };

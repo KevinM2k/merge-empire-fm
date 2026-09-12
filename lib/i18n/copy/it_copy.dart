@@ -493,4 +493,18 @@ const Map<String, String> itCopy = <String, String>{
   'squad.side.centre.hint': 'La maggior parte degli attacchi parte per vie centrali.',
   'squad.side.right': 'Destra',
   'squad.side.right.hint': 'La maggior parte degli attacchi parte dalla fascia destra.',
+
+  // ── Roles on the wide slots ───────────────────────────────────────────
+  'role.label': 'Ruolo',
+  'role.natural': 'Naturale',
+  'role.natural.hint': 'Gioca la posizione così come la disegna il modulo.',
+  'role.winger': 'Ala',
+  'role.winger.hint': 'Resta largo e arriva fino al fondo. Dove attacca, non quanto bene.',
+  'role.winger.short': 'AL',
+  'role.insideForward': 'Ala tagliente',
+  'role.insideForward.hint': 'Rientra dalla fascia verso il mezzo spazio e l\'area.',
+  'role.insideForward.short': 'AT',
+  'role.widePlaymaker': 'Regista largo',
+  'role.widePlaymaker.hint': 'Arretra per costruire, così più gioco passa da lui e prima.',
+  'role.widePlaymaker.short': 'RL',
 };
