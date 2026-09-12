@@ -36,6 +36,7 @@ import 'package:merge_empire_fc/ui/widgets/store_button.dart';
 
 void main() {
   tearDown(resetLocale);
+  tearDown(resetIapBillingSource);
 
   /// The row is the last thing on a long scrolling shop, so it has to be
   /// brought on screen before it can be tapped — a tap that misses reads as a
@@ -99,6 +100,30 @@ void main() {
     for (final p in coins) {
       expect(find.text(p.price), findsWidgets, reason: p.id);
     }
+  });
+
+  testWidgets('a gem tile shows the STORE price, not the catalogue fallback', (
+    tester,
+  ) async {
+    // GemPackTile used to render the catalogue's own `£` string straight from
+    // `IapProduct.price` instead of resolving it through `priceFor`, so a
+    // player anywhere but GB saw a pound price even once the store had
+    // answered with their own currency.
+    final gem = getShopProducts().firstWhere((p) => p.category == 'gems');
+    const storePrice = '4,99 €';
+    iapBillingSource = () async => {
+      gem.sku: (sku: gem.sku, hasOffer: true, localisedPrice: storePrice),
+    };
+    await pumpPaid(tester);
+    final tileFinder = find.byKey(ValueKey('shop-tile-${gem.id}'));
+    expect(
+      find.descendant(of: tileFinder, matching: find.text(storePrice)),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(of: tileFinder, matching: find.text(gem.price)),
+      findsNothing,
+    );
   });
 
   testWidgets('offers carries the passes and bundles, not the currency', (

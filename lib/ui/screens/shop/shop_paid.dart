@@ -495,6 +495,11 @@ class GemPackTile extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final price = priceFor(
+      tile.product.sku,
+      tile.product.price,
+      ref.watch(storeCatalogueProvider).valueOrNull,
+    );
     final artSize = hero ? 96.0 : 74.0;
     final art = ShopArt(
       id: tile.product.id,
@@ -572,7 +577,7 @@ class GemPackTile extends ConsumerWidget {
             ],
           ),
           child: Text(
-            tile.product.price,
+            price,
             style: TextStyle(
               fontSize: hero ? 15 : 13,
               fontWeight: FontWeight.w900,
@@ -588,24 +593,14 @@ class GemPackTile extends ConsumerWidget {
 
     return Semantics(
       button: true,
-      label: '${tile.name} ${tile.product.price}',
+      label: '${tile.name} $price',
       child: GestureDetector(
         key: ValueKey('shop-tile-${tile.product.id}'),
         // **THROUGH THE CONFIRM, like every other real-money tap.** The JS's
         // own comment on this line says gem bundles and the Vault used to
         // charge straight off the tile, so a mis-tap on a two-across grid was a
         // completed purchase with no interstitial.
-        onTap: () => buyProduct(
-          context,
-          ref,
-          tile.product,
-          tile.name,
-          priceFor(
-            tile.product.sku,
-            tile.product.price,
-            ref.read(storeCatalogueProvider).valueOrNull,
-          ),
-        ),
+        onTap: () => buyProduct(context, ref, tile.product, tile.name, price),
         // **THE FLASH GOES OVER THE TILE, NOT INSIDE IT.** It used to live in
         // the `Stack` that is the box's CHILD — so it was inset by the box's
         // own padding and its 2pt rim before it started, and sat a corner's
