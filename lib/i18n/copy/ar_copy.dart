@@ -487,4 +487,16 @@ const Map<String, String> arCopy = <String, String>{
   'champ.defend': '⚽ دافع عن اللقب',
   'game.training.intro':
       'اضغط على {n} تسديدات وهي قادمة. لديك {secs} ث لكل تمرين.',
+
+  // ── Two strings that quoted POUNDS in every language ─────────────────────
+  //
+  // The badge's figure is a RATIO between bundles and has no currency in it at
+  // all; "/£" was decoration that happened to be sterling. And the consent
+  // notice named the range in pounds to a parent who does not pay in them —
+  // it takes the store's own two figures now, see `age_gate_sheet.dart`.
+  'shop.coin_value_badge': 'قيمة أعلى بنسبة {pct}%',
+  'agegate.purchases_body':
+      'تتوفر حزم عملات ({min} – {max}) وحزم طاقة وبطاقة VIP. تُعالَج كل '
+      'المشتريات بأمان عبر Google Play. لا يلزم أي اشتراك. موافقة ولي الأمر '
+      'أدناه تفتح هذه المشتريات لهذا الحساب.',
 };

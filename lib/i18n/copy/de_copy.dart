@@ -551,4 +551,17 @@ const Map<String, String> deCopy = <String, String>{
   'champ.defend': '⚽ Titel verteidigen',
   'game.training.intro':
       'Tippe {n} Schüsse an, während sie kommen. Du hast {secs}s pro Übung.',
+
+  // ── Two strings that quoted POUNDS in every language ─────────────────────
+  //
+  // The badge's figure is a RATIO between bundles and has no currency in it at
+  // all; "/£" was decoration that happened to be sterling. And the consent
+  // notice named the range in pounds to a parent who does not pay in them —
+  // it takes the store's own two figures now, see `age_gate_sheet.dart`.
+  'shop.coin_value_badge': '+{pct}% Gegenwert',
+  'agegate.purchases_body':
+      'Münzpakete ({min} – {max}), Energiepakete und ein VIP-Pass sind '
+      'erhältlich. Alle Käufe werden sicher über Google Play abgewickelt. Ein '
+      'Abonnement ist nicht erforderlich. Die Einwilligung der Eltern unten '
+      'schaltet diese Käufe für dieses Konto frei.',
 };

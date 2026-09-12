@@ -462,4 +462,13 @@ const Map<String, String> koCopy = <String, String>{
   'champ.new_adventure': '🌟 새 모험 시작',
   'champ.defend': '⚽ 타이틀 방어',
   'game.training.intro': '날아오는 슛 {n}개를 탭하세요. 훈련당 {secs}초가 주어집니다.',
+
+  // ── Two strings that quoted POUNDS in every language ─────────────────────
+  //
+  // The badge's figure is a RATIO between bundles and has no currency in it at
+  // all; "/£" was decoration that happened to be sterling. And the consent
+  // notice named the range in pounds to a parent who does not pay in them —
+  // it takes the store's own two figures now, see `age_gate_sheet.dart`.
+  'shop.coin_value_badge': '가치 +{pct}%',
+  'agegate.purchases_body': '코인 팩({min} – {max}), 에너지 팩, VIP 패스를 구매할 수 있습니다. 모든 결제는 Google Play를 통해 안전하게 처리됩니다. 구독은 필요하지 않습니다. 아래 보호자 동의를 하면 이 계정에서 구매가 가능해집니다.',
 };

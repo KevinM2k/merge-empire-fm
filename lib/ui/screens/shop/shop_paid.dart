@@ -136,10 +136,24 @@ bool hardModeOf(Map<String, dynamic> state) {
 /// What the store has told us about, or null when billing is not running.
 ///
 /// **Null shows every tile and empty hides them all**, which is the rule
-/// `iapClient.js` argues for at length — see [StoreCatalogue]. It is null today
-/// because there is no plugin, so the shop is unchanged; what this buys is that
-/// the day one lands, a SKU created but not Active stops rendering a tile that
-/// can never complete.
+/// `iapClient.js` argues for at length — see [StoreCatalogue]. Null is also
+/// what every tile's PRICE falls back to the catalogue for, and the catalogue
+/// is priced in pounds.
+///
+/// **AND A `FutureProvider` KEEPS WHAT IT FIRST RESOLVED TO**, which is the
+/// second half of the pounds-in-Italy report. At boot that answer can be null —
+/// Play Billing is not necessarily up in the second the shop is first built —
+/// and the provider would then hand every real-money tile a null for the life
+/// of the app, so every one of them printed the catalogue's sterling fallback
+/// until the player killed it.
+///
+/// It is NOT `autoDispose`: a widget test proved that losing the last listener
+/// does not reliably re-run it, which makes "the next visit asks again" a
+/// promise about Riverpod's disposal timing rather than about this code. See
+/// `ShopScreenState.initState` — the shop asks again ITSELF when it opens with
+/// no answer on file, which is a thing that can be tested. `storeCatalogue`
+/// caches a successful answer for the process, so that re-ask costs a round
+/// trip only in a session that has never heard from the store at all.
 final storeCatalogueProvider = FutureProvider<StoreCatalogue>(
   (ref) => storeCatalogue(),
 );

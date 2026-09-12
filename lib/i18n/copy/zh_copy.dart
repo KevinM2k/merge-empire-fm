@@ -387,4 +387,13 @@ const Map<String, String> zhCopy = <String, String>{
   'champ.new_adventure': '🌟 开始新征程',
   'champ.defend': '⚽ 卫冕冠军',
   'game.training.intro': '在{n}次射门飞来时点击。每个训练有{secs}秒。',
+
+  // ── Two strings that quoted POUNDS in every language ─────────────────────
+  //
+  // The badge's figure is a RATIO between bundles and has no currency in it at
+  // all; "/£" was decoration that happened to be sterling. And the consent
+  // notice named the range in pounds to a parent who does not pay in them —
+  // it takes the store's own two figures now, see `age_gate_sheet.dart`.
+  'shop.coin_value_badge': '性价比+{pct}%',
+  'agegate.purchases_body': '可购买金币包（{min} – {max}）、体力包和 VIP 通行证。所有购买均通过 Google Play 安全处理。无需订阅。在下方完成家长同意后，本账号即可进行购买。',
 };

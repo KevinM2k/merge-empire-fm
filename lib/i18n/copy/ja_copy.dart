@@ -434,4 +434,13 @@ const Map<String, String> jaCopy = <String, String>{
   'champ.new_adventure': '🌟 新しい冒険を始める',
   'champ.defend': '⚽ タイトルを防衛する',
   'game.training.intro': '飛んでくる{n}本のシュートをタップ。ドリルごとに{secs}秒。',
+
+  // ── Two strings that quoted POUNDS in every language ─────────────────────
+  //
+  // The badge's figure is a RATIO between bundles and has no currency in it at
+  // all; "/£" was decoration that happened to be sterling. And the consent
+  // notice named the range in pounds to a parent who does not pay in them —
+  // it takes the store's own two figures now, see `age_gate_sheet.dart`.
+  'shop.coin_value_badge': 'お得度+{pct}%',
+  'agegate.purchases_body': 'コインパック（{min}〜{max}）、エナジーパック、VIPパスをご利用いただけます。すべての購入は Google Play を通じて安全に処理されます。定期購入は不要です。下の保護者の同意により、このアカウントで購入が可能になります。',
 };

@@ -905,4 +905,26 @@ const Map<String, String> enCopy = <String, String>{
   'game.training.intro':
       'Tap {n} shots as they come in. You have {secs}s per drill.',
 
+  // ── Two strings that quoted POUNDS in every language ─────────────────────
+  //
+  // Reported from Italy: the store showing its costs in GBP. The tiles' own
+  // prices were a separate fault (`services/iap_billing.dart`), but these two
+  // had sterling written into the COPY, so no amount of asking the store could
+  // have fixed them.
+  //
+  // `getCoinBundleValuePct` is a ratio between two bundles — coins per unit of
+  // money, divided by the cheapest bundle's — so the figure is the same number
+  // in every currency and the "/£" was decoration.
+  'shop.coin_value_badge': '+{pct}% value',
+
+  // And this is the one screen in the game whose whole job is telling a PARENT
+  // what their child can spend. It named "£0.99 – £12.99" inside the sentence,
+  // in all ten catalogues. The two ends come from `coinBundlePriceRange` now
+  // and the figures from the store, through the same `priceFor` a tile uses.
+  'agegate.purchases_body':
+      'Coin bundles ({min} – {max}), energy packs, and a VIP pass are '
+      'available. All purchases are processed securely through Google Play. No '
+      'subscription is required. Parental consent below unlocks these for this '
+      'account.',
+
 };
