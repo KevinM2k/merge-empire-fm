@@ -11,6 +11,146 @@ rough sense of size, not a target.
 **The live queue for this session is `docs/PLAYTHROUGH3.md`**, which is where
 the couch's reports are ticked off one at a time. What follows is the summary.
 
+## Reported from Italy, 12 Sep 2026 — the store, the language, two scorelines
+
+Four reports from a player on an Italian device. Three are fixed; the fourth was
+already fixed and is written down here because the chain is long enough to be
+worth reading once.
+
+### The store quoted POUNDS, and the tiles were the least of it
+
+Reported as "all costs in GBP" on the **Special Offers** shelf, explicitly not
+on gems — which had been fixed the day before by sending `GemPackTile` through
+`priceFor` like every other tile. The offers shelf was already going through it.
+Three separate faults, none of them on a tile:
+
+- **`storeCatalogue`'s guard was a bool set BEFORE the await.** `game_host`
+  warms the catalogue at boot and the shop asks for it again when a shelf is
+  built, and the second caller was told "already asked" and handed a `_cached`
+  that is still null while the first query is out. It is single-flight now.
+- **A query that FAILED was cached for the process.** Play Billing not being up
+  in the second the app booted meant sterling everywhere until the app was
+  killed, and nothing retried because nothing knew there was anything to retry.
+  An empty answer is the store speaking and is still kept; null is nobody
+  answering and is asked again.
+- **`storeCatalogueProvider` keeps what it first resolved to**, so that null was
+  the price on every real-money tile for the session. The shop asks again itself
+  when it opens with nothing on file. It is NOT `autoDispose` — a widget test
+  showed that losing the last listener does not reliably re-run it, which would
+  make the fix a promise about Riverpod's disposal timing rather than about this
+  code.
+
+And **two strings carried `£` in the COPY**, in all ten catalogues, which no
+amount of asking the store could have fixed: `shop.coin_value_badge`, whose
+figure is a RATIO between bundles and has no currency in it at all, and
+`agegate.purchases_body` — the one screen in the game whose job is telling a
+PARENT what their child can spend, naming "£0.99 – £12.99" to a parent who does
+not pay in pounds. `store_price_test`'s last case is the general guard: no
+shipped string in any of the ten writes a currency symbol.
+
+**Two more faults found by auditing the fix rather than the report**, and the
+first is the one that would have kept the bug alive:
+
+- **The re-ask went into `ShopScreenState.initState` alone**, and the HUD's coin
+  and gem chips open `CurrencySheet` *directly* — `showCurrencySheet`, not a tab
+  switch. So the commonest route to the packs never built the tab, never
+  re-asked, and went on printing sterling. Both surfaces call
+  `askStoreAgainIfItNeverAnswered` now, which exists so there is one answer
+  rather than two copies of three lines.
+- **A restore could be undone by the query it was racing.** `restorePurchases`
+  forgets the catalogue the moment the store answers it, because a SKU bought on
+  another device is now this build's to sell against — and a catalogue query
+  started before that is still in flight. It wrote its PRE-restore answer into
+  the cache when it resolved. `_generation` drops an answer that has been
+  superseded; clearing `_inFlight` alone never helped, because the future is
+  still running, it simply has nobody waiting on it.
+
+**And the euro coverage was one shelf wide.** "ALL costs in GBP" was the report
+and Special Offers was only where they happened to be looking, so the test now
+walks the offers shelf, the gem packs, the coin packs, the Looks vault, both HUD
+sheets and the confirm card — the last of which is the screen a player reads
+with their thumb over the button, and it takes its price as a PARAMETER, so it
+is only ever as right as its caller.
+
+### Forty-three keys were English in all nine catalogues at once
+
+Reported as "lots of UK language that wasn't translated". `t()` cannot see this:
+the key RESOLVES, because the catalogue carries it — holding the English
+sentence. A line added to `en.js` is pasted into its siblings as a placeholder
+and the generator copies it verbatim.
+
+The subs panel (all eleven strings), the difficulty switch, the tutorial's loan
+spell, `coachtip.subs_bench`, `coachtip.try_hard_mode`, the champions card and
+Iron Lungs. Thirty-seven are translated in `lib/i18n/copy/`.
+
+**Equality with English cannot find these**, and that is why it went unnoticed:
+`difficulty.switch.*` hid because the nine hold an OLDER English than
+`en.g.dart` does, so the two strings differ and neither is Italian. The detector
+in `untranslated_test` is the four non-Latin catalogues — a value with a run of
+Latin letters in it and none of the locale's own script has not been translated,
+and one that fails in three of the four was never translated for anybody.
+
+**The other nine are `coach.tactic_tip.*`**, which has no caller anywhere in
+`lib/` — not a literal, not a key built from a prefix. Nine sentences of shipped
+copy for a feature the port has not built: the pre-match tactical read that
+names the tactic and the opponent. They are listed one by one in the test's
+allowlist rather than by prefix, so building it has to come back through there.
+
+**The guard was half a guard.** Reading the four non-Latin catalogues cannot see
+a key left English in Italian alone, and that is the half the report came from —
+so there is a second, narrower check over the Latin five on equality with
+English. It is weaker (it cannot tell a bad translation from a good one, and it
+stops seeing a key the moment English is reworded around it) and it is still
+what would have caught the subs panel. The nine dead tactic tips are excused
+once, in `_noCaller`, rather than in both allowlists.
+
+**And a catalogue test cannot see a screen.** `untranslated_test` proves the
+Italian resolves; what was reported was a PANEL. `match_screen_test` now opens
+the subs panel in it, fr and de and checks the strings on it are the locale's
+own — both assertions were mutation-checked by putting the English back and
+watching them fail.
+
+### And the ball was a BUBBLE
+
+"He said things like ball translated as bubble." He was right, and the
+mistranslation was in the ENGLISH. `game.training.intro` read "Tap {n} drill
+bubbles"; `keeper_view.dart` draws a football and has since the scene was ported
+— "the ball still appears where it appears and still grows in place" is its own
+comment. All nine translated the word faithfully, so the Italian said "bolle"
+over a picture of a ball. Fixed in `en_copy.dart` first, then in all nine.
+
+### The 1-4 that came up 0-3
+
+Fixed the day before and confirmed as the root cause rather than the symptom: a
+sending-off removes the man from `_cautioned`, so the whistle's catch-up read
+his earlier yellow as unapplied and re-simulated the match from that minute
+AFTER the feed had been drawn. Cards are tracked by booking ROW now, and the
+re-sim owns the timeline snapshot the board counts off.
+
+### The shootout, checked end to end
+
+"If it's a draw it should go into penalties where the teams take it in turns."
+It does, and the chain from `simulatePenaltyShootout` to the bracket holds — but
+what nothing asked was whether the list of kicks is a SHOOTOUT.
+`shootout_order_test` asks: they alternate, the running totals under the marks
+are the totals, sudden death never ends on a half-finished round so the away
+side always gets its answer, and the side with more penalties is the side the
+tie is awarded to.
+
+The pieces were each covered and the JOURNEY was not: `cup_launcher`'s tests
+settle a tie and draw nothing, and the fixtures test hand-commits a 1-1 and
+assumes the engine can produce one. `league_fixtures_test` now seeds until the
+engine really does send a tie to penalties, settles it the way the screen does,
+and reads the sheet the player then opens — level score, the marker, and a dot
+that agrees with who won the shootout.
+
+**One thing WAS left over from unfolding the shootout's goal.** The bracket
+records the ninety minutes now — it used to fold the winning penalty in, so a
+tie watched to a 1-1 went in as a 2-1 — which left a level score on the fixtures
+sheet sitting beside a W with nothing to explain the pair. A knockout cannot end
+level, so level IS the shootout and no field had to be added to the save to know
+it: the row says `fixtures.on_pens` under the score.
+
 ## Playtest, 7 Sep 2026 — the write-up was too long to be read
 
 Reported from the couch with five real full-time summaries from a live-scores

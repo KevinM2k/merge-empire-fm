@@ -413,4 +413,66 @@ const Map<String, String> koCopy = <String, String>{
   'commentary.thriller_loss': '{us}–{them} 난타전 끝에 {opp} 상대 통한의 패배. 막상막하였지만 결승골이 안 나왔다.|{opp} 상대 {us}–{them}. 마지막 순간까지 경기 안에 있었지만 결국 놓쳤다.|{us}–{them}, 부끄러울 건 없다. 좋은 경기를 만들었고, 졌을 뿐이다.|이 패배는 아플 것이다. {us}–{them}, 단 한 장면이 오늘을 갈랐다.|스코어만 빼고 {opp}와 대등했다. {us}–{them}, 다시 일하러 가자.',
   'commentary.thriller_win': '대단한 경기! {us}–{them}으로 {opp} 상대 신승. 이런 경기가 경기장을 채운다.|{us}–{them}. 지켜보는 동안 10년은 늙었다, 그래도 다음 주에 또 하겠다.|제대로 된 축구 경기에서 이겼다, {us}–{them}. {opp}도 최선을 다했다.|그것만으로도 입장료 값을 했다. {opp} 상대 {us}–{them}, 우리가 웃는 쪽이었다.|{us}–{them}! 어떻게 이겼는지 묻지 마라, 결정적인 한 방을 찾아냈다.',
 
+  // ── Copy the generated catalogue never caught up on ──────────────────────
+  //
+  // Reported from a live save in Italian: whole screens still in English. The
+  // subs panel, the difficulty switch, the tutorial's loan spell, two coach
+  // tips, the champions card and the Iron Lungs trait were added to `en.js`
+  // and never translated, so `locales/*.g.dart` carries the ENGLISH sentence
+  // in all nine — which `t()` cannot detect, because the key resolves.
+  //
+  // And `game.training.intro` called the ball a BUBBLE. It is a football in
+  // `keeper_view.dart` and has been since the scene was ported; every locale
+  // translated the word faithfully, so the Italian read "bolle" over a picture
+  // of a ball. Fixed in `en_copy.dart` first, then here.
+  'match.subs': '교체',
+  'match.subs.done': '경기로 돌아가기',
+  'match.subs.on_pitch': '경기장',
+  'match.subs.bench': '벤치',
+  'match.subs.empty_bench': '벤치에 선수가 없습니다.',
+  'match.subs.empty_slot': '빈자리',
+  'match.subs.pick_off': '뺄 선수를 탭하세요.',
+  'match.subs.pick_on': '투입할 벤치 선수를 탭하세요 (초록 = 최적 포지션).',
+  'match.subs.none_left': '남은 교체 카드가 없습니다.',
+  'match.subs.feed': '{off} 아웃, {on} 인.',
+  'match.subs.feed_on': '{on} 선수가 투입됩니다.',
+  'difficulty.switch.toHard': '프로 모드: 경기 중 모든 선수가 지칩니다 — 스쿼드의 에너지를 관리하고 벤치를 돌려 다리를 신선하게 유지하세요. 가장 체력이 좋은 11명은 골라 드리지만, 전술에 대해서는 조용히 있겠습니다. 모드를 바꾸면 처음부터 다시 시작합니다.',
+  'difficulty.switch.toEasy': '캐주얼 모드: 선수 피로가 없으므로 벤치는 전술 교체와 부상 대응용입니다. 자동 선발과 코치 조언이 돌아옵니다. 모드를 바꾸면 처음부터 다시 시작합니다.',
+  'tut.loan_boost.title': '⭐ 임대 스타 영입!',
+  'tut.loan_boost.body': '인맥을 좀 동원했습니다… <strong>정상급 선수들</strong>이 첫 경기에 합류하기로 했어요! 끝나면 바로 떠나지만, 최대한 활용해 봅시다!',
+  'tut.loan_boost.btn': '내 스쿼드 보기 →',
+  'tut.loan_depart.title': '이제 우리 팀을 만들 차례',
+  'tut.loan_depart.body': '임대 스타들은 떠났습니다 — 하지만 우리도 겨룰 수 있다는 걸 보여줬죠. 이제 <strong>우리만의</strong> 팀을 만들 차례입니다. 시작 자금으로 <strong>500 코인</strong>을 드립니다. 조언이 있을 때는 왼쪽 아래에 있겠습니다.',
+  'tut.loan_depart.btn': '만들어 봅시다! →',
+  'ach.cat.hardmode': '프로 모드',
+  'coachtip.subs_bench.title': '벤치가 있습니다',
+  'coachtip.subs_bench.body': '경기 중 ‘교체’를 탭하면 벤치가 열립니다 — 경기당 5번 교체할 수 있고, 고르는 동안 시계는 멈춥니다. 이제 부상도 여기서 처리합니다: 선수가 쓰러지면 그 셔츠는 그라운드에서 빠지고, 교체 선수를 넣을 때까지 자리가 비어 있으니 그냥 두지 마세요.',
+  'coachtip.try_hard_mode.title': '도전해 보시겠습니까?',
+  'coachtip.try_hard_mode.body': '여기까지 잘 오셨습니다, 보스. 프로 모드 준비되셨나요? 경기 중 선수들이 지치기 때문에 스쿼드 로테이션과 벤치 활용이 정말 중요해집니다 — ‘자동’을 누르면 규정에 맞는 가장 체력 좋은 11명을 뽑아 드립니다 — 전술에는 참견하지 않겠습니다. 새 팀으로 다시 시작합니다. 마음이 있으실 때만요.',
+  'coachtip.try_hard_mode.cta': '설정 열기',
+  'coach.match.tired': '{name} 선수가 지쳤습니다 — 체력 좋은 선수를 투입하세요!',
+  'toast.energy_refilled': '스쿼드 에너지가 충전되었습니다!',
+  'toast.no_fit_players': '출전 가능한 선수가 부족합니다 — 쉬게 하거나 광고를 보고 충전하세요.',
+  'trait.name.iron_lungs': '강철 폐',
+  'trait.desc.iron_lungs': '지치지 않는 엔진 — 경기 중 에너지 소모가 느립니다 (프로 모드)',
+  'champ.title': '챔피언!',
+  'champ.subtitle': '챔피언스 리그 정복',
+  'champ.body': '모든 디비전을 정복하고 모든 라이벌을 넘어섰습니다. 이제 당신은 세계 최고의 감독으로 홀로 정상에 섰습니다.',
+  'champ.prestige_teaser': '초기화하고 일요 리그에서 다시 올라가세요. <strong>영구 ×{mult} 수입 보너스</strong>가 따라옵니다. 커리어 업적은 영원히 남습니다.',
+  'champ.new_adventure': '🌟 새 모험 시작',
+  'champ.defend': '⚽ 타이틀 방어',
+  'game.training.intro': '날아오는 슛 {n}개를 탭하세요. 훈련당 {secs}초가 주어집니다.',
+
+  // ── Two strings that quoted POUNDS in every language ─────────────────────
+  //
+  // The badge's figure is a RATIO between bundles and has no currency in it at
+  // all; "/£" was decoration that happened to be sterling. And the consent
+  // notice named the range in pounds to a parent who does not pay in them —
+  // it takes the store's own two figures now, see `age_gate_sheet.dart`.
+  'shop.coin_value_badge': '가치 +{pct}%',
+  'agegate.purchases_body': '코인 팩({min} – {max}), 에너지 팩, VIP 패스를 구매할 수 있습니다. 모든 결제는 Google Play를 통해 안전하게 처리됩니다. 구독은 필요하지 않습니다. 아래 보호자 동의를 하면 이 계정에서 구매가 가능해집니다.',
+
+  // What settled a level cup tie. Under the score in a 42pt slot,
+  // so it is an abbreviation. See `league_sheets.dart`.
+  'fixtures.on_pens': '승부차기',
 };

@@ -467,4 +467,111 @@ const Map<String, String> frCopy = <String, String>{
   'commentary.thriller_loss': 'Crève-cœur dans un thriller {us}–{them} face à {opp}. On a tout donné — il a manqué le but de la victoire.|{us}–{them} face à {opp}. On y était jusqu\'au dernier ballon, et ça nous a quand même échappé.|Rien à regretter dans ce {us}–{them}. On a fait notre part dans un bon match, et on l\'a perdu.|Celui-là va faire mal. {us}–{them}, et un seul instant a décidé de toute l\'après-midi.|On a fait jeu égal avec {opp} partout sauf au score. {us}–{them}, et retour au travail.',
   'commentary.thriller_win': 'Quel match ! {us}–{them} contre {opp} — on a gagné un classique de justesse. Des matchs comme ça remplissent les stades.|{us}–{them}. J\'ai vieilli de dix ans en regardant ça, et je recommencerais la semaine prochaine.|On a gagné un vrai match de football, {us}–{them}. {opp} nous a donné du fil à retordre.|Ça valait le prix du billet à soi seul. {us}–{them} face à {opp}, et on est du bon côté du résultat.|{us}–{them} ! Ne me demandez pas comment, mais on a trouvé celui qui comptait.',
 
+  // ── Copy the generated catalogue never caught up on ──────────────────────
+  //
+  // Reported from a live save in Italian: whole screens still in English. The
+  // subs panel, the difficulty switch, the tutorial's loan spell, two coach
+  // tips, the champions card and the Iron Lungs trait were added to `en.js`
+  // and never translated, so `locales/*.g.dart` carries the ENGLISH sentence
+  // in all nine — which `t()` cannot detect, because the key resolves.
+  //
+  // And `game.training.intro` called the ball a BUBBLE. It is a football in
+  // `keeper_view.dart` and has been since the scene was ported; every locale
+  // translated the word faithfully, so the Italian read "bolle" over a picture
+  // of a ball. Fixed in `en_copy.dart` first, then here.
+  'match.subs': 'Rempl.',
+  'match.subs.done': 'Retour au match',
+  'match.subs.on_pitch': 'Sur le terrain',
+  'match.subs.bench': 'Banc',
+  'match.subs.empty_bench': 'Aucun joueur sur le banc.',
+  'match.subs.empty_slot': 'Vide',
+  'match.subs.pick_off': 'Touchez un joueur à faire sortir.',
+  'match.subs.pick_on':
+      'Touchez un joueur du banc à faire entrer (vert = meilleur poste).',
+  'match.subs.none_left': 'Plus de remplacements disponibles.',
+  'match.subs.feed': '{off} sort, {on} entre.',
+  'match.subs.feed_on': '{on} entre en jeu.',
+  'difficulty.switch.toHard':
+      'Mode Pro : chaque joueur se fatigue pendant le match — gérez l\'énergie '
+      'de l\'effectif et faites tourner le banc pour garder des jambes '
+      'fraîches. Je peux vous aider à choisir les onze les plus frais, mais je '
+      'resterai muet sur la tactique. Changer de mode vous fera tout '
+      'recommencer.',
+  'difficulty.switch.toEasy':
+      'Mode Casual : aucune fatigue, le banc ne sert donc qu\'aux changements '
+      'tactiques et aux blessures. La sélection auto et les conseils du coach '
+      'reviennent. Changer de mode vous fera tout recommencer.',
+  'tut.loan_boost.title': '⭐ Des stars en prêt arrivent !',
+  'tut.loan_boost.body':
+      'J\'ai fait jouer quelques relations… des <strong>joueurs de haut '
+      'niveau</strong> ont accepté de nous rejoindre pour votre premier match ! '
+      'Ils repartent juste après — alors profitons-en !',
+  'tut.loan_boost.btn': 'Voir mon effectif →',
+  'tut.loan_depart.title': 'À nous de bâtir notre équipe',
+  'tut.loan_depart.body':
+      'Les stars prêtées sont parties — mais elles ont prouvé que nous pouvons '
+      'rivaliser. Construisons maintenant quelque chose qui soit <strong>à '
+      'nous</strong>. Voici <strong>500 pièces</strong> pour démarrer. Je serai '
+      'en bas à gauche dès que j\'aurai un conseil.',
+  'tut.loan_depart.btn': 'C\'est parti ! →',
+  'ach.cat.hardmode': 'Mode Pro',
+  'coachtip.subs_bench.title': 'Vous avez un banc',
+  'coachtip.subs_bench.body':
+      'Touchez Rempl. pendant le match pour ouvrir le banc : vous avez 5 '
+      'changements par rencontre, et le chrono s\'arrête pendant que vous '
+      'choisissez. Les blessures passent par là aussi désormais : quand un '
+      'joueur tombe, son maillot quitte le terrain et la place reste vide tant '
+      'que vous n\'envoyez personne, alors ne le laissez pas comme ça.',
+  'coachtip.try_hard_mode.title': 'Envie d\'un défi ?',
+  'coachtip.try_hard_mode.body':
+      'Vous avez fait du chemin, patron. Prêt pour le Mode Pro ? Les joueurs se '
+      'fatiguent pendant les matchs, donc faire tourner l\'effectif et utiliser '
+      'le banc compte vraiment — touchez Auto et je vous aligne le onze '
+      'réglementaire le plus frais — et je resterai muet sur la tactique. On '
+      'repart avec une équipe neuve : seulement si vous le sentez.',
+  'coachtip.try_hard_mode.cta': 'Ouvrir les Paramètres',
+  'coach.match.tired': '{name} est épuisé — faites entrer un joueur frais !',
+  'toast.energy_refilled': 'Énergie de l\'effectif rechargée !',
+  'toast.no_fit_players':
+      'Pas assez de joueurs en état de jouer — faites-les récupérer ou regardez '
+      'une pub pour recharger.',
+  'trait.name.iron_lungs': 'Poumons d\'acier',
+  'trait.desc.iron_lungs':
+      'Moteur infatigable — consomme l\'énergie plus lentement en match (Mode '
+      'Pro)',
+  'champ.title': 'CHAMPIONS !',
+  'champ.subtitle': 'Ligue des Champions conquise',
+  'champ.body':
+      'Vous avez conquis toutes les divisions et dominé tous vos rivaux. Vous '
+      'êtes seul au sommet, le plus grand entraîneur du monde.',
+  'champ.prestige_teaser':
+      'Repartez de zéro depuis la Ligue du Dimanche avec un <strong>bonus de '
+      'revenus ×{mult} permanent</strong>. Les succès de votre carrière vous '
+      'restent acquis pour toujours.',
+  'champ.new_adventure': '🌟 Commencer une nouvelle aventure',
+  'champ.defend': '⚽ Défendre le titre',
+  'game.training.intro':
+      'Touchez {n} tirs à mesure qu\'ils arrivent. Vous avez {secs} s par '
+      'exercice.',
+
+  // ── Two strings that quoted POUNDS in every language ─────────────────────
+  //
+  // The badge's figure is a RATIO between bundles and has no currency in it at
+  // all; "/£" was decoration that happened to be sterling. And the consent
+  // notice named the range in pounds to a parent who does not pay in them —
+  // it takes the store's own two figures now, see `age_gate_sheet.dart`.
+  'shop.coin_value_badge': '+{pct}% de valeur',
+  'agegate.purchases_body':
+      'Des packs de pièces ({min} – {max}), des packs d\'énergie et un pass VIP '
+      'sont disponibles. Tous les achats sont traités de façon sécurisée par '
+      'Google Play. Aucun abonnement n\'est requis. Le consentement parental '
+      'ci-dessous débloque ces achats pour ce compte.',
+
+  // What settled a level cup tie. Under the score in a 42pt slot,
+  // so it is an abbreviation. See `league_sheets.dart`.
+  'fixtures.on_pens': 't.a.b.',
+
+  // `cup.round.final` in this same catalogue says "Finale"; the short form
+  // was left as the English "Final", which is not a word for it here.
+  'cup.round_short.final': 'Finale',
 };

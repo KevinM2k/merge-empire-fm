@@ -898,24 +898,64 @@ class _CupRow extends StatelessWidget {
               width: 42,
               child: !tie.played
                   ? null
-                  : Text(
-                      '${tie.ourGoals}-${tie.theirGoals}',
-                      key: ValueKey('fixture-cup-score-${tie.afterMatch}'),
-                      textAlign: TextAlign.right,
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w900,
-                        color: ink,
-                        fontFeatures: const [FontFeature.tabularFigures()],
-                      ),
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          '${tie.ourGoals}-${tie.theirGoals}',
+                          key: ValueKey('fixture-cup-score-${tie.afterMatch}'),
+                          textAlign: TextAlign.right,
+                          style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w900,
+                            color: ink,
+                            fontFeatures: const [
+                              FontFeature.tabularFigures(),
+                            ],
+                          ),
+                        ),
+                        // **AND WHAT SETTLED IT, when the score alone cannot
+                        // say.** The recorded score is the NINETY MINUTES now —
+                        // the shootout's winning goal was being folded into it,
+                        // so a tie the player watched end 1-1 went into the
+                        // bracket as 2-1 — which leaves a level score sitting
+                        // beside a W with nothing to explain the pair. A
+                        // knockout cannot end level, so level IS the shootout:
+                        // no field has to be added to the save to know it.
+                        // **FITTED, not set small.** The slot is 42pt and
+                        // "penaltis" is not "pens"; the type floor is 12pt and
+                        // a literal under it is what `architecture_test` is
+                        // there to catch, so the word is set at the floor and
+                        // scaled down to the column it has to live in.
+                        if (tie.ourGoals == tie.theirGoals)
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerRight,
+                            child: Text(
+                              t('fixtures.on_pens'),
+                              key: ValueKey(
+                                'fixture-cup-pens-${tie.afterMatch}',
+                              ),
+                              textAlign: TextAlign.right,
+                              maxLines: 1,
+                              softWrap: false,
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: kit.textMuted,
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
             ),
             // **AND HOW IT WENT, as the dot every other row wears.** The tie's
             // outcome was carried by the SCORE'S COLOUR alone — the same fault
             // the league rows had, on the rows a cup run is remembered by. A
-            // knockout cannot end level: `commitCupRound` resolves a draw
-            // through the shootout and adds the winning goal, so there is no D
-            // to draw here, and the score beside it is the one after penalties.
+            // knockout cannot end level, so there is no D to draw: `won`
+            // travels beside the score rather than inside it, and a level score
+            // here is a tie that went to penalties — see the line above it.
             SizedBox(
               width: 24,
               child: !tie.played

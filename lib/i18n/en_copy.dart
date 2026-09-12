@@ -889,4 +889,54 @@ const Map<String, String> enCopy = <String, String>{
       'Short of energy or coins? The {tab} tab has packs and boosts when you '
       'need them.',
 
+  // ── The keeper's drill was throwing BUBBLES ─────────────────────────────
+  //
+  // `keeper_view.dart` draws a football growing out of the goalmouth and has
+  // since the scene was ported — "the ball still appears where it appears and
+  // still grows in place" is its own comment — while this line called the
+  // thing a bubble. Nine catalogues then translated the word faithfully, so an
+  // Italian player read "bolle di allenamento" over a picture of a ball and
+  // reported it as a mistranslation. It was not: the English was wrong and the
+  // translations were right about it.
+  //
+  // Both placeholders are kept — `{n}` is the count the schedule PROMISES (see
+  // `goalkeeper_practice_screen.dart`) and `{secs}` is the tap window — so the
+  // nine overlays beside this one carry the same pair.
+  'game.training.intro':
+      'Tap {n} shots as they come in. You have {secs}s per drill.',
+
+  // ── Two strings that quoted POUNDS in every language ─────────────────────
+  //
+  // Reported from Italy: the store showing its costs in GBP. The tiles' own
+  // prices were a separate fault (`services/iap_billing.dart`), but these two
+  // had sterling written into the COPY, so no amount of asking the store could
+  // have fixed them.
+  //
+  // `getCoinBundleValuePct` is a ratio between two bundles — coins per unit of
+  // money, divided by the cheapest bundle's — so the figure is the same number
+  // in every currency and the "/£" was decoration.
+  'shop.coin_value_badge': '+{pct}% value',
+
+  // And this is the one screen in the game whose whole job is telling a PARENT
+  // what their child can spend. It named "£0.99 – £12.99" inside the sentence,
+  // in all ten catalogues. The two ends come from `coinBundlePriceRange` now
+  // and the figures from the store, through the same `priceFor` a tile uses.
+  'agegate.purchases_body':
+      'Coin bundles ({min} – {max}), energy packs, and a VIP pass are '
+      'available. All purchases are processed securely through Google Play. No '
+      'subscription is required. Parental consent below unlocks these for this '
+      'account.',
+
+  // ── What settled a cup tie, on the row that remembers it ────────────────
+  //
+  // The bracket records the NINETY MINUTES now — the shootout's winning goal
+  // used to be folded into the score, so a tie watched to a 1-1 went in as a
+  // 2-1 — and that leaves a level score on the fixtures sheet sitting beside a
+  // W with nothing to explain the pair. A knockout cannot end level, so level
+  // IS the shootout and no field has to be added to the save to know it.
+  //
+  // **It sits under the score in a 42pt slot**, so every translation of it is
+  // an abbreviation. See `league_sheets.dart`.
+  'fixtures.on_pens': 'pens',
+
 };

@@ -46,6 +46,10 @@ class ShopScreenState extends ConsumerState<ShopScreen> {
     // The tab may be built by the very frame that set the deep link, so the
     // first jump happens here rather than only on a later change.
     WidgetsBinding.instance.addPostFrameCallback((_) => _openPending());
+    // Opening the shop is a natural moment to try the store again — see
+    // [askStoreAgainIfItNeverAnswered]. `CurrencySheet` does the same, because
+    // the HUD's chips reach the packs without ever building this tab.
+    askStoreAgainIfItNeverAnswered(ref, stillThere: () => mounted);
   }
 
   /// **A DEEP LINK SELECTS A TAB now, rather than scrolling to a heading.**

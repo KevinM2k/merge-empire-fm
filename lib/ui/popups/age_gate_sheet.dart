@@ -20,10 +20,15 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/engine/age_verification.dart';
+import 'package:merge_empire_fc/engine/iap_billing_policy.dart' show priceFor;
+import 'package:merge_empire_fc/engine/iap_engine.dart'
+    show coinBundlePriceRange;
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/ui/popups/bottom_sheet_popup.dart';
 import 'package:merge_empire_fc/ui/popups/sheet_header.dart';
+import 'package:merge_empire_fc/ui/screens/shop/shop_paid.dart'
+    show storeCatalogueProvider;
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/store_button.dart';
 
@@ -48,6 +53,15 @@ class _AgeGateBody extends ConsumerWidget {
     // reading it should be told what Play actually said.
     final child = save != null && ageGroupOf(save) == AgeGroup.child;
     final muted = TextStyle(color: kit.textMuted, fontSize: 12, height: 1.7);
+    // **THE PRICES A PARENT IS QUOTED ARE THE STORE'S OWN.** The sentence used
+    // to carry "£0.99 – £12.99" inside the string, in all ten languages, so the
+    // one screen whose job is telling a parent what can be spent quoted
+    // sterling to a parent in Italy. The ends of the range come from the
+    // catalogue and the figures from the store, through the same [priceFor] the
+    // shop's tiles use — which falls back to the catalogue's own price when
+    // billing has not answered, exactly as a tile does.
+    final known = ref.watch(storeCatalogueProvider).valueOrNull;
+    final range = coinBundlePriceRange();
 
     return ListView(
       key: const ValueKey('age-gate-sheet'),
@@ -79,7 +93,21 @@ class _AgeGateBody extends ConsumerWidget {
               Text(t('agegate.collect_ads'), style: muted),
               const SizedBox(height: 12),
               Text(t('agegate.purchases_heading'), style: _heading),
-              Text(t('agegate.purchases_body'), style: muted),
+              Text(
+                t('agegate.purchases_body', {
+                  'min': priceFor(
+                    range.cheapest.sku,
+                    range.cheapest.price,
+                    known,
+                  ),
+                  'max': priceFor(
+                    range.dearest.sku,
+                    range.dearest.price,
+                    known,
+                  ),
+                }),
+                style: muted,
+              ),
             ],
           ),
         ),

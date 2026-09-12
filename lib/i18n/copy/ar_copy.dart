@@ -409,4 +409,98 @@ const Map<String, String> arCopy = <String, String>{
   'commentary.thriller_loss': 'انكسار قلوب في مباراة مثيرة {us}–{them} ضد {opp}. قدمنا الكثير — فقط افتقدنا هدف الفوز.|{us}–{them} أمام {opp}. بقينا في المباراة حتى آخر لمسة، ومع ذلك أفلتت منا.|لا شيء نخجل منه في {us}–{them}. قدمنا دورنا في مباراة جيدة وخسرناها.|هذه ستؤلم. {us}–{them}، ولحظة واحدة حسمت المباراة كلها.|جارينا {opp} في كل شيء إلا في النتيجة. {us}–{them}، والعودة للعمل.',
   'commentary.thriller_win': 'يا له من مباراة! {us}–{them} على {opp} — كسبنا كلاسيكية بصعوبة. مباريات كهذه تملأ الملاعب.|{us}–{them}. شِخت عشر سنوات وأنا أشاهدها، وسأكررها الأسبوع القادم بكل سرور.|فزنا بمباراة كرة قدم حقيقية هناك، {us}–{them}. بذل {opp} كل ما لديه.|كانت تستحق ثمن التذكرة وحدها. {us}–{them} أمام {opp}، وخرجنا من الجهة الصحيحة.|{us}–{them}! لا تسألوني كيف، لكننا وجدنا الهدف الذي كان يهم.',
 
+  // ── Copy the generated catalogue never caught up on ──────────────────────
+  //
+  // Reported from a live save in Italian: whole screens still in English. The
+  // subs panel, the difficulty switch, the tutorial's loan spell, two coach
+  // tips, the champions card and the Iron Lungs trait were added to `en.js`
+  // and never translated, so `locales/*.g.dart` carries the ENGLISH sentence
+  // in all nine — which `t()` cannot detect, because the key resolves.
+  //
+  // And `game.training.intro` called the ball a BUBBLE. It is a football in
+  // `keeper_view.dart` and has been since the scene was ported; every locale
+  // translated the word faithfully, so the Italian read "bolle" over a picture
+  // of a ball. Fixed in `en_copy.dart` first, then here.
+  'match.subs': 'التبديلات',
+  'match.subs.done': 'العودة إلى المباراة',
+  'match.subs.on_pitch': 'في الملعب',
+  'match.subs.bench': 'دكة البدلاء',
+  'match.subs.empty_bench': 'لا يوجد لاعبون على دكة البدلاء.',
+  'match.subs.empty_slot': 'فارغ',
+  'match.subs.pick_off': 'اضغط على لاعب لإخراجه.',
+  'match.subs.pick_on': 'اضغط على لاعب من الدكة لإدخاله (الأخضر = أفضل مركز).',
+  'match.subs.none_left': 'لم تتبقَّ أي تبديلات.',
+  'match.subs.feed': 'خروج {off} ودخول {on}.',
+  'match.subs.feed_on': 'دخول {on}.',
+  'difficulty.switch.toHard':
+      'الوضع الاحترافي: كل لاعب يتعب خلال المباراة — أدِر طاقة تشكيلتك وناوب '
+      'على دكة البدلاء للحفاظ على سيقان جاهزة. يمكنني مساعدتك في اختيار أفضل '
+      'أحد عشر لاعبًا من حيث اللياقة، لكنني سألتزم الصمت بشأن الخطط. التبديل '
+      'سيعيدك إلى البداية.',
+  'difficulty.switch.toEasy':
+      'الوضع العادي: لا إرهاق للاعبين، لذا فدكة البدلاء للتبديلات التكتيكية '
+      'والإصابات فقط. يعود الاختيار التلقائي ونصائح المدرب. التبديل سيعيدك إلى '
+      'البداية.',
+  'tut.loan_boost.title': '⭐ وصول نجوم على سبيل الإعارة!',
+  'tut.loan_boost.body':
+      'طلبت بعض المعروف… وافق <strong>لاعبون من الطراز الأول</strong> على '
+      'الانضمام إلينا في مباراتك الأولى! سيرحلون بعدها مباشرة — فلنستفد منهم '
+      'إلى أقصى حد!',
+  'tut.loan_boost.btn': 'شاهد تشكيلتي ←',
+  'tut.loan_depart.title': 'والآن لنبنِ فريقنا',
+  'tut.loan_depart.body':
+      'رحل نجوم الإعارة — لكنهم أثبتوا أننا قادرون على المنافسة. والآن لنبنِ '
+      'شيئًا <strong>يخصنا</strong>. إليك <strong>500 عملة</strong> للانطلاق. '
+      'ستجدني في الأسفل إلى اليسار كلما كان لديّ نصيحة.',
+  'tut.loan_depart.btn': 'لنبدأ البناء! ←',
+  'ach.cat.hardmode': 'الوضع الاحترافي',
+  'coachtip.subs_bench.title': 'لديك دكة بدلاء',
+  'coachtip.subs_bench.body':
+      'اضغط على التبديلات أثناء المباراة لفتح دكة البدلاء — لديك 5 تبديلات في '
+      'المباراة، والوقت يتوقف أثناء اختيارك. الإصابات تمر من هنا أيضًا الآن: '
+      'عندما يسقط لاعب يخرج قميصه من الملعب ويبقى مكانه فارغًا حتى تدفع ببديل، '
+      'فلا تتركه هكذا.',
+  'coachtip.try_hard_mode.title': 'هل تريد تحديًا؟',
+  'coachtip.try_hard_mode.body':
+      'قطعت شوطًا طويلًا أيها المدير. مستعد للوضع الاحترافي؟ اللاعبون يتعبون '
+      'خلال المباريات، لذا فإن مناوبة التشكيلة واستخدام الدكة أمر مهم فعلًا — '
+      'اضغط على تلقائي وسأختار لك أفضل أحد عشر لاعبًا قانونيًا من حيث اللياقة — '
+      'وسألتزم الصمت بشأن الخطط. سيبدأ فريق جديد: فقط إن كنت مستعدًا.',
+  'coachtip.try_hard_mode.cta': 'افتح الإعدادات',
+  'coach.match.tired': '{name} منهك — أدخل لاعبًا جاهزًا!',
+  'toast.energy_refilled': 'تم تجديد طاقة التشكيلة!',
+  'toast.no_fit_players':
+      'لا يوجد عدد كافٍ من اللاعبين الجاهزين — أرِحهم أو شاهد إعلانًا لتجديد '
+      'الطاقة.',
+  'trait.name.iron_lungs': 'رئتان من حديد',
+  'trait.desc.iron_lungs':
+      'محرك لا يكل — يستهلك الطاقة ببطء أكبر خلال المباريات (الوضع الاحترافي)',
+  'champ.title': 'أبطال!',
+  'champ.subtitle': 'تم قهر دوري الأبطال',
+  'champ.body':
+      'لقد قهرت كل الدرجات وتفوقت على كل المنافسين. أنت وحدك في القمة، أعظم '
+      'مدرب في العالم.',
+  'champ.prestige_teaser':
+      'أعد البدء وارتقِ من جديد من دوري الأحد مع <strong>مكافأة دخل دائمة '
+      '×{mult}</strong>. تبقى إنجازات مسيرتك معك إلى الأبد.',
+  'champ.new_adventure': '🌟 ابدأ مغامرة جديدة',
+  'champ.defend': '⚽ دافع عن اللقب',
+  'game.training.intro':
+      'اضغط على {n} تسديدات وهي قادمة. لديك {secs} ث لكل تمرين.',
+
+  // ── Two strings that quoted POUNDS in every language ─────────────────────
+  //
+  // The badge's figure is a RATIO between bundles and has no currency in it at
+  // all; "/£" was decoration that happened to be sterling. And the consent
+  // notice named the range in pounds to a parent who does not pay in them —
+  // it takes the store's own two figures now, see `age_gate_sheet.dart`.
+  'shop.coin_value_badge': 'قيمة أعلى بنسبة {pct}%',
+  'agegate.purchases_body':
+      'تتوفر حزم عملات ({min} – {max}) وحزم طاقة وبطاقة VIP. تُعالَج كل '
+      'المشتريات بأمان عبر Google Play. لا يلزم أي اشتراك. موافقة ولي الأمر '
+      'أدناه تفتح هذه المشتريات لهذا الحساب.',
+
+  // What settled a level cup tie. Under the score in a 42pt slot,
+  // so it is an abbreviation. See `league_sheets.dart`.
+  'fixtures.on_pens': 'ترجيح',
 };

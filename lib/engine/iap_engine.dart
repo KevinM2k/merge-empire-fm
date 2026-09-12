@@ -363,6 +363,29 @@ int getCoinBundleValuePct(IapProduct product) {
   return _jsRound((rate / baseRate - 1) * 100);
 }
 
+/// The cheapest and the dearest coin bundle, for copy that quotes a price
+/// RANGE rather than one product's price.
+///
+/// **The parental-consent notice was quoting POUNDS.** `agegate.purchases_body`
+/// had "£0.99 – £12.99" written into it in all ten catalogues, so the one
+/// screen in the game whose whole job is telling a parent what their child can
+/// spend told an Italian parent a figure in a currency they do not pay in. The
+/// two ends of the range are these; what they COST is the store's answer, which
+/// only the widget can ask for.
+///
+/// Ordered by `priceValue` rather than by position in [products] so that adding
+/// a bundle cannot silently leave the notice quoting the wrong end.
+({IapProduct cheapest, IapProduct dearest}) coinBundlePriceRange() {
+  final bundles = [
+    for (final p in products)
+      if (p.category == 'coins') p,
+  ];
+  return (
+    cheapest: bundles.reduce((a, b) => a.priceValue < b.priceValue ? a : b),
+    dearest: bundles.reduce((a, b) => a.priceValue > b.priceValue ? a : b),
+  );
+}
+
 /// The VIP pass's coin bonus — always worth `vipCoinsPerWin` league wins at the
 /// current division.
 int getVipCoins(Map<String, dynamic>? state) {
