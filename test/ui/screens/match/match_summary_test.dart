@@ -19,7 +19,10 @@ import 'package:merge_empire_fc/engine/booking_engine.dart';
 import 'package:merge_empire_fc/ui/widgets/card_glyph.dart';
 import 'package:merge_empire_fc/data/dugout_cam_policy.dart';
 import 'package:merge_empire_fc/data/manager_mood.dart';
+import 'package:merge_empire_fc/engine/attack_sequence.dart';
+import 'package:merge_empire_fc/engine/match_analysis.dart';
 import 'package:merge_empire_fc/engine/match_orchestration.dart';
+import 'package:merge_empire_fc/util/random.dart' as seeded;
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart' show CoinIcon;
 import 'package:merge_empire_fc/providers/game_providers.dart';
@@ -352,6 +355,48 @@ void main() {
       findsNothing,
       reason: 'the verdict is a headline on the sky, not a row in a card',
     );
+  });
+
+  testWidgets('WHERE IT WAS WON stands under the table, off the record', (
+    tester,
+  ) async {
+    // A match that recorded its attacks gets the heatmap card; the shots line
+    // and the club names are read off the record, not the scoreline.
+    seeded.setSeed(3);
+    final ours = pitchSideForAi(70, '4-3-3', mirrored: false);
+    final theirs = pitchSideForAi(64, '4-4-2');
+    final out = <PositionalEvent>[];
+    positionalWindowGoals(
+      ctx: SequenceContext(attackers: ours, defenders: theirs, side: 'ours'),
+      lambda: 1.5,
+      fromMinute: 0,
+      toMinute: 90,
+      out: out,
+    );
+    positionalWindowGoals(
+      ctx: SequenceContext(attackers: theirs, defenders: ours, side: 'theirs'),
+      lambda: 1.1,
+      fromMinute: 0,
+      toMinute: 90,
+      out: out,
+    );
+    final res = result()..['positional'] = positionalSummary(out);
+    await pumpSummary(tester, res);
+    await scrollReport(tester, const ValueKey('summary-positional'));
+    expect(find.byKey(const ValueKey('summary-positional')), findsOneWidget);
+    expect(find.byKey(const ValueKey('match-heatmap')), findsOneWidget);
+    expect(find.text(t('match.analysis.title').toUpperCase()), findsOneWidget);
+    expect(find.byKey(const ValueKey('summary-positional-shots')), findsOneWidget);
+    // Above the fold's neighbours: after the table, before the reaction row.
+    final card = tester.getTopLeft(find.byKey(const ValueKey('summary-positional')));
+    final row = tester.getTopLeft(find.byKey(const ValueKey('summary-reaction-row')));
+    expect(card.dy, lessThan(row.dy));
+  });
+
+  testWidgets('and a match with no record has no card', (tester) async {
+    await pumpSummary(tester, result());
+    await scrollReport(tester, const ValueKey('summary-reaction-row'));
+    expect(find.byKey(const ValueKey('summary-positional')), findsNothing);
   });
 
   testWidgets('THE TABLE IS ABOVE THE FOLD, which is why it is second', (

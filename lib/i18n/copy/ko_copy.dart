@@ -343,4 +343,40 @@ const Map<String, String> koCopy = <String, String>{
   'guide.club_buy': '여기서 시설을 구매하세요. 보유한 시설마다 클럽의 매초 수입이 늘어납니다.',
   'guide.shop_tab': '에너지나 코인이 부족하십니까? {tab} 탭에 필요할 때 쓸 팩과 부스트가 있습니다.',
 
+
+  // ── Where it was won: the positional card and its write-up ─────────────
+  'match.analysis.title':
+      '승부가 갈린 곳',
+  'match.analysis.hint':
+      '각 팀이 공을 가졌던 위치입니다. 위쪽으로 공격합니다. 측면은 각 팀 기준입니다.',
+  'match.analysis.flanks':
+      '측면별 공격',
+  'match.analysis.left':
+      '왼쪽',
+  'match.analysis.centre':
+      '중앙',
+  'match.analysis.right':
+      '오른쪽',
+  'match.analysis.shots':
+      '슛 {shots}회, xG {xg}',
+  'match.analysis.duel_record':
+      '{name}은(는) {total}번의 경합 중 {won}번을 이겼습니다.',
+  'report.zone.down_right':
+      '{club}은(는) 내내 오른쪽으로 공격했고, 위협의 대부분이 그쪽에서 나왔습니다.|{club}이(가) 만든 거의 모든 공격이 오른쪽 측면을 거쳤습니다.',
+  'report.zone.down_left':
+      '{club}은(는) 내내 왼쪽으로 공격했고, 위협의 대부분이 그쪽에서 나왔습니다.|{club}이(가) 만든 거의 모든 공격이 왼쪽 측면을 거쳤습니다.',
+  'report.zone.through_middle':
+      '{club}은(는) 중앙을 곧장 뚫었고 측면은 거의 필요하지 않았습니다.|{club}의 공격은 모두 중앙으로, 골문을 향한 직선이었습니다.',
+  'report.zone.their_right':
+      '{opp}은(는) 자기 오른쪽으로 계속 밀고 왔고, 위협의 대부분이 거기서 나왔습니다.|{opp}이(가) 만든 거의 모든 공격이 오른쪽 측면을 거쳤습니다.',
+  'report.zone.their_left':
+      '{opp}은(는) 자기 왼쪽으로 계속 밀고 왔고, 위협의 대부분이 거기서 나왔습니다.|{opp}이(가) 만든 거의 모든 공격이 왼쪽 측면을 거쳤습니다.',
+  'report.zone.their_middle':
+      '{opp}은(는) {club}을(를) 향해 중앙으로 곧장 왔고 측면은 거의 쓰지 않았습니다.|{opp}의 공격은 모두 중앙이었습니다.',
+  'report.duel.dominant':
+      '{name}은(는) 자기 앞에 온 거의 모든 것을 이겼습니다.|{opp}의 누구도 내내 {name}을(를) 막지 못했습니다.',
+  'report.duel.busy':
+      '{name}은(는) 첫 휘슬부터 마지막까지 경기 한복판에 있었습니다.|좋든 나쁘든 경기의 많은 부분이 {name}을(를) 거쳤습니다.',
+  'report.duel.struggled':
+      '{name}은(는) 힘든 오후를 보냈고, 대부분의 경합에서 밀렸습니다.|{name}에게는 풀리지 않았고, 이긴 경합보다 진 경합이 많았습니다.',
 };

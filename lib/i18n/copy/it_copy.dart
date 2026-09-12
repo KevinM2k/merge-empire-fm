@@ -395,4 +395,40 @@ const Map<String, String> itCopy = <String, String>{
   'guide.club_buy': 'Compra una struttura qui. Ognuna che possiedi si aggiunge a quanto il club guadagna ogni secondo.',
   'guide.shop_tab': 'A corto di energia o monete? La scheda {tab} ha pacchetti e bonus quando ti servono.',
 
+
+  // ── Where it was won: the positional card and its write-up ─────────────
+  'match.analysis.title':
+      'Dove si è decisa',
+  'match.analysis.hint':
+      'Dove ogni squadra ha avuto il pallone, attaccando verso l\'alto. Le fasce sono quelle di ciascuna squadra.',
+  'match.analysis.flanks':
+      'Attacchi per fascia',
+  'match.analysis.left':
+      'Sinistra',
+  'match.analysis.centre':
+      'Centro',
+  'match.analysis.right':
+      'Destra',
+  'match.analysis.shots':
+      '{shots} tiri, {xg} xG',
+  'match.analysis.duel_record':
+      '{name} ha vinto {won} duelli su {total}.',
+  'report.zone.down_right':
+      '{club} ha attaccato a destra per tutto il pomeriggio, e quasi tutto il pericolo è nato lì.|Quasi tutto ciò che {club} ha costruito è passato dalla fascia destra.',
+  'report.zone.down_left':
+      '{club} ha attaccato a sinistra per tutto il pomeriggio, e quasi tutto il pericolo è nato lì.|Quasi tutto ciò che {club} ha costruito è passato dalla fascia sinistra.',
+  'report.zone.through_middle':
+      '{club} è passato dritto per il centro, senza quasi bisogno delle fasce.|Tutto per vie centrali per {club}, in linea retta verso la porta.',
+  'report.zone.their_right':
+      '{opp} ha insistito sulla propria destra, ed è da lì che è arrivato quasi tutto il pericolo.|Quasi tutto ciò che {opp} ha creato è passato dalla fascia destra.',
+  'report.zone.their_left':
+      '{opp} ha insistito sulla propria sinistra, ed è da lì che è arrivato quasi tutto il pericolo.|Quasi tutto ciò che {opp} ha creato è passato dalla fascia sinistra.',
+  'report.zone.their_middle':
+      '{opp} è venuto dritto per il centro contro {club}, quasi senza usare le fasce.|Tutto per vie centrali per {opp}.',
+  'report.duel.dominant':
+      '{name} ha vinto quasi tutto quello che gli è capitato davanti.|Nessuno di {opp} ha avuto la meglio su {name} per tutto il pomeriggio.',
+  'report.duel.busy':
+      '{name} è stato nel vivo del gioco dal primo all\'ultimo fischio.|Gran parte della partita è passata da {name}, nel bene e nel male.',
+  'report.duel.struggled':
+      '{name} ha avuto un pomeriggio difficile, battuto nella maggior parte dei duelli.|Non è andata a {name}, che ha perso più duelli di quanti ne abbia vinti.',
 };

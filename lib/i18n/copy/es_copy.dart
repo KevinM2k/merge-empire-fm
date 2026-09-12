@@ -386,4 +386,40 @@ const Map<String, String> esCopy = <String, String>{
   'guide.club_buy': 'Compra una instalación aquí. Cada una que tengas suma a lo que el club gana cada segundo.',
   'guide.shop_tab': '¿Corto de energía o monedas? La pestaña {tab} tiene packs y mejoras cuando los necesites.',
 
+
+  // ── Where it was won: the positional card and its write-up ─────────────
+  'match.analysis.title':
+      'Dónde se decidió',
+  'match.analysis.hint':
+      'Dónde tuvo el balón cada equipo, atacando hacia arriba. Las bandas son las de cada equipo.',
+  'match.analysis.flanks':
+      'Ataques por banda',
+  'match.analysis.left':
+      'Izquierda',
+  'match.analysis.centre':
+      'Centro',
+  'match.analysis.right':
+      'Derecha',
+  'match.analysis.shots':
+      '{shots} tiros, {xg} xG',
+  'match.analysis.duel_record':
+      '{name} ganó {won} de {total} duelos.',
+  'report.zone.down_right':
+      '{club} atacó por la derecha toda la tarde, y casi todo el peligro nació ahí.|Casi todo lo que construyó {club} llegó por la banda derecha.',
+  'report.zone.down_left':
+      '{club} atacó por la izquierda toda la tarde, y casi todo el peligro nació ahí.|Casi todo lo que construyó {club} llegó por la banda izquierda.',
+  'report.zone.through_middle':
+      '{club} entró por el centro y apenas necesitó las bandas.|Todo fue por el medio para {club}, en línea recta hacia la portería.',
+  'report.zone.their_right':
+      '{opp} insistió por su derecha, y de ahí salió casi todo su peligro.|Casi todo lo que generó {opp} llegó por su banda derecha.',
+  'report.zone.their_left':
+      '{opp} insistió por su izquierda, y de ahí salió casi todo su peligro.|Casi todo lo que generó {opp} llegó por su banda izquierda.',
+  'report.zone.their_middle':
+      '{opp} fue directo por el centro contra {club} y apenas usó las bandas.|Todo fue por el medio para {opp}.',
+  'report.duel.dominant':
+      '{name} ganó casi todo lo que le llegó.|Nadie de {opp} pudo con {name} en toda la tarde.',
+  'report.duel.busy':
+      '{name} estuvo en el meollo del partido de principio a fin.|Buena parte del juego pasó por {name}, para bien y para mal.',
+  'report.duel.struggled':
+      '{name} tuvo una tarde difícil, perdiendo la mayoría de sus duelos.|No le salió a {name}, que perdió más duelos de los que ganó.',
 };

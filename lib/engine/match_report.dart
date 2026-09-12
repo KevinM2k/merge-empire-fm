@@ -83,6 +83,20 @@ typedef ReportSub = ({int minute, String on, String? off});
 typedef ReportSwitch = ({int minute, String tactic});
 
 /// The board at the whistle, OUR side first. Possession is a percentage.
+/// Where each side's attacks came down, as shares of its shots — in each
+/// side's OWN left and right, so "{opp} down the right" is their right.
+typedef ReportFlanks = ({
+  double left,
+  double centre,
+  double right,
+  double theirLeft,
+  double theirCentre,
+  double theirRight,
+});
+
+/// Our busiest man in the positional record: how many duels he won and lost.
+typedef ReportDuel = ({String name, int won, int lost});
+
 typedef ReportStats = ({
   int possession,
   int shots,
@@ -186,7 +200,31 @@ typedef ReportFacts = ({
   /// Null when the schedule does not say, which is a cup tie or the last round
   /// of a season; the beat is simply absent then.
   String? oppNextOpponent,
+
+  /// Where the attacks came down, off `result['positional']` — see
+  /// `engine/match_analysis.dart`. Null for a match that recorded none.
+  ReportFlanks? flanks,
+
+  /// Our busiest duellist, same source. Null when nobody was busy enough.
+  ReportDuel? duel,
 });
+
+/// A side "came down" a flank when this share of its shots did. Two lanes in
+/// five are a flank, so the even split is 0.4 a side; this is a clear lean.
+const double flankLean = 0.46;
+
+/// And "through the middle" when this share came down the one central lane,
+/// whose even share is a fifth.
+const double centreLean = 0.34;
+
+/// A duel record is worth a sentence at this many duels.
+const int duelsWorthASentence = 8;
+
+/// Won this share of them: he owned his afternoon.
+const double duelDominant = 0.62;
+
+/// Won this little: he was second to most of it.
+const double duelStruggled = 0.38;
 
 /// The whole report, beat by beat.
 ///
@@ -595,6 +633,62 @@ List<ReportBeat> buildMatchReport(
     ));
   }
 
+  // ── 7b. WHERE it was played ───────────────────────────────────────────────
+  //
+  // The positional sim knows which flank each side's attacks came down, and
+  // the heatmap on the summary shows it in colour. One sentence when either
+  // side had a clear lean — never for a spread, which is most matches, and
+  // never with a figure in it: the card has the percentages.
+  final fl = f.flanks;
+  if (fl != null) {
+    final oursKey = fl.right >= flankLean
+        ? 'report.zone.down_right'
+        : fl.left >= flankLean
+        ? 'report.zone.down_left'
+        : fl.centre >= centreLean
+        ? 'report.zone.through_middle'
+        : null;
+    if (oursKey != null) {
+      beats.add((
+        key: oursKey,
+        para: ReportPara.performance,
+        params: {'club': f.clubName, 'opp': f.opponentName},
+      ));
+    }
+    final theirsKey = fl.theirRight >= flankLean
+        ? 'report.zone.their_right'
+        : fl.theirLeft >= flankLean
+        ? 'report.zone.their_left'
+        : fl.theirCentre >= centreLean
+        ? 'report.zone.their_middle'
+        : null;
+    if (theirsKey != null) {
+      beats.add((
+        key: theirsKey,
+        para: ReportPara.performance,
+        params: {'club': f.clubName, 'opp': f.opponentName},
+      ));
+    }
+  }
+
+  // ── 7c. And who was in the thick of it ───────────────────────────────────
+  //
+  // The busiest man on our side, by the duels the sim recorded him in, and how
+  // they went. No digits — his record is on the card.
+  final d = f.duel;
+  if (d != null && d.won + d.lost >= duelsWorthASentence) {
+    final rate = d.won / (d.won + d.lost);
+    beats.add((
+      key: rate >= duelDominant
+          ? 'report.duel.dominant'
+          : rate <= duelStruggled
+          ? 'report.duel.struggled'
+          : 'report.duel.busy',
+      para: ReportPara.performance,
+      params: {'name': d.name, 'club': f.clubName, 'opp': f.opponentName},
+    ));
+  }
+
   // ── 8. The referee ───────────────────────────────────────────────────────
   //
   // **What MATTERS, not everything.** A first cut told every card and was sent
@@ -912,7 +1006,12 @@ int beatRank(String key) => switch (key) {
   _ when key.startsWith('report.cards.our_red') => 4,
   'report.subs.impact' => 5,
   _ when key.startsWith('report.opp.') => 6,
+  // Where it was played sits with the opposition's line and above the board's
+  // verdict, which it usually says more than; the opposition wins the tie
+  // because it is added first. The duel line sits with the board.
+  _ when key.startsWith('report.zone.') => 6,
   _ when key.startsWith('report.stats.') => 7,
+  _ when key.startsWith('report.duel.') => 7,
   _ when key.startsWith('report.shape.') => 8,
   _ when key.startsWith('report.late.') => 9,
   _ when key.startsWith('report.goals.surge.') => 10,

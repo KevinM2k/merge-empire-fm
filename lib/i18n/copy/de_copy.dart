@@ -398,4 +398,40 @@ const Map<String, String> deCopy = <String, String>{
   'guide.club_buy': 'Kauf hier eine Einrichtung. Jede, die du besitzt, erhöht, was der Verein jede Sekunde verdient.',
   'guide.shop_tab': 'Knapp an Energie oder Münzen? Der Tab {tab} hat Packs und Boosts, wenn du sie brauchst.',
 
+
+  // ── Where it was won: the positional card and its write-up ─────────────
+  'match.analysis.title':
+      'Wo es entschieden wurde',
+  'match.analysis.hint':
+      'Wo jede Seite den Ball hatte, Angriff nach oben. Die Seiten sind jeweils aus eigener Sicht.',
+  'match.analysis.flanks':
+      'Angriffe nach Flanke',
+  'match.analysis.left':
+      'Links',
+  'match.analysis.centre':
+      'Mitte',
+  'match.analysis.right':
+      'Rechts',
+  'match.analysis.shots':
+      '{shots} Schüsse, {xg} xG',
+  'match.analysis.duel_record':
+      '{name} gewann {won} von {total} Zweikämpfen.',
+  'report.zone.down_right':
+      '{club} kam den ganzen Nachmittag über rechts, und fast alles Gefährliche entstand dort.|Fast alles, was {club} aufbaute, lief über die rechte Flanke.',
+  'report.zone.down_left':
+      '{club} kam den ganzen Nachmittag über links, und fast alles Gefährliche entstand dort.|Fast alles, was {club} aufbaute, lief über die linke Flanke.',
+  'report.zone.through_middle':
+      '{club} kam direkt durch die Mitte und brauchte die Flügel kaum.|Bei {club} lief alles durchs Zentrum, geradewegs auf das Tor zu.',
+  'report.zone.their_right':
+      '{opp} kam immer wieder über die eigene rechte Seite, und von dort kam die meiste Gefahr.|Fast alles, was {opp} entwickelte, lief über die rechte Flanke.',
+  'report.zone.their_left':
+      '{opp} kam immer wieder über die eigene linke Seite, und von dort kam die meiste Gefahr.|Fast alles, was {opp} entwickelte, lief über die linke Flanke.',
+  'report.zone.their_middle':
+      '{opp} kam geradewegs durch die Mitte auf {club} zu und nutzte die Flügel kaum.|Bei {opp} lief alles durchs Zentrum.',
+  'report.duel.dominant':
+      '{name} gewann fast jeden Zweikampf des Nachmittags.|Niemand bei {opp} bekam {name} den ganzen Nachmittag in den Griff.',
+  'report.duel.busy':
+      '{name} war vom ersten bis zum letzten Pfiff mitten im Geschehen.|Ein Großteil des Spiels lief über {name}, im Guten wie im Schlechten.',
+  'report.duel.struggled':
+      '{name} hatte einen schweren Nachmittag und verlor die meisten Zweikämpfe.|Für {name} lief es nicht: mehr Duelle verloren als gewonnen.',
 };

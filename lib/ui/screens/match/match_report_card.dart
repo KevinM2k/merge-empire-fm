@@ -13,7 +13,9 @@ import 'package:merge_empire_fc/engine/booking_engine.dart';
 import 'package:merge_empire_fc/engine/match_tactics.dart' show defaultStrategy;
 import 'package:merge_empire_fc/engine/fixture_preview.dart';
 import 'package:merge_empire_fc/engine/league_table.dart' show LeagueRow;
+import 'package:merge_empire_fc/engine/match_analysis.dart';
 import 'package:merge_empire_fc/engine/match_report.dart';
+import 'package:merge_empire_fc/engine/pitch_space.dart' show Flank;
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/ui/screens/home/league_providers.dart'
@@ -318,6 +320,32 @@ ReportFacts? reportFactsFor(
     final row = live.rows.firstWhere((r) => r.key == key);
     return isHome ? row.away : row.home;
   }
+  // Where the attacks came down and who was busiest, off the positional
+  // record — see `engine/match_analysis.dart`. Absent on a result that
+  // recorded none, and the beats that read them are simply not written.
+  final positional = _map(result['positional']);
+  ReportFlanks? flanks;
+  ReportDuel? duel;
+  if (positional != null && (positional['ev'] as List?)?.isNotEmpty == true) {
+    final ours = flankShares(positional, 'ours');
+    final theirs = flankShares(positional, 'theirs');
+    flanks = (
+      left: ours[Flank.left]!,
+      centre: ours[Flank.centre]!,
+      right: ours[Flank.right]!,
+      theirLeft: theirs[Flank.left]!,
+      theirCentre: theirs[Flank.centre]!,
+      theirRight: theirs[Flank.right]!,
+    );
+    final busiest = busiestDuellist(positional);
+    if (busiest != null) {
+      final name = cardDisplayName(save, busiest.id);
+      if (name != null && name.isNotEmpty) {
+        duel = (name: name, won: busiest.won, lost: busiest.lost);
+      }
+    }
+  }
+
   final ReportStats stats = (
     possession: isHome ? live.possHome : live.possAway,
     shots: ourRow('shots'),
@@ -390,6 +418,8 @@ ReportFacts? reportFactsFor(
     nextOpponent: preview?.opponentName,
     nextIsHome: preview?.isHome ?? true,
     oppNextOpponent: _nextFor(save, '${result['opponentName'] ?? ''}'),
+    flanks: flanks,
+    duel: duel,
   );
 }
 

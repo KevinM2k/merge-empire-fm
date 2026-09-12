@@ -889,4 +889,72 @@ const Map<String, String> enCopy = <String, String>{
       'Short of energy or coins? The {tab} tab has packs and boosts when you '
       'need them.',
 
+
+  // ── Where it was won: the positional sim's card and its write-up ─────────
+  //
+  // `match_heatmap.dart` and the `report.zone.*` / `report.duel.*` beats in
+  // `engine/match_report.dart`. The card carries the percentages; the report
+  // keeps to prose, the way the board's verdict does.
+  'match.analysis.title': 'Where it was won',
+  'match.analysis.hint':
+      'Where each side had the ball, attacking up the pitch. Flanks are each '
+      "side's own left and right.",
+  'match.analysis.flanks': 'Attacks by flank',
+  'match.analysis.left': 'Left',
+  'match.analysis.centre': 'Centre',
+  'match.analysis.right': 'Right',
+  'match.analysis.shots': '{shots} shots, {xg} xG',
+  'match.analysis.duel_record': '{name} won {won} of {total} duels.',
+
+  // One sentence when a side had a clear lean, and none for a spread.
+  'report.zone.down_right':
+      '{club} went down the right all afternoon, and most of what they made '
+          'came from that side.|'
+      'Almost everything {club} built came down the right flank.|'
+      "The right wing was {club}'s road into the game, again and again.",
+  'report.zone.down_left':
+      '{club} went down the left all afternoon, and most of what they made '
+          'came from that side.|'
+      'Almost everything {club} built came down the left flank.|'
+      "The left wing was {club}'s road into the game, again and again.",
+  'report.zone.through_middle':
+      '{club} came straight through the middle, and never really needed the '
+          'wings.|'
+      'It was all through the centre from {club}, one straight line at their '
+          'goal.|'
+      '{club} kept it narrow and kept coming through the heart of the {opp} '
+          'defence.',
+  'report.zone.their_right':
+      '{opp} kept coming down their right, and it was where most of their '
+          'threat came from.|'
+      'Nearly everything {opp} made came down their right flank.|'
+      '{oppSideCap} found their joy down the right and went back to it all '
+          'afternoon.',
+  'report.zone.their_left':
+      '{opp} kept coming down their left, and it was where most of their '
+          'threat came from.|'
+      'Nearly everything {opp} made came down their left flank.|'
+      '{oppSideCap} found their joy down the left and went back to it all '
+          'afternoon.',
+  'report.zone.their_middle':
+      '{opp} came straight down the middle at {club}, and hardly used the '
+          'wings.|'
+      'It was all through the centre from {opp}.|'
+      '{oppSideCap} kept it narrow and went at the heart of the {club} defence.',
+
+  // The busiest player on our side, by how the duels went. No digits, and no
+  // pronoun — `call_sites_test` holds English to that.
+  'report.duel.dominant':
+      '{name} won nearly every duel of the afternoon.|'
+      'Nobody in {opp} colours got the better of {name} all afternoon.|'
+      '{name} was the best player on the pitch, and it was not close.',
+  'report.duel.busy':
+      '{name} was in the thick of it from first whistle to last.|'
+      'Much of the game went through {name}, for better and worse.|'
+      '{name} had more of the ball, and more of the fight, than anyone.',
+  'report.duel.struggled':
+      '{name} had a hard afternoon of it, second in most of the duels.|'
+      'It did not go for {name}, with more battles lost than won.|'
+      '{opp} found {name} out, and kept going back for more.',
+
 };

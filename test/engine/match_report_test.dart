@@ -30,6 +30,8 @@ void main() {
     String? nextOpponent = 'Ayton',
     String? oppNextOpponent,
     bool isCup = false,
+    ReportFlanks? flanks,
+    ReportDuel? duel,
   }) => (
     ours: ours,
     theirs: theirs,
@@ -63,6 +65,25 @@ void main() {
     nextOpponent: nextOpponent,
     nextIsHome: false,
     oppNextOpponent: oppNextOpponent,
+    flanks: flanks,
+    duel: duel,
+  );
+
+  /// Where the attacks came down, ours then theirs, as shares of shots.
+  ReportFlanks lean({
+    double left = 0.35,
+    double centre = 0.25,
+    double right = 0.4,
+    double theirLeft = 0.4,
+    double theirCentre = 0.25,
+    double theirRight = 0.35,
+  }) => (
+    left: left,
+    centre: centre,
+    right: right,
+    theirLeft: theirLeft,
+    theirCentre: theirCentre,
+    theirRight: theirRight,
   );
 
   /// **WHAT A MATCH EARNS, with the length ceiling lifted.**
@@ -101,6 +122,77 @@ void main() {
     corners: 6,
     theirCorners: 2,
   );
+
+  group('WHERE IT WAS PLAYED', () {
+    test('a clear lean down a flank is one sentence, and a spread is none', () {
+      expect(keysOf(facts(flanks: lean(right: 0.5, left: 0.25))), contains('report.zone.down_right'));
+      expect(keysOf(facts(flanks: lean(left: 0.5, right: 0.25))), contains('report.zone.down_left'));
+      expect(
+        keysOf(facts(flanks: lean(centre: 0.4, left: 0.3, right: 0.3))),
+        contains('report.zone.through_middle'),
+      );
+      final spread = keysOf(facts(flanks: lean()));
+      expect(spread.where((k) => k.startsWith('report.zone.')), isEmpty);
+      expect(keysOf(facts()).where((k) => k.startsWith('report.zone.')), isEmpty);
+    });
+
+    test('the opposition\'s lean is written in THEIR left and right', () {
+      expect(keysOf(facts(flanks: lean(theirRight: 0.5, theirLeft: 0.25))), contains('report.zone.their_right'));
+      expect(keysOf(facts(flanks: lean(theirLeft: 0.5, theirRight: 0.25))), contains('report.zone.their_left'));
+      expect(
+        keysOf(facts(flanks: lean(theirCentre: 0.4, theirLeft: 0.3, theirRight: 0.3))),
+        contains('report.zone.their_middle'),
+      );
+    });
+
+    test('the right flank wins a tie with the left, and one sentence a side', () {
+      final keys = keysOf(facts(flanks: lean(right: 0.5, left: 0.5, centre: 0, theirRight: 0.5, theirLeft: 0.25)));
+      expect(keys.where((k) => k.startsWith('report.zone.')).toList(), [
+        'report.zone.down_right',
+        'report.zone.their_right',
+      ]);
+    });
+
+    test('a zone beat carries only the two clubs', () {
+      final beat = earned(facts(flanks: lean(right: 0.5, left: 0.25)))
+          .firstWhere((b) => b.key == 'report.zone.down_right');
+      expect(ownParams(beat).toSet(), {'club', 'opp'});
+      expect(beat.para, ReportPara.performance);
+    });
+
+    test('the zone line outranks the board\'s verdict and loses to the opposition\'s', () {
+      expect(beatRank('report.zone.down_right'), greaterThan(beatRank('report.next.home')));
+      expect(beatRank('report.zone.down_right'), lessThan(beatRank('report.stats.on_top')));
+      expect(beatRank('report.zone.down_right'), beatRank('report.opp.clinical'));
+      expect(beatRank('report.duel.busy'), beatRank('report.stats.on_top'));
+    });
+
+    test('and it survives the budget in a routine league match', () {
+      final kept = [for (final b in buildMatchReport(facts(flanks: lean(right: 0.5, left: 0.25)))) b.key];
+      expect(kept.length, lessThanOrEqualTo(reportBeatBudget));
+      expect(kept, contains('report.zone.down_right'));
+    });
+  });
+
+  group('WHO WAS IN THE THICK OF IT', () {
+    test('the busiest man gets a sentence by how his duels went', () {
+      expect(keysOf(facts(duel: (name: 'Bobby', won: 9, lost: 2))), contains('report.duel.dominant'));
+      expect(keysOf(facts(duel: (name: 'Bobby', won: 6, lost: 6))), contains('report.duel.busy'));
+      expect(keysOf(facts(duel: (name: 'Bobby', won: 2, lost: 9))), contains('report.duel.struggled'));
+    });
+
+    test('but not for a handful of duels', () {
+      final keys = keysOf(facts(duel: (name: 'Bobby', won: 4, lost: 1)));
+      expect(keys.where((k) => k.startsWith('report.duel.')), isEmpty);
+    });
+
+    test('the beat names him and nothing numeric', () {
+      final beat = earned(facts(duel: (name: 'Bobby', won: 9, lost: 2)))
+          .firstWhere((b) => b.key == 'report.duel.dominant');
+      expect(ownParams(beat).toSet(), {'name', 'club', 'opp'});
+      expect(beat.params['name'], 'Bobby');
+    });
+  });
 
   group('THE HEADLINE IS THE MARGIN', () {
     test('and it is a different sentence at every one of them', () {
@@ -1342,6 +1434,17 @@ void main() {
         lateSwitch: (minute: 70, tactic: 'allOutAttack'),
       ),
       'settled': facts(lateSwitch: (minute: 80, tactic: 'balanced')),
+      'down the right': facts(flanks: lean(right: 0.5, left: 0.25)),
+      'down the left': facts(flanks: lean(left: 0.5, right: 0.25)),
+      'through the middle': facts(flanks: lean(centre: 0.4, left: 0.3, right: 0.3)),
+      'their right': facts(flanks: lean(theirRight: 0.5, theirLeft: 0.25)),
+      'their left': facts(flanks: lean(theirLeft: 0.5, theirRight: 0.25)),
+      'their middle': facts(
+        flanks: lean(theirCentre: 0.4, theirLeft: 0.3, theirRight: 0.3),
+      ),
+      'a dominant duellist': facts(duel: (name: 'Bobby', won: 9, lost: 2)),
+      'a busy duellist': facts(duel: (name: 'Bobby', won: 6, lost: 6)),
+      'a struggling duellist': facts(duel: (name: 'Bobby', won: 2, lost: 9)),
       'brace': facts(ours: 2, scorers: const ['Bobby', 'Bobby']),
       'hat-trick': facts(
         ours: 3,

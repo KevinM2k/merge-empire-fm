@@ -268,4 +268,40 @@ const Map<String, String> zhCopy = <String, String>{
   'guide.club_buy': '在这里购买设施。你拥有的每一处设施都会增加俱乐部每秒的收入。',
   'guide.shop_tab': '能量或金币不够？{tab}标签页有礼包和加成，随时可用。',
 
+
+  // ── Where it was won: the positional card and its write-up ─────────────
+  'match.analysis.title':
+      '胜负所在',
+  'match.analysis.hint':
+      '双方持球的位置，向上方进攻。左右以各队自身视角为准。',
+  'match.analysis.flanks':
+      '按边路划分的进攻',
+  'match.analysis.left':
+      '左路',
+  'match.analysis.centre':
+      '中路',
+  'match.analysis.right':
+      '右路',
+  'match.analysis.shots':
+      '{shots}次射门，xG {xg}',
+  'match.analysis.duel_record':
+      '{name}在{total}次对抗中赢下{won}次。',
+  'report.zone.down_right':
+      '{club}整场都从右路进攻，大部分威胁都来自那一侧。|{club}组织的进攻几乎全部经过右路。',
+  'report.zone.down_left':
+      '{club}整场都从左路进攻，大部分威胁都来自那一侧。|{club}组织的进攻几乎全部经过左路。',
+  'report.zone.through_middle':
+      '{club}直接从中路推进，几乎不需要边路。|{club}的进攻全走中路，直奔球门。',
+  'report.zone.their_right':
+      '{opp}不断从本方右路推进，大部分威胁都来自那里。|{opp}制造的进攻几乎全部经过右路。',
+  'report.zone.their_left':
+      '{opp}不断从本方左路推进，大部分威胁都来自那里。|{opp}制造的进攻几乎全部经过左路。',
+  'report.zone.their_middle':
+      '{opp}直接从中路冲向{club}，几乎没有使用边路。|{opp}的进攻全走中路。',
+  'report.duel.dominant':
+      '{name}几乎赢下了面前的每一次对抗。|整场比赛{opp}没有人能压制住{name}。',
+  'report.duel.busy':
+      '{name}从开场哨到终场哨始终处于比赛中心。|无论好坏，比赛的大部分都经过{name}。',
+  'report.duel.struggled':
+      '{name}度过了艰难的一个下午，大多数对抗都处于下风。|{name}状态不佳，输掉的对抗比赢下的多。',
 };

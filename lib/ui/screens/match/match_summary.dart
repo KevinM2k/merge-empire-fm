@@ -40,6 +40,7 @@ import 'package:merge_empire_fc/ui/screens/match/shootout_row.dart';
 import 'package:merge_empire_fc/ui/screens/home/league_providers.dart'
     show managerLookProvider;
 import 'package:merge_empire_fc/ui/screens/match/dugout_cam.dart';
+import 'package:merge_empire_fc/ui/screens/match/match_heatmap.dart';
 import 'package:merge_empire_fc/ui/widgets/report_scroll.dart';
 import 'package:merge_empire_fc/ui/screens/match/cutaway/cutaway_stage.dart'
     show CutawayClip, CutawayStage, clipFor, lineupNames, cardDisplayName;
@@ -576,6 +577,14 @@ class MatchSummaryScreenState extends ConsumerState<MatchSummaryScreen>
                       // draws that pane ITSELF now, so a second one round it
                       // was a card inside a card.
                       const LeagueMove(key: ValueKey('summary-table')),
+                      const SizedBox(height: 12),
+                    ],
+                    // **WHERE IT WAS WON**, off the positional record — the
+                    // heatmap, the flank shares and the busiest duellist. It
+                    // draws nothing for a result that recorded none, so an
+                    // older save's last match loses only the panel.
+                    if (positionalOf(result) != null) ...[
+                      PositionalCard(result: result),
                       const SizedBox(height: 12),
                     ],
                     // **THE MANAGER AND THE QUESTS SHARE A ROW, so the whole

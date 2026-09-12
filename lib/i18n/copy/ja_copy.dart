@@ -315,4 +315,40 @@ const Map<String, String> jaCopy = <String, String>{
   'guide.club_buy': 'ここで施設を買おう。持っている施設ひとつごとに、クラブの毎秒の収入が増える。',
   'guide.shop_tab': 'エネルギーやコインが足りない？{tab}タブにパックとブーストがある。',
 
+
+  // ── Where it was won: the positional card and its write-up ─────────────
+  'match.analysis.title':
+      '勝負を決めた場所',
+  'match.analysis.hint':
+      '各チームがボールを持っていた場所。上方向へ攻める。サイドはそれぞれのチーム視点。',
+  'match.analysis.flanks':
+      'サイド別の攻撃',
+  'match.analysis.left':
+      '左',
+  'match.analysis.centre':
+      '中央',
+  'match.analysis.right':
+      '右',
+  'match.analysis.shots':
+      'シュート{shots}本、xG {xg}',
+  'match.analysis.duel_record':
+      '{name}は{total}回のデュエルのうち{won}回勝った。',
+  'report.zone.down_right':
+      '{club}は終始右サイドから攻め、脅威のほとんどはそこから生まれた。|{club}の攻撃はほぼすべて右サイド経由だった。',
+  'report.zone.down_left':
+      '{club}は終始左サイドから攻め、脅威のほとんどはそこから生まれた。|{club}の攻撃はほぼすべて左サイド経由だった。',
+  'report.zone.through_middle':
+      '{club}は中央から真っすぐ攻め、サイドをほとんど必要としなかった。|{club}はすべて中央から、ゴールへ一直線だった。',
+  'report.zone.their_right':
+      '{opp}は自陣右サイドからしつこく攻め、脅威の大半はそこから来た。|{opp}の攻撃はほぼすべて右サイド経由だった。',
+  'report.zone.their_left':
+      '{opp}は自陣左サイドからしつこく攻め、脅威の大半はそこから来た。|{opp}の攻撃はほぼすべて左サイド経由だった。',
+  'report.zone.their_middle':
+      '{opp}は{club}に対して中央を真っすぐ突き、サイドをほとんど使わなかった。|{opp}はすべて中央からだった。',
+  'report.duel.dominant':
+      '{name}は目の前に来たほぼすべてを勝ち取った。|{opp}の誰も終始{name}を抑えられなかった。',
+  'report.duel.busy':
+      '{name}は最初の笛から最後まで試合の中心にいた。|良くも悪くも、試合の多くが{name}を経由した。',
+  'report.duel.struggled':
+      '{name}は苦しい午後を過ごし、デュエルの大半で後れを取った。|{name}にはついてこず、勝ったより負けたデュエルの方が多かった。',
 };

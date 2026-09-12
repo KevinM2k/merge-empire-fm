@@ -397,4 +397,40 @@ const Map<String, String> frCopy = <String, String>{
   'guide.club_buy': 'Achète une installation ici. Chacune que tu possèdes s\'ajoute à ce que le club gagne chaque seconde.',
   'guide.shop_tab': 'À court d\'énergie ou de pièces ? L\'onglet {tab} a des packs et des bonus quand tu en as besoin.',
 
+
+  // ── Where it was won: the positional card and its write-up ─────────────
+  'match.analysis.title':
+      'Là où ça s\'est joué',
+  'match.analysis.hint':
+      'Où chaque équipe a eu le ballon, en attaquant vers le haut. Les côtés sont ceux de chaque équipe.',
+  'match.analysis.flanks':
+      'Attaques par côté',
+  'match.analysis.left':
+      'Gauche',
+  'match.analysis.centre':
+      'Axe',
+  'match.analysis.right':
+      'Droite',
+  'match.analysis.shots':
+      '{shots} tirs, {xg} xG',
+  'match.analysis.duel_record':
+      '{name} a remporté {won} duels sur {total}.',
+  'report.zone.down_right':
+      '{club} a passé l\'après-midi côté droit, et presque tout est venu de là.|Presque tout ce que {club} a construit est passé par l\'aile droite.',
+  'report.zone.down_left':
+      '{club} a passé l\'après-midi côté gauche, et presque tout est venu de là.|Presque tout ce que {club} a construit est passé par l\'aile gauche.',
+  'report.zone.through_middle':
+      '{club} est passé plein axe, sans vraiment avoir besoin des ailes.|Tout est venu par le centre chez {club}, en ligne droite vers le but.',
+  'report.zone.their_right':
+      '{opp} a insisté sur son côté droit, d\'où est venu l\'essentiel du danger.|Presque tout ce que {opp} a produit est passé par son aile droite.',
+  'report.zone.their_left':
+      '{opp} a insisté sur son côté gauche, d\'où est venu l\'essentiel du danger.|Presque tout ce que {opp} a produit est passé par son aile gauche.',
+  'report.zone.their_middle':
+      '{opp} est venu plein axe sur {club}, sans presque utiliser les ailes.|Tout est passé par le centre chez {opp}.',
+  'report.duel.dominant':
+      '{name} a remporté presque tous les duels de l\'après-midi.|Personne chez {opp} n\'a pris le dessus sur {name} de tout l\'après-midi.',
+  'report.duel.busy':
+      '{name} a été au cœur du jeu du premier au dernier coup de sifflet.|Une bonne partie du match est passée par {name}, pour le meilleur et pour le pire.',
+  'report.duel.struggled':
+      '{name} a passé un après-midi difficile, battu sur la plupart de ses duels.|Ça n\'a pas tourné pour {name} : plus de duels perdus que gagnés.',
 };

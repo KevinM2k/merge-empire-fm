@@ -339,4 +339,40 @@ const Map<String, String> arCopy = <String, String>{
   'guide.club_buy': 'اشترِ منشأة هنا. كل واحدة تملكها تضيف إلى ما يجنيه النادي كل ثانية.',
   'guide.shop_tab': 'تنقصك الطاقة أو العملات؟ تبويب {tab} فيه حزم وتعزيزات عند الحاجة.',
 
+
+  // ── Where it was won: the positional card and its write-up ─────────────
+  'match.analysis.title':
+      'حيث حُسمت المباراة',
+  'match.analysis.hint':
+      'أين امتلك كل فريق الكرة، مع الهجوم نحو الأعلى. الجهتان بحسب كل فريق.',
+  'match.analysis.flanks':
+      'الهجمات حسب الجهة',
+  'match.analysis.left':
+      'اليسار',
+  'match.analysis.centre':
+      'الوسط',
+  'match.analysis.right':
+      'اليمين',
+  'match.analysis.shots':
+      '{shots} تسديدات، {xg} xG',
+  'match.analysis.duel_record':
+      'فاز {name} بـ{won} من {total} التحاما.',
+  'report.zone.down_right':
+      'هاجم {club} من اليمين طوال المباراة، ومن هناك جاء معظم الخطر.|كل ما بناه {club} تقريبا مرّ عبر الجهة اليمنى.',
+  'report.zone.down_left':
+      'هاجم {club} من اليسار طوال المباراة، ومن هناك جاء معظم الخطر.|كل ما بناه {club} تقريبا مرّ عبر الجهة اليسرى.',
+  'report.zone.through_middle':
+      'اندفع {club} مباشرة عبر الوسط ولم يحتج إلى الأطراف.|كل شيء من {club} جاء عبر العمق، في خط مستقيم نحو المرمى.',
+  'report.zone.their_right':
+      'واصل {opp} الهجوم من جهته اليمنى، ومن هناك جاء معظم خطره.|كل ما صنعه {opp} تقريبا مرّ عبر جهته اليمنى.',
+  'report.zone.their_left':
+      'واصل {opp} الهجوم من جهته اليسرى، ومن هناك جاء معظم خطره.|كل ما صنعه {opp} تقريبا مرّ عبر جهته اليسرى.',
+  'report.zone.their_middle':
+      'جاء {opp} مباشرة عبر الوسط نحو {club} وبالكاد استخدم الأطراف.|كل شيء من {opp} جاء عبر العمق.',
+  'report.duel.dominant':
+      'فاز {name} بكل ما جاءه تقريبا.|لم يتفوق أحد من {opp} على {name} طوال المباراة.',
+  'report.duel.busy':
+      'كان {name} في قلب الأحداث من الصافرة الأولى إلى الأخيرة.|مرّ جزء كبير من المباراة عبر {name}، للأفضل والأسوأ.',
+  'report.duel.struggled':
+      'عاش {name} فترة صعبة وخسر معظم التحاماته.|لم يكن يوم {name}، فقد خسر من الالتحامات أكثر مما فاز.',
 };

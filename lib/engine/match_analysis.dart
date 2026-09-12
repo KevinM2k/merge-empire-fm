@@ -138,3 +138,31 @@ Map<Flank, double> flankShares(Map<String, dynamic>? positional, String side) {
   final total = counts.values.fold(0.0, (a, b) => a + b);
   return {for (final f in Flank.values) f: total > 0 ? counts[f]! / total : 0};
 }
+
+/// A player's duel record, off `positional['duels']`.
+typedef DuelRecord = ({String id, int won, int lost});
+
+/// Our most-involved player — the most duels, ties to the better record — or
+/// null when nobody on our side was recorded. AI pseudo-players (`ai:`) are
+/// never ours.
+DuelRecord? busiestDuellist(Map<String, dynamic>? positional) {
+  final raw = positional?['duels'];
+  if (raw is! Map) return null;
+  DuelRecord? best;
+  for (final e in raw.entries) {
+    final id = '${e.key}';
+    if (id.startsWith('ai:')) continue;
+    final rec = e.value;
+    if (rec is! Map) continue;
+    final won = (rec['w'] as num?)?.toInt() ?? 0;
+    final lost = (rec['l'] as num?)?.toInt() ?? 0;
+    final total = won + lost;
+    if (total == 0) continue;
+    if (best == null ||
+        total > best.won + best.lost ||
+        (total == best.won + best.lost && won > best.won)) {
+      best = (id: id, won: won, lost: lost);
+    }
+  }
+  return best;
+}
