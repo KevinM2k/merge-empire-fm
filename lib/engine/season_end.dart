@@ -274,7 +274,13 @@ SeasonOutcome endSeason(Map<String, dynamic> state) {
   });
   prog['lastSeasonPayout'] = payout;
   // A new season's payout has not been doubled yet — see [grantSeasonDouble].
-  prog['lastSeasonDoubled'] = false;
+  //
+  // **REMOVED rather than set false.** The flag is the PORT'S — the JS doubles
+  // a payout nobody has banked yet and has no such field — and the season
+  // difftest compares the whole save against node byte for byte, so writing it
+  // here put a key in the save the JS has never heard of. Absent is what every
+  // reader already means by "not doubled": the only test of it is `== true`.
+  prog.remove('lastSeasonDoubled');
 
   // A league title is going up — a top-two finish in the division — OR winning
   // the top flight, which cannot go up.

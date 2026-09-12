@@ -90,4 +90,38 @@ void main() {
       expect(_coins(state), 9200);
     });
   });
+
+  group('THE FLAG IS THE PORT\'S, so it never reaches the save', () {
+    // The JS doubles a payout nobody has banked and has no such field, and the
+    // season difftest compares the whole save against node byte for byte — so
+    // `endSeason` writing the flag put a key in the save the JS has never
+    // heard of. Absent is what every reader already means by "not doubled".
+    test('a settled season leaves no lastSeasonDoubled key behind', () {
+      final state = createDefaultState();
+      endSeason(state);
+      expect(
+        (state['progression'] as Map<String, dynamic>)
+            .containsKey('lastSeasonDoubled'),
+        isFalse,
+        reason: 'a port-only field is in a save the JS is compared against',
+      );
+    });
+
+    test('and the offer still resets season to season', () {
+      // Which is what setting it false was FOR, so removing it has to keep it.
+      final state = _settled(payout: 4200, coins: 0);
+      expect(grantSeasonDouble(state), 4200);
+      expect(seasonDoubleOffer(state), 0, reason: 'it was already taken');
+
+      // A fresh season end clears the guard the same way it always did.
+      final prog = state['progression'] as Map<String, dynamic>;
+      endSeason(state);
+      prog['lastSeasonPayout'] = 5000;
+      expect(
+        seasonDoubleOffer(state),
+        5000,
+        reason: 'last season\'s video killed this season\'s offer',
+      );
+    });
+  });
 }
