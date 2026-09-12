@@ -16,6 +16,17 @@
 /// its minute, the tactic's swing, the AI rotation plan, then the goals, then the
 /// whole event feed. Move any of them and every later number changes.
 ///
+/// **The goals are no longer two Poisson draws.** Per window and per side —
+/// ours first, then theirs, as the two samplers always went — the positional
+/// sim in `attack_sequence.dart` runs its attacks (start zone, carrier, then per
+/// step defender, duel, lane switch, next carrier) and then rolls one Bernoulli
+/// per shot, all on the seeded stream. The JS still draws two Poissons here, so
+/// **this is where the port and the spec part company on the scoreline**: the
+/// node-dumped match fixtures were retired with it and the net is now the
+/// Dart-owned goldens plus `positional_balance_test`. Expected goals per side
+/// are still exactly `goalRateLambda`'s — see the calibration bridge in that
+/// file's header.
+///
 /// It also mixes the two generators. The seeded stream carries gameplay; bare
 /// `Math.random` carries team attribution in the feed and the per-match save and
 /// tackle counts. That split is preserved rather than tidied — see the header of
@@ -33,11 +44,13 @@ import 'package:merge_empire_fc/data/divisions.dart';
 import 'package:merge_empire_fc/data/formations.dart';
 import 'package:merge_empire_fc/data/players.dart';
 import 'package:merge_empire_fc/data/transfer_market.dart';
+import 'package:merge_empire_fc/engine/attack_sequence.dart';
 import 'package:merge_empire_fc/engine/fixture_preview.dart';
 import 'package:merge_empire_fc/engine/goal_model.dart';
 import 'package:merge_empire_fc/engine/idle_engine.dart';
 import 'package:merge_empire_fc/engine/lineup_engine.dart';
 import 'package:merge_empire_fc/engine/loan_engine.dart';
+import 'package:merge_empire_fc/engine/match_analysis.dart';
 import 'package:merge_empire_fc/engine/match_events.dart';
 import 'package:merge_empire_fc/engine/match_tactics.dart';
 import 'package:merge_empire_fc/engine/player_energy_engine.dart';
@@ -140,6 +153,9 @@ HardSim _simulateHardGoals({
   double variance = 1.0,
   List<PlannedInjury> injuries = const [],
   List<OppSub> oppSubs = const [],
+  required List<FormationSlot> ourSlots,
+  required PitchSide oppSide,
+  required List<PositionalEvent> positional,
 }) {
   const seg = PlayerEnergy.segments;
   const minutesPerSeg = 90 / seg;
@@ -267,9 +283,42 @@ HardSim _simulateHardGoals({
     final segOppAtk = math.max(1.0, oppAttack * oppFactor * oppSubBoost);
     final segOppDef = math.max(1.0, oppDefence * oppFactor * oppSubBoost);
 
+    // The eleven as they stand THIS segment — tired legs and all, a victim
+    // gone once his minute has passed — brought onto the team figures above.
+    final ourSide = pitchSideFromLineup(
+      cards: cards,
+      lineup: lineup,
+      slots: ourSlots,
+      definitionRatios: definitionRatios,
+      scale: (card) {
+        if (weightAt(card, s) <= 0) return 0;
+        final max = getMaxEnergy(card);
+        final pct = max > 0
+            ? math.max(0.0, (energy[card.instanceId] ?? max) / max)
+            : 0.0;
+        return fatigueRatingFactor(pct);
+      },
+    ).scaledToTeam(attack: adjAtk, defence: adjDef);
+    final theirSide = oppSide.scaledToTeam(
+      attack: segOppAtk,
+      defence: segOppDef,
+    );
+
     const segFrac = 1 / seg;
-    final h = poissonGoals(goalRateLambda(adjAtk, segOppDef) * segFrac * variance);
-    final a = poissonGoals(goalRateLambda(segOppAtk, adjDef) * segFrac * variance);
+    final h = positionalWindowGoals(
+      ctx: SequenceContext(attackers: ourSide, defenders: theirSide, side: 'ours'),
+      lambda: goalRateLambda(adjAtk, segOppDef) * segFrac * variance,
+      fromMinute: s * minutesPerSeg,
+      toMinute: (s + 1) * minutesPerSeg,
+      out: positional,
+    );
+    final a = positionalWindowGoals(
+      ctx: SequenceContext(attackers: theirSide, defenders: ourSide, side: 'theirs'),
+      lambda: goalRateLambda(segOppAtk, adjDef) * segFrac * variance,
+      fromMinute: s * minutesPerSeg,
+      toMinute: (s + 1) * minutesPerSeg,
+      out: positional,
+    );
     homeGoals += h;
     awayGoals += a;
     segments.add({
@@ -701,6 +750,28 @@ MatchResult simulateMatch(
 
   final playerCards = _cards(state);
 
+  // The two sides as the positional sim sees them. Ours is rebuilt per window
+  // from the (possibly mutated) lineup; theirs is eleven pseudo-players in the
+  // shape their attack share implies, scaled onto the effective figures above.
+  final ourSlots =
+      getFormation(squad?['formation'] as String? ?? defaultFormation).slots;
+  final oppSideBase = pitchSideForAi(
+    opponentRating,
+    formationForShare(oppAttackRatio),
+  );
+  final positional = <PositionalEvent>[];
+  PitchSide ourSideNow(double attack, double defence) => pitchSideFromLineup(
+    cards: _cards(state),
+    lineup: _lineupOf(state) ?? const [],
+    slots: ourSlots,
+    definitionRatios: ratios,
+    scale: fatigue ? (c) => fatigueRatingFactor(energyPct(c)) : null,
+  ).scaledToTeam(attack: attack, defence: defence);
+  final theirSide = oppSideBase.scaledToTeam(
+    attack: effOppAttack,
+    defence: effOppDefence,
+  );
+
   // The injury DECISION comes before the sim so Pro mode can play the
   // post-injury segments a man down — a skipped match then costs the same as a
   // watched one. The MUTATIONS land after, so kickoff ratings and the sim's
@@ -838,6 +909,9 @@ MatchResult simulateMatch(
         for (final e in injuries) (iid: e.card.instanceId, minute: e.minute),
       ],
       oppSubs: aiSubPlan,
+      ourSlots: ourSlots,
+      oppSide: oppSideBase,
+      positional: positional,
     );
     homeGoals = sim.homeGoals;
     awayGoals = sim.awayGoals;
@@ -860,10 +934,21 @@ MatchResult simulateMatch(
 
     void sampleWindow(int upTo) {
       final frac = math.max(0.0, (upTo - prevMin) / 90);
-      homeGoals +=
-          poissonGoals(goalRateLambda(curAtk, effOppDefence) * frac * matchVariance);
-      awayGoals +=
-          poissonGoals(goalRateLambda(effOppAttack, curDef) * frac * matchVariance);
+      final ourSide = ourSideNow(curAtk, curDef);
+      homeGoals += positionalWindowGoals(
+        ctx: SequenceContext(attackers: ourSide, defenders: theirSide, side: 'ours'),
+        lambda: goalRateLambda(curAtk, effOppDefence) * frac * matchVariance,
+        fromMinute: prevMin.toDouble(),
+        toMinute: upTo.toDouble(),
+        out: positional,
+      );
+      awayGoals += positionalWindowGoals(
+        ctx: SequenceContext(attackers: theirSide, defenders: ourSide, side: 'theirs'),
+        lambda: goalRateLambda(effOppAttack, curDef) * frac * matchVariance,
+        fromMinute: prevMin.toDouble(),
+        toMinute: upTo.toDouble(),
+        out: positional,
+      );
       prevMin = upTo;
     }
 
@@ -896,8 +981,21 @@ MatchResult simulateMatch(
     }
     sampleWindow(90);
   } else {
-    homeGoals = simulateGoals(adjAttack, effOppDefence, matchVariance);
-    awayGoals = simulateGoals(effOppAttack, adjDefence, matchVariance);
+    final ourSide = ourSideNow(adjAttack, adjDefence);
+    homeGoals = positionalWindowGoals(
+      ctx: SequenceContext(attackers: ourSide, defenders: theirSide, side: 'ours'),
+      lambda: goalRateLambda(adjAttack, effOppDefence) * matchVariance,
+      fromMinute: 0,
+      toMinute: 90,
+      out: positional,
+    );
+    awayGoals = positionalWindowGoals(
+      ctx: SequenceContext(attackers: theirSide, defenders: ourSide, side: 'theirs'),
+      lambda: goalRateLambda(effOppAttack, adjDefence) * matchVariance,
+      fromMinute: 0,
+      toMinute: 90,
+      out: positional,
+    );
   }
 
   // The tutorial's guaranteed first win, applied before events are generated so
@@ -1058,6 +1156,10 @@ MatchResult simulateMatch(
     ],
     'addedTime': addedTime,
     'events': events,
+    // Where it happened and to whom — see `match_analysis.dart`. The raw
+    // stream under `ev` is for the screens; every digest that persists copies
+    // scores off this result and leaves it behind.
+    'positional': positionalSummary(positional),
     'grudgeBoost': grudgeBoost,
     // The composite star's home bonus for OUR side, stadium-tier scaled —
     // display code reads this instead of the flat legacy constant.
@@ -1776,10 +1878,54 @@ List<Map<String, dynamic>> reSimulateRemainder(
   // Tempo times a FRESH hot/cold roll: Counter Attack's gamble re-rolls with the
   // remainder.
   final variance = (strat?.variance ?? 1.0) * rollSwingFactor(strat);
-  final remainHome =
-      poissonGoals(goalRateLambda(adjAttack, oppDefence) * fraction * variance);
-  final remainAway =
-      poissonGoals(goalRateLambda(oppAttack, adjDefence) * fraction * variance);
+  // The remainder through the positional sim, on the side as it stands NOW —
+  // the sub on, the booked man playing within himself — so the heatmap of a
+  // match with a tactic change is one match, not two glued together. An event
+  // cup's nation has no eleven of ours to stand on the pitch, so it stays on
+  // the plain Poisson and records nothing.
+  final remainder = <PositionalEvent>[];
+  final ourSide = fixedRating
+      ? PitchSide(const [])
+      : pitchSideFromLineup(
+          cards: _cards(state),
+          lineup: _lineupOf(state) ?? const [],
+          slots: getFormation(
+            _map(state?['squad'])?['formation'] as String? ?? defaultFormation,
+          ).slots,
+          definitionRatios: _map(state?['definitionRatios']) ?? const {},
+          scale: (c) =>
+              (bookedMultipliers[c.instanceId] ?? 1.0) *
+              (hardMode ? fatigueRatingFactor(energyPct(c)) : 1.0),
+        ).scaledToTeam(attack: adjAttack, defence: adjDefence);
+  final theirSide = fixedRating
+      ? PitchSide(const [])
+      : pitchSideForAi(
+          _num(result['opponentRating']) ?? fallbackOpp,
+          formationForShare(oppAttackRatio ?? oppBaseAtkShare),
+        ).scaledToTeam(attack: oppAttack, defence: oppDefence);
+  final remainHome = positionalWindowGoals(
+    ctx: SequenceContext(attackers: ourSide, defenders: theirSide, side: 'ours'),
+    lambda: goalRateLambda(adjAttack, oppDefence) * fraction * variance,
+    fromMinute: fromMinute.toDouble(),
+    toMinute: matchDuration.toDouble(),
+    fullMatchMinutes: matchDuration.toDouble(),
+    out: remainder,
+  );
+  final remainAway = positionalWindowGoals(
+    ctx: SequenceContext(attackers: theirSide, defenders: ourSide, side: 'theirs'),
+    lambda: goalRateLambda(oppAttack, adjDefence) * fraction * variance,
+    fromMinute: fromMinute.toDouble(),
+    toMinute: matchDuration.toDouble(),
+    fullMatchMinutes: matchDuration.toDouble(),
+    out: remainder,
+  );
+  if (!fixedRating) {
+    result['positional'] = mergePositional(
+      _map(result['positional']),
+      fromMinute,
+      remainder,
+    );
+  }
 
   // **WHAT THE REMAINDER WAS ROLLED WITH, so the board can print it.**
   //

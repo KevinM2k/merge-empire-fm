@@ -12,10 +12,13 @@ import 'dart:math' as math;
 
 import 'package:merge_empire_fc/data/cups.dart';
 import 'package:merge_empire_fc/data/divisions.dart';
+import 'package:merge_empire_fc/data/formations.dart';
 import 'package:merge_empire_fc/data/players.dart';
+import 'package:merge_empire_fc/engine/attack_sequence.dart';
 import 'package:merge_empire_fc/engine/gem_engine.dart';
 import 'package:merge_empire_fc/engine/goal_model.dart';
 import 'package:merge_empire_fc/engine/lineup_engine.dart';
+import 'package:merge_empire_fc/engine/match_analysis.dart';
 import 'package:merge_empire_fc/engine/match_tactics.dart';
 import 'package:merge_empire_fc/engine/player_energy_engine.dart';
 import 'package:merge_empire_fc/engine/sponsor_engine.dart';
@@ -551,6 +554,7 @@ typedef PreparedCupRound = ({
   Shootout? penaltyShootout,
   List<CupInjury> injuries,
   String? injuredName,
+  Map<String, dynamic> positional,
 });
 
 /// Who the due cup tie is against, and how good they are — WITHOUT playing it.
@@ -731,8 +735,46 @@ PreparedCupRound? prepareCupRound(Map<String, dynamic> state) {
   // its hot-or-cold swing apply exactly as in a league game.
   final cupVariance = strat.variance * rollSwingFactor(strat);
 
-  int homeGoals;
-  int awayGoals;
+  // The positional sim's two sides — the same build as a league match, see
+  // `simulateMatch`. Ours is re-read per window so an injury leaves a hole.
+  final ourSlots = getFormation(
+    _map(state['squad'])?['formation'] as String? ?? defaultFormation,
+  ).slots;
+  final theirSide = pitchSideForAi(
+    opponentRating,
+    formationForShare(oppAttackRatio),
+  ).scaledToTeam(
+    attack: oppSplit.attack.toDouble(),
+    defence: oppSplit.defence.toDouble(),
+  );
+  final positional = <PositionalEvent>[];
+  var homeGoals = 0;
+  var awayGoals = 0;
+  PitchSide ourSideNow(double attack, double defence) => pitchSideFromLineup(
+    cards: [for (final c in _cells(state)) ?c],
+    lineup: _lineup(state),
+    slots: ourSlots,
+    definitionRatios: ratios,
+    scale: fatigue ? (c) => fatigueRatingFactor(energyPct(c)) : null,
+  ).scaledToTeam(attack: attack, defence: defence);
+  void window(double atk, double def, double from, double to) {
+    final frac = math.max(0.0, (to - from) / 90);
+    final ourSide = ourSideNow(atk, def);
+    homeGoals += positionalWindowGoals(
+      ctx: SequenceContext(attackers: ourSide, defenders: theirSide, side: 'ours'),
+      lambda: goalRateLambda(atk, oppSplit.defence) * frac * cupVariance,
+      fromMinute: from,
+      toMinute: to,
+      out: positional,
+    );
+    awayGoals += positionalWindowGoals(
+      ctx: SequenceContext(attackers: theirSide, defenders: ourSide, side: 'theirs'),
+      lambda: goalRateLambda(oppSplit.attack, def) * frac * cupVariance,
+      fromMinute: from,
+      toMinute: to,
+      out: positional,
+    );
+  }
 
   if (injuries.isNotEmpty) {
     // One window per injury: full strength up to its minute, apply it, then
@@ -740,23 +782,9 @@ PreparedCupRound? prepareCupRound(Map<String, dynamic> state) {
     var curAtk = adjAttack;
     var curDef = adjDefence;
     var prevMin = 0;
-    homeGoals = 0;
-    awayGoals = 0;
 
     void sampleWindow(int upTo) {
-      final frac = math.max(0, (upTo - prevMin) / 90);
-      homeGoals += sampleWindowGoals(
-        curAtk,
-        oppSplit.defence,
-        frac.toDouble(),
-        cupVariance,
-      );
-      awayGoals += sampleWindowGoals(
-        oppSplit.attack,
-        curDef,
-        frac.toDouble(),
-        cupVariance,
-      );
+      window(curAtk, curDef, prevMin.toDouble(), upTo.toDouble());
       prevMin = upTo;
     }
 
@@ -780,8 +808,7 @@ PreparedCupRound? prepareCupRound(Map<String, dynamic> state) {
     }
     sampleWindow(90);
   } else {
-    homeGoals = simulateGoals(adjAttack, oppSplit.defence, cupVariance);
-    awayGoals = simulateGoals(oppSplit.attack, adjDefence, cupVariance);
+    window(adjAttack, adjDefence, 0, 90);
   }
 
   Shootout? penaltyShootout;
@@ -822,6 +849,7 @@ PreparedCupRound? prepareCupRound(Map<String, dynamic> state) {
     penaltyShootout: penaltyShootout,
     injuries: injuries,
     injuredName: injuries.isEmpty ? null : injuries.first.name,
+    positional: positionalSummary(positional),
   );
 }
 

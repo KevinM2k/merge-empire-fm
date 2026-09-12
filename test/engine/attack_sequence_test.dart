@@ -4,6 +4,7 @@ import 'package:merge_empire_fc/engine/attack_sequence.dart';
 import 'package:merge_empire_fc/engine/match_tactics.dart';
 import 'package:merge_empire_fc/engine/pitch_space.dart';
 import 'package:merge_empire_fc/state/card_instance.dart';
+import 'package:merge_empire_fc/util/random.dart' as seeded;
 
 /// A card of the tier and position a slot wants.
 CardInstance _card(String id, String pos, {int tier = 5}) => CardInstance({
@@ -312,6 +313,415 @@ void main() {
         up.attackingPresence.mass,
         closeTo(side.attackingPresence.mass, 1e-9),
       );
+    });
+  });
+
+  group('runSequence', () {
+    SequenceContext ctx({String side = 'ours', int us = 70, int them = 70}) {
+      final ours = pitchSideForAi(us, '4-3-3', mirrored: false);
+      final theirs = pitchSideForAi(them, '4-4-2');
+      return side == 'ours'
+          ? SequenceContext(attackers: ours, defenders: theirs, side: 'ours')
+          : SequenceContext(attackers: theirs, defenders: ours, side: 'theirs');
+    }
+
+    test(
+      'starts in the middle two bands and moves one band a step toward goal',
+      () {
+        seeded.setSeed(3);
+        for (var i = 0; i < 400; i++) {
+          final out = <PositionalEvent>[];
+          runSequence(ctx(), 10, out);
+          expect(out, isNotEmpty);
+          expect(zoneBand(out.first.zone), anyOf(1, 2));
+          for (var k = 1; k < out.length; k++) {
+            expect(zoneBand(out[k].zone), zoneBand(out[k - 1].zone) - 1);
+            expect(
+              (zoneLane(out[k].zone) - zoneLane(out[k - 1].zone)).abs(),
+              lessThanOrEqualTo(1),
+            );
+            expect(out[k - 1].type, 'duel');
+            expect(out[k - 1].outcome, 'win');
+          }
+          for (final e in out) {
+            expect(e.side, 'ours');
+            expect(e.minute, 10);
+            expect(e.playerId, startsWith('ai:'));
+          }
+        }
+      },
+    );
+
+    test('the other side attacks the other way, in our frame', () {
+      seeded.setSeed(4);
+      for (var i = 0; i < 400; i++) {
+        final out = <PositionalEvent>[];
+        runSequence(ctx(side: 'theirs'), 30, out);
+        expect(zoneBand(out.first.zone), anyOf(1, 2));
+        for (var k = 1; k < out.length; k++) {
+          expect(zoneBand(out[k].zone), zoneBand(out[k - 1].zone) + 1);
+        }
+        for (final e in out) {
+          expect(e.side, 'theirs');
+        }
+      }
+    });
+
+    test(
+      'a shot is the duel in the band in front of goal, and ends the move',
+      () {
+        seeded.setSeed(5);
+        var shots = 0, blocked = 0, turnovers = 0;
+        for (var i = 0; i < 2000; i++) {
+          final out = <PositionalEvent>[];
+          final shot = runSequence(ctx(), 50, out);
+          final last = out.last;
+          if (last.type == 'shot') {
+            expect(zoneBand(last.zone), 0);
+            expect(out.where((e) => e.type == 'shot').length, 1);
+            if (shot != null) {
+              shots++;
+              expect(identical(shot.event, last), isTrue);
+              expect(last.outcome, 'miss');
+              expect(
+                shot.rawXg,
+                closeTo(rawShotXg(last.zone, shot.shooter), 1e-12),
+              );
+              expect(shot.rawXg, greaterThan(0));
+            } else {
+              blocked++;
+              expect(last.outcome, 'blocked');
+            }
+          } else {
+            turnovers++;
+            expect(shot, isNull);
+            expect(last.outcome, 'lose');
+          }
+        }
+        // Roughly a fifth of attacks end in a shot at parity — the figure
+        // `attacksPerMatch` is set against.
+        expect(shots / 2000, inInclusiveRange(0.14, 0.26));
+        expect(blocked, greaterThan(0));
+        expect(turnovers, greaterThan(shots));
+      },
+    );
+
+    test('a stronger side gets more shots away', () {
+      seeded.setSeed(6);
+      int shotsFor(SequenceContext c) {
+        var n = 0;
+        for (var i = 0; i < 3000; i++) {
+          if (runSequence(c, 1, <PositionalEvent>[]) != null) n++;
+        }
+        return n;
+      }
+
+      final strong = shotsFor(ctx(us: 85, them: 55));
+      final even = shotsFor(ctx());
+      final weak = shotsFor(ctx(us: 55, them: 85));
+      expect(strong, greaterThan(even + 200));
+      expect(even, greaterThan(weak + 200));
+    });
+
+    test('with nobody to attack there is no move and nothing recorded', () {
+      final out = <PositionalEvent>[];
+      final c = SequenceContext(
+        attackers: PitchSide(const []),
+        defenders: pitchSideForAi(70, '4-4-2'),
+        side: 'ours',
+      );
+      expect(runSequence(c, 1, out), isNull);
+      expect(out, isEmpty);
+    });
+
+    test('effectiveDefence is the bare number while support is off', () {
+      expect(supportCoeff, 0);
+      expect(effectiveDefence(70, 3), 70);
+      expect(effectiveDefence(70, 0), 70);
+    });
+
+    test('central shots are worth most and a better shooter more', () {
+      final good = pitchSideForAi(90, '4-3-3', mirrored: false).players.last;
+      final poor = pitchSideForAi(50, '4-3-3', mirrored: false).players.last;
+      expect(
+        rawShotXg(zoneIndex(2, 0), good),
+        greaterThan(rawShotXg(zoneIndex(0, 0), good)),
+      );
+      expect(
+        rawShotXg(zoneIndex(1, 0), good),
+        greaterThan(rawShotXg(zoneIndex(0, 0), good)),
+      );
+      expect(
+        rawShotXg(zoneIndex(2, 0), good),
+        greaterThan(rawShotXg(zoneIndex(2, 0), poor)),
+      );
+      expect(
+        rawShotXg(zoneIndex(1, 0), good),
+        rawShotXg(zoneIndex(3, 0), good),
+      );
+    });
+  });
+
+  group('calibrateShots', () {
+    test('scales raw xG so the probabilities sum to lambda', () {
+      final cal = calibrateShots([0.1, 0.2, 0.3, 0.4], 1.35);
+      expect(
+        cal.probabilities.fold(0.0, (a, b) => a + b),
+        closeTo(1.35, 1e-12),
+      );
+      expect(cal.overflow, 0);
+      expect(cal.probabilities[3], closeTo(cal.probabilities[0] * 4, 1e-12));
+    });
+
+    test('caps a shot and hands the rest to the others', () {
+      final cal = calibrateShots([0.1, 0.9], 1.2);
+      expect(cal.probabilities[1], shotCap);
+      expect(cal.probabilities[0], closeTo(1.2 - shotCap, 1e-12));
+      expect(cal.overflow, 0);
+    });
+
+    test(
+      'what the shots cannot carry comes back as overflow, total preserved',
+      () {
+        final cal = calibrateShots([0.2, 0.2], 3.0);
+        expect(cal.probabilities, [shotCap, shotCap]);
+        expect(cal.overflow, closeTo(3.0 - 2 * shotCap, 1e-12));
+      },
+    );
+
+    test('a zero-weight shot gets nothing and negative lambda is nothing', () {
+      final cal = calibrateShots([0.0, 0.3], 0.6);
+      expect(cal.probabilities, [0.0, 0.6]);
+      expect(calibrateShots([0.3], -1).probabilities, [0.0]);
+      expect(calibrateShots([], 1.0).overflow, 1.0);
+    });
+  });
+
+  group('positionalWindowGoals', () {
+    final ours = pitchSideForAi(72, '4-3-3', mirrored: false);
+    final theirs = pitchSideForAi(68, '4-4-2');
+
+    test('the shots sum to lambda exactly with the jitter off', () {
+      seeded.setSeed(11);
+      for (var i = 0; i < 200; i++) {
+        final out = <PositionalEvent>[];
+        const lambda = 1.6;
+        positionalWindowGoals(
+          ctx: SequenceContext(
+            attackers: ours,
+            defenders: theirs,
+            side: 'ours',
+          ),
+          lambda: lambda,
+          fromMinute: 0,
+          toMinute: 90,
+          out: out,
+          jitter: 0,
+        );
+        final shots = out.where(
+          (e) => e.type == 'shot' && e.outcome != 'blocked',
+        );
+        final sum = shots.fold(0.0, (a, e) => a + (e.xg ?? 0));
+        if (shots.isEmpty) continue;
+        // Capped shots hand the rest to Poisson, which the events cannot show.
+        if (shots.every((e) => e.xg! < shotCap)) {
+          expect(sum, closeTo(lambda, 1e-9), reason: 'match $i');
+        } else {
+          expect(sum, lessThanOrEqualTo(lambda + 1e-9));
+        }
+        for (final e in shots) {
+          expect(e.outcome, anyOf('goal', 'miss'));
+        }
+      }
+    });
+
+    test('expected goals are lambda with the jitter on', () {
+      seeded.setSeed(12);
+      const lambda = 1.4;
+      const n = 6000;
+      var goals = 0;
+      for (var i = 0; i < n; i++) {
+        goals += positionalWindowGoals(
+          ctx: SequenceContext(
+            attackers: ours,
+            defenders: theirs,
+            side: 'ours',
+          ),
+          lambda: lambda,
+          fromMinute: 0,
+          toMinute: 90,
+          out: <PositionalEvent>[],
+        );
+      }
+      // Standard error is about 0.017 at this count.
+      expect(goals / n, closeTo(lambda, 0.06));
+    });
+
+    test('goals in the record match the goals returned', () {
+      seeded.setSeed(13);
+      for (var i = 0; i < 100; i++) {
+        final out = <PositionalEvent>[];
+        final g = positionalWindowGoals(
+          ctx: SequenceContext(
+            attackers: ours,
+            defenders: theirs,
+            side: 'ours',
+          ),
+          lambda: 1.3,
+          fromMinute: 0,
+          toMinute: 90,
+          out: out,
+          jitter: 0,
+        );
+        final recorded = out.where((e) => e.outcome == 'goal').length;
+        // Any difference is the Poisson overflow, which only capped shots make.
+        if (out.every((e) => (e.xg ?? 0) < shotCap)) {
+          expect(g, recorded, reason: 'match $i');
+        } else {
+          expect(g, greaterThanOrEqualTo(recorded));
+        }
+      }
+    });
+
+    test(
+      'attacks are spread across the window and never before minute one',
+      () {
+        seeded.setSeed(14);
+        final out = <PositionalEvent>[];
+        positionalWindowGoals(
+          ctx: SequenceContext(
+            attackers: ours,
+            defenders: theirs,
+            side: 'ours',
+          ),
+          lambda: 1.0,
+          fromMinute: 30,
+          toMinute: 60,
+          out: out,
+        );
+        expect(
+          out.map((e) => e.minute).reduce((a, b) => a < b ? a : b),
+          greaterThanOrEqualTo(30),
+        );
+        expect(
+          out.map((e) => e.minute).reduce((a, b) => a > b ? a : b),
+          lessThanOrEqualTo(60),
+        );
+        expect(out.map((e) => e.minute).toSet().length, greaterThan(5));
+        final full = <PositionalEvent>[];
+        positionalWindowGoals(
+          ctx: SequenceContext(
+            attackers: ours,
+            defenders: theirs,
+            side: 'ours',
+          ),
+          lambda: 1.0,
+          fromMinute: 0,
+          toMinute: 90,
+          out: full,
+        );
+        expect(full.first.minute, greaterThanOrEqualTo(1));
+      },
+    );
+
+    test(
+      'a window too short for an attack falls back to Poisson and records nothing',
+      () {
+        seeded.setSeed(15);
+        final out = <PositionalEvent>[];
+        var goals = 0;
+        for (var i = 0; i < 2000; i++) {
+          goals += positionalWindowGoals(
+            ctx: SequenceContext(
+              attackers: ours,
+              defenders: theirs,
+              side: 'ours',
+            ),
+            lambda: 0.5,
+            fromMinute: 89,
+            toMinute: 90,
+            out: out,
+          );
+        }
+        expect(out, isEmpty);
+        expect(goals / 2000, closeTo(0.5, 0.06));
+      },
+    );
+
+    test('an empty side falls back to Poisson at lambda', () {
+      seeded.setSeed(16);
+      final out = <PositionalEvent>[];
+      var goals = 0;
+      for (var i = 0; i < 2000; i++) {
+        goals += positionalWindowGoals(
+          ctx: SequenceContext(
+            attackers: PitchSide(const []),
+            defenders: theirs,
+            side: 'ours',
+          ),
+          lambda: 1.2,
+          fromMinute: 0,
+          toMinute: 90,
+          out: out,
+        );
+      }
+      expect(out, isEmpty);
+      expect(goals / 2000, closeTo(1.2, 0.08));
+    });
+
+    test('a negative or zero lambda scores nothing', () {
+      seeded.setSeed(17);
+      for (var i = 0; i < 50; i++) {
+        expect(
+          positionalWindowGoals(
+            ctx: SequenceContext(
+              attackers: ours,
+              defenders: theirs,
+              side: 'ours',
+            ),
+            lambda: 0,
+            fromMinute: 0,
+            toMinute: 90,
+            out: <PositionalEvent>[],
+          ),
+          0,
+        );
+      }
+    });
+  });
+
+  group('PositionalEvent.toMap', () {
+    test('writes the short keys and rounds xG to three places', () {
+      final e = PositionalEvent(
+        minute: 12,
+        zone: 7,
+        side: 'ours',
+        playerId: 'c1',
+        opponentId: 'ai:rb',
+        type: 'shot',
+        outcome: 'goal',
+        xg: 0.123456,
+      );
+      expect(e.toMap(), {
+        'm': 12,
+        'z': 7,
+        's': 'ours',
+        'p': 'c1',
+        'op': 'ai:rb',
+        't': 'shot',
+        'o': 'goal',
+        'xg': 0.123,
+      });
+      final d = PositionalEvent(
+        minute: 1,
+        zone: 0,
+        side: 'theirs',
+        playerId: 'x',
+        type: 'duel',
+        outcome: 'lose',
+      );
+      expect(d.toMap().containsKey('op'), isFalse);
+      expect(d.toMap().containsKey('xg'), isFalse);
     });
   });
 }

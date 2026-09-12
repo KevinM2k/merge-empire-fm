@@ -121,6 +121,25 @@ void main() {
   });
 
   group('the result is save-safe', () {
+    test('a played match carries its positional record, and it encodes', () {
+      for (final hardMode in [false, true]) {
+        seeded.setSeed(99);
+        final state = _state(hardMode: hardMode);
+        final result = simulateMatch(state, null);
+        final pos = result['positional'] as Map<String, dynamic>;
+        final ev = pos['ev'] as List;
+        expect(ev.length, greaterThan(40), reason: 'hardMode $hardMode');
+        expect(ev.any((e) => e['s'] == 'ours'), isTrue);
+        expect(ev.any((e) => e['s'] == 'theirs'), isTrue);
+        // Every goal the positional record shows is a goal on the scoreline;
+        // the difference, if any, is the Poisson overflow past the shot cap.
+        final goals = pos['goals'] as Map;
+        expect(goals['ours'], lessThanOrEqualTo(result['homeGoals'] as int));
+        expect(goals['theirs'], lessThanOrEqualTo(result['awayGoals'] as int));
+        expect(() => jsonEncode(result), returnsNormally);
+      }
+    });
+
     test('a finished, settled match encodes as JSON', () {
       // A cup win puts a result into the save, so anything on it that cannot be
       // encoded throws on the first save after the match rather than here.

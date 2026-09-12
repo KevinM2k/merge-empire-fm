@@ -155,6 +155,7 @@ CupTie? beginCupRound(Map<String, dynamic> state) {
     'injuredName': prepared.injuredName,
     'injuryCount': prepared.injuries.length,
     'isCup': true,
+    'positional': prepared.positional,
     'cupIsFinal': prepared.isFinal,
     'cupIsSemi': prepared.round == rounds - 2 && rounds >= 2,
     // Stored as a plain map, not the record: this result reaches the screen and
