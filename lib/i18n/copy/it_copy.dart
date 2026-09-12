@@ -465,4 +465,88 @@ const Map<String, String> itCopy = <String, String>{
   'commentary.thriller_loss': 'Cocente delusione in un thriller {us}–{them} contro {opp}. Abbiamo dato tutto — mancava solo il gol vittoria.|{us}–{them} contro il {opp}. Ce l\'abbiamo giocata fino all\'ultimo pallone, e ci è comunque sfuggita.|Niente di cui vergognarsi in {us}–{them}. Abbiamo fatto la nostra parte in una bella partita, e l\'abbiamo persa.|Questa farà male. {us}–{them}, e un solo episodio ha deciso l\'intero pomeriggio.|Abbiamo tenuto testa al {opp} ovunque tranne che sul risultato. {us}–{them}, e si torna al lavoro.',
   'commentary.thriller_win': 'Che partita! {us}–{them} contro {opp} — abbiamo vinto un classico per un soffio. Gare così riempiono gli stadi.|{us}–{them}. Ho invecchiato di dieci anni a guardarla, e la rifarei la settimana prossima.|Abbiamo vinto una vera partita di calcio, {us}–{them}. Il {opp} ci ha messo in difficoltà fino alla fine.|Valeva da sola il prezzo del biglietto. {us}–{them} contro il {opp}, e siamo usciti dalla parte giusta.|{us}–{them}! Non chiedetemi come, ma abbiamo trovato quello che contava.',
 
+  // ── Copy the generated catalogue never caught up on ──────────────────────
+  //
+  // Reported from a live save in Italian: whole screens still in English. The
+  // subs panel, the difficulty switch, the tutorial's loan spell, two coach
+  // tips, the champions card and the Iron Lungs trait were added to `en.js`
+  // and never translated, so `locales/*.g.dart` carries the ENGLISH sentence
+  // in all nine — which `t()` cannot detect, because the key resolves.
+  //
+  // And `game.training.intro` called the ball a BUBBLE. It is a football in
+  // `keeper_view.dart` and has been since the scene was ported; every locale
+  // translated the word faithfully, so the Italian read "bolle" over a picture
+  // of a ball. Fixed in `en_copy.dart` first, then here.
+  'match.subs': 'Cambi',
+  'match.subs.done': 'Torna alla partita',
+  'match.subs.on_pitch': 'In campo',
+  'match.subs.bench': 'Panchina',
+  'match.subs.empty_bench': 'Nessun giocatore in panchina.',
+  'match.subs.empty_slot': 'Vuoto',
+  'match.subs.pick_off': 'Tocca un giocatore da sostituire.',
+  'match.subs.pick_on':
+      'Tocca un giocatore in panchina da far entrare (verde = ruolo migliore).',
+  'match.subs.none_left': 'Non hai più sostituzioni.',
+  'match.subs.feed': 'Esce {off}, entra {on}.',
+  'match.subs.feed_on': 'Entra {on}.',
+  'difficulty.switch.toHard':
+      'Modalità Pro: ogni giocatore si stanca durante la partita — gestisci '
+      'l\'energia della rosa e ruota la panchina per tenere le gambe fresche. '
+      'Posso aiutarti a scegliere gli undici più freschi, ma sulle tattiche '
+      'resterò in silenzio. Cambiare modalità fa ripartire tutto da capo.',
+  'difficulty.switch.toEasy':
+      'Modalità Casual: nessuna fatica per i giocatori, quindi la panchina '
+      'serve solo per cambi tattici e infortuni. Tornano la scelta automatica e '
+      'i consigli del mister. Cambiare modalità fa ripartire tutto da capo.',
+  'tut.loan_boost.title': '⭐ Arrivano le stelle in prestito!',
+  'tut.loan_boost.body':
+      'Ho chiesto qualche favore… dei <strong>giocatori top</strong> hanno '
+      'accettato di unirsi a noi per la tua prima partita! Se ne andranno '
+      'subito dopo, ma tanto vale sfruttarli al massimo!',
+  'tut.loan_boost.btn': 'Vedi la mia rosa →',
+  'tut.loan_depart.title': 'Ora costruiamo la nostra squadra',
+  'tut.loan_depart.body':
+      'Le stelle in prestito se ne sono andate, ma hanno dimostrato che '
+      'possiamo competere. Ora costruiamo qualcosa di <strong>nostro</strong>. '
+      'Ecco <strong>500 monete</strong> per iniziare. Mi trovi in basso a '
+      'sinistra ogni volta che ho un consiglio.',
+  'tut.loan_depart.btn': 'Costruiamo! →',
+  'ach.cat.hardmode': 'Modalità Pro',
+  'coachtip.subs_bench.title': 'Hai una panchina',
+  'coachtip.subs_bench.body':
+      'Tocca Cambi durante la partita per aprire la panchina: hai 5 '
+      'sostituzioni a match e il cronometro si ferma mentre scegli. Ora ci '
+      'passano anche gli infortuni: quando qualcuno cade, la sua maglia esce '
+      'dal campo e il posto resta vuoto finché non fai entrare un sostituto, '
+      'quindi non lasciarlo lì.',
+  'coachtip.try_hard_mode.title': 'Ti va una sfida?',
+  'coachtip.try_hard_mode.body':
+      'Hai fatto tanta strada, mister. Pronto per la Modalità Pro? I giocatori '
+      'si stancano durante la partita, quindi ruotare la rosa e usare la '
+      'panchina conta davvero — tocca Auto e ti schiero gli undici regolari più '
+      'freschi — e sulle tattiche resterò in silenzio. Si riparte con una '
+      'squadra nuova: solo se te la senti.',
+  'coachtip.try_hard_mode.cta': 'Apri Impostazioni',
+  'coach.match.tired': '{name} è esausto — fai entrare un giocatore fresco!',
+  'toast.energy_refilled': 'Energia della rosa ricaricata!',
+  'toast.no_fit_players':
+      'Non ci sono abbastanza giocatori in condizione — falli riposare o guarda '
+      'un annuncio per ricaricare.',
+  'trait.name.iron_lungs': 'Polmoni d\'acciaio',
+  'trait.desc.iron_lungs':
+      'Motore instancabile — consuma energia più lentamente durante le partite '
+      '(Modalità Pro)',
+  'champ.title': 'CAMPIONI!',
+  'champ.subtitle': 'Champions League conquistata',
+  'champ.body':
+      'Hai conquistato ogni divisione e superato tutti i rivali. Sei da solo in '
+      'cima: il più grande allenatore del mondo.',
+  'champ.prestige_teaser':
+      'Azzera tutto e risali dalla Lega Domenicale con un <strong>bonus '
+      'permanente ×{mult} sulle entrate</strong>. I traguardi della tua '
+      'carriera restano tuoi per sempre.',
+  'champ.new_adventure': '🌟 Inizia una nuova avventura',
+  'champ.defend': '⚽ Difendi il titolo',
+  'game.training.intro':
+      'Tocca {n} tiri mentre arrivano. Hai {secs}s per esercizio.',
 };

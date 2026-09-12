@@ -449,4 +449,87 @@ const Map<String, String> ptCopy = <String, String>{
   'commentary.thriller_loss': 'Dor de cabeça num jogo {us}–{them} contra {opp}. Demos tudo — só faltou o gol da vitória.|{us}–{them} contra o {opp}. Estivemos nessa até o último lance e mesmo assim escapou.|Não há vergonha nenhuma em {us}–{them}. Fizemos nossa parte num bom jogo e perdemos.|Essa vai doer. {us}–{them}, e um único lance decidiu a tarde inteira.|Empatamos com o {opp} em tudo, menos no placar. {us}–{them}, e de volta ao trabalho.',
   'commentary.thriller_win': 'Que jogo! {us}–{them} contra {opp} — vencemos um clássico por pouco. Jogos assim lotam estádios.|{us}–{them}. Envelheci dez anos vendo isso, e faria tudo de novo semana que vem.|Ganhamos um jogo e tanto ali, {us}–{them}. O {opp} deu tudo de si.|Só isso já valeu o ingresso. {us}–{them} contra o {opp}, e ficamos do lado certo do resultado.|{us}–{them}! Não me perguntem como, mas achamos o gol que importava.',
 
+  // ── Copy the generated catalogue never caught up on ──────────────────────
+  //
+  // Reported from a live save in Italian: whole screens still in English. The
+  // subs panel, the difficulty switch, the tutorial's loan spell, two coach
+  // tips, the champions card and the Iron Lungs trait were added to `en.js`
+  // and never translated, so `locales/*.g.dart` carries the ENGLISH sentence
+  // in all nine — which `t()` cannot detect, because the key resolves.
+  //
+  // And `game.training.intro` called the ball a BUBBLE. It is a football in
+  // `keeper_view.dart` and has been since the scene was ported; every locale
+  // translated the word faithfully, so the Italian read "bolle" over a picture
+  // of a ball. Fixed in `en_copy.dart` first, then here.
+  'match.subs': 'Subst.',
+  'match.subs.done': 'Voltar à partida',
+  'match.subs.on_pitch': 'Em campo',
+  'match.subs.bench': 'Banco',
+  'match.subs.empty_bench': 'Nenhum jogador no banco.',
+  'match.subs.empty_slot': 'Vazio',
+  'match.subs.pick_off': 'Toque em um jogador para substituí-lo.',
+  'match.subs.pick_on':
+      'Toque em um jogador do banco para entrar (verde = melhor posição).',
+  'match.subs.none_left': 'Não restam substituições.',
+  'match.subs.feed': 'Sai {off}, entra {on}.',
+  'match.subs.feed_on': 'Entra {on}.',
+  'difficulty.switch.toHard':
+      'Modo Pro: todos os jogadores se cansam durante a partida — cuide da '
+      'energia do elenco e rode o banco para manter as pernas frescas. Posso '
+      'ajudar a escolher os onze mais descansados, mas fico calado sobre '
+      'táticas. Mudar de modo faz você recomeçar do zero.',
+  'difficulty.switch.toEasy':
+      'Modo Casual: sem fadiga, então o banco serve apenas para trocas táticas '
+      'e lesões. A escalação automática e as dicas do treinador voltam. Mudar '
+      'de modo faz você recomeçar do zero.',
+  'tut.loan_boost.title': '⭐ Chegam estrelas emprestadas!',
+  'tut.loan_boost.body':
+      'Puxei alguns cordões… <strong>jogadores de primeira linha</strong> '
+      'aceitaram se juntar a nós na sua primeira partida! Eles saem logo depois '
+      '— mas vamos aproveitar ao máximo!',
+  'tut.loan_boost.btn': 'Ver meu elenco →',
+  'tut.loan_depart.title': 'Agora vamos construir nosso time',
+  'tut.loan_depart.body':
+      'As estrelas emprestadas foram embora — mas provaram que temos como '
+      'competir. Agora vamos construir algo <strong>nosso</strong>. Aqui estão '
+      '<strong>500 moedas</strong> para começar. Estarei no canto inferior '
+      'esquerdo sempre que eu tiver um conselho.',
+  'tut.loan_depart.btn': 'Vamos construir! →',
+  'ach.cat.hardmode': 'Modo Pro',
+  'coachtip.subs_bench.title': 'Você tem um banco',
+  'coachtip.subs_bench.body':
+      'Toque em Subst. durante a partida para abrir o banco: você tem 5 trocas '
+      'por jogo e o relógio para enquanto você escolhe. As lesões passam por aí '
+      'agora: quando alguém cai, a camisa sai de campo e o lugar fica vazio até '
+      'você colocar um substituto, então não o deixe assim.',
+  'coachtip.try_hard_mode.title': 'Que tal um desafio?',
+  'coachtip.try_hard_mode.body':
+      'Você já percorreu um longo caminho, chefe. Pronto para o Modo Pro? Os '
+      'jogadores se cansam durante a partida, então rodar o elenco e usar o '
+      'banco conta de verdade — toque em Auto e eu escalo os onze mais '
+      'descansados dentro das regras — e fico calado sobre táticas. Começa um '
+      'time novo: só se você estiver a fim.',
+  'coachtip.try_hard_mode.cta': 'Abrir Configurações',
+  'coach.match.tired': '{name} está exausto — coloque um jogador descansado!',
+  'toast.energy_refilled': 'Energia do elenco recarregada!',
+  'toast.no_fit_players':
+      'Não há jogadores suficientes em condições — descanse-os ou assista a um '
+      'anúncio para recarregar.',
+  'trait.name.iron_lungs': 'Pulmões de aço',
+  'trait.desc.iron_lungs':
+      'Motor incansável — gasta energia mais devagar durante as partidas (Modo '
+      'Pro)',
+  'champ.title': 'CAMPEÕES!',
+  'champ.subtitle': 'Liga dos Campeões conquistada',
+  'champ.body':
+      'Você conquistou todas as divisões e superou todos os rivais. Está '
+      'sozinho no topo, como o maior treinador do mundo.',
+  'champ.prestige_teaser':
+      'Recomece e suba de novo desde a Liga Dominical com um <strong>bônus de '
+      'renda ×{mult} permanente</strong>. As conquistas da sua carreira ficam '
+      'com você para sempre.',
+  'champ.new_adventure': '🌟 Começar nova aventura',
+  'champ.defend': '⚽ Defender o título',
+  'game.training.intro':
+      'Toque em {n} chutes conforme eles chegam. Você tem {secs}s por treino.',
 };

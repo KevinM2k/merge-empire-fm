@@ -385,4 +385,53 @@ const Map<String, String> jaCopy = <String, String>{
   'commentary.thriller_loss': '{us}–{them}の打ち合いで{opp}に痛恨負け。互角だったが決勝点が出なかった。|{opp}との{us}–{them}。最後の一蹴りまでチャンスはあったが、それでも逃した。|{us}–{them}、恥じることは何もない。良い試合の一端を担って、それでも負けた。|これは痛い。{us}–{them}、たった一つの瞬間がこの試合を決めた。|スコア以外では{opp}と互角だった。{us}–{them}、また練習に戻ろう。',
   'commentary.thriller_win': 'すごい試合だ！{us}–{them}で{opp}に辛勝。こんな試合がスタジアムを埋める。|{us}–{them}。見ているだけで10歳老け込んだ、それでも来週またやりたい。|本物のフットボールの試合を制した、{us}–{them}。{opp}はすべてを出し切ってきた。|あれだけでチケット代の価値がある。{opp}との{us}–{them}、こちらが勝ち切った。|{us}–{them}！どうやってかは聞かないでくれ、大事な一本を見つけた。',
 
+  // ── Copy the generated catalogue never caught up on ──────────────────────
+  //
+  // Reported from a live save in Italian: whole screens still in English. The
+  // subs panel, the difficulty switch, the tutorial's loan spell, two coach
+  // tips, the champions card and the Iron Lungs trait were added to `en.js`
+  // and never translated, so `locales/*.g.dart` carries the ENGLISH sentence
+  // in all nine — which `t()` cannot detect, because the key resolves.
+  //
+  // And `game.training.intro` called the ball a BUBBLE. It is a football in
+  // `keeper_view.dart` and has been since the scene was ported; every locale
+  // translated the word faithfully, so the Italian read "bolle" over a picture
+  // of a ball. Fixed in `en_copy.dart` first, then here.
+  'match.subs': '交代',
+  'match.subs.done': '試合に戻る',
+  'match.subs.on_pitch': 'ピッチ上',
+  'match.subs.bench': 'ベンチ',
+  'match.subs.empty_bench': 'ベンチに選手がいません。',
+  'match.subs.empty_slot': '空き',
+  'match.subs.pick_off': '交代させる選手をタップ。',
+  'match.subs.pick_on': 'ベンチから投入する選手をタップ（緑＝最適ポジション）。',
+  'match.subs.none_left': '交代枠が残っていません。',
+  'match.subs.feed': '{off}に代わって{on}が入ります。',
+  'match.subs.feed_on': '{on}が投入されます。',
+  'difficulty.switch.toHard': 'プロモード：試合中に全選手が消耗します。スカッドのエナジーを管理し、ベンチを回して脚を休ませましょう。最もフレッシュな11人選びは手伝いますが、戦術には口を出しません。切り替えると最初からやり直しになります。',
+  'difficulty.switch.toEasy': 'カジュアルモード：選手は消耗しないので、ベンチは戦術的な交代と負傷対応のためだけに使います。自動選出とコーチのアドバイスが復活します。切り替えると最初からやり直しになります。',
+  'tut.loan_boost.title': '⭐ レンタルのスターが到着！',
+  'tut.loan_boost.body': '少しばかりコネを使いました…<strong>トップ選手</strong>たちが初戦だけ加わってくれます！すぐに去ってしまいますが、思いきり活かしましょう！',
+  'tut.loan_boost.btn': 'スカッドを見る →',
+  'tut.loan_depart.title': 'さあ、自分たちのチームを作ろう',
+  'tut.loan_depart.body': 'レンタルのスターたちは去りました。でも、私たちが戦えることは証明されました。今度は<strong>自分たちの</strong>チームを作りましょう。手始めに<strong>500コイン</strong>です。助言があるときは左下にいます。',
+  'tut.loan_depart.btn': 'さあ作ろう！ →',
+  'ach.cat.hardmode': 'プロモード',
+  'coachtip.subs_bench.title': 'ベンチがあります',
+  'coachtip.subs_bench.body': '試合中に「交代」をタップするとベンチが開きます。1試合5回まで交代でき、選んでいる間は時計が止まります。負傷もここで扱います：誰かが倒れるとそのシャツはピッチから消え、代わりを入れるまで空いたままです。放っておかないように。',
+  'coachtip.try_hard_mode.title': '腕試しはいかがです？',
+  'coachtip.try_hard_mode.body': 'ここまでよく来ましたね、ボス。プロモードの準備はいいですか？試合中に選手は消耗するので、ローテーションとベンチの使い方が本当に効いてきます。「オート」を押せば、規定を満たす中で最もフレッシュな11人を選びます。戦術には口を出しません。新しいチームで一からです。その気があるなら、どうぞ。',
+  'coachtip.try_hard_mode.cta': '設定を開く',
+  'coach.match.tired': '{name}はバテています。フレッシュな選手を入れましょう！',
+  'toast.energy_refilled': 'スカッドのエナジーが回復しました！',
+  'toast.no_fit_players': '出場できる選手が足りません。休ませるか、広告を見てエナジーを回復しましょう。',
+  'trait.name.iron_lungs': '鉄の肺',
+  'trait.desc.iron_lungs': '無尽蔵のスタミナ — 試合中のエナジー消費が遅い（プロモード）',
+  'champ.title': 'チャンピオン！',
+  'champ.subtitle': 'チャンピオンズリーグ制覇',
+  'champ.body': 'すべてのディビジョンを制し、すべてのライバルを超えました。あなたは世界最高の監督として、ただひとり頂点に立っています。',
+  'champ.prestige_teaser': 'リセットしてサンデーリーグからもう一度。<strong>収入×{mult}の永続ボーナス</strong>付きです。キャリアの実績は永遠に残ります。',
+  'champ.new_adventure': '🌟 新しい冒険を始める',
+  'champ.defend': '⚽ タイトルを防衛する',
+  'game.training.intro': '飛んでくる{n}本のシュートをタップ。ドリルごとに{secs}秒。',
 };

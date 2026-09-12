@@ -889,4 +889,20 @@ const Map<String, String> enCopy = <String, String>{
       'Short of energy or coins? The {tab} tab has packs and boosts when you '
       'need them.',
 
+  // ── The keeper's drill was throwing BUBBLES ─────────────────────────────
+  //
+  // `keeper_view.dart` draws a football growing out of the goalmouth and has
+  // since the scene was ported — "the ball still appears where it appears and
+  // still grows in place" is its own comment — while this line called the
+  // thing a bubble. Nine catalogues then translated the word faithfully, so an
+  // Italian player read "bolle di allenamento" over a picture of a ball and
+  // reported it as a mistranslation. It was not: the English was wrong and the
+  // translations were right about it.
+  //
+  // Both placeholders are kept — `{n}` is the count the schedule PROMISES (see
+  // `goalkeeper_practice_screen.dart`) and `{secs}` is the tap window — so the
+  // nine overlays beside this one carry the same pair.
+  'game.training.intro':
+      'Tap {n} shots as they come in. You have {secs}s per drill.',
+
 };

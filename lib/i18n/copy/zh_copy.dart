@@ -338,4 +338,53 @@ const Map<String, String> zhCopy = <String, String>{
   'commentary.thriller_loss': '{us}–{them} 大战 {opp} 痛失好局。我们打得不差——就差一记制胜球。|{us}–{them}负于{opp}。我们坚持到了最后一脚，还是功亏一篑。|{us}–{them}，没什么好惭愧的。我们在一场精彩比赛里尽了力，只是输了。|这场失利会很痛。{us}–{them}，一个瞬间就决定了整个下午。|除了比分，我们各项都不输给{opp}。{us}–{them}，回去继续努力。',
   'commentary.thriller_win': '精彩比赛！{us}–{them} 险胜 {opp}。这样的比赛能让球场座无虚席。|{us}–{them}。看这场比赛我老了十岁，但下周还想再来一次。|{us}–{them}，我们赢下了一场真正的足球比赛。{opp}拼尽了全力。|光凭这场比赛就值回票价。{us}–{them}力克{opp}，我们笑到了最后。|{us}–{them}！别问我是怎么做到的，反正我们找到了那记制胜球。',
 
+  // ── Copy the generated catalogue never caught up on ──────────────────────
+  //
+  // Reported from a live save in Italian: whole screens still in English. The
+  // subs panel, the difficulty switch, the tutorial's loan spell, two coach
+  // tips, the champions card and the Iron Lungs trait were added to `en.js`
+  // and never translated, so `locales/*.g.dart` carries the ENGLISH sentence
+  // in all nine — which `t()` cannot detect, because the key resolves.
+  //
+  // And `game.training.intro` called the ball a BUBBLE. It is a football in
+  // `keeper_view.dart` and has been since the scene was ported; every locale
+  // translated the word faithfully, so the Italian read "bolle" over a picture
+  // of a ball. Fixed in `en_copy.dart` first, then here.
+  'match.subs': '换人',
+  'match.subs.done': '返回比赛',
+  'match.subs.on_pitch': '场上',
+  'match.subs.bench': '替补席',
+  'match.subs.empty_bench': '替补席上没有球员。',
+  'match.subs.empty_slot': '空位',
+  'match.subs.pick_off': '点击要换下的球员。',
+  'match.subs.pick_on': '点击要换上的替补球员（绿色＝最佳位置）。',
+  'match.subs.none_left': '没有剩余换人名额。',
+  'match.subs.feed': '{off}下场，{on}上场。',
+  'match.subs.feed_on': '{on}替补登场。',
+  'difficulty.switch.toHard': '职业模式：每名球员都会在比赛中疲劳——管理阵容体力，轮换替补，保持双腿新鲜。我可以帮你挑出体力最好的十一人，但战术上我不会多嘴。切换模式会让你从头开始。',
+  'difficulty.switch.toEasy': '休闲模式：球员不会疲劳，替补席只用于战术换人和伤病。自动选人和教练提示会回归。切换模式会让你从头开始。',
+  'tut.loan_boost.title': '⭐ 租借球星驾到！',
+  'tut.loan_boost.body': '我动用了一些人情……<strong>顶级球员</strong>答应为你的首场比赛出战！赛后他们马上就走——所以要好好把握！',
+  'tut.loan_boost.btn': '查看我的阵容 →',
+  'tut.loan_depart.title': '现在来打造我们自己的球队',
+  'tut.loan_depart.body': '租借球星走了——但他们证明了我们能够竞争。现在来打造<strong>属于我们</strong>的球队。这里有<strong>500 金币</strong>作为起步。有建议时，我会在左下角。',
+  'tut.loan_depart.btn': '开始打造！ →',
+  'ach.cat.hardmode': '职业模式',
+  'coachtip.subs_bench.title': '你有替补席',
+  'coachtip.subs_bench.body': '比赛中点击“换人”即可打开替补席——每场 5 个换人名额，挑选时计时暂停。现在伤病也走这里：有人倒下时，他的球衣会离开球场，位置会一直空着，直到你换人为止，所以别不管他。',
+  'coachtip.try_hard_mode.title': '想来点挑战吗？',
+  'coachtip.try_hard_mode.body': '老板，你已经走了很远了。准备好进入职业模式了吗？球员在比赛中会疲劳，所以轮换阵容、用好替补是真的有用——点击“自动”，我会为你排出体力最好的合规十一人——战术上我不会多嘴。这会从一支全新球队开始：想好了再来。',
+  'coachtip.try_hard_mode.cta': '打开设置',
+  'coach.match.tired': '{name}体力透支了——换个生力军上场！',
+  'toast.energy_refilled': '阵容体力已恢复！',
+  'toast.no_fit_players': '可出场的球员不足——让他们休息，或观看广告恢复体力。',
+  'trait.name.iron_lungs': '铁肺',
+  'trait.desc.iron_lungs': '不知疲倦的引擎——比赛中体力消耗更慢（职业模式）',
+  'champ.title': '冠军！',
+  'champ.subtitle': '征服冠军联赛',
+  'champ.body': '你征服了每一个级别，压倒了所有对手。你独自站在顶端，是世界上最伟大的主帅。',
+  'champ.prestige_teaser': '重置后从周日联赛重新攀升，并获得永久的<strong>×{mult} 收入加成</strong>。你的生涯成就将永远保留。',
+  'champ.new_adventure': '🌟 开始新征程',
+  'champ.defend': '⚽ 卫冕冠军',
+  'game.training.intro': '在{n}次射门飞来时点击。每个训练有{secs}秒。',
 };
