@@ -287,25 +287,23 @@ const int attacksPerMatch = 34;
 /// Duels an attack may take before it fizzles. Band 2 to a shot is three.
 const int maxSequenceSteps = 4;
 
-/// Chance a won duel also carries the ball a lane across.
+/// Prior chance a won duel carries the ball a lane across rather than
+/// straight on, before the attackers ahead pull it — see [laneAttraction].
 const double laneSwitchChance = 0.35;
+
+/// How far the ball goes where the attackers are, 0..1.
+///
+/// After a won duel the next zone is one of three — straight on or a lane
+/// either side — and the prior above is bent by the carrier weight waiting in
+/// each: at 1 a lane with twice the mean attacking presence is twice as likely,
+/// at 0 the lane is a coin flip. This is the mechanism by which a star winger
+/// pulls his side's play down his flank rather than merely finishing what
+/// arrives there; `positional_balance_test` asserts the shift.
+const double laneAttraction = 1.0;
 
 /// No single shot is ever a certainty. λ past what the shots can carry is
 /// rolled as plain Poisson on top — see [calibrateShots].
 const double shotCap = 0.95;
-
-/// Half-width of the mean-one factor each window's λ is multiplied by before
-/// the shots are rolled.
-///
-/// A handful of Bernoullis is UNDER-dispersed against a Poisson of the same
-/// mean — the same 1.27 expected goals came out as 30% draws where the Poisson
-/// gave 27% — so the calibration bridge alone would have made the game
-/// drawier than the goal model says. Spreading λ by a uniform factor on
-/// `[1 − j, 1 + j]` keeps the expectation exactly λ and puts the variance
-/// back; the width is set where `positional_balance_test` measures the draw
-/// rate back at the Poisson's. A run of play rather than a dice roll: some
-/// afternoons everything goes in.
-const double calibrationJitter = 0.7;
 
 /// How much the other defenders in a zone stiffen the one who meets the ball.
 /// **Zero until Phase 7**: the hook is here so turning it on is a constant and
@@ -419,7 +417,7 @@ double rawShotXg(int zone, PitchPlayer shooter) =>
 /// Returns the shot it ended in, or null for a turnover, a block or a fizzle.
 ///
 /// Draw order per attack: start zone, carrier, then per step the defender,
-/// the duel, and after a won duel outside the shot band the lane switch and
+/// the duel, and after a won duel outside the shot band the next zone and
 /// the next carrier. Nothing else in the match may draw between them.
 Shot? runSequence(SequenceContext ctx, int minute, List<PositionalEvent> out) {
   final startIdx = weightedIndex(startZoneWeights(ctx), seeded.random());
@@ -465,17 +463,71 @@ Shot? runSequence(SequenceContext ctx, int minute, List<PositionalEvent> out) {
     );
     if (!won) return null;
 
-    var lane = zoneLane(zone);
-    final r = seeded.random();
-    if (r < laneSwitchChance / 2) {
-      lane = math.max(0, lane - 1);
-    } else if (r < laneSwitchChance) {
-      lane = math.min(pitchLanes - 1, lane + 1);
-    }
-    zone = zoneIndex(lane, zoneBand(zone) + (ctx.towardZero ? -1 : 1));
+    zone = nextZone(ctx, zone, seeded.random());
     carrier = pickCarrier(ctx.attackers, zone, seeded.random()) ?? carrier;
   }
   return null;
+}
+
+/// Where a won duel takes the ball: the next band toward goal, in this lane or
+/// a neighbour, weighted by the prior and by who is waiting there.
+///
+/// The three candidate lanes are clamped onto the grid, so at the touchline
+/// the "outside" option folds onto the same lane rather than vanishing. One
+/// roll.
+int nextZone(SequenceContext ctx, int zone, double roll) {
+  final lane = zoneLane(zone);
+  final band = zoneBand(zone) + (ctx.towardZero ? -1 : 1);
+  final prior = <int, double>{};
+  for (final (l, w) in [
+    (lane - 1, laneSwitchChance / 2),
+    (lane, 1 - laneSwitchChance),
+    (lane + 1, laneSwitchChance / 2),
+  ]) {
+    final c = l.clamp(0, pitchLanes - 1);
+    prior[c] = (prior[c] ?? 0) + w;
+  }
+  final lanes = prior.keys.toList();
+  final pull = <double>[
+    for (final l in lanes)
+      carrierWeights(
+        ctx.attackers,
+        zoneIndex(l, band),
+      ).fold(0.0, (a, b) => a + b),
+  ];
+  final mean = pull.fold(0.0, (a, b) => a + b) / lanes.length;
+  final weights = <double>[
+    for (var i = 0; i < lanes.length; i++)
+      prior[lanes[i]]! *
+          (mean > 0 ? 1 - laneAttraction + laneAttraction * pull[i] / mean : 1),
+  ];
+  final pick = weightedIndex(weights, roll) ?? lanes.indexOf(lane);
+  return zoneIndex(lanes[pick], band);
+}
+
+/// Half-width of the mean-one factor a window's λ is spread by before the
+/// shots are rolled, from the shots themselves.
+///
+/// A handful of Bernoullis is UNDER-dispersed against a Poisson of the same
+/// mean — the same 1.27 expected goals came out as 30% draws where the Poisson
+/// gave 27% — so the calibration bridge alone would have made the game
+/// drawier than the goal model says, and by an amount that depends on how
+/// many shots there were. Multiplying λ by a uniform factor on `[1 − j, 1 + j]`
+/// keeps the expectation exactly λ and adds `λ² j² / 3` of variance; the
+/// Poisson-binomial is short by `Σp²`, so `j² / 3 = Σp² / (λ² − Σp²)` puts it
+/// back exactly, at every λ and every shot count. A fixed width was tried
+/// first and matched only near 1.3 goals — a favourite at three expected goals
+/// was being spread far too wide and dropping points to it. Clamped so the
+/// factor cannot go negative. A run of play rather than a dice roll: some
+/// afternoons everything goes in.
+double calibrationSpread(List<double> probabilities, double lambda) {
+  var sumSq = 0.0;
+  for (final p in probabilities) {
+    sumSq += p * p;
+  }
+  final room = lambda * lambda - sumSq;
+  if (room <= 0) return 1;
+  return math.min(1.0, math.sqrt(3 * sumSq / room));
 }
 
 /// Scale raw xG so the shots' probabilities sum to [lambda], no shot above
@@ -525,8 +577,9 @@ Shot? runSequence(SequenceContext ctx, int minute, List<PositionalEvent> out) {
 /// Poisson sampler used to be handed. Attacks are spread evenly across the
 /// minutes; with nobody to attack or nobody to defend, or a window too short
 /// for a single attack, it falls back to `poissonGoals(lambda)` and records
-/// nothing, so the expectation is λ in every case. [jitter] is
-/// [calibrationJitter]; a test passes zero to see the shots sum to λ exactly.
+/// nothing, so the expectation is λ in every case. [jitter] scales the
+/// Poisson-matching spread — one is the game, zero lets a test see the shots
+/// sum to λ exactly.
 int positionalWindowGoals({
   required SequenceContext ctx,
   required double lambda,
@@ -534,7 +587,7 @@ int positionalWindowGoals({
   required double toMinute,
   required List<PositionalEvent> out,
   double fullMatchMinutes = 90,
-  double jitter = calibrationJitter,
+  double jitter = 1,
 }) {
   final lam = math.max(0.0, lambda);
   final span = toMinute - fromMinute;
@@ -558,9 +611,16 @@ int positionalWindowGoals({
   }
   if (shots.isEmpty) return poissonGoals(lam);
 
-  // Drawn AFTER the attacks and before the shots, once per side per window.
-  final spread = jitter <= 0 ? 1.0 : 1 + jitter * (2 * seeded.random() - 1);
-  final cal = calibrateShots([for (final s in shots) s.rawXg], lam * spread);
+  // Drawn AFTER the attacks and before the shots, once per side per window,
+  // at the width these shots need — see [calibrationSpread].
+  final raw = [for (final s in shots) s.rawXg];
+  final base = calibrateShots(raw, lam);
+  final width = jitter <= 0
+      ? 0.0
+      : jitter * calibrationSpread(base.probabilities, lam);
+  final cal = width <= 0
+      ? base
+      : calibrateShots(raw, lam * (1 + width * (2 * seeded.random() - 1)));
   var goals = 0;
   for (var i = 0; i < shots.length; i++) {
     final p = cal.probabilities[i];

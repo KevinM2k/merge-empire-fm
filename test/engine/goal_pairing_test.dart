@@ -32,6 +32,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:merge_empire_fc/engine/attack_sequence.dart';
 import 'package:merge_empire_fc/engine/cup_engine.dart';
 import 'package:merge_empire_fc/engine/goal_model.dart';
 import 'package:merge_empire_fc/engine/league_pyramid.dart';
@@ -394,6 +395,47 @@ void main() {
         greaterThan(defensive.them + 0.2),
         reason: 'and must cost us at the back',
       );
+    });
+  });
+
+  group('the positional duel is our ATK against their DEF', () {
+    // The samplers above prove the λ each side is handed is paired the right
+    // way round. The sequence underneath has its own pairing — the carrier's
+    // ATTACK against the defender's DEFENCE — and the same partial derivative
+    // pins it: raise OUR attack and only OUR shots rise; raise THEIR defence
+    // and only OUR shots fall. Their shots are their λ's business.
+    int shotsFor(String side, {double ourAtk = 70, double theirDef = 70}) {
+      seeded.setSeed(4242);
+      final us = pitchSideForAi(70, '4-3-3', mirrored: false)
+          .scaledToTeam(attack: ourAtk, defence: 70);
+      final them = pitchSideForAi(70, '4-4-2')
+          .scaledToTeam(attack: 70, defence: theirDef);
+      final out = <PositionalEvent>[];
+      for (var i = 0; i < 600; i++) {
+        positionalWindowGoals(
+          ctx: side == 'ours'
+              ? SequenceContext(attackers: us, defenders: them, side: 'ours')
+              : SequenceContext(attackers: them, defenders: us, side: 'theirs'),
+          lambda: 1.35,
+          fromMinute: 0,
+          toMinute: 90,
+          out: out,
+        );
+      }
+      return out.where((e) => e.type == 'shot' && e.outcome != 'blocked').length;
+    }
+
+    test('raising our attack raises our shots and not theirs', () {
+      final base = shotsFor('ours');
+      expect(shotsFor('ours', ourAtk: 90), greaterThan(base * 1.15));
+      // Their attack against our unchanged defence: same draws, same shots.
+      expect(shotsFor('theirs', ourAtk: 90), shotsFor('theirs'));
+    });
+
+    test('raising their defence lowers our shots and not theirs', () {
+      final base = shotsFor('ours');
+      expect(shotsFor('ours', theirDef: 90), lessThan(base * 0.85));
+      expect(shotsFor('theirs', theirDef: 90), shotsFor('theirs'));
     });
   });
 }

@@ -85,79 +85,12 @@ for (const [label, seed, div] of [
   };
 }
 
-// ── A whole run, round by round ─────────────────────────────────────────────
-for (const [label, seed, div, hardMode] of [
-  ['runA', 31337, 'regional_league', false],
-  ['runB', 555, 'champions_cup', false],
-  ['runPro', 8080, 'elite_league', true],
-  ['runWinner', 7, 'regional_league', false],
-]) {
-  rng.setSeed(seed);
-  let state = baseState({ currentDivision: div });
-  if (label === 'runWinner') state = withStrongSquad(state);
-  state.settings.hardMode = hardMode;
-  ce.startCup(state);
-
-  const rounds = [];
-  for (let i = 0; i < 5; i++) {
-    const prepared = ce.prepareCupRound(state);
-    if (!prepared) break;
-    const sponsorDrop = ce.commitCupRound(state, prepared.won, prepared);
-    rounds.push({
-      prepared: {
-        cupId: prepared.cupId, round: prepared.round,
-        roundName: prepared.roundName, opponentName: prepared.opponentName,
-        won: prepared.won, homeGoals: prepared.homeGoals,
-        awayGoals: prepared.awayGoals, earned: prepared.earned,
-        squadRating: prepared.squadRating, opponentRating: prepared.opponentRating,
-        ourAttackRating: prepared.ourAttackRating,
-        ourDefenceRating: prepared.ourDefenceRating,
-        effOppAttackRating: prepared.effOppAttackRating,
-        effOppDefenceRating: prepared.effOppDefenceRating,
-        isFinal: prepared.isFinal,
-        penaltyShootout: prepared.penaltyShootout
-          ? {
-              playerWins: prepared.penaltyShootout.playerWins,
-              homeScore: prepared.penaltyShootout.homeScore,
-              awayScore: prepared.penaltyShootout.awayScore,
-              kicks: prepared.penaltyShootout.kicks.length,
-            }
-          : null,
-        injuries: prepared.injuries.map((i) => ({ iid: i.iid, minute: i.minute })),
-      },
-      sponsorDrop: sponsorDrop
-        ? { kind: sponsorDrop.kind, cellIdx: sponsorDrop.cellIdx,
-            sponsorData: sponsorDrop.sponsorData }
-        : null,
-      coins: state.resources.fanCoins,
-      activeRound: state.progression.cups.active?.round ?? null,
-    });
-    if (!state.progression.cups.active) break;
-  }
-
-  out[label] = {
-    rounds,
-    history: stripTimes(clone(state.progression.cups.history)),
-    gems: state.resources.gems,
-    careerStats: clone(state.careerStats),
-    cupLooksWon: clone(state.club.cupLooksWon ?? []),
-    leagueTrophies: clone(state.progression.leagueTrophies ?? []),
-    lineup: clone(state.squad.lineup),
-    energies: state.grid.cells.filter(Boolean).map((c) => c.energy ?? null),
-  };
-}
-
-// ── The one-shot path ───────────────────────────────────────────────────────
-rng.setSeed(31337);
-{
-  const state = baseState({ currentDivision: 'regional_league' });
-  ce.startCup(state);
-  const r = ce.playCupRound(state);
-  out.playCupRound = {
-    won: r.won, homeGoals: r.homeGoals, awayGoals: r.awayGoals,
-    coins: state.resources.fanCoins,
-  };
-}
+// ── A whole run and the one-shot path — RETIRED ─────────────────────────────
+// A tie is decided by the Dart port's positional sim, which the JS does not
+// have, so the simulated runs that were dumped here moved to
+// test/support/positional_scenarios.dart and `dart run
+// tool/dump_positional_golden.dart`. The draw and the Lucky Boot never simulate
+// a match and stay pinned against the JS.
 
 // ── The Lucky Boot is spent by the PREPARE, not the commit ──────────────────
 rng.setSeed(4242);

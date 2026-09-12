@@ -1,5 +1,8 @@
-/// A canonical text form for a save, and a hash of it — the Dart half of
-/// `tool/difftest/canonical.mjs`.
+/// A canonical text form for a save, and a hash of it.
+///
+/// Written as the Dart half of a node `canonical.mjs` when the season harness
+/// compared against the JS; the harness is a Dart golden now, and the number
+/// rule below is kept because the frozen base saves were written by node.
 ///
 /// Two runtimes that agree on every value still disagree on how to print one:
 /// `JSON.stringify(1.0)` is `1` in JS and `jsonEncode(1.0)` is `1.0` here. A

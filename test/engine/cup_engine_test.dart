@@ -9,8 +9,14 @@ import 'package:merge_empire_fc/util/event_bus.dart';
 import 'package:merge_empire_fc/util/random.dart' as seeded;
 import 'package:merge_empire_fc/util/time.dart';
 
+import '../support/positional_scenarios.dart';
+
 final Map<String, dynamic> _ref = jsonDecode(
   File('test/fixtures/cup_engine_reference.json').readAsStringSync(),
+) as Map<String, dynamic>;
+
+final Map<String, dynamic> _golden = jsonDecode(
+  File(positionalGoldenPath).readAsStringSync(),
 ) as Map<String, dynamic>;
 
 final Map<String, dynamic> _questRef = jsonDecode(
@@ -129,120 +135,47 @@ void main() {
     }
   });
 
-  group('parity — a whole run', () {
-    for (final (label, seed, division, hardMode, strong) in const [
-      ('runA', 31337, 'regional_league', false, false),
-      ('runB', 555, 'champions_cup', false, false),
-      ('runPro', 8080, 'elite_league', true, false),
-      ('runWinner', 7, 'regional_league', false, true),
-    ]) {
-      test('plays out identically, round for round — $label', () {
-        seeded.setSeed(seed);
-        final state = _state(
-          division: division,
-          hardMode: hardMode,
-          strongSquad: strong,
-        );
-        startCup(state);
-
-        final want = _ref[label] as Map<String, dynamic>;
+  group('golden — a whole run', () {
+    // The tie is decided by the positional sim, which the JS does not have, so
+    // a run is compared against the Dart-owned golden rather than the node
+    // dump — see `test/support/positional_scenarios.dart`. The bracket draw
+    // and the cup ladder above never simulate a match and stay against the JS.
+    for (final sc in cupScenarios) {
+      test('plays out identically, round for round — ${sc.label}', () {
+        final got = runCupScenario(sc);
+        final want = (_golden['cups'] as Map)[sc.label] as Map<String, dynamic>;
+        final gotRounds = got['rounds'] as List;
         final wantRounds = want['rounds'] as List;
-
-        for (var i = 0; i < 5; i++) {
-          final prepared = prepareCupRound(state);
-          if (prepared == null) break;
-          final drop = commitCupRound(state, prepared.won, prepared);
-
-          expect(i, lessThan(wantRounds.length), reason: 'extra round $i');
-          final w = wantRounds[i] as Map<String, dynamic>;
-          final p = w['prepared'] as Map<String, dynamic>;
-          final where = '$label round $i';
-
-          expect(prepared.cupId, p['cupId'], reason: where);
-          expect(prepared.round, p['round'], reason: where);
-          expect(prepared.roundName, p['roundName'], reason: where);
-          expect(prepared.opponentName, p['opponentName'], reason: where);
-          expect(prepared.won, p['won'], reason: where);
-          expect(prepared.homeGoals, p['homeGoals'], reason: where);
-          expect(prepared.awayGoals, p['awayGoals'], reason: where);
-          expect(prepared.earned, p['earned'], reason: where);
-          expect(prepared.squadRating, p['squadRating'], reason: where);
-          expect(prepared.opponentRating, p['opponentRating'], reason: where);
-          expect(prepared.ourAttackRating, p['ourAttackRating'], reason: where);
-          expect(prepared.ourDefenceRating, p['ourDefenceRating'], reason: where);
-          expect(prepared.effOppAttackRating, p['effOppAttackRating'], reason: where);
-          expect(prepared.effOppDefenceRating, p['effOppDefenceRating'], reason: where);
-          expect(prepared.isFinal, p['isFinal'], reason: where);
-
-          final wantShootout = p['penaltyShootout'] as Map<String, dynamic>?;
-          expect(prepared.penaltyShootout?.playerWins, wantShootout?['playerWins'],
-              reason: where);
-          expect(prepared.penaltyShootout?.homeScore, wantShootout?['homeScore'],
-              reason: where);
-          expect(prepared.penaltyShootout?.awayScore, wantShootout?['awayScore'],
-              reason: where);
-          expect(prepared.penaltyShootout?.kicks.length, wantShootout?['kicks'],
-              reason: where);
-
-          expect(
-            [
-              for (final inj in prepared.injuries)
-                {'iid': inj.card.instanceId, 'minute': inj.minute},
-            ],
-            p['injuries'],
-            reason: where,
-          );
-
-          final wantDrop = w['sponsorDrop'] as Map<String, dynamic>?;
-          expect(drop?.kind, wantDrop?['kind'], reason: where);
-          expect(drop?.cellIdx, wantDrop?['cellIdx'], reason: where);
-          if (wantDrop != null) {
-            final sd = wantDrop['sponsorData'] as Map<String, dynamic>;
-            expect(drop!.sponsorData.name, sd['name'], reason: where);
-            expect(drop.sponsorData.multiplier, sd['multiplier'], reason: where);
-          }
-
-          expect(state['resources']['fanCoins'], w['coins'], reason: where);
-          expect(activeCup(state)?['round'], w['activeRound'], reason: where);
-
-          if (activeCup(state) == null) break;
+        expect(gotRounds.length, wantRounds.length, reason: '${sc.label} rounds');
+        for (var i = 0; i < wantRounds.length; i++) {
+          final where = '${sc.label} round $i';
+          final g = gotRounds[i] as Map;
+          final w = wantRounds[i] as Map;
+          expect(g['prepared'], w['prepared'], reason: where);
+          expect(g['sponsorDrop'], w['sponsorDrop'], reason: where);
+          expect(g['coins'], w['coins'], reason: where);
+          expect(g['activeRound'], w['activeRound'], reason: where);
         }
-
-        expect(_stripTimes(_cupsOf(state)['history']), want['history'],
-            reason: label);
-        expect(state['resources']['gems'], want['gems'], reason: label);
-        expect(state['careerStats'], want['careerStats'], reason: label);
-        expect(state['club']['cupLooksWon'] ?? <dynamic>[], want['cupLooksWon'],
-            reason: label);
-        expect(
-          state['progression']['leagueTrophies'] ?? <dynamic>[],
-          want['leagueTrophies'],
-          reason: label,
-        );
-        expect(state['squad']['lineup'], want['lineup'], reason: label);
-        expect(
-          [
-            for (final c in state['grid']['cells'] as List)
-              if (c != null) (c as Map)['energy'],
-          ],
-          want['energies'],
-          reason: label,
-        );
+        for (final key in want.keys) {
+          if (key == 'rounds') continue;
+          expect(got[key], want[key], reason: '${sc.label} $key');
+        }
       });
     }
-  });
 
-  group('parity — the one-shot path', () {
-    test('matches the prepare-and-commit pair', () {
+    test('every round carries a positional record', () {
       seeded.setSeed(31337);
       final state = _state();
       startCup(state);
-      final r = playCupRound(state)!;
-      final want = _ref['playCupRound'] as Map<String, dynamic>;
-      expect(r.prepared.won, want['won']);
-      expect(r.prepared.homeGoals, want['homeGoals']);
-      expect(r.prepared.awayGoals, want['awayGoals']);
-      expect(state['resources']['fanCoins'], want['coins']);
+      final prepared = prepareCupRound(state)!;
+      expect((prepared.positional['ev'] as List).length, greaterThan(40));
+      expect(() => jsonEncode(prepared.positional), returnsNormally);
+    });
+  });
+
+  group('golden — the one-shot path', () {
+    test('matches the prepare-and-commit pair', () {
+      expect(runCupOneShot(), (_golden['cups'] as Map)['playCupRound']);
     });
   });
 
