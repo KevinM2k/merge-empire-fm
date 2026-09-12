@@ -927,8 +927,14 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
         // there is no replacement, only the ten who are left and where they
         // stand. Asked for from the couch, along with Colin explaining why.
         case 'booking':
-          unawaited(sound.play('error'));
           final who = event.playerId;
+          // Recorded here so the whistle's catch-up knows it is done.
+          if (!_cardsApplied.add(
+            _cardKey(event.minute, event.card, who),
+          )) {
+            break;
+          }
+          unawaited(sound.play('error'));
           // **THEIR CARD IS NOT NOTHING ANY MORE.** There is still no bench of
           // theirs to open and no ban of theirs to write — but it used to leave
           // the maths untouched as well, so a sending-off for the opposition
@@ -1894,6 +1900,16 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
   /// match re-tallied every opposition card at the whistle.
   final Set<String> _oppCardsSeen = <String>{};
 
+  /// Every card already dealt with, by ROW rather than by player.
+  ///
+  /// A sending-off takes the man out of [_cautioned], so keying on him read his
+  /// earlier yellow as unapplied and had `_catchUpSendingsOff` re-simulate the
+  /// match at the whistle — the feed and the summary then showed two scores.
+  final Set<String> _cardsApplied = <String>{};
+
+  static String _cardKey(Object? minute, Object? card, Object? who) =>
+      '$minute|$card|$who';
+
   /// **WHAT THE LAST RE-SIM ROLLED WITH, and why it is not on the result.**
   ///
   /// `reSimulateRemainder` fills this rather than stamping the result, because
@@ -2333,6 +2349,12 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
     ]..sort((a, b) => ((a['minute'] as num?) ?? 0).compareTo((b['minute'] as num?) ?? 0));
 
     for (final b in missed) {
+      // The row, not the player — see [_cardsApplied].
+      if (!_cardsApplied.add(
+        _cardKey(b['minute'], b['card'], b['playerInstanceId']),
+      )) {
+        continue;
+      }
       final minute = ((b['minute'] as num?) ?? 0).toInt();
       final card = '${b['card'] ?? cardYellow}';
       final sendsOff = cardSendsOff(card);
@@ -2409,6 +2431,9 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
       liveRatingsOut: _liveRatings,
     );
     widget.result['events'] = [...kept, ...fresh];
+    // [_timeline] is a snapshot the board counts goals off: a re-roll that left
+    // the old one standing put a different score on it from the summary's.
+    _timeline = timelineOf(widget.result, bookings: _bookings);
   }
 
   void applyStrategy(String id) {

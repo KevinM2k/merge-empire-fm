@@ -107,8 +107,31 @@ CupTie? beginCupRound(Map<String, dynamic> state) {
   final regulationAway =
       prepared.awayGoals - (shootout != null && !prepared.won ? 1 : 0);
 
+  // Hoisted for `addedTime`: unasked, the generator rolls its own stoppage time
+  // and puts goals behind it, which a clock stopping at 90 never reached.
+  final events = [
+    for (final e in generateMatchEvents(
+      homeGoals: regulationHome < 0 ? 0 : regulationHome,
+      awayGoals: regulationAway < 0 ? 0 : regulationAway,
+      playerData: _takers(state),
+      injuries: [
+        for (final injury in prepared.injuries)
+          (name: injury.name ?? '', minute: injury.minute),
+      ],
+    ))
+      e.toMap(),
+  ];
+  final addedTime = _num(
+        events.firstWhere(
+          (e) => e['type'] == 'fulltime',
+          orElse: () => const {},
+        )['addedTime'],
+      )?.toInt() ??
+      0;
+
   final result = <String, dynamic>{
     'divisionId': prepared.cupId,
+    'addedTime': addedTime,
     // `tName` takes an id or a `{id, name}` map, not the data object: the JS's
     // cups are plain objects and Dart's are not.
     'divisionName':
@@ -181,18 +204,7 @@ CupTie? beginCupRound(Map<String, dynamic> state) {
                 },
             ],
           },
-    'events': [
-      for (final e in generateMatchEvents(
-        homeGoals: regulationHome < 0 ? 0 : regulationHome,
-        awayGoals: regulationAway < 0 ? 0 : regulationAway,
-        playerData: _takers(state),
-        injuries: [
-          for (final injury in prepared.injuries)
-            (name: injury.name ?? '', minute: injury.minute),
-        ],
-      ))
-        e.toMap(),
-    ],
+    'events': events,
   };
 
   return (result: result, prepared: prepared);

@@ -14,6 +14,7 @@ import 'package:merge_empire_fc/engine/cup_engine.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
 import 'package:merge_empire_fc/ui/screens/match/cup_launcher.dart';
 import 'package:merge_empire_fc/util/event_bus.dart';
+import 'package:merge_empire_fc/util/random.dart' show setSeed;
 
 Map<String, dynamic>? _map(Object? v) => v is Map<String, dynamic> ? v : null;
 
@@ -450,6 +451,68 @@ void main() {
       final stored = _map(_cupResults(s).single)!;
       expect(stored['homeGoals'], tie.prepared.homeGoals);
       expect(stored['awayGoals'], tie.prepared.awayGoals);
+    });
+  });
+
+  group('THE TIE THE SCREEN CAN ACTUALLY PLAY', () {
+    // The match screen's clock stops at `fullTime(result['addedTime'])`, and it
+    // counts the goals it has SHOWN. A tie that carries no `addedTime` runs its
+    // clock to 90 while `generateMatchEvents` — handed none — rolls its own
+    // stoppage time and puts goals behind it. The feed then ends on a score the
+    // cup result card does not print.
+    test('EVERY GOAL IS INSIDE THE NINETY THE CLOCK RUNS', () {
+      // Over many seeds: stoppage time is rolled, so one tie proves nothing.
+      final late = <String>[];
+      for (var seed = 0; seed < 60; seed++) {
+        setSeed(seed);
+        final tie = beginCupRound(cupState());
+        if (tie == null) continue;
+        final result = tie.result;
+        final end = 90 + ((result['addedTime'] as num?)?.toInt() ?? 0);
+        for (final e in result['events'] as List) {
+          final row = _map(e);
+          if (row == null || row['type'] != 'goal') continue;
+          final minute = (row['minute'] as num).toInt();
+          if (minute > end) late.add('seed $seed: a goal in the ${minute}th');
+        }
+      }
+      expect(late, isEmpty);
+    });
+
+    test('AND THE FEED ADDS UP TO THE SCORELINE IT IS SHOWN WITH', () {
+      // The shootout's winning goal is folded into `homeGoals` and taken back
+      // out of the feed on purpose, so it is the ninety minutes being compared.
+      for (var seed = 0; seed < 60; seed++) {
+        setSeed(seed);
+        final tie = beginCupRound(cupState());
+        if (tie == null) continue;
+        final result = tie.result;
+        final shootout = _map(result['penaltyShootout']);
+        final won = result['won'] == true;
+        final end = 90 + ((result['addedTime'] as num?)?.toInt() ?? 0);
+        var ours = 0;
+        var theirs = 0;
+        for (final e in result['events'] as List) {
+          final row = _map(e);
+          if (row == null || row['type'] != 'goal') continue;
+          if ((row['minute'] as num).toInt() > end) continue;
+          if (row['team'] == 'away') {
+            theirs++;
+          } else {
+            ours++;
+          }
+        }
+        expect(
+          [ours, theirs],
+          [
+            (result['homeGoals'] as num).toInt() -
+                (shootout != null && won ? 1 : 0),
+            (result['awayGoals'] as num).toInt() -
+                (shootout != null && !won ? 1 : 0),
+          ],
+          reason: 'seed $seed: the feed and the scoreline are different ties',
+        );
+      }
     });
   });
 }

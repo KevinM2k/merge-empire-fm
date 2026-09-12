@@ -31,6 +31,9 @@ import 'package:merge_empire_fc/ui/screens/home/next_match_card.dart'
     show PosChip;
 import 'package:merge_empire_fc/ui/screens/home/home_screen.dart' show playPageGap;
 import 'package:merge_empire_fc/ui/screens/match/match_screen.dart';
+import 'package:merge_empire_fc/ui/screens/match/match_summary.dart'
+    show regulationScore;
+import 'package:merge_empire_fc/util/random.dart' show setSeed;
 import 'package:merge_empire_fc/ui/theme/glass.dart';
 import 'package:merge_empire_fc/ui/widgets/match_stat_rows.dart'
     show MatchRow, MatchStatRows;
@@ -43,6 +46,9 @@ import 'package:merge_empire_fc/ui/theme/sky.dart';
 import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
 import 'package:merge_empire_fc/engine/squad_rating.dart' show CardStats;
 import 'package:merge_empire_fc/engine/booking_engine.dart';
+import 'package:merge_empire_fc/engine/match_orchestration.dart'
+    show resetMatchRandom, setMatchRandom;
+import 'package:merge_empire_fc/engine/match_tactics.dart' show strategies;
 import 'package:merge_empire_fc/engine/coach_tip_engine.dart' show hasSeenTip;
 
 Map<String, dynamic> matchResult({
@@ -216,6 +222,29 @@ class _EarBackend implements SoundBackend {
     },
   )..warmUpNow();
   return (service: service, ear: ear);
+}
+
+/// The board, the result and the summary's own reading of it, as one score.
+///
+/// The live board counts the goals the feed has SHOWN; the summary reads
+/// `homeGoals`/`awayGoals`. Anything that re-simulates has to leave the two
+/// saying the same thing.
+void expectAgreed(MatchScreenState state, {required String reason}) {
+  final f = state.frame;
+  final result = state.widget.result;
+  expect(
+    [f.ourGoals, f.theirGoals],
+    [
+      (result['homeGoals'] as num?)?.toInt(),
+      (result['awayGoals'] as num?)?.toInt(),
+    ],
+    reason: 'the board and the result disagree: $reason',
+  );
+  expect(
+    regulationScore(result),
+    (f.ourGoals, f.theirGoals),
+    reason: 'the summary would print another score: $reason',
+  );
 }
 
 MatchScreenState stateOf(WidgetTester tester) =>
@@ -2839,6 +2868,39 @@ void main() {
       );
     }
 
+    testWidgets('AND THE FEED STILL ADDS UP TO THE SUMMARY AFTERWARDS', (
+      tester,
+    ) async {
+      // A substitution re-rolls the remainder, so it is one of the three things
+      // that can leave the board and the summary on different scores.
+      tallView(tester);
+      final container = await pumpMatch(
+        tester,
+        {
+          ...matchResult(
+            addedTime: 0,
+            events: [
+              {'minute': 12, 'type': 'goal', 'team': 'home', 'scorer': 'Bobby'},
+              {'minute': 33, 'type': 'goal', 'team': 'away'},
+              {'minute': 58, 'type': 'goal', 'team': 'home', 'scorer': 'Ada'},
+            ],
+          ),
+          'homeGoals': 2,
+          'awayGoals': 1,
+          'opponentRating': 60,
+          'squadRating': 60,
+        },
+        save: squadSave(),
+      );
+      await openSubs(tester);
+      await makeSub(tester, container);
+      final state = stateOf(tester);
+      state.skipToEnd();
+      await tester.pumpAndSettle();
+      expectAgreed(state, reason: 'a substitution');
+      await settleSave(tester);
+    });
+
     testWidgets('THE CONFIRMATION SHOWS THE SWAP, not just a heading', (
       tester,
     ) async {
@@ -4198,5 +4260,215 @@ void main() {
     final rows = tester.widget<MatchStatRows>(find.byType(MatchStatRows));
     expect(rows.left.atk, 89);
     expect(rows.left.def, 96);
+  });
+
+  group('THE FEED AND THE SUMMARY ARE THE SAME MATCH', () {
+    // Reported from a live save: a 1-4 away win that came up 0-3 on the
+    // summary. The board counts the goals it has SHOWN; the summary reads
+    // `homeGoals`/`awayGoals` off the result. Anything that re-simulates has to
+    // leave those two saying the same thing.
+    setUp(() {
+      setMatchRandom(math.Random(11));
+      setSeed(4242);
+    });
+    tearDown(resetMatchRandom);
+
+    /// A result whose events and tallies start out agreeing.
+    Map<String, dynamic> scored({
+      required String fixtureKey,
+      bool isHome = false,
+      int ours = 4,
+      int theirs = 1,
+    }) {
+      final events = <Map<String, dynamic>>[
+        for (var i = 0; i < ours; i++)
+          {
+            'minute': 12 + i * 15,
+            'type': 'goal',
+            'team': 'home',
+            'scorer': 'Bobby',
+          },
+        for (var i = 0; i < theirs; i++)
+          {'minute': 20 + i * 15, 'type': 'goal', 'team': 'away'},
+      ]..sort(
+        (a, b) => (a['minute'] as int).compareTo(b['minute'] as int),
+      );
+      return {
+        ...matchResult(
+          fixtureKey: fixtureKey,
+          isHome: isHome,
+          addedTime: 0,
+          events: events,
+        ),
+        'homeGoals': ours,
+        'awayGoals': theirs,
+        'won': ours > theirs,
+        'drawn': ours == theirs,
+        'opponentRating': 60,
+        'squadRating': 60,
+      };
+    }
+
+    testWidgets('A CAUTION AND THEN A SENDING-OFF FOR THE SAME MAN', (
+      tester,
+    ) async {
+      // `s1_m19` books one of ours and then sends him off for the second.
+      // The dismissal takes him back out of `_cautioned`, so the whistle's
+      // catch-up saw his first yellow as unapplied and re-rolled the match
+      // from the 23rd minute with nothing rebuilding the feed.
+      await pumpMatch(
+        tester,
+        scored(fixtureKey: 's1_m19'),
+        save: squadSave(),
+      );
+      final state = stateOf(tester);
+      expect(
+        [
+          for (final b in state.bookings)
+            if (b['team'] != 'away') '${b['card']}',
+        ],
+        containsAll(<String>[cardYellow, cardSecondYellow]),
+        reason: 'this fixture was chosen because it sends one of ours off',
+      );
+      state.skipToEnd();
+      await tester.pumpAndSettle();
+      expectAgreed(state, reason: 'a second yellow');
+      await settleSave(tester);
+    });
+
+    testWidgets('AND THE SAME MATCH WATCHED PAST BOTH CARDS', (tester) async {
+      // Watched rather than skipped: the live dispatch applies each card as
+      // the clock reaches it, and the whistle must then have nothing left.
+      await pumpMatch(
+        tester,
+        scored(fixtureKey: 's1_m19'),
+        save: squadSave(),
+      );
+      final state = stateOf(tester);
+      final last = state.bookings
+          .map((b) => ((b['minute'] as num?) ?? 0).toInt())
+          .fold<int>(0, math.max);
+      for (var i = 0; i < 600 && state.frame.minute <= last; i++) {
+        await tester.pump(minuteDurationFor(1));
+      }
+      state.skipToEnd();
+      await tester.pumpAndSettle();
+      expectAgreed(state, reason: 'a watched second yellow');
+      await settleSave(tester);
+    });
+
+    testWidgets('A STRAIGHT RED', (tester) async {
+      // `s1_m13` is the file's own busy referee. A dismissal with no caution
+      // behind it is the case the guard does hold for, and it pins that.
+      await pumpMatch(
+        tester,
+        scored(fixtureKey: 's1_m13'),
+        save: squadSave(),
+      );
+      final state = stateOf(tester);
+      state.skipToEnd();
+      await tester.pumpAndSettle();
+      expectAgreed(state, reason: 'a busy referee');
+      await settleSave(tester);
+    });
+
+    testWidgets('THEIR CARDS', (tester) async {
+      // `s1_m2`'s away referee is busy early, so their cards re-simulate too.
+      await pumpMatch(tester, scored(fixtureKey: 's1_m2'), save: squadSave());
+      final state = stateOf(tester);
+      state.skipToEnd();
+      await tester.pumpAndSettle();
+      expectAgreed(state, reason: 'an opposition card');
+      await settleSave(tester);
+    });
+
+    testWidgets('A TACTIC CHANGE', (tester) async {
+      await pumpMatch(
+        tester,
+        scored(fixtureKey: 's1_m44'),
+        save: squadSave(),
+      );
+      final state = stateOf(tester);
+      await tester.pump(minuteDurationFor(10));
+      state.applyStrategy(
+        strategies.keys.firstWhere((id) => id != state.strategy),
+      );
+      await tester.pump();
+      state.skipToEnd();
+      await tester.pumpAndSettle();
+      expectAgreed(state, reason: 'a tactic switch');
+      await settleSave(tester);
+    });
+
+    testWidgets('A QUIET AFTERNOON CHANGES NOTHING', (tester) async {
+      // The control: no card, no switch, so the kickoff scoreline survives.
+      await pumpMatch(
+        tester,
+        scored(fixtureKey: 's1_m44'),
+        save: squadSave(),
+      );
+      final state = stateOf(tester);
+      state.skipToEnd();
+      await tester.pumpAndSettle();
+      expectAgreed(state, reason: 'nothing happened');
+      expect(state.frame.ourGoals, 4);
+      expect(state.frame.theirGoals, 1);
+      await settleSave(tester);
+    });
+
+    testWidgets('A CUP TIE SETTLED ON PENALTIES', (tester) async {
+      // The shootout's winning goal is folded into `homeGoals` so the engine's
+      // `won` and its scoreline agree, and taken back OUT of the feed because a
+      // shootout is not a goal in the ninetieth minute. `regulationScore` is
+      // what unfolds it for the screen, and it has to land back on the ninety
+      // minutes the board counted.
+      await pumpMatch(
+        tester,
+        {
+          ...scored(fixtureKey: 's1_m44', isHome: true, ours: 2, theirs: 2),
+          'isCup': true,
+          // Folded: the engine's 3-2 is a 2-2 that was won on penalties.
+          'homeGoals': 3,
+          'won': true,
+          'drawn': false,
+          'penaltyShootout': <String, dynamic>{
+            'playerWins': true,
+            'homeScore': 4,
+            'awayScore': 3,
+            'kicks': <Map<String, dynamic>>[
+              for (var i = 0; i < 4; i++)
+                {'team': 'home', 'scored': true},
+              for (var i = 0; i < 3; i++)
+                {'team': 'away', 'scored': true},
+              {'team': 'away', 'scored': false},
+            ],
+          },
+        },
+        save: squadSave(),
+      );
+      final state = stateOf(tester);
+      state.skipToEnd();
+      await tester.pumpAndSettle();
+      // The board played the ninety minutes and nothing else.
+      expect(state.frame.ourGoals, 2);
+      expect(state.frame.theirGoals, 2);
+      // And the summary prints those, not the folded 3-2.
+      expect(regulationScore(state.widget.result), (2, 2));
+      await settleSave(tester);
+    });
+
+    testWidgets('AND AN AWAY WIN READS THE RIGHT WAY ROUND', (tester) async {
+      await pumpMatch(
+        tester,
+        scored(fixtureKey: 's1_m44'),
+        save: squadSave(),
+      );
+      final state = stateOf(tester);
+      state.skipToEnd();
+      await tester.pumpAndSettle();
+      expect(scoreOn(tester), '1 – 4');
+      expectAgreed(state, reason: 'an away win');
+      await settleSave(tester);
+    });
   });
 }

@@ -1216,4 +1216,192 @@ void main() {
       expect(played().params['is_home'], anyOf(0, 1));
     });
   });
+
+  group('THE FEED IS THE SCORELINE', () {
+    // The live board counts the goals the feed has SHOWN — `frameAt` in
+    // `match_clock.dart` — and the summary reads `homeGoals`/`awayGoals`. Two
+    // readings of one match, and nothing but this makes them the same number.
+    // Reported from a live save as a 1-4 away win that came up 0-3.
+
+    /// The goals a screen could actually show, and the clock it would run to.
+    ({int ours, int theirs, int end, int last}) feedOf(
+      Map<String, dynamic> result,
+    ) {
+      final end = 90 + ((result['addedTime'] as num?)?.toInt() ?? 0);
+      var ours = 0;
+      var theirs = 0;
+      var last = 0;
+      for (final e in result['events'] as List) {
+        if (e is! Map<String, dynamic>) continue;
+        final minute = (e['minute'] as num?)?.toInt() ?? 0;
+        if (minute > last) last = minute;
+        if (e['type'] != 'goal' || minute > end) continue;
+        if (e['team'] == 'away') {
+          theirs++;
+        } else {
+          ours++;
+        }
+      }
+      return (ours: ours, theirs: theirs, end: end, last: last);
+    }
+
+    test('at the first whistle', () {
+      for (var seed = 0; seed < 60; seed++) {
+        seeded.setSeed(seed);
+        setMatchRandom(math.Random(seed));
+        final state = _state();
+        final result = simulateMatch(state, 'regional_league');
+        final feed = feedOf(result);
+        expect(
+          [feed.ours, feed.theirs],
+          [
+            (result['homeGoals'] as num).toInt(),
+            (result['awayGoals'] as num).toInt(),
+          ],
+          reason: 'seed $seed: the feed and the scoreline are different matches',
+        );
+        expect(
+          feed.last,
+          lessThanOrEqualTo(feed.end),
+          reason: 'seed $seed: an event the clock never reaches',
+        );
+      }
+      resetMatchRandom();
+    });
+
+    test('and after every re-simulation', () {
+      // A tactic switch, a card and a substitution all re-roll the remainder.
+      // The screen keeps the events up to that minute and splices the fresh
+      // ones on, so the same sum has to come out at the other end.
+      for (var seed = 0; seed < 60; seed++) {
+        seeded.setSeed(seed);
+        setMatchRandom(math.Random(seed));
+        final state = _state();
+        final result = simulateMatch(state, 'regional_league');
+        for (final at in [15, 40, 70]) {
+          final kept = [
+            for (final e in result['events'] as List)
+              if (e is Map<String, dynamic> &&
+                  ((e['minute'] as num?) ?? 0) <= at)
+                e,
+          ];
+          var ours = 0;
+          var theirs = 0;
+          for (final e in kept) {
+            if (e['type'] != 'goal') continue;
+            if (e['team'] == 'away') {
+              theirs++;
+            } else {
+              ours++;
+            }
+          }
+          final fresh = reSimulateRemainder(
+            result,
+            at,
+            'highPress',
+            ours,
+            theirs,
+            state,
+          );
+          result['events'] = [...kept, ...fresh];
+          final feed = feedOf(result);
+          expect(
+            [feed.ours, feed.theirs],
+            [
+              (result['homeGoals'] as num).toInt(),
+              (result['awayGoals'] as num).toInt(),
+            ],
+            reason: 'seed $seed: re-simulated from the ${at}th',
+          );
+          expect(
+            feed.last,
+            lessThanOrEqualTo(feed.end),
+            reason: 'seed $seed: the re-sim put an event past full time',
+          );
+        }
+      }
+      resetMatchRandom();
+    });
+
+    test('and a re-simulation in stoppage time still adds up', () {
+      // The narrowest window there is: the clamp in `generateMatchEvents` is
+      // what stops a goal here landing on the full-time marker itself.
+      for (var seed = 0; seed < 40; seed++) {
+        seeded.setSeed(seed);
+        setMatchRandom(math.Random(seed));
+        final state = _state();
+        final result = simulateMatch(state, 'regional_league');
+        final end = 90 + ((result['addedTime'] as num?)?.toInt() ?? 0);
+        final kept = [
+          for (final e in result['events'] as List)
+            if (e is Map<String, dynamic> &&
+                ((e['minute'] as num?) ?? 0) <= end - 1)
+              e,
+        ];
+        var ours = 0;
+        var theirs = 0;
+        for (final e in kept) {
+          if (e['type'] != 'goal') continue;
+          if (e['team'] == 'away') {
+            theirs++;
+          } else {
+            ours++;
+          }
+        }
+        final fresh = reSimulateRemainder(
+          result,
+          end - 1,
+          'allOutAttack',
+          ours,
+          theirs,
+          state,
+        );
+        result['events'] = [...kept, ...fresh];
+        final feed = feedOf(result);
+        expect(
+          [feed.ours, feed.theirs],
+          [
+            (result['homeGoals'] as num).toInt(),
+            (result['awayGoals'] as num).toInt(),
+          ],
+          reason: 'seed $seed: a re-sim in stoppage time lost a goal',
+        );
+      }
+      resetMatchRandom();
+    });
+
+    test('and the generator emits every goal it is asked for', () {
+      // The root of all of it: `generateMatchEvents` is what turns two numbers
+      // into a feed, and a window too narrow to hold them would drop one.
+      for (var seed = 0; seed < 40; seed++) {
+        seeded.setSeed(seed);
+        for (final window in [(1, 0), (46, 2), (88, 3), (90, 1)]) {
+          for (final score in [(0, 0), (3, 2), (5, 4)]) {
+            final events = generateMatchEvents(
+              homeGoals: score.$1,
+              awayGoals: score.$2,
+              minMin: window.$1,
+              addedTime: window.$2,
+            );
+            final goals = events.where((e) => e.type == 'goal').toList();
+            expect(
+              [
+                goals.where((e) => e.team == 'home').length,
+                goals.where((e) => e.team == 'away').length,
+              ],
+              [score.$1, score.$2],
+              reason: 'seed $seed, from ${window.$1}, added ${window.$2}',
+            );
+            for (final g in goals) {
+              expect(
+                g.minute,
+                lessThanOrEqualTo(90 + window.$2),
+                reason: 'seed $seed: a goal past full time',
+              );
+            }
+          }
+        }
+      }
+    });
+  });
 }

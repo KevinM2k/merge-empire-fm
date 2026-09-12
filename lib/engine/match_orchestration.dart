@@ -2025,7 +2025,9 @@ List<Map<String, dynamic>> reSimulateRemainder(
       ],
       minMin: fromMinute + 1,
       chanceWeights: chanceWeights,
-      addedTime: _num(result['addedTime'])?.toInt(),
+      // Never null: unasked, the generator rolls its OWN stoppage time and puts
+      // goals behind a clock the screen stops at 90.
+      addedTime: _num(result['addedTime'])?.toInt() ?? 0,
     ))
       e.toMap(),
   ];
