@@ -93,6 +93,35 @@ void main() {
       });
     });
 
+    test('low x is the team\'s own right: every r-slot is left of every l-slot', () {
+      // The pitch widget puts a token at `left: x%` with the own goal at the
+      // bottom, so the team attacks UP the screen and its right-back stands on
+      // screen-LEFT. The slot ids are what the player reads, so they are the
+      // authority and the positional sim's frame follows them — see the header
+      // of `engine/pitch_space.dart`. Flip this and every "down the right" in
+      // the analysis lies.
+      formations.forEach((id, f) {
+        for (final s in f.slots) {
+          if (s.slotId == 'gk') continue;
+          if (s.slotId.startsWith('r')) {
+            expect(s.x, lessThan(50), reason: '$id ${s.slotId}');
+          } else if (s.slotId.startsWith('l')) {
+            expect(s.x, greaterThan(50), reason: '$id ${s.slotId}');
+          } else {
+            expect(s.x, 50, reason: '$id ${s.slotId} is central');
+          }
+        }
+      });
+    });
+
+    test('each shape is mirror-symmetric about the centre line', () {
+      formations.forEach((id, f) {
+        final xs = f.slots.map((s) => s.x).toList()..sort();
+        final mirrored = f.slots.map((s) => 100 - s.x).toList()..sort();
+        expect(xs, mirrored, reason: id);
+      });
+    });
+
     test('the shape name describes the outfield line-up', () {
       // 4-3-3 means four defenders, three midfielders, three forwards.
       formations.forEach((id, f) {

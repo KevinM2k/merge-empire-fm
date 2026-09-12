@@ -9,6 +9,7 @@ library;
 
 import 'dart:math' as math;
 
+import 'package:merge_empire_fc/data/formations.dart';
 import 'package:merge_empire_fc/data/players.dart';
 import 'package:merge_empire_fc/util/random.dart' as seeded;
 
@@ -131,6 +132,46 @@ const Map<String, List<String>> aiFormationPositions = {
   '4-4-2': ['GK', 'DEF', 'DEF', 'DEF', 'DEF', 'MID', 'MID', 'MID', 'MID', 'FWD', 'FWD'],
   '5-3-2': ['GK', 'DEF', 'DEF', 'DEF', 'DEF', 'DEF', 'MID', 'MID', 'MID', 'FWD', 'FWD'],
   '5-4-1': ['GK', 'DEF', 'DEF', 'DEF', 'DEF', 'DEF', 'MID', 'MID', 'MID', 'MID', 'FWD'],
+};
+
+/// The same AI shapes with coordinates, for the positional sim.
+///
+/// Where a shape is one the player can pick, these ARE `formations[id].slots`
+/// — one set of coordinates, so an AI 4-3-3 and the player's 4-3-3 stand in the
+/// same places. 3-4-3 and 5-4-1 exist only here, on the same bands and the same
+/// spacing rules as the shipped shapes. Position multisets match
+/// [aiFormationPositions] exactly and a test pins it, so `teamSplitForFormation`
+/// and a per-player build of the same side agree by construction.
+final Map<String, List<FormationSlot>> aiFormationSlots = {
+  '3-4-3': const [
+    FormationSlot(slotId: 'gk', slotPosition: 'GK', x: 50, y: 90),
+    FormationSlot(slotId: 'rcb', slotPosition: 'DEF', x: 25, y: 66),
+    FormationSlot(slotId: 'cb', slotPosition: 'DEF', x: 50, y: 66),
+    FormationSlot(slotId: 'lcb', slotPosition: 'DEF', x: 75, y: 66),
+    FormationSlot(slotId: 'rm', slotPosition: 'MID', x: 14, y: 42),
+    FormationSlot(slotId: 'rcm', slotPosition: 'MID', x: 38, y: 42),
+    FormationSlot(slotId: 'lcm', slotPosition: 'MID', x: 62, y: 42),
+    FormationSlot(slotId: 'lm', slotPosition: 'MID', x: 86, y: 42),
+    FormationSlot(slotId: 'rf', slotPosition: 'FWD', x: 20, y: 18),
+    FormationSlot(slotId: 'cf', slotPosition: 'FWD', x: 50, y: 18),
+    FormationSlot(slotId: 'lf', slotPosition: 'FWD', x: 80, y: 18),
+  ],
+  '4-3-3': formations['4-3-3']!.slots,
+  '4-4-2': formations['4-4-2']!.slots,
+  '5-3-2': formations['5-3-2']!.slots,
+  '5-4-1': const [
+    FormationSlot(slotId: 'gk', slotPosition: 'GK', x: 50, y: 90),
+    FormationSlot(slotId: 'rb', slotPosition: 'DEF', x: 10, y: 66),
+    FormationSlot(slotId: 'rcb', slotPosition: 'DEF', x: 30, y: 66),
+    FormationSlot(slotId: 'cb', slotPosition: 'DEF', x: 50, y: 66),
+    FormationSlot(slotId: 'lcb', slotPosition: 'DEF', x: 70, y: 66),
+    FormationSlot(slotId: 'lb', slotPosition: 'DEF', x: 90, y: 66),
+    FormationSlot(slotId: 'rm', slotPosition: 'MID', x: 14, y: 42),
+    FormationSlot(slotId: 'rcm', slotPosition: 'MID', x: 38, y: 42),
+    FormationSlot(slotId: 'lcm', slotPosition: 'MID', x: 62, y: 42),
+    FormationSlot(slotId: 'lm', slotPosition: 'MID', x: 86, y: 42),
+    FormationSlot(slotId: 'cf', slotPosition: 'FWD', x: 50, y: 18),
+  ],
 };
 
 /// Maps a bare attack share onto the closest real formation. Thresholds are the

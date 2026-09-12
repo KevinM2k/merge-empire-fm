@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:merge_empire_fc/data/formations.dart';
 import 'package:merge_empire_fc/engine/match_tactics.dart';
 import 'package:merge_empire_fc/util/random.dart' as seeded;
 
@@ -107,6 +108,52 @@ void main() {
     test('the two tables mirror each other', () {
       for (final pos in ['GK', 'DEF', 'MID', 'FWD']) {
         expect(attackWeights[pos]! + defenceWeights[pos]!, closeTo(1.0, 1e-9));
+      }
+    });
+  });
+
+  group('aiFormationSlots', () {
+    test('covers exactly the shapes the AI fields', () {
+      expect(aiFormationSlots.keys.toSet(), aiFormationPositions.keys.toSet());
+    });
+
+    test('positions match aiFormationPositions slot for slot', () {
+      // The split the sim runs on comes from the bare position list; the
+      // positional sim builds eleven pseudo-players from these slots. They must
+      // describe the same eleven or the two disagree about the team's ATK/DEF.
+      aiFormationPositions.forEach((id, positions) {
+        final slots = aiFormationSlots[id]!;
+        expect(slots.length, 11, reason: id);
+        final fromSlots = slots.map((s) => s.slotPosition).toList()..sort();
+        expect(fromSlots, [...positions]..sort(), reason: id);
+      });
+    });
+
+    test('shared ids reuse the player-facing coordinates', () {
+      for (final id in ['4-3-3', '4-4-2', '5-3-2']) {
+        expect(identical(aiFormationSlots[id], formations[id]!.slots), isTrue,
+            reason: id);
+      }
+    });
+
+    test('the AI-only shapes obey the same frame rules', () {
+      for (final id in ['3-4-3', '5-4-1']) {
+        final slots = aiFormationSlots[id]!;
+        expect(slots.map((s) => s.slotId).toSet().length, 11, reason: id);
+        final gk = slots.firstWhere((s) => s.slotPosition == 'GK');
+        for (final s in slots) {
+          expect(s.x, inInclusiveRange(0, 100), reason: '$id ${s.slotId}');
+          expect(s.y, inInclusiveRange(0, 100), reason: '$id ${s.slotId}');
+          if (s.slotId == 'gk') continue;
+          expect(gk.y, greaterThan(s.y), reason: '$id ${s.slotId}');
+          if (s.slotId.startsWith('r')) {
+            expect(s.x, lessThan(50), reason: '$id ${s.slotId}');
+          } else if (s.slotId.startsWith('l')) {
+            expect(s.x, greaterThan(50), reason: '$id ${s.slotId}');
+          } else {
+            expect(s.x, 50, reason: '$id ${s.slotId}');
+          }
+        }
       }
     });
   });
