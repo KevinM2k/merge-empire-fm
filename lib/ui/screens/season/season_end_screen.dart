@@ -24,7 +24,6 @@ import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/report_scroll.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 import 'package:merge_empire_fc/ui/widgets/store_button.dart';
-import 'package:merge_empire_fc/util/event_bus.dart';
 import 'package:merge_empire_fc/util/format.dart';
 
 /// Is the season over and waiting to be closed?
@@ -116,12 +115,9 @@ class _SeasonEndScreenState extends ConsumerState<SeasonEndScreen> {
 
   /// Take the video, and pay the half still owed.
   Future<void> _double() async {
+    // A refusal says so on its own — see `watchRewardedAd`.
     final outcome = await watchRewardedAd(ref, doubleSeasonPlacement);
     if (!mounted) return;
-    if (outcome == AdOutcome.unavailable) {
-      emit('toast:info', t('toast.ad_unavailable'));
-      return;
-    }
     // Backing out is a choice, not a fault: the offer stays where it was.
     if (outcome != AdOutcome.rewarded) return;
     final paid = ref.read(gameProvider).update(grantSeasonDouble);
@@ -309,6 +305,9 @@ class _SeasonEndScreenState extends ConsumerState<SeasonEndScreen> {
                               '${t('match.double_reward')} → '
                               '${formatCoins(widget.doubleOffer * 2)}',
                           leading: const GameIcon('video', size: 14),
+                          busy: ref.watch(
+                            adLoadingProvider(doubleSeasonPlacement),
+                          ),
                           onTap: _double,
                         ),
                       ],

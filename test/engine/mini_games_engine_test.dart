@@ -221,6 +221,11 @@ void main() {
     });
   });
 
+  // **`allMiniGamesOnCooldown` and `shouldPrefetchSkipAd` are gone with the
+  // preloading.** They existed to decide when the Play tab should warm the skip
+  // video up, and nothing warms anything now — see `services/rewarded_ads.dart`.
+  // The fixture still carries their `all` and `prefetch` columns, so putting
+  // either back is a matter of restoring the function and the expectation.
   test('parity — only games the player OWNS count toward the skip', () {
     for (final row in _rows('allOnCooldown')) {
       _at(1000000, () {
@@ -236,8 +241,6 @@ void main() {
           row['unlocked'],
           reason: reason,
         );
-        expect(allMiniGamesOnCooldown(state), row['all'], reason: reason);
-        expect(shouldPrefetchSkipAd(state), row['prefetch'], reason: reason);
       });
     }
   });

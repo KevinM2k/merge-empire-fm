@@ -29,6 +29,7 @@ library;
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/ui/theme/app_theme.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 
@@ -105,6 +106,7 @@ class StoreButton extends StatefulWidget {
     this.small = false,
     this.stretch = true,
     this.onHold,
+    this.busy = false,
   });
 
   final StoreTone tone;
@@ -138,6 +140,21 @@ class StoreButton extends StatefulWidget {
 
   /// Fills its parent's width. Off for a button sitting in a row beside text.
   final bool stretch;
+
+  /// **WAITING ON SOMETHING, and saying so ON THE BUTTON.**
+  ///
+  /// The face stays live and the label becomes a turning spinner: a tap that
+  /// has been taken but not yet answered is not the same thing as a control
+  /// that cannot be tapped, and painting it [dead] grey says the wrong one. The
+  /// spinner is the point rather than decoration — a still "Loading…" cannot
+  /// tell a player whether the app is working or hung, and a rewarded video is
+  /// the one control in the game that routinely takes seconds to answer. See
+  /// `adLoadingProvider`: every ad offer in the app drives this from the same
+  /// flag, so a second one cannot be spinning at the same time.
+  ///
+  /// Taps are swallowed for as long as it is set — including a hold, which
+  /// would otherwise keep firing at the caller through the wait.
+  final bool busy;
 
   /// **HOLD TO KEEP SPENDING.** Fired every [holdRepeat] once the button has
   /// been held for [holdArms], and null on every control where one press means
@@ -175,7 +192,7 @@ class _StoreButtonState extends State<StoreButton> {
   }
 
   void _press() {
-    if (widget.onTap == null) return;
+    if (widget.busy || widget.onTap == null) return;
     // **ITS OWN CLICK, because it has no ink to hang one off.** Every Material
     // button gets the press cue from the splash factory — see [TapSoundSplash]
     // — and this one is a raw gesture state machine, so it asks the theme for
@@ -206,7 +223,7 @@ class _StoreButtonState extends State<StoreButton> {
     final repeated = _repeated;
     _stopHold();
     if (_down) setState(() => _down = false);
-    if (tapped && !repeated) widget.onTap?.call();
+    if (tapped && !repeated && !widget.busy) widget.onTap?.call();
   }
 
   void _stopHold() {
@@ -219,7 +236,10 @@ class _StoreButtonState extends State<StoreButton> {
   @override
   Widget build(BuildContext context) {
     final kit = Theme.of(context).extension<KitTheme>()!;
-    final dead = widget.onTap == null;
+    // **A BUSY BUTTON IS NOT A DEAD ONE.** It keeps its face, its edge and its
+    // press geometry; what it loses is the label and the tap.
+    final busy = widget.busy;
+    final dead = !busy && widget.onTap == null;
     final palette =
         _paletteFor(widget.tone) ??
         (
@@ -268,7 +288,17 @@ class _StoreButtonState extends State<StoreButton> {
         mainAxisSize: widget.stretch ? MainAxisSize.max : MainAxisSize.min,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          if (widget.leading != null) ...[
+          if (busy) ...[
+            SizedBox.square(
+              dimension: widget.small ? 12 : 14,
+              child: CircularProgressIndicator(
+                key: const ValueKey('store-button-busy'),
+                strokeWidth: 2,
+                color: ink,
+              ),
+            ),
+            const SizedBox(width: 6),
+          ] else if (widget.leading != null) ...[
             IconTheme.merge(
               data: IconThemeData(color: ink, size: widget.small ? 11 : 14),
               child: DefaultTextStyle.merge(
@@ -289,10 +319,10 @@ class _StoreButtonState extends State<StoreButton> {
                 // A glyph inside the words comes through as a `WidgetSpan`, and
                 // it reads the AMBIENT ink rather than being handed one — the
                 // caller has no way to know what colour this face prints in.
-                final spans = widget.labelSpans;
+                final spans = busy ? null : widget.labelSpans;
                 if (spans == null) {
                   return Text(
-                    widget.label,
+                    busy ? t('common.loading') : widget.label,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     textAlign: TextAlign.center,
@@ -312,7 +342,10 @@ class _StoreButtonState extends State<StoreButton> {
               },
             ),
           ),
-          if (widget.tone == StoreTone.ad && !dead) ...[
+          // No disclosure while it waits: the chip answers "what does this
+          // cost me?", and the answer is already given — the player has said
+          // yes and is watching the ask go out.
+          if (widget.tone == StoreTone.ad && !dead && !busy) ...[
             const SizedBox(width: 4),
             const _AdChip(),
           ],
@@ -322,7 +355,7 @@ class _StoreButtonState extends State<StoreButton> {
 
     return Semantics(
       button: true,
-      enabled: !dead,
+      enabled: !dead && !busy,
       child: GestureDetector(
         // **The TAP fires on release, not on `onTap`.** A hold that has already
         // spent must not spend once more when the finger comes off, and

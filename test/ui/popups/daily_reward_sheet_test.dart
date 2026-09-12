@@ -63,21 +63,13 @@ class FakeAds implements RewardedAds {
 
   AdOutcome outcome;
   final List<String> shown = [];
-  final List<String> prepared = [];
 
   @override
-  Future<AdOutcome> show(String placement) async {
+  Future<AdOutcome> show(String placement, {void Function()? onShown}) async {
     shown.add(placement);
     return outcome;
   }
 
-  @override
-  void prepare(String placement) => prepared.add(placement);
-
-
-  @override
-
-  void refresh() {}
 }
 
 Future<ProviderContainer> pumpSheet(
@@ -676,7 +668,6 @@ void main() {
     });
   });
 
-
   group('claiming at double', () {
     testWidgets('WATCHING IT THROUGH PAYS TWICE', (tester) async {
       final ads = FakeAds();
@@ -751,35 +742,47 @@ void main() {
     });
   });
 
-  group('the video is warmed as the sheet opens', () {
-    // The strongest signal in the game: this arrives through the popup queue
-    // on the first screen of a session, it is a decision that has to be
-    // answered, and the video is one of the two ways to answer it.
-    testWidgets('an unclaimed day warms the double', (tester) async {
+  group('NOTHING IS ASKED FOR UNTIL THE BUTTON IS PRESSED', () {
+    // This sheet warmed a video as it opened, on the grounds that it is the
+    // strongest signal in the game. It still is; what it fed was one warm slot
+    // for the whole app, and an ad loaded for a decision the player has not
+    // made yet is an ad sitting there expiring.
+    testWidgets('an unclaimed day asks for no ad', (tester) async {
       final ads = FakeAds();
       await pumpSheet(tester, save(lastClaimDaysAgo: 1), ads: ads);
       expect(find.byKey(const ValueKey('daily-claim-double')), findsOneWidget);
-      expect(ads.prepared, [dailyDoublePlacement]);
+      expect(ads.shown, isEmpty);
     });
 
-    testWidgets('and a BROKEN streak warms the repair instead', (tester) async {
-      // The two are mutually exclusive on this sheet, and one warm ad serves
-      // whichever is tapped anyway — every placement is the same unit now
-      // (`globalRewardedUnitAndroid`). The placement is the analytics
-      // dimension, so it still has to be the right one.
+    testWidgets('and neither does a BROKEN streak', (tester) async {
       final ads = FakeAds();
       await pumpSheet(tester, save(lastClaimDaysAgo: 3), ads: ads);
       expect(find.byKey(const ValueKey('daily-repair')), findsOneWidget);
-      expect(ads.prepared, [streakRepairPlacement]);
+      expect(ads.shown, isEmpty);
     });
 
-    testWidgets('and a day already claimed warms nothing', (tester) async {
-      // Nothing to double and nothing to repair: with ONE warm slot for the
-      // whole app this would be taken off a placement the player can reach.
+    testWidgets('AND THE REPAIR IS AN AD BUTTON, so it can say it is loading', (
+      tester,
+    ) async {
+      // It was an `ElevatedButton` in the club accent while the double below it
+      // wore the video yellow — the only other rewarded-video control on the
+      // sheet — so it had no way to show a wait at all.
+      final ads = FakeAds();
+      await pumpSheet(tester, save(lastClaimDaysAgo: 3), ads: ads);
+      final repair = tester.widget<StoreButton>(
+        find.byKey(const ValueKey('daily-repair')),
+      );
+      expect(repair.tone, StoreTone.ad);
+      expect(repair.busy, isFalse);
+    });
+
+    testWidgets('and a day already claimed has no offer to press', (
+      tester,
+    ) async {
       final ads = FakeAds();
       await pumpSheet(tester, save(lastClaimDaysAgo: 0), ads: ads);
       expect(find.byKey(const ValueKey('daily-claim-double')), findsNothing);
-      expect(ads.prepared, isEmpty);
+      expect(ads.shown, isEmpty);
     });
   });
 }

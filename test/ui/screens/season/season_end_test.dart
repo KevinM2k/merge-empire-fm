@@ -35,19 +35,14 @@ class _FakeAds implements RewardedAds {
 
   final AdOutcome outcome;
   int shown = 0;
-  final List<String> prepared = [];
 
   @override
-  Future<AdOutcome> show(String placement) async {
+  Future<AdOutcome> show(String placement, {void Function()? onShown}) async {
     shown++;
+    if (outcome != AdOutcome.unavailable) onShown?.call();
     return outcome;
   }
 
-  @override
-  void prepare(String placement) => prepared.add(placement);
-
-  @override
-  void refresh() {}
 }
 
 int coinsOf(ProviderContainer c) =>
@@ -892,13 +887,13 @@ void main() {
       expect(find.byKey(const ValueKey('season-end-double')), findsOneWidget);
     });
 
-    testWidgets('THE ROUTE WARMS IT, and only when there is one to warm', (
+    testWidgets('AND THE ROUTE IN ASKS FOR NO AD, only draws the button', (
       tester,
     ) async {
-      // The warm-up lives in `runSeasonEnd` rather than on the page, so this
-      // goes through the End Season button — see `season_end_button.dart`.
-      // A season that paid is warmed on the way in; the run-up is the whole
-      // page, which is the longest any offer in the game gets.
+      // `runSeasonEnd` warmed one on its way to the page — the longest run-up
+      // any offer in the game gets, and still a request spent on a decision
+      // nobody had made. Nothing is preloaded now; the page just has to draw
+      // the offer when there is one. See `season_end_button.dart`.
       final ads = _FakeAds();
       // A season won outright: top of the table AND promoted, so `endSeason`
       // banks a position bonus and there is something to double.
@@ -917,26 +912,20 @@ void main() {
         seasonDoubleOffer(container.read(gameProvider).state),
         greaterThan(0),
       );
-      expect(ads.prepared, [doubleSeasonPlacement]);
+      expect(ads.shown, 0, reason: 'the route warmed a video up');
       expect(find.byKey(const ValueKey('season-end-double')), findsOneWidget);
     });
 
-    testWidgets('and a season that paid nothing warms nothing', (
+    testWidgets('and a season that paid nothing draws no offer', (
       tester,
     ) async {
-      // **ONE warm slot for the whole app** (`admob_ads.dart`), so the two
-      // have to be the same question: warming for a button that is not drawn
-      // takes the slot off a placement the player can reach, and drawing one
-      // that was not warmed makes the tap pay the full load. They were two
-      // different conditions on the match summary and both were wrong — see
-      // `_canDouble` there.
       final ads = _FakeAds();
       final container = await pumpPlayArea(tester, finishedSeason(), ads: ads);
       await tester.tap(find.byKey(const ValueKey('end-season')));
       await tester.pumpAndSettle();
       await settleSave(tester);
       final offer = seasonDoubleOffer(container.read(gameProvider).state);
-      expect(ads.prepared, offer > 0 ? [doubleSeasonPlacement] : isEmpty);
+      expect(ads.shown, 0);
       expect(
         find.byKey(const ValueKey('season-end-double')),
         offer > 0 ? findsOneWidget : findsNothing,

@@ -776,31 +776,11 @@ class _BenchSheetState extends ConsumerState<_BenchSheet> {
 /// where an injured man is looked at — and it keeps its place with nobody hurt,
 /// which is what `squad.heal_all_none` is for: a control that appears only when
 /// it is needed cannot be found before it is.
-class _HealAllRow extends ConsumerStatefulWidget {
+/// **A `ConsumerWidget` again**, now that the warm-up in `initState` is gone
+/// and the row has no state of its own: the button's loading face comes off
+/// `adLoadingProvider`, which every other offer in the game reads the same way.
+class _HealAllRow extends ConsumerWidget {
   const _HealAllRow();
-
-  @override
-  ConsumerState<_HealAllRow> createState() => _HealAllRowState();
-}
-
-class _HealAllRowState extends ConsumerState<_HealAllRow> {
-  @override
-  void initState() {
-    super.initState();
-    // **WARMED WHEN THE BENCH OPENS, and only then.** This row lives inside
-    // `_BenchSheet`, so it mounts on the tap that opens the bench and nowhere
-    // else — the player is looking at the injured men at the moment this runs,
-    // which is the whole signal.
-    //
-    // Both halves of the button's own condition, because the app has ONE warm
-    // slot (see `admob_ads.dart`): nobody hurt and the button is dead, and past
-    // the day's three the video is refused anyway. Warming for either would
-    // take the slot off a placement the player can actually reach.
-    if (ref.read(injuredCountProvider) > 0 &&
-        ref.read(healAllUsedProvider) < healAllAdCapPerDay) {
-      ref.read(rewardedAdsProvider).prepare(healAllPlacement);
-    }
-  }
 
   Future<void> _watch(WidgetRef ref) async {
     final outcome = await watchRewardedAd(ref, healAllPlacement);
@@ -817,13 +797,12 @@ class _HealAllRowState extends ConsumerState<_HealAllRow> {
             ? t('squad.heal_all_done').replaceFirst('🩹', '').trim()
             : t('toast.ad_unavailable'),
       );
-    } else if (outcome == AdOutcome.unavailable) {
-      emit('toast:info', t('toast.ad_unavailable'));
     }
+    // A refusal says so on its own — see `watchRewardedAd`.
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final hurt = ref.watch(injuredCountProvider);
     final spent = ref.watch(healAllUsedProvider) >= healAllAdCapPerDay;
     return Padding(
@@ -832,6 +811,7 @@ class _HealAllRowState extends ConsumerState<_HealAllRow> {
         key: const ValueKey('squad-heal-all'),
         tone: StoreTone.ad,
         small: true,
+        busy: ref.watch(adLoadingProvider(healAllPlacement)),
         leading: const GameIcon('video', size: 14),
         label: hurt > 0
             ? t('squad.heal_all_ad', {'n': hurt})

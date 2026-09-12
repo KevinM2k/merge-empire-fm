@@ -51,28 +51,59 @@ void main() {
   });
 
   testWidgets('A BUSY ASK SWALLOWS THE SECOND TAP, invisibly', (tester) async {
-    // The barrier has to be instant; being SEEN has to wait, or a warm ad
-    // flashes a scrim over the screen on its way to a video.
-    await _pump(tester, busy: (placement: 'energy_pip', slow: false));
+    // The barrier has to be instant; being SEEN has to wait, or an ask that
+    // answers in a frame flashes a scrim over the screen on its way to a video.
+    await _pump(
+      tester,
+      busy: (placement: 'energy_pip', slow: false, showing: false),
+    );
     expect(find.byKey(const ValueKey('ad-wait')), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('under')), warnIfMissed: false);
     expect(_taps, 0, reason: 'a second tap reached the button underneath');
     expect(
       tester.widget<AnimatedOpacity>(find.byType(AnimatedOpacity)).opacity,
       0,
-      reason: 'a warm ad flashed a scrim',
+      reason: 'a scrim flashed before the wait had earned one',
     );
   });
 
   testWidgets('and one that is really loading shows the spinner', (
     tester,
   ) async {
-    await _pump(tester, busy: (placement: 'energy_pip', slow: true));
+    await _pump(
+      tester,
+      busy: (placement: 'energy_pip', slow: true, showing: false),
+    );
     await tester.pump(const Duration(milliseconds: 200));
     expect(
       tester.widget<AnimatedOpacity>(find.byType(AnimatedOpacity)).opacity,
       1,
     );
     expect(find.byType(CircularProgressIndicator), findsOneWidget);
+  });
+
+  testWidgets('THE SCRIM COMES DOWN WHEN THE VIDEO GOES UP', (tester) async {
+    // The ad owns the screen from here; a scrim of our own under it is a
+    // second thing to dismantle when the player comes back.
+    await _pump(
+      tester,
+      busy: (placement: 'energy_pip', slow: true, showing: true),
+    );
+    await tester.pump(const Duration(milliseconds: 200));
+    expect(
+      tester.widget<AnimatedOpacity>(find.byType(AnimatedOpacity)).opacity,
+      0,
+    );
+  });
+
+  testWidgets('BUT THE BARRIER DOES NOT', (tester) async {
+    // What is behind the video must still be a button rather than a second ask
+    // waiting to fire the moment the player taps through.
+    await _pump(
+      tester,
+      busy: (placement: 'energy_pip', slow: false, showing: true),
+    );
+    await tester.tap(find.byKey(const ValueKey('under')), warnIfMissed: false);
+    expect(_taps, 0, reason: 'a tap landed under a playing video');
   });
 }

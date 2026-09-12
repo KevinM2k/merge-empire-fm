@@ -39,21 +39,14 @@ class FakeAds implements RewardedAds {
 
   final AdOutcome outcome;
   int shown = 0;
-  int prepared = 0;
 
   @override
-  Future<AdOutcome> show(String placement) async {
+  Future<AdOutcome> show(String placement, {void Function()? onShown}) async {
     shown++;
+    if (outcome != AdOutcome.unavailable) onShown?.call();
     return outcome;
   }
 
-  @override
-  void prepare(String placement) => prepared++;
-
-
-  @override
-
-  void refresh() {}
 }
 
 Map<String, dynamic> result({
@@ -649,7 +642,7 @@ void main() {
       final ads = FakeAds(AdOutcome.rewarded);
       final res = result(coins: 300);
       await pumpSummary(tester, res, ads: ads);
-      expect(ads.prepared, 1, reason: 'the offer was not warmed up');
+      expect(ads.shown, 0, reason: 'an ad was asked for before the tap');
 
       // The report pushed the offer below the fold on a test-sized view; it
       // scrolls on a phone too.
@@ -700,7 +693,7 @@ void main() {
       await pumpSummary(tester, result(coins: 0), ads: ads);
       expect(find.byKey(const ValueKey('summary-double')), findsNothing);
       expect(find.byKey(const ValueKey('summary-continue')), findsOneWidget);
-      expect(ads.prepared, 0, reason: 'warmed a video for no offer');
+      expect(ads.shown, 0, reason: 'asked for a video with no offer on it');
     });
   });
 
@@ -992,7 +985,6 @@ void main() {
     });
   });
 
-
   testWidgets('THE REACTION AND THE QUESTS ARE THE SAME HEIGHT', (
     tester,
   ) async {
@@ -1086,7 +1078,6 @@ group('a tie decided on penalties', () {
     expect(find.text('3 - 4'), findsOneWidget);
   });
 });
-
 
   group('NO 2D PITCH, NO REPLAYS', () {
     // A player who has turned the cutaway off for our team never saw the
@@ -1248,22 +1239,20 @@ group('a tie decided on penalties', () {
     });
   });
 
-  group('the offer and the warm-up ask the SAME question', () {
-    // They did not, and both answers were wrong. `initState` warmed on
-    // `_base > 0` — the match FEE alone — while the button draws on
-    // `_base + _quests > 0 && tutorialFinished`. With ONE warm ad for the
-    // whole app (`admob_ads.dart`) each disagreement costs a real placement:
-    // a warm-up with no button takes the slot off whatever the player reached
-    // next, and a button with no warm-up makes the tap pay the full load.
-    testWidgets('an ordinary paying match warms one', (tester) async {
+  group('WHEN THE OFFER IS DRAWN AT ALL', () {
+    // This used to be about the warm-up agreeing with the button — `initState`
+    // warmed on `_base > 0`, the match FEE alone, while the button draws on
+    // `_base + _quests > 0 && tutorialFinished`. Nothing is warmed now (see
+    // `services/rewarded_ads.dart`), so what is left is the condition itself,
+    // and a standing check that the page asks for no ad until it is pressed.
+    testWidgets('an ordinary paying match offers it', (tester) async {
       final ads = FakeAds(AdOutcome.rewarded);
       await pumpSummary(tester, result(coins: 500), ads: ads);
       expect(find.byKey(const ValueKey('summary-double')), findsOneWidget);
-      expect(ads.prepared, 1);
+      expect(ads.shown, 0);
     });
 
-    testWidgets('THE TUTORIAL MATCH WARMS NOTHING', (tester) async {
-      // It drew no button and warmed an ad anyway.
+    testWidgets('THE TUTORIAL MATCH DOES NOT', (tester) async {
       final ads = FakeAds(AdOutcome.rewarded);
       await pumpSummary(
         tester,
@@ -1272,10 +1261,10 @@ group('a tie decided on penalties', () {
         tutorial: true,
       );
       expect(find.byKey(const ValueKey('summary-double')), findsNothing);
-      expect(ads.prepared, 0);
+      expect(ads.shown, 0);
     });
 
-    testWidgets('AND A QUESTS-ONLY MATCH WARMS ONE', (tester) async {
+    testWidgets('AND A QUESTS-ONLY MATCH DOES', (tester) async {
       // No fee and 120 in quest money: the offer is about the whole figure, so
       // the button is there — and the old `_base > 0` warmed nothing for it.
       final ads = FakeAds(AdOutcome.rewarded);
@@ -1296,16 +1285,16 @@ group('a tie decided on penalties', () {
         ads: ads,
       );
       expect(find.byKey(const ValueKey('summary-double')), findsOneWidget);
-      expect(ads.prepared, 1);
+      expect(ads.shown, 0);
     });
 
-    testWidgets('and a match that paid nothing at all warms nothing', (
+    testWidgets('and a match that paid nothing at all has no offer', (
       tester,
     ) async {
       final ads = FakeAds(AdOutcome.rewarded);
       await pumpSummary(tester, result(coins: 0), ads: ads);
       expect(find.byKey(const ValueKey('summary-double')), findsNothing);
-      expect(ads.prepared, 0);
+      expect(ads.shown, 0);
     });
   });
 }

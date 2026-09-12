@@ -61,19 +61,18 @@ List<Map<String, dynamic>> _squad(int n) {
   ];
 }
 
-/// Records what the bench warmed, so the heal-all warm-up can be checked.
-/// The real one is `RewardedAds`; nothing in a test may reach AdMob.
+/// Records every ad the bench asked for, which should be none until the
+/// heal-all button is pressed. The real one is `RewardedAds`; nothing in a test
+/// may reach AdMob.
 class BenchAds implements RewardedAds {
-  final List<String> prepared = [];
+  final List<String> shown = [];
 
   @override
-  Future<AdOutcome> show(String placement) async => AdOutcome.rewarded;
-
-  @override
-  void prepare(String placement) => prepared.add(placement);
-
-  @override
-  void refresh() {}
+  Future<AdOutcome> show(String placement, {void Function()? onShown}) async {
+    shown.add(placement);
+    onShown?.call();
+    return AdOutcome.rewarded;
+  }
 }
 
 Future<ProviderContainer> pumpSquad(
@@ -81,7 +80,7 @@ Future<ProviderContainer> pumpSquad(
   int cards = 14,
   void Function(Map<String, dynamic> state)? mutate,
 
-  /// The bench warms the heal-all video when it opens with somebody hurt.
+  /// The stand-in SDK, for the heal-all offer on the bench.
   RewardedAds? ads,
 }) async {
   final state = createDefaultState();
@@ -2004,7 +2003,6 @@ void main() {
     });
   });
 
-
   testWidgets('A BAN IS ON THE TEAM SHEET, where the side is picked', (
     tester,
   ) async {
@@ -2220,12 +2218,12 @@ void main() {
       expect(find.text(t('squad.heal_all_none')), findsOneWidget);
     });
 
-    testWidgets('AND THE VIDEO IS WARMED WHEN THE BENCH OPENS', (
+    testWidgets('AND NO VIDEO IS ASKED FOR UNTIL IT IS PRESSED', (
       tester,
     ) async {
-      // The row lives inside the bench sheet, so it mounts on the tap that
-      // opens the bench and nowhere else — the player is looking at the
-      // injured men at the moment it runs.
+      // The row warmed one as the bench opened, feeding a single warm slot for
+      // the whole app — a request spent on an offer the player might never
+      // reach. See `services/rewarded_ads.dart`.
       final ads = BenchAds();
       final container = await pumpSquad(tester, cards: 14, ads: ads);
       final hurt = container.read(benchProvider).first.instanceId;
@@ -2239,24 +2237,28 @@ void main() {
         }
       });
       await settleSave(tester);
-      // Nothing yet: the squad page is not the bench.
-      expect(ads.prepared, isEmpty);
+      expect(ads.shown, isEmpty);
 
       await tester.tap(find.byKey(const ValueKey('squad-subs')));
       await tester.pumpAndSettle();
+      expect(ads.shown, isEmpty, reason: 'the bench warmed one on the way up');
 
-      expect(ads.prepared, [healAllPlacement]);
+      // And the tap is what asks — the one that pays a load, with the button
+      // saying so while it runs.
+      await tester.tap(find.byKey(const ValueKey('squad-heal-all')));
+      await tester.pumpAndSettle();
+      expect(ads.shown, [healAllPlacement]);
+      // The grant schedules a debounced save; drain it or the binding
+      // complains about a pending timer.
+      await settleSave(tester);
     });
 
-    testWidgets('and NOBODY HURT warms nothing', (tester) async {
-      // The button is dead with nobody hurt, and the app has ONE warm slot
-      // (`admob_ads.dart`) — warming here takes it off a placement the player
-      // can actually reach.
+    testWidgets('and NOBODY HURT asks for nothing at all', (tester) async {
       final ads = BenchAds();
       await pumpSquad(tester, cards: 14, ads: ads);
       await tester.tap(find.byKey(const ValueKey('squad-subs')));
       await tester.pumpAndSettle();
-      expect(ads.prepared, isEmpty);
+      expect(ads.shown, isEmpty);
     });
   });
 
@@ -2416,7 +2418,6 @@ void main() {
     });
   });
 }
-
 
 /// A generator that always draws the same index — used to force the `none`
 /// outcome without hunting for a seed. `rollTrait` takes the trait by
