@@ -564,4 +564,12 @@ const Map<String, String> deCopy = <String, String>{
       'erhältlich. Alle Käufe werden sicher über Google Play abgewickelt. Ein '
       'Abonnement ist nicht erforderlich. Die Einwilligung der Eltern unten '
       'schaltet diese Käufe für dieses Konto frei.',
+
+  // What settled a level cup tie. Under the score in a 42pt slot,
+  // so it is an abbreviation. See `league_sheets.dart`.
+  'fixtures.on_pens': 'Elfm.',
+
+  // Der Rest des Spiels sagt "Schuh" — `product.lucky_boot.name` und
+  // `manager.lucky_boot` beide. Ein Stiefel ist kein Fußballschuh.
+  'shop.lucky_boot_ad_name': 'Glücksschuh gratis',
 };

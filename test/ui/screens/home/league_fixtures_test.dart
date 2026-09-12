@@ -213,6 +213,46 @@ void main() {
     );
   });
 
+  testWidgets('A LEVEL CUP SCORE SAYS WHAT SETTLED IT', (tester) async {
+    // **A knockout cannot end level, so the bracket recording one means
+    // penalties.** The shootout's winning goal used to be folded into the
+    // stored score — a tie watched to a 1-1 went in as a 2-1 — and unfolding it
+    // left a level score on this sheet sitting beside a W with nothing to
+    // explain the pair. Reported as the cup scores being wrong, from both
+    // sides of the same fold.
+    final container = await pumpFixtures(tester, mutate: (save) {
+      cupDueNext(save);
+      final tie = prepareCupRound(save)!;
+      // As `settleCupRound` records one: the ninety minutes, and `won`
+      // travelling beside them rather than inside them.
+      commitCupRound(save, true, tie, homeGoals: 1, awayGoals: 1);
+    });
+
+    final row = cupDueAfterMatches.first - 1;
+    expect(container.read(ourCupTiesProvider).first.won, isTrue);
+    expect(find.byKey(ValueKey('fixture-cup-score-$row')), findsOneWidget);
+    expect(
+      find.byKey(ValueKey('fixture-cup-pens-$row')),
+      findsOneWidget,
+      reason: 'a 1-1 beside a W with nothing to explain it',
+    );
+    expect(find.text(t('fixtures.on_pens')), findsOneWidget);
+  });
+
+  testWidgets('and a tie settled inside the ninety says nothing extra', (
+    tester,
+  ) async {
+    final container = await pumpFixtures(tester, mutate: (save) {
+      cupDueNext(save);
+      commitCupRound(save, true, prepareCupRound(save)!,
+          homeGoals: 3, awayGoals: 1);
+    });
+
+    final row = cupDueAfterMatches.first - 1;
+    expect(container.read(ourCupTiesProvider).first.won, isTrue);
+    expect(find.byKey(ValueKey('fixture-cup-pens-$row')), findsNothing);
+  });
+
   testWidgets('and a LIVE run still comes off the live bracket', (
     tester,
   ) async {

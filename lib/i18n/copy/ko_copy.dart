@@ -471,4 +471,8 @@ const Map<String, String> koCopy = <String, String>{
   // it takes the store's own two figures now, see `age_gate_sheet.dart`.
   'shop.coin_value_badge': '가치 +{pct}%',
   'agegate.purchases_body': '코인 팩({min} – {max}), 에너지 팩, VIP 패스를 구매할 수 있습니다. 모든 결제는 Google Play를 통해 안전하게 처리됩니다. 구독은 필요하지 않습니다. 아래 보호자 동의를 하면 이 계정에서 구매가 가능해집니다.',
+
+  // What settled a level cup tie. Under the score in a 42pt slot,
+  // so it is an abbreviation. See `league_sheets.dart`.
+  'fixtures.on_pens': '승부차기',
 };

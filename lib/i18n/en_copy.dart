@@ -927,4 +927,16 @@ const Map<String, String> enCopy = <String, String>{
       'subscription is required. Parental consent below unlocks these for this '
       'account.',
 
+  // ── What settled a cup tie, on the row that remembers it ────────────────
+  //
+  // The bracket records the NINETY MINUTES now — the shootout's winning goal
+  // used to be folded into the score, so a tie watched to a 1-1 went in as a
+  // 2-1 — and that leaves a level score on the fixtures sheet sitting beside a
+  // W with nothing to explain the pair. A knockout cannot end level, so level
+  // IS the shootout and no field has to be added to the save to know it.
+  //
+  // **It sits under the score in a 42pt slot**, so every translation of it is
+  // an abbreviation. See `league_sheets.dart`.
+  'fixtures.on_pens': 'pens',
+
 };

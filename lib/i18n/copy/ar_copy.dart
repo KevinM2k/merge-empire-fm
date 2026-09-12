@@ -499,4 +499,8 @@ const Map<String, String> arCopy = <String, String>{
       'تتوفر حزم عملات ({min} – {max}) وحزم طاقة وبطاقة VIP. تُعالَج كل '
       'المشتريات بأمان عبر Google Play. لا يلزم أي اشتراك. موافقة ولي الأمر '
       'أدناه تفتح هذه المشتريات لهذا الحساب.',
+
+  // What settled a level cup tie. Under the score in a 42pt slot,
+  // so it is an abbreviation. See `league_sheets.dart`.
+  'fixtures.on_pens': 'ترجيح',
 };

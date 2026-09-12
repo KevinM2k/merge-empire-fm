@@ -396,4 +396,8 @@ const Map<String, String> zhCopy = <String, String>{
   // it takes the store's own two figures now, see `age_gate_sheet.dart`.
   'shop.coin_value_badge': '性价比+{pct}%',
   'agegate.purchases_body': '可购买金币包（{min} – {max}）、体力包和 VIP 通行证。所有购买均通过 Google Play 安全处理。无需订阅。在下方完成家长同意后，本账号即可进行购买。',
+
+  // What settled a level cup tie. Under the score in a 42pt slot,
+  // so it is an abbreviation. See `league_sheets.dart`.
+  'fixtures.on_pens': '点球',
 };

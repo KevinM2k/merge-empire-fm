@@ -553,4 +553,8 @@ const Map<String, String> esCopy = <String, String>{
       'y un pase VIP. Todas las compras se procesan de forma segura a través de '
       'Google Play. No se requiere ninguna suscripción. El consentimiento '
       'parental de abajo desbloquea estas compras para esta cuenta.',
+
+  // What settled a level cup tie. Under the score in a 42pt slot,
+  // so it is an abbreviation. See `league_sheets.dart`.
+  'fixtures.on_pens': 'penaltis',
 };

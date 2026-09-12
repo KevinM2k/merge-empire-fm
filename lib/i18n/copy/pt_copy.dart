@@ -545,4 +545,8 @@ const Map<String, String> ptCopy = <String, String>{
       'e um passe VIP. Todas as compras são processadas com segurança pelo '
       'Google Play. Nenhuma assinatura é necessária. O consentimento dos pais '
       'abaixo libera essas compras para esta conta.',
+
+  // What settled a level cup tie. Under the score in a 42pt slot,
+  // so it is an abbreviation. See `league_sheets.dart`.
+  'fixtures.on_pens': 'pênaltis',
 };

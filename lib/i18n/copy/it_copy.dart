@@ -437,7 +437,7 @@ const Map<String, String> itCopy = <String, String>{
   'commentary.flow.secondA.3': 'Fisio chiamato per una botta.|Il fisioterapista entra in campo, c\'è un giocatore a terra da soccorrere.|Gioco fermo mentre si controlla un infortunio a bordo campo.|Cure sul terreno di gioco, e questi minuti verranno recuperati alla fine.',
   'commentary.flow.secondB.0': 'Battaglia a centrocampo che si infiamma.|I contrasti volano a centrocampo, uno dopo l\'altro.|Nessuno riesce a controllare il centrocampo, ma ci provano tutti.|È diventata una battaglia nella zona centrale del campo.',
   'commentary.flow.secondB.1': 'Tiro da fuori — dritto sul portiere.|Trenta metri e si scatenano — il portiere blocca senza problemi.|C\'è effetto sul tiro dalla distanza, ma finisce dritto tra le braccia del portiere.|Tentativo ambizioso dalla distanza, che non impensierisce mai la porta.',
-  'commentary.flow.secondB.2': 'Splendido uno-due in area, allontanato per poco!|Un uno-due apre la difesa, e l\'ultimo tocco è di uno stivale avversario.|Lavorata benissimo dentro l\'area, e spazzata via all\'ultimo istante.|Due passaggi e la difesa era saltata — ma arriva comunque il rinvio.',
+  'commentary.flow.secondB.2': 'Splendido uno-due in area, allontanato per poco!|Un uno-due apre la difesa, e l\'ultimo tocco è di uno scarpino avversario.|Lavorata benissimo dentro l\'area, e spazzata via all\'ultimo istante.|Due passaggi e la difesa era saltata — ma arriva comunque il rinvio.',
   'commentary.forces_save': '{who} costringe a una parata!|{who} allargano e crossano — il portiere ci arriva in tuffo.|Uno-due rapido di {who} al limite, e il tiro viene respinto basso sul primo palo.|{who} ripartono tre contro due, e solo un\'uscita bassa la tiene fuori.|La palla arriva comoda a {who} da otto metri — e il portiere, chissà come, c\'è.|{who} calciano da posizione defilata, e il portiere devia in angolo.|Un colpo di testa su corner del {who} viene salvato sulla linea, chissà come.|{who} mettono un pallone basso sullo specchio, e il portiere ci arriva con una manona forte.',
   'commentary.goal.equalise.no_scorer': '{us} pareggiano!|{us} agguantano il pari!|{us} pari — partita aperta!|Partita aperta! {us} pareggiano!|{us} trovano il pareggio!|{us} tornano in parità!|Tutto pari — è {us}!|{us} riequilibrano il match!',
   'commentary.goal.equalise.with_scorer': '{scorer} pareggia per {us}!|Tornati in partita — {scorer} la mette per {us}!|{scorer} risponde — {us} pari!|Partita aperta! {us} pareggiano con {scorer}.|{scorer} trova il varco giusto — {us} tornano in parità!|Tutto pari! {scorer} firma il gol per {us}!|{scorer} non sbaglia — {us} hanno pareggiato!|Dritto nel mezzo della porta con {scorer}, e {us} sono di nuovo in parità!',
@@ -563,4 +563,8 @@ const Map<String, String> itCopy = <String, String>{
       'sicuro tramite Google Play. Non è richiesto alcun abbonamento. Il '
       'consenso dei genitori qui sotto sblocca questi acquisti per questo '
       'account.',
+
+  // What settled a level cup tie. Under the score in a 42pt slot,
+  // so it is an abbreviation. See `league_sheets.dart`.
+  'fixtures.on_pens': 'rigori',
 };

@@ -443,4 +443,8 @@ const Map<String, String> jaCopy = <String, String>{
   // it takes the store's own two figures now, see `age_gate_sheet.dart`.
   'shop.coin_value_badge': 'お得度+{pct}%',
   'agegate.purchases_body': 'コインパック（{min}〜{max}）、エナジーパック、VIPパスをご利用いただけます。すべての購入は Google Play を通じて安全に処理されます。定期購入は不要です。下の保護者の同意により、このアカウントで購入が可能になります。',
+
+  // What settled a level cup tie. Under the score in a 42pt slot,
+  // so it is an abbreviation. See `league_sheets.dart`.
+  'fixtures.on_pens': 'PK',
 };

@@ -566,4 +566,8 @@ const Map<String, String> frCopy = <String, String>{
       'sont disponibles. Tous les achats sont traités de façon sécurisée par '
       'Google Play. Aucun abonnement n\'est requis. Le consentement parental '
       'ci-dessous débloque ces achats pour ce compte.',
+
+  // What settled a level cup tie. Under the score in a 42pt slot,
+  // so it is an abbreviation. See `league_sheets.dart`.
+  'fixtures.on_pens': 't.a.b.',
 };
