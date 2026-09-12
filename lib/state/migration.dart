@@ -20,6 +20,8 @@ import 'dart:math' as math;
 import 'package:merge_empire_fc/data/club_assets.dart';
 import 'package:merge_empire_fc/data/config.dart';
 import 'package:merge_empire_fc/data/formations.dart';
+import 'package:merge_empire_fc/engine/attack_sequence.dart'
+    show attackSides, defaultAttackSide;
 import 'package:merge_empire_fc/data/player_art.dart';
 import 'package:merge_empire_fc/data/players.dart';
 import 'package:merge_empire_fc/engine/lineup_engine.dart';
@@ -330,6 +332,11 @@ void _migrateClubAssets(Map<String, dynamic> data) {
 void _migrateSquad(Map<String, dynamic> data) {
   final squad = _ensureMap(data, 'squad');
   if (squad['formation'] is! String) squad['formation'] = defaultFormation;
+  // The side dial, added with the positional sim. Not in the schema: the
+  // default-state fixture compares keys with the JS, which never had one.
+  if (!attackSides.contains(squad['attackSide'])) {
+    squad['attackSide'] = defaultAttackSide;
+  }
 
   final grid = _map(data['grid']);
   final rawCells = grid?['cells'];

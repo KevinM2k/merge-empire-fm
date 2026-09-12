@@ -394,6 +394,31 @@ class SequenceContext {
   int get shotBand => towardZero ? 0 : pitchBands - 1;
 }
 
+/// The side-bias dial, as `state['squad']['attackSide']` spells it.
+const List<String> attackSides = ['balanced', 'left', 'centre', 'right'];
+const String defaultAttackSide = 'balanced';
+
+/// The save's setting, or balanced for anything it does not spell.
+String attackSideOf(Map<String, dynamic>? squad) {
+  final v = squad?['attackSide'];
+  return v is String && attackSides.contains(v) ? v : defaultAttackSide;
+}
+
+/// Per-lane multipliers on where our attacks START, for a setting of the dial.
+///
+/// A committed side puts sixty per cent of the starts down that flank,
+/// twenty-five through the middle and fifteen down the far side — the brief's
+/// split — written as multipliers on an even fifth a lane, so they bend the
+/// side's own presence rather than replace it. Centre puts the sixty in the one
+/// middle lane. Balanced is ones. Where attacks start is all it moves: a duel
+/// is still a duel, and the goals are still λ's.
+List<double> laneBiasFor(String? side) => switch (side) {
+  'right' => const [1.5, 1.5, 1.25, 0.375, 0.375],
+  'left' => const [0.375, 0.375, 1.25, 1.5, 1.5],
+  'centre' => const [0.5, 0.5, 3.0, 0.5, 0.5],
+  _ => const [1, 1, 1, 1, 1],
+};
+
 /// The defender's number once the others in the zone are counted. Saturating
 /// in the support, so ten men in a box are worth a bounded lift, not ten men.
 double effectiveDefence(double defence, double support) =>

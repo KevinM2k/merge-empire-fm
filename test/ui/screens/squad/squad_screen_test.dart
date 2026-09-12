@@ -11,6 +11,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:merge_empire_fc/util/time.dart' show now;
 import 'package:merge_empire_fc/data/divisions.dart';
 import 'package:merge_empire_fc/data/formations.dart';
+import 'package:merge_empire_fc/engine/attack_sequence.dart'
+    show attackSides, defaultAttackSide;
 import 'package:merge_empire_fc/engine/match_tactics.dart';
 import 'package:merge_empire_fc/engine/squad_rating.dart';
 import 'package:merge_empire_fc/ui/screens/squad/squad_pickers.dart';
@@ -448,6 +450,28 @@ void main() {
       await settleSave(tester);
 
       expect(container.read(strategyIdProvider), other);
+    });
+
+    testWidgets('the side chip opens a picker and turns the dial', (
+      tester,
+    ) async {
+      final container = await pumpSquad(tester);
+      expect(container.read(attackSideProvider), defaultAttackSide);
+      expect(find.byKey(const ValueKey('squad-side')), findsOneWidget);
+
+      await tester.tap(find.byKey(const ValueKey('squad-side')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('side-picker')), findsOneWidget);
+      for (final side in attackSides) {
+        expect(find.byKey(ValueKey('side-$side')), findsOneWidget);
+      }
+
+      await tester.tap(find.byKey(const ValueKey('side-right')));
+      await tester.pumpAndSettle();
+      await settleSave(tester);
+      expect(container.read(attackSideProvider), 'right');
+      // The sheet stays up, re-marked, for the manager to compare.
+      expect(find.byKey(const ValueKey('side-picker')), findsOneWidget);
     });
 
     testWidgets('every tactic states its trade', (tester) async {

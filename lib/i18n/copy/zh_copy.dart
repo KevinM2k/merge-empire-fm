@@ -304,4 +304,15 @@ const Map<String, String> zhCopy = <String, String>{
       '{name}从开场哨到终场哨始终处于比赛中心。|无论好坏，比赛的大部分都经过{name}。',
   'report.duel.struggled':
       '{name}度过了艰难的一个下午，大多数对抗都处于下风。|{name}状态不佳，输掉的对抗比赢下的多。',
+
+  // ── The side dial on the squad tab ────────────────────────────────────
+  'squad.side.label': '进攻方向',
+  'squad.side.balanced': '均衡',
+  'squad.side.balanced.hint': '进攻从阵型安排的位置发起。',
+  'squad.side.left': '左路',
+  'squad.side.left.hint': '大多数进攻从左路发起。',
+  'squad.side.centre': '中路',
+  'squad.side.centre.hint': '大多数进攻从中路发起。',
+  'squad.side.right': '右路',
+  'squad.side.right.hint': '大多数进攻从右路发起。',
 };

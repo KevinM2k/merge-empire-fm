@@ -477,4 +477,46 @@ void main() {
       );
     });
   });
+
+  group('the side dial', () {
+    ({double right, double goals}) season(String side) {
+      seeded.setSeed(21);
+      final us = _side(70, '4-3-3', ours: true);
+      final them = _side(70, '4-4-2');
+      final out = <PositionalEvent>[];
+      var goals = 0;
+      for (var i = 0; i < 2000; i++) {
+        goals += positionalWindowGoals(
+          ctx: SequenceContext(
+            attackers: us,
+            defenders: them,
+            side: 'ours',
+            laneBias: laneBiasFor(side),
+          ),
+          lambda: 1.35,
+          fromMinute: 0,
+          toMinute: 90,
+          out: out,
+        );
+      }
+      final sum = positionalSummary(out);
+      return (right: flankShares(sum, 'ours')[Flank.right]!, goals: goals / 2000);
+    }
+
+    test('a committed side moves the flank share materially', () {
+      final balanced = season('balanced');
+      final right = season('right');
+      final left = season('left');
+      expect(right.right, greaterThan(balanced.right + 0.08));
+      expect(left.right, lessThan(balanced.right - 0.08));
+    });
+
+    test('and moves the goals not at all', () {
+      // Expected goals are λ whatever the dial says; 0.06 is three standard
+      // errors at this count.
+      for (final side in attackSides) {
+        expect(season(side).goals, closeTo(1.35, 0.06), reason: side);
+      }
+    });
+  });
 }

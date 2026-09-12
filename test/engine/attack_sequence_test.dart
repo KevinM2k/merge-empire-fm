@@ -724,4 +724,57 @@ void main() {
       expect(d.toMap().containsKey('xg'), isFalse);
     });
   });
+
+  group('the side dial', () {
+    test('spells four settings and reads anything else as balanced', () {
+      expect(attackSides, ['balanced', 'left', 'centre', 'right']);
+      expect(attackSideOf(null), 'balanced');
+      expect(attackSideOf({}), 'balanced');
+      expect(attackSideOf({'attackSide': 'right'}), 'right');
+      expect(attackSideOf({'attackSide': 'sideways'}), 'balanced');
+      expect(attackSideOf({'attackSide': 7}), 'balanced');
+    });
+
+    test('a committed side is 60/25/15 over an even pitch', () {
+      double share(List<double> bias, List<int> lanes) {
+        final total = bias.fold(0.0, (a, b) => a + b);
+        return lanes.fold(0.0, (a, l) => a + bias[l]) / total;
+      }
+      final right = laneBiasFor('right');
+      expect(share(right, [0, 1]), closeTo(0.6, 1e-9));
+      expect(share(right, [2]), closeTo(0.25, 1e-9));
+      expect(share(right, [3, 4]), closeTo(0.15, 1e-9));
+      final left = laneBiasFor('left');
+      expect(share(left, [3, 4]), closeTo(0.6, 1e-9));
+      expect(left, right.reversed.toList());
+      final centre = laneBiasFor('centre');
+      expect(share(centre, [2]), closeTo(0.6, 1e-9));
+      expect(laneBiasFor('balanced'), [1, 1, 1, 1, 1]);
+      expect(laneBiasFor(null), [1, 1, 1, 1, 1]);
+    });
+
+    test('the bias bends where attacks start and nothing about the duel', () {
+      final ours = pitchSideForAi(70, '4-4-2', mirrored: false);
+      final theirs = pitchSideForAi(70, '4-4-2');
+      double rightStart(String side) {
+        final w = startZoneWeights(
+          SequenceContext(
+            attackers: ours,
+            defenders: theirs,
+            side: 'ours',
+            laneBias: laneBiasFor(side),
+          ),
+        );
+        final total = w.fold(0.0, (a, b) => a + b);
+        var right = 0.0;
+        for (var z = 0; z < pitchZones; z++) {
+          if (zoneLane(z) <= 1) right += w[z];
+        }
+        return right / total;
+      }
+      expect(rightStart('right'), greaterThan(rightStart('balanced') + 0.15));
+      expect(rightStart('left'), lessThan(rightStart('balanced') - 0.15));
+      expect(rightStart('balanced'), closeTo(0.4, 0.05));
+    });
+  });
 }

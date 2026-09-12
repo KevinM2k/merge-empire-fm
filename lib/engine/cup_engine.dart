@@ -761,7 +761,12 @@ PreparedCupRound? prepareCupRound(Map<String, dynamic> state) {
     final frac = math.max(0.0, (to - from) / 90);
     final ourSide = ourSideNow(atk, def);
     homeGoals += positionalWindowGoals(
-      ctx: SequenceContext(attackers: ourSide, defenders: theirSide, side: 'ours'),
+      ctx: SequenceContext(
+        attackers: ourSide,
+        defenders: theirSide,
+        side: 'ours',
+        laneBias: laneBiasFor(attackSideOf(_map(state['squad']))),
+      ),
       lambda: goalRateLambda(atk, oppSplit.defence) * frac * cupVariance,
       fromMinute: from,
       toMinute: to,

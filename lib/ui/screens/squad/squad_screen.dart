@@ -143,6 +143,7 @@ class SquadHeader extends ConsumerWidget {
     final ratings = ref.watch(squadRatingsProvider);
     final formationId = ref.watch(formationIdProvider);
     final tacticId = ref.watch(strategyIdProvider);
+    final attackSide = ref.watch(attackSideProvider);
 
     // THREE bands, not two. Below the division's range is "this is why you keep
     // losing"; above it is "you are ready to go up"; inside it is neither, and
@@ -271,6 +272,18 @@ class SquadHeader extends ConsumerWidget {
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 8),
+          // Which side the attacks start down — the positional sim's one
+          // control. Its own row: three chips across a phone squeezed
+          // "Formation 4-2-3-1" to nothing.
+          _Chip(
+            chipKey: 'squad-side',
+            onTap: () => showSidePicker(context, ref),
+            fill: kit.surface,
+            edge: kit.border,
+            label: t('squad.side.label'),
+            value: t('squad.side.$attackSide'),
           ),
         ],
       ),

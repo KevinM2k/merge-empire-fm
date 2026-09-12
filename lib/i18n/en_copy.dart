@@ -957,4 +957,18 @@ const Map<String, String> enCopy = <String, String>{
       'It did not go for {name}, with more battles lost than won.|'
       '{opp} found {name} out, and kept going back for more.',
 
+
+  // ── The side dial on the squad tab ────────────────────────────────────────
+  //
+  // It moves where the positional sim STARTS an attack and nothing else —
+  // the goals stay the goal model's — and the hints say exactly that much.
+  'squad.side.label': 'Attack down',
+  'squad.side.balanced': 'Balanced',
+  'squad.side.balanced.hint': 'Attacks start wherever the shape puts them.',
+  'squad.side.left': 'The left',
+  'squad.side.left.hint': 'Most attacks start down the left flank.',
+  'squad.side.centre': 'The middle',
+  'squad.side.centre.hint': 'Most attacks start through the centre.',
+  'squad.side.right': 'The right',
+  'squad.side.right.hint': 'Most attacks start down the right flank.',
 };

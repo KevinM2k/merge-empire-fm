@@ -560,6 +560,19 @@ void main() {
       );
     });
 
+    test('defaults the side dial to balanced and resets nonsense', () {
+      final fresh = migrate(_legacy({'squad': {'formation': '4-3-3'}}))!;
+      expect((fresh['squad'] as Map)['attackSide'], 'balanced');
+      final kept = migrate(
+        _legacy({'squad': {'formation': '4-3-3', 'attackSide': 'right'}}),
+      )!;
+      expect((kept['squad'] as Map)['attackSide'], 'right');
+      final junk = migrate(
+        _legacy({'squad': {'formation': '4-3-3', 'attackSide': 'sideways'}}),
+      )!;
+      expect((junk['squad'] as Map)['attackSide'], 'balanced');
+    });
+
     test('migrates the removed 4-2-4 formation to 4-3-3', () {
       final s = migrate(_legacy({'squad': {'formation': '4-2-4'}}))!;
       expect((s['squad'] as Map)['formation'], '4-3-3');

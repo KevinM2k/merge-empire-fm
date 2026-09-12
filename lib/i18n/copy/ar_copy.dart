@@ -375,4 +375,15 @@ const Map<String, String> arCopy = <String, String>{
       'كان {name} في قلب الأحداث من الصافرة الأولى إلى الأخيرة.|مرّ جزء كبير من المباراة عبر {name}، للأفضل والأسوأ.',
   'report.duel.struggled':
       'عاش {name} فترة صعبة وخسر معظم التحاماته.|لم يكن يوم {name}، فقد خسر من الالتحامات أكثر مما فاز.',
+
+  // ── The side dial on the squad tab ────────────────────────────────────
+  'squad.side.label': 'الهجوم من',
+  'squad.side.balanced': 'متوازن',
+  'squad.side.balanced.hint': 'تبدأ الهجمات حيث تضعها الخطة.',
+  'squad.side.left': 'اليسار',
+  'squad.side.left.hint': 'تبدأ معظم الهجمات من الجهة اليسرى.',
+  'squad.side.centre': 'الوسط',
+  'squad.side.centre.hint': 'تبدأ معظم الهجمات من الوسط.',
+  'squad.side.right': 'اليمين',
+  'squad.side.right.hint': 'تبدأ معظم الهجمات من الجهة اليمنى.',
 };

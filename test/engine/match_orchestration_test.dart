@@ -140,6 +140,20 @@ void main() {
       }
     });
 
+    test('the side dial reaches the sim: a right-sided team attacks right', () {
+      var right = 0, left = 0;
+      for (var seed = 0; seed < 12; seed++) {
+        seeded.setSeed(seed);
+        final state = _state();
+        (state['squad'] as Map)['attackSide'] = 'right';
+        final result = simulateMatch(state, null);
+        final flank = ((result['positional'] as Map)['flank'] as Map)['ours'] as Map;
+        right += flank['right'] as int;
+        left += flank['left'] as int;
+      }
+      expect(right, greaterThan(left * 2));
+    });
+
     test('a finished, settled match encodes as JSON', () {
       // A cup win puts a result into the save, so anything on it that cannot be
       // encoded throws on the first save after the match rather than here.

@@ -156,6 +156,7 @@ HardSim _simulateHardGoals({
   required List<FormationSlot> ourSlots,
   required PitchSide oppSide,
   required List<PositionalEvent> positional,
+  List<double>? laneBias,
 }) {
   const seg = PlayerEnergy.segments;
   const minutesPerSeg = 90 / seg;
@@ -306,7 +307,12 @@ HardSim _simulateHardGoals({
 
     const segFrac = 1 / seg;
     final h = positionalWindowGoals(
-      ctx: SequenceContext(attackers: ourSide, defenders: theirSide, side: 'ours'),
+      ctx: SequenceContext(
+        attackers: ourSide,
+        defenders: theirSide,
+        side: 'ours',
+        laneBias: laneBias,
+      ),
       lambda: goalRateLambda(adjAtk, segOppDef) * segFrac * variance,
       fromMinute: s * minutesPerSeg,
       toMinute: (s + 1) * minutesPerSeg,
@@ -759,6 +765,9 @@ MatchResult simulateMatch(
     opponentRating,
     formationForShare(oppAttackRatio),
   );
+  // Where our attacks start — the squad screen's side dial. Ours only: the
+  // AI has no dial, and where THEY come is their shape's business.
+  final laneBias = laneBiasFor(attackSideOf(squad));
   final positional = <PositionalEvent>[];
   PitchSide ourSideNow(double attack, double defence) => pitchSideFromLineup(
     cards: _cards(state),
@@ -912,6 +921,7 @@ MatchResult simulateMatch(
       ourSlots: ourSlots,
       oppSide: oppSideBase,
       positional: positional,
+      laneBias: laneBias,
     );
     homeGoals = sim.homeGoals;
     awayGoals = sim.awayGoals;
@@ -936,7 +946,12 @@ MatchResult simulateMatch(
       final frac = math.max(0.0, (upTo - prevMin) / 90);
       final ourSide = ourSideNow(curAtk, curDef);
       homeGoals += positionalWindowGoals(
-        ctx: SequenceContext(attackers: ourSide, defenders: theirSide, side: 'ours'),
+        ctx: SequenceContext(
+          attackers: ourSide,
+          defenders: theirSide,
+          side: 'ours',
+          laneBias: laneBias,
+        ),
         lambda: goalRateLambda(curAtk, effOppDefence) * frac * matchVariance,
         fromMinute: prevMin.toDouble(),
         toMinute: upTo.toDouble(),
@@ -983,7 +998,12 @@ MatchResult simulateMatch(
   } else {
     final ourSide = ourSideNow(adjAttack, adjDefence);
     homeGoals = positionalWindowGoals(
-      ctx: SequenceContext(attackers: ourSide, defenders: theirSide, side: 'ours'),
+      ctx: SequenceContext(
+        attackers: ourSide,
+        defenders: theirSide,
+        side: 'ours',
+        laneBias: laneBias,
+      ),
       lambda: goalRateLambda(adjAttack, effOppDefence) * matchVariance,
       fromMinute: 0,
       toMinute: 90,
@@ -1904,7 +1924,12 @@ List<Map<String, dynamic>> reSimulateRemainder(
           formationForShare(oppAttackRatio ?? oppBaseAtkShare),
         ).scaledToTeam(attack: oppAttack, defence: oppDefence);
   final remainHome = positionalWindowGoals(
-    ctx: SequenceContext(attackers: ourSide, defenders: theirSide, side: 'ours'),
+    ctx: SequenceContext(
+      attackers: ourSide,
+      defenders: theirSide,
+      side: 'ours',
+      laneBias: laneBiasFor(attackSideOf(_map(state?['squad']))),
+    ),
     lambda: goalRateLambda(adjAttack, oppDefence) * fraction * variance,
     fromMinute: fromMinute.toDouble(),
     toMinute: matchDuration.toDouble(),

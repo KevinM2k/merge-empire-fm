@@ -27,6 +27,8 @@ import 'package:merge_empire_fc/ui/screens/grid/grid_providers.dart';
 import 'package:merge_empire_fc/ui/screens/squad/squad_providers.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/theme/tactic_style.dart';
+import 'package:merge_empire_fc/engine/attack_sequence.dart'
+    show attackSideOf, attackSides, laneBiasFor;
 import 'package:merge_empire_fc/ui/screens/squad/pitch_token.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 import 'package:merge_empire_fc/ui/widgets/player_card.dart';
@@ -58,6 +60,19 @@ void setStrategy(WidgetRef ref, String strategyId) {
     if (squad is Map<String, dynamic>) squad['strategyId'] = strategyId;
   });
 }
+
+void setAttackSide(WidgetRef ref, String side) {
+  if (!attackSides.contains(side)) return;
+  ref.read(gameProvider).update((s) {
+    final squad = s['squad'];
+    if (squad is Map<String, dynamic>) squad['attackSide'] = side;
+  });
+}
+
+final attackSideProvider = savePick<String>((s) {
+  final squad = s['squad'];
+  return attackSideOf(squad is Map<String, dynamic> ? squad : null);
+});
 
 final strategyIdProvider = savePick<String>((s) {
   final squad = s['squad'];
@@ -243,6 +258,131 @@ Future<void> showTacticPicker(BuildContext context, WidgetRef ref) {
       },
     ),
   );
+}
+
+/// Which side the attacks start down.
+///
+/// Four cards, each a mini pitch with the chosen lanes lit, so the setting is
+/// seen rather than read. It moves where the positional sim STARTS an attack
+/// and nothing else — the goals stay the goal model's — which is exactly what
+/// the hint under each says. Same non-closing behaviour as the shapes: the
+/// manager is comparing, and closes it themselves.
+Future<void> showSidePicker(BuildContext context, WidgetRef ref) {
+  return showBottomSheetPopup<void>(
+    context,
+    heightFraction: 0.5,
+    child: Consumer(
+      builder: (context, ref, _) {
+        final kit = Theme.of(context).extension<KitTheme>()!;
+        final current = ref.watch(attackSideProvider);
+        return GridView.count(
+          key: const ValueKey('side-picker'),
+          shrinkWrap: true,
+          padding: const EdgeInsets.all(12),
+          crossAxisCount: 2,
+          crossAxisSpacing: 10,
+          mainAxisSpacing: 10,
+          childAspectRatio: 1.9,
+          children: [
+            for (final side in attackSides)
+              _PickCard(
+                cardKey: 'side-$side',
+                active: side == current,
+                activeEdge: kit.accent,
+                activeFill: kit.accent.withValues(alpha: 0.16),
+                activeInk: kit.accentBright,
+                onTap: side == current ? null : () => setAttackSide(ref, side),
+                leading: SideMini(
+                  side: side,
+                  accent: kit.accent,
+                  border: kit.border,
+                ),
+                title: t('squad.side.$side'),
+                subtitleIcon: 'swords',
+                subtitle: t('squad.side.$side.hint'),
+                subtitleColor: kit.textMuted,
+              ),
+          ],
+        );
+      },
+    ),
+  );
+}
+
+/// A pitch box with the lanes the dial favours lit, in the frame the squad
+/// tab draws: attacking up, our right on the LEFT of the box — see the header
+/// of `engine/pitch_space.dart`.
+class SideMini extends StatelessWidget {
+  const SideMini({
+    required this.side,
+    required this.accent,
+    required this.border,
+    super.key,
+  });
+
+  final String side;
+  final Color accent;
+  final Color border;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    width: 38,
+    height: 53,
+    child: CustomPaint(
+      painter: _SideMiniPainter(
+        bias: laneBiasFor(side),
+        accent: accent,
+        border: border,
+      ),
+    ),
+  );
+}
+
+class _SideMiniPainter extends CustomPainter {
+  const _SideMiniPainter({
+    required this.bias,
+    required this.accent,
+    required this.border,
+  });
+
+  final List<double> bias;
+  final Color accent;
+  final Color border;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final box = Rect.fromLTWH(0.5, 0.5, size.width - 1, size.height - 1);
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(box, const Radius.circular(3)),
+      Paint()
+        ..color = border
+        ..style = PaintingStyle.stroke,
+    );
+    final peak = bias.fold(0.0, (a, b) => a > b ? a : b);
+    final laneW = size.width / bias.length;
+    for (var i = 0; i < bias.length; i++) {
+      // Even is a faint wash, a favoured lane a strong one.
+      final t = peak > 0 ? bias[i] / peak : 0.0;
+      canvas.drawRect(
+        Rect.fromLTWH(i * laneW, 0, laneW, size.height).deflate(1),
+        Paint()..color = accent.withValues(alpha: 0.12 + 0.6 * t * t),
+      );
+    }
+    // The arrow: up the pitch.
+    final mid = Offset(size.width / 2, size.height / 2);
+    final arrow = Paint()
+      ..color = Colors.white.withValues(alpha: 0.85)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5
+      ..strokeCap = StrokeCap.round;
+    canvas.drawLine(mid + const Offset(0, 8), mid + const Offset(0, -8), arrow);
+    canvas.drawLine(mid + const Offset(-4, -4), mid + const Offset(0, -8), arrow);
+    canvas.drawLine(mid + const Offset(4, -4), mid + const Offset(0, -8), arrow);
+  }
+
+  @override
+  bool shouldRepaint(_SideMiniPainter old) =>
+      old.bias != bias || old.accent != accent || old.border != border;
 }
 
 class _TacticRow extends StatelessWidget {
