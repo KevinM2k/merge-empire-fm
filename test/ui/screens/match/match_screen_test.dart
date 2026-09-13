@@ -49,8 +49,13 @@ import 'package:merge_empire_fc/engine/squad_rating.dart' show CardStats;
 import 'package:merge_empire_fc/engine/booking_engine.dart';
 import 'package:merge_empire_fc/engine/match_orchestration.dart'
     show resetMatchRandom, setMatchRandom;
-import 'package:merge_empire_fc/engine/match_tactics.dart' show strategies;
+import 'package:merge_empire_fc/engine/match_tactics.dart'
+    show matchesPerSeason, strategies;
 import 'package:merge_empire_fc/engine/coach_tip_engine.dart' show hasSeenTip;
+import 'package:merge_empire_fc/ui/screens/match/match_launcher.dart'
+    show beginMatch, settleMatch;
+import 'package:merge_empire_fc/ui/screens/home/league_providers.dart'
+    show ourFixturesProvider;
 
 Map<String, dynamic> matchResult({
   bool won = true,
@@ -136,8 +141,14 @@ Future<ProviderContainer> pumpMatch(
   bool fast = false,
   bool auto = false,
   List<Override> overrides = const [],
+  // **ALREADY LOADED, for a test that has to START the match itself.**
+  // The save is otherwise encoded and loaded HERE, which puts a save/load
+  // between `beginMatch` and full time — and `_repairSeasonCounters` reads the
+  // kick-off placeholder on the way in, so the counters are awarded twice. A
+  // caller that runs the engine itself loads first and hands the container in.
+  ProviderContainer? container,
 }) async {
-  final container = ProviderContainer(
+  final loaded = container ?? ProviderContainer(
     overrides: [
       saveStoreProvider.overrideWithValue(
         MemorySaveStore({
@@ -147,12 +158,14 @@ Future<ProviderContainer> pumpMatch(
       ...overrides,
     ],
   );
-  addTearDown(container.dispose);
-  container.read(gameProvider).load();
+  if (container == null) {
+    addTearDown(loaded.dispose);
+    loaded.read(gameProvider).load();
+  }
 
   await tester.pumpWidget(
     UncontrolledProviderScope(
-      container: container,
+      container: loaded,
       child: Consumer(
         builder: (context, ref, _) => MaterialApp(
           theme: ref.watch(appThemeProvider),
@@ -179,7 +192,7 @@ Future<ProviderContainer> pumpMatch(
     ),
   );
   await tester.pump();
-  return container;
+  return loaded;
 }
 
 /// A backend that only remembers what it was asked to play.
@@ -4522,5 +4535,197 @@ void main() {
       expectAgreed(state, reason: 'an away win');
       await settleSave(tester);
     });
+  });
+
+  // **AND WHAT WAS WATCHED IS WHAT GETS RECORDED.**
+  //
+  // [expectAgreed] stops at the result map, and the map is not what the player
+  // complains about. The report was "you win the match and then it's marked as
+  // a loss" — the RECORD: `fixtureResults`, the season counters, the row on the
+  // fixtures sheet. Every one of those is written from the same result, which
+  // is why it has always been true, and "always been true" is exactly the thing
+  // that goes quietly wrong.
+  //
+  // So this group refuses to hand-write a result. It starts a real one through
+  // `beginMatch`, plays it on the screen, settles it the way `play_button`
+  // does — `game.update((s) => settleMatch(s, r))`, the same call in the same
+  // place — and then reads the save back and asks whether it agrees with the
+  // scoreboard the player was looking at.
+  group('WHAT WAS WATCHED IS WHAT GETS RECORDED', () {
+    tearDown(resetMatchRandom);
+
+    /// A save a match can actually be STARTED from: `squadSave`'s grid, plus
+    /// the lineup and the pips `matchStartBlocked` asks for.
+    Map<String, dynamic> playableSave() {
+      final s = squadSave();
+      (s['energy'] as Map<String, dynamic>)['current'] = 10;
+      // The division's seven, drawn up front: `ourFixturesProvider` returns
+      // nothing at all without them, and a schedule is what the W/D/L letter is
+      // printed on.
+      (s['progression'] as Map<String, dynamic>)['seasonOpponents'] = const [
+        'Ayton',
+        'Beeches',
+        'Cadley',
+        'Deeping',
+        'Elton',
+        'Fairby',
+        'Gorton',
+      ];
+      (s['squad'] as Map<String, dynamic>)['lineup'] = [
+        for (var i = 0; i < 11; i++)
+          <String, dynamic>{
+            'slotId': 's$i',
+            'slotPosition': 'MID',
+            'cardInstanceId': 'c$i',
+          },
+      ];
+      return s;
+    }
+
+    /// Play one real match through the screen and check the save against the
+    /// board.
+    ///
+    /// [matchNum] is not decoration: the screen rolls its referee off the
+    /// fixture KEY, so walking it is what varies the cards — a caution, a
+    /// second yellow, a straight red, a quiet afternoon — and every one of
+    /// those re-simulates the remainder. One fixture would test one referee.
+    Future<void> playAndRecord(
+      WidgetTester tester, {
+      required int matchNum,
+      required bool skip,
+      bool switchTactic = false,
+    }) async {
+      setMatchRandom(math.Random(matchNum + 1));
+      setSeed(4242 + matchNum);
+
+      // **LOADED FIRST, THEN STARTED — the order the app runs in.** A save that
+      // is written and read back BETWEEN kick-off and full time is a different
+      // scenario: `simulateMatch` files a placeholder row so the fixtures list
+      // can show a score during the animation, and `_repairSeasonCounters`
+      // awards that row on the way in. Playing on from there counts the match
+      // twice, which is the interrupted-match path and not this one.
+      final container = ProviderContainer(
+        overrides: [
+          saveStoreProvider.overrideWithValue(
+            MemorySaveStore({saveKeyPrimary: jsonEncode(playableSave())}),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      final game = container.read(gameProvider)..load();
+      final live = game.state!;
+      (live['progression'] as Map<String, dynamic>)['seasonMatchesPlayed'] =
+          matchNum;
+
+      final result = beginMatch(live)!;
+      final key = result['fixtureKey'] as String;
+
+      await pumpMatch(
+        tester,
+        result,
+        container: container,
+        instance: 'record-$matchNum-$skip-$switchTactic',
+        onFinished: (r) => game.update((s) => settleMatch(s, r)),
+      );
+
+      final state = stateOf(tester);
+      if (switchTactic) {
+        await tester.pump(minuteDurationFor(10));
+        state.applyStrategy(
+          strategies.keys.firstWhere((id) => id != state.strategy),
+        );
+        await tester.pump();
+      }
+      if (skip) {
+        state.skipToEnd();
+      } else {
+        // **WATCHED MEANS THE LIVE DISPATCH RAN**, which is the half of the
+        // card handling `skipToEnd` never reaches: each booking is applied as
+        // the clock arrives at it, and the whistle's catch-up must then find
+        // nothing left to do. The clock is then sent to full time rather than
+        // pumped there — a cutaway or a coach card holds it on its own, and
+        // waiting one out is a different test from this one.
+        for (var i = 0; i < 400 && !state.frame.finished; i++) {
+          await tester.pump(minuteDurationFor(1));
+        }
+        state.skipToEnd();
+      }
+      await tester.pumpAndSettle();
+
+      // THE BOARD is the authority here — it is the only one of these numbers
+      // the player actually saw.
+      final f = state.frame;
+      final ours = f.ourGoals;
+      final theirs = f.theirGoals;
+      final won = ours > theirs;
+      final drawn = ours == theirs;
+      final where = 'm$matchNum ${skip ? 'skipped' : 'watched'}'
+          '${switchTactic ? ' with a switch' : ''} ended $ours-$theirs';
+
+      expect(
+        state.frame.finished,
+        isTrue,
+        reason: 'the match never reached full time: $where',
+      );
+      expect(
+        regulationScore(state.widget.result),
+        (ours, theirs),
+        reason: 'the summary would print another score: $where',
+      );
+
+      final save = container.read(gameProvider).state!;
+      final prog = save['progression'] as Map<String, dynamic>;
+      final fixtures = prog['fixtureResults'] as Map<String, dynamic>;
+      final row = fixtures[key] as Map<String, dynamic>;
+
+      expect(
+        [row['homeGoals'], row['awayGoals']],
+        [ours, theirs],
+        reason: 'the fixture was filed under another score: $where',
+      );
+      expect(
+        row['won'],
+        won,
+        reason: 'the fixture was filed under the wrong outcome: $where',
+      );
+      expect(row['drawn'], drawn, reason: 'filed as the wrong draw: $where');
+
+      // The counters the league table is built from, and the one the fixtures
+      // sheet prints its W/D/L letter off.
+      expect(
+        [prog['seasonWins'], prog['seasonDraws'], prog['seasonLosses']],
+        [won ? 1 : 0, drawn ? 1 : 0, (!won && !drawn) ? 1 : 0],
+        reason: 'the season record disagrees with the board: $where',
+      );
+
+      final sheet = container
+          .read(ourFixturesProvider)
+          .firstWhere((r) => r.matchNum == matchNum);
+      expect(
+        [sheet.ourGoals, sheet.theirGoals, sheet.won, sheet.drawn],
+        [ours, theirs, won, drawn],
+        reason: 'the fixtures sheet disagrees with the board: $where',
+      );
+
+      await settleSave(tester);
+    }
+
+    // Every fixture of a season, alternating skipped and watched: the referee
+    // is a different one on each key, and the two paths reach full time by
+    // different roads.
+    for (var m = 0; m < matchesPerSeason; m++) {
+      testWidgets('fixture $m, ${m.isEven ? 'skipped' : 'watched'}', (
+        tester,
+      ) async {
+        await playAndRecord(tester, matchNum: m, skip: m.isEven);
+      });
+    }
+
+    // And the one interaction that rewrites a scoreline on purpose.
+    for (final m in [2, 7, 11]) {
+      testWidgets('fixture $m, with a tactic switch', (tester) async {
+        await playAndRecord(tester, matchNum: m, skip: true, switchTactic: true);
+      });
+    }
   });
 }
