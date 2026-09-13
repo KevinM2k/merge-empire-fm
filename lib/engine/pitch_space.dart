@@ -78,6 +78,19 @@ Flank laneFlank(int lane) => lane <= 1
 
 Flank zoneFlank(int zone) => laneFlank(zoneLane(zone));
 
+/// The flank a zone is on **in the owner's own left and right**.
+///
+/// The grid is one absolute frame, so lane 0 is OUR right and, for the side
+/// attacking the other way, their left. Every reading that speaks to a player —
+/// the report's copy, the inspector's bars, the flank the 2D passage is drawn
+/// down — wants it from the point of view of whoever is attacking, so the lane
+/// reverses for them. One function because three places did this arithmetic and
+/// a fourth was about to.
+Flank zoneFlankFor(int zone, {required bool theirs}) {
+  final lane = zoneLane(zone);
+  return laneFlank(theirs ? pitchLanes - 1 - lane : lane);
+}
+
 /// A slot's point in its own team's frame.
 PitchPoint slotPoint(FormationSlot slot) =>
     (x: slot.x.toDouble(), y: slot.y.toDouble());

@@ -514,6 +514,8 @@ const Map<String, String> ptCopy = <String, String>{
       'Quem enfrentou quem',
   'match.inspect.duel_line':
       '{won}-{lost} ({pct} %)',
+  'match.inspect.shot_line_one':
+      '{shots} chute, {xg} xG',
   'match.inspect.shot_line':
       '{shots} chutes, {xg} xG',
   'match.inspect.versus':

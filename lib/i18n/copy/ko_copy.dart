@@ -478,6 +478,8 @@ const Map<String, String> koCopy = <String, String>{
       '맞붙은 상대',
   'match.inspect.duel_line':
       '{won}-{lost}({pct}%)',
+  'match.inspect.shot_line_one':
+      '싛 {shots}회, xG {xg}',
   'match.inspect.shot_line':
       '싛 {shots}회, xG {xg}',
   'match.inspect.versus':

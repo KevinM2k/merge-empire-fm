@@ -23,6 +23,7 @@
 /// Deliberately Flutter-free.
 library;
 
+import 'package:merge_empire_fc/engine/pitch_space.dart';
 import 'package:merge_empire_fc/ui/screens/match/cutaway/cutaway_pitch.dart';
 
 /// One instruction in a passage of play.
@@ -775,4 +776,63 @@ CutawaySequence pickSequence(
     if (cursor < 0) return s;
   }
   return usable.last;
+}
+
+/// How far off centre a passage has to stray before it counts as a flank and
+/// not the middle, in attack-space q.
+///
+/// 0.15 is half a lane: `pitch_space.dart` cuts the pitch into five 20%-wide
+/// lanes, so a passage that never leaves q∈[0.35, 0.65] has stayed inside the
+/// middle lane and its immediate shoulders. Every sequence the authors named
+/// `*_right` or `*_left` lands outside it and every one they did not lands
+/// inside, which `cutaway_sequence_flank_test` asserts over the whole table —
+/// so this derivation agrees with the names rather than being a second opinion
+/// beside them.
+const double sequenceFlankWidth = 0.15;
+
+/// Every point THE BALL reaches in a passage, in order.
+///
+/// **A receiver's starting spot is not one of them, and that is the whole
+/// subtlety.** `through_center` is a central move by every description —
+/// everything the ball touches is q 0.44–0.55 — but the striker it is slid to
+/// starts his run from q 0.33 out on the shoulder of the last man. Counting
+/// where a runner BEGAN made a central through-ball a left-wing attack, which
+/// is the one thing this function exists to stop the screen saying. The channel
+/// a move is played down is where the ball goes.
+///
+/// A [Steal] is excluded for the same reason: `from` and `to` are the
+/// OPPOSITION carrying it before they lose it, so they say nothing about which
+/// side our attack then came down.
+List<AttackPoint> sequenceBallPoints(CutawaySequence sequence) => [
+  for (final beat in sequence.play)
+    ...switch (beat) {
+      Start(:final at) => [at],
+      Pass(:final to) => [to],
+      Dribble(:final to) => [to],
+      // The shot is struck from wherever the previous beat left it.
+      Finish() => const <AttackPoint>[],
+    },
+];
+
+/// **WHICH FLANK A PASSAGE IS PLAYED DOWN, derived from the script.**
+///
+/// This is what keeps the 2D pitch honest. The sim records the zone a shot came
+/// from; the feed says a chance came down the right; and until this existed the
+/// passage on the pitch was drawn from a blind weighted pick, so the commentary
+/// could name a right-sided attack while the animation swept down the left. A
+/// player watching that is being told two different things about one moment.
+///
+/// The flank is the WIDEST the ball ever gets, not where it finishes: a cross
+/// comes back toward the middle to be met, so `cross_right_header` is a
+/// right-wing move whose last pass lands at q 0.47. High q is the attacking
+/// team's right — `cross_right_header` works at 0.78–0.94 and
+/// `cross_left_volley` at 0.06–0.22 — which is also the handedness
+/// `cutaway_pitch.dart` mirrors about.
+Flank sequenceFlank(CutawaySequence sequence) {
+  var widest = 0.5;
+  for (final at in sequenceBallPoints(sequence)) {
+    if ((at.q - 0.5).abs() > (widest - 0.5).abs()) widest = at.q;
+  }
+  if ((widest - 0.5).abs() < sequenceFlankWidth) return Flank.centre;
+  return widest > 0.5 ? Flank.right : Flank.left;
 }

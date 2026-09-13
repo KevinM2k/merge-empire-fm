@@ -491,4 +491,215 @@ void main() {
       );
     });
   });
+
+  // -------------------------------------------------------------------------
+  // THE FEED IS THE POSITIONAL RECORD'S.
+  //
+  // A goal or a chance in the feed is a shot the sim actually took. The old
+  // behaviour — an invented minute, a scorer drawn by position weight and
+  // chances off an unseeded coin — is still the path for a result with no
+  // record, and both are pinned here, because the whole point is that the text,
+  // the momentum bar and the 2D passage are three readings of ONE set of events.
+  // -------------------------------------------------------------------------
+
+  group('a feed built off the record', () {
+    RecordedShot shot({
+      int minute = 20,
+      String side = 'ours',
+      String playerId = 'f0',
+      String outcome = 'goal',
+      int zone = 6,
+      double xg = 0.3,
+    }) => (
+      minute: minute,
+      side: side,
+      playerId: playerId,
+      outcome: outcome,
+      zone: zone,
+      xg: xg,
+    );
+
+    List<MatchEvent> feed(
+      List<RecordedShot> shots, {
+      int homeGoals = 1,
+      int awayGoals = 0,
+      bool isHome = true,
+    }) => generateMatchEvents(
+      homeGoals: homeGoals,
+      awayGoals: awayGoals,
+      playerData: _xi(),
+      shots: shots,
+      isHome: isHome,
+    );
+
+    test('a recorded goal keeps its minute, its shooter and its zone', () {
+      final events = feed([shot(minute: 37, playerId: 'f2', zone: 7)]);
+      final goal = events.firstWhere((e) => e.type == 'goal');
+      expect(goal.minute, 37);
+      expect(goal.scorerInstanceId, 'f2');
+      expect(goal.scorer, 'Fwd 2');
+      expect(goal.zone, 7);
+      expect(goal.team, 'home');
+    });
+
+    test('their goal is theirs and carries no scorer of ours', () {
+      final events = feed(
+        [shot(minute: 60, side: 'theirs', playerId: 'ai:rs')],
+        homeGoals: 0,
+        awayGoals: 1,
+      );
+      final goal = events.firstWhere((e) => e.type == 'goal');
+      expect(goal.minute, 60);
+      expect(goal.team, 'away');
+      expect(goal.scorerInstanceId, isNull);
+      expect(goal.zone, isNotNull);
+    });
+
+    test(
+      'a goal with no shot behind it still gets a minute and a scorer',
+      () {
+        // λ past what the shots can carry is rolled as plain Poisson on top, so
+        // a side can finish with more goals than recorded shots. Those have
+        // nobody behind them and fall back to the old picked minute and
+        // weighted scorer rather than being dropped.
+        final events = feed([shot(minute: 12)], homeGoals: 2);
+        final goals = events.where((e) => e.type == 'goal').toList();
+        expect(goals.length, 2);
+        expect(goals.first.minute, 12);
+        expect(goals.first.zone, 6);
+        // The invented one: a real minute, a credited scorer, and no zone,
+        // because there is no shot to take one from.
+        expect(goals.last.zone, isNull);
+        expect(goals.last.scorerInstanceId, isNotNull);
+        expect(goals.last.minute, inInclusiveRange(1, 94));
+      },
+    );
+
+    test('a shooter the squad no longer has leaves the goal uncredited', () {
+      // Substituted off before full time, or sold in a cup run. Better an
+      // unnamed goal than one credited to whoever happens to be on the pitch.
+      final events = feed([shot(playerId: 'nobody')]);
+      final goal = events.firstWhere((e) => e.type == 'goal');
+      expect(goal.scorerInstanceId, isNull);
+      expect(goal.zone, isNotNull);
+    });
+
+    test('the chances ARE the shots that did not go in', () {
+      final events = feed([
+        shot(minute: 12, outcome: 'goal'),
+        shot(minute: 30, outcome: 'miss', xg: 0.18, zone: 3),
+        shot(minute: 55, outcome: 'blocked', xg: 0.26, zone: 8),
+        shot(minute: 70, side: 'theirs', outcome: 'miss', xg: 0.1, zone: 14),
+      ]);
+      final chances = events.where((e) => e.type == 'chance').toList();
+      expect(chances.length, 3);
+      expect(chances.map((e) => e.minute), [30, 55, 70]);
+      expect(chances.map((e) => e.xg), [0.18, 0.26, 0.1]);
+      expect(chances.map((e) => e.zone), [3, 8, 14]);
+      // A block did not test the keeper; a miss did.
+      expect(chances.map((e) => e.shotResult), ['on_target', 'off', 'on_target']);
+      // And the big-chance flag is the xG's, at the threshold it always was.
+      expect(chances.map((e) => e.big), [false, true, false]);
+    });
+
+    test('a chance carries the man who hit it, name and id', () {
+      final events = feed([shot(outcome: 'miss', playerId: 'm1')], homeGoals: 0);
+      final chance = events.firstWhere((e) => e.type == 'chance');
+      expect(chance.scorerInstanceId, 'm1');
+      expect(chance.scorer, 'Mid 1');
+      final map = chance.toMap();
+      expect(map['scorerInstanceId'], 'm1');
+      expect(map['scorer'], 'Mid 1');
+      expect(map['zone'], 6);
+    });
+
+    test('a goal is ours-first and a chance is venue-first, as they were', () {
+      // Two conventions, both load-bearing: `eventIsOurs` reads a goal's `home`
+      // as US and a chance's as the home CLUB. Sourcing them from the record
+      // must not quietly swap one.
+      final away = feed([
+        shot(minute: 20, outcome: 'goal'),
+        shot(minute: 40, outcome: 'miss'),
+      ], isHome: false);
+      expect(away.firstWhere((e) => e.type == 'goal').team, 'home');
+      expect(away.firstWhere((e) => e.type == 'chance').team, 'away');
+      final home = feed([
+        shot(minute: 20, outcome: 'goal'),
+        shot(minute: 40, outcome: 'miss'),
+      ]);
+      expect(home.firstWhere((e) => e.type == 'goal').team, 'home');
+      expect(home.firstWhere((e) => e.type == 'chance').team, 'home');
+    });
+
+    test('two shots in one minute both reach the feed', () {
+      // They genuinely happened in the same minute; only the commentary picker
+      // is kept off those minutes.
+      final events = feed([
+        shot(minute: 44, outcome: 'miss'),
+        shot(minute: 44, outcome: 'blocked'),
+      ], homeGoals: 0);
+      expect(events.where((e) => e.type == 'chance').length, 2);
+    });
+
+    test('a zone travels to the map and an invented event carries none', () {
+      final events = feed([shot(minute: 20, zone: 11)]);
+      expect(events.firstWhere((e) => e.type == 'goal').toMap()['zone'], 11);
+      expect(
+        events.firstWhere((e) => e.type == 'corner').toMap().containsKey('zone'),
+        isFalse,
+      );
+    });
+  });
+
+  group('and with no record the feed is exactly what it was', () {
+    test('chances are still invented, at the old count', () {
+      // `floor(span / 7 + 0.5)` over a full match — the figure the balance
+      // suite holds the positional layer to as well.
+      final events = generateMatchEvents(
+        homeGoals: 1,
+        awayGoals: 1,
+        playerData: _xi(),
+      );
+      final chances = events.where((e) => e.type == 'chance').toList();
+      expect(chances, isNotEmpty);
+      for (final c in chances) {
+        expect(c.zone, isNull);
+        expect(c.scorerInstanceId, isNull);
+      }
+    });
+
+    test('and the feed is byte-identical to what it was', () {
+      // The fallback path has to be untouched or every golden for a
+      // fixed-rating tie moves for no reason. Both generators pinned — the
+      // seeded one and, through its test seam, the UNSEEDED one this file uses
+      // to match the JS's `Math.random()` — so the comparison is of the code
+      // rather than of two rolls.
+      List<Map<String, dynamic>> run({
+        List<RecordedShot> shots = const [],
+        bool isHome = true,
+      }) {
+        setEventRandom(math.Random(7));
+        seeded.setSeed(99);
+        return [
+          for (final e in generateMatchEvents(
+            homeGoals: 2,
+            awayGoals: 1,
+            playerData: _xi(),
+            shots: shots,
+            isHome: isHome,
+          ))
+            e.toMap(),
+        ];
+      }
+
+      final before = run();
+      expect(before, run(), reason: 'the pinned pair is reproducible at all');
+      // The two new parameters, at the values a result with no record passes:
+      // neither may change a single event.
+      expect(run(shots: const [], isHome: false), before);
+      for (final e in before) {
+        expect(e.containsKey('zone'), isFalse);
+      }
+    });
+  });
 }

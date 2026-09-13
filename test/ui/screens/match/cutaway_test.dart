@@ -7,6 +7,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:merge_empire_fc/engine/pitch_space.dart';
 import 'package:merge_empire_fc/ui/screens/match/cutaway/idle_pitch_game.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:merge_empire_fc/ui/screens/match/cutaway/cutaway_game.dart';
@@ -24,6 +25,7 @@ TimelineEvent _event(
   int minute = 10,
   bool big = false,
   double xg = 0,
+  int? zone,
 }) => (
   minute: minute,
   type: type,
@@ -38,6 +40,7 @@ TimelineEvent _event(
   params: const {},
   card: null,
   playerId: null,
+  zone: zone,
 );
 
 void main() {
@@ -680,4 +683,141 @@ void main() {
     });
   });
 
+  // -------------------------------------------------------------------------
+  // THE TEXT AND THE ANIMATION NAME THE SAME SIDE OF THE PITCH.
+  //
+  // The sim records the zone a shot came from and the feed says which flank the
+  // attack came down. Until the passage was picked on that flank it was drawn
+  // from a blind weighted pick, so a right-sided chance in the text could sweep
+  // down the left on the pitch — one moment, two different accounts of it.
+  // -------------------------------------------------------------------------
+
+  group('which flank a script is played down', () {
+    test('agrees with every name the authors gave one', () {
+      // The derivation is not allowed to be a second opinion beside the table:
+      // if a script is called `cross_right_header` it had better be a right-wing
+      // move, and if it is called `through_center` it had better be central.
+      final wrong = <String>[];
+      for (final s in cutawaySequences) {
+        final f = sequenceFlank(s);
+        if (s.id.contains('right') && f != Flank.right) wrong.add(s.id);
+        if (s.id.contains('left') && f != Flank.left) wrong.add(s.id);
+        if (s.id.contains('cent') && f != Flank.centre) wrong.add(s.id);
+      }
+      expect(wrong, isEmpty);
+    });
+
+    test('and no flank is left with nothing to draw', () {
+      // The filter falls back to the whole table on an empty pool, which would
+      // silently undo the feature — so every flank has to be populated for real.
+      final counts = {for (final f in Flank.values) f: 0};
+      for (final s in cutawaySequences) {
+        counts[sequenceFlank(s)] = counts[sequenceFlank(s)]! + 1;
+      }
+      for (final f in Flank.values) {
+        expect(counts[f], greaterThan(5), reason: f.name);
+      }
+    });
+
+    test('a runner starting wide does not make a central move wide', () {
+      // `through_center` is slid down the middle — everything the ball touches
+      // is q 0.44–0.55 — to a striker who BEGINS his run out at q 0.33 on the
+      // shoulder of the last man. Counting where a receiver started made this a
+      // left-wing attack, which is the exact lie this is here to prevent.
+      final central = cutawaySequences.firstWhere(
+        (s) => s.id == 'through_center',
+      );
+      expect(sequenceFlank(central), Flank.centre);
+      for (final at in sequenceBallPoints(central)) {
+        expect((at.q - 0.5).abs(), lessThan(sequenceFlankWidth));
+      }
+    });
+
+    test('the widest point decides it, not the finish', () {
+      // A cross comes back toward the middle to be met: this one's last pass
+      // lands at q 0.47 and it is still a right-wing move.
+      final cross = cutawaySequences.firstWhere(
+        (s) => s.id == 'cross_right_header',
+      );
+      expect(sequenceFlank(cross), Flank.right);
+      expect(sequenceBallPoints(cross).last.q, lessThan(0.5));
+    });
+  });
+
+  group('a clip runs down the flank the record recorded', () {
+    /// The clip for a chance struck from [zone], over a spread of seeds so the
+    /// claim is about the filter and not about one lucky roll.
+    List<Flank> flanksFor(int zone, {bool ours = true}) => [
+      for (var seed = 1; seed <= 40; seed += 1)
+        if (clipFor(
+              _event('chance', shotResult: 'on_target', xg: 0.5, zone: zone),
+              ourSideLeft: true,
+              ours: ours,
+              seed: seed,
+            )
+            case final clip?)
+          sequenceFlank(clip.sequence),
+    ];
+
+    test('a shot from our right wing is drawn down the right', () {
+      // Lane 1 of band 1 — our right, because low x is our right in the sim's
+      // frame; see the header of `engine/pitch_space.dart`.
+      final flanks = flanksFor(zoneIndex(1, 1));
+      expect(flanks, isNotEmpty);
+      expect(flanks.every((f) => f == Flank.right), isTrue, reason: '$flanks');
+    });
+
+    test('and one from our left down the left', () {
+      final flanks = flanksFor(zoneIndex(3, 1));
+      expect(flanks, isNotEmpty);
+      expect(flanks.every((f) => f == Flank.left), isTrue, reason: '$flanks');
+    });
+
+    test('and a central one through the middle', () {
+      final flanks = flanksFor(zoneIndex(2, 1));
+      expect(flanks, isNotEmpty);
+      expect(flanks.every((f) => f == Flank.centre), isTrue, reason: '$flanks');
+    });
+
+    test('THEIR chance from the same zone is drawn down the OTHER flank', () {
+      // Attack space is the attacking team's own, and the zone is in ours: the
+      // lane that is our right is their left. Getting this backwards is the
+      // version of the bug that only shows up when the opposition attacks.
+      final zone = zoneIndex(1, 1);
+      expect(flanksFor(zone).first, Flank.right);
+      final theirs = flanksFor(zone, ours: false);
+      expect(theirs, isNotEmpty);
+      expect(theirs.every((f) => f == Flank.left), isTrue, reason: '$theirs');
+    });
+
+    test('an event with no zone still gets a clip, from the whole table', () {
+      // A fixed-rating tie records nothing, and a chance with no zone must not
+      // lose its cutaway — it just cannot promise which flank it runs down.
+      final flanks = [
+        for (var seed = 1; seed <= 40; seed += 1)
+          if (clipFor(
+                _event('chance', shotResult: 'on_target', xg: 0.5),
+                ourSideLeft: true,
+                ours: true,
+                seed: seed,
+              )
+              case final clip?)
+            sequenceFlank(clip.sequence),
+      ];
+      expect(flanks, isNotEmpty);
+      expect(flanks.toSet().length, greaterThan(1), reason: '$flanks');
+    });
+
+    test('a goal obeys the zone too, and keeps its outcome', () {
+      final clip = clipFor(
+        _event('goal', zone: zoneIndex(3, 0)),
+        ourSideLeft: true,
+        ours: true,
+        seed: 5,
+      );
+      expect(clip, isNotNull);
+      expect(sequenceFlank(clip!.sequence), Flank.left);
+      expect(clip.outcome, CutawayOutcome.goal);
+    });
+  });
 }

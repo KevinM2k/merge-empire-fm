@@ -450,6 +450,8 @@ const Map<String, String> jaCopy = <String, String>{
       '対峙した組み合わせ',
   'match.inspect.duel_line':
       '{won}-{lost}（{pct}%）',
+  'match.inspect.shot_line_one':
+      'シュート{shots}本、xG {xg}',
   'match.inspect.shot_line':
       'シュート{shots}本、xG {xg}',
   'match.inspect.versus':

@@ -22,6 +22,7 @@ import 'package:merge_empire_fc/ui/screens/match/match_clock.dart';
 import 'package:merge_empire_fc/data/players.dart' show getPlayerDef;
 import 'package:merge_empire_fc/ui/screens/squad/player_detail_sheet.dart'
     show cardById;
+import 'package:merge_empire_fc/engine/pitch_space.dart';
 import 'package:merge_empire_fc/ui/screens/match/cutaway/cutaway_sequences.dart';
 
 /// What a feed event should look like on the pitch, or null when it is not a
@@ -163,8 +164,25 @@ CutawayClip? clipFor(
     roll: (((seed + 1) * 2654435761) % 100000) / 100000,
   );
   if (outcome == null) return null;
+  // **THE PASSAGE RUNS DOWN THE FLANK THE ATTACK CAME DOWN.** The sim recorded
+  // the zone; `sequenceFlank` says which flank each script is played down; so
+  // the pick is narrowed to the scripts that agree with the record instead of
+  // being taken blind from all of them. A chance the feed calls right-sided now
+  // cannot be drawn sweeping down the left.
+  //
+  // In the OWNER's own left and right, because attack space is the attacking
+  // team's own — `cutaway_pitch.dart` mirrors about it — and the zone is in our
+  // absolute frame, where their right is our left.
+  final flank = event.zone == null
+      ? null
+      : zoneFlankFor(event.zone!, theirs: !ours);
   return (
-    sequence: pickSequence(roll),
+    // An unrecorded event, or a flank with no script on it, falls back to the
+    // whole table: `pickSequence` treats an empty pool as no filter at all.
+    sequence: pickSequence(
+      roll,
+      where: flank == null ? null : (s) => sequenceFlank(s) == flank,
+    ),
     // Attacking away from the end you defend.
     attackingRight: ours ? ourSideLeft : !ourSideLeft,
     outcome: outcome,

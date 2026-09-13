@@ -51,3 +51,9 @@ design-system/.shots/
 .design-sync/node_modules
 .ds-sync/
 ds-bundle/
+
+# Screenshots are DERIVED — `flutter test test/screenshots/match_screens.dart
+# --update-goldens` regenerates them, and a PNG per commit of a screen that
+# moves is a repository of pictures. The harness is checked in; its output is
+# not.
+test/screenshots/out/

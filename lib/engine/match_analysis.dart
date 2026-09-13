@@ -20,6 +20,7 @@
 library;
 
 import 'package:merge_empire_fc/engine/attack_sequence.dart';
+import 'package:merge_empire_fc/engine/match_events.dart';
 import 'package:merge_empire_fc/engine/pitch_space.dart';
 
 const List<String> positionalSides = ['ours', 'theirs'];
@@ -63,11 +64,9 @@ Map<String, dynamic> positionalSummaryFromMaps(List<Map<String, dynamic>> ev) {
       }
     }
     if (type == 'shot') {
-      // Where the attack came down: the lane of the shot, in the SHOOTER's
-      // own left and right — their right is our left.
-      var lane = zoneLane(z);
-      if (side == 'theirs') lane = pitchLanes - 1 - lane;
-      final f = laneFlank(lane).name;
+      // Where the attack came down, in the SHOOTER's own left and right —
+      // their right is our left. See [zoneFlankFor].
+      final f = zoneFlankFor(z, theirs: side == 'theirs').name;
       flank[side]![f] = flank[side]![f]! + 1;
       if (outcome != 'blocked') {
         shots[side] = shots[side]! + 1;
@@ -356,11 +355,29 @@ Map<Flank, double> gridFlankShares(List<num> grid, {required bool theirs}) {
   for (var z = 0; z < pitchZones && z < grid.length; z++) {
     final v = grid[z].toDouble();
     if (v <= 0) continue;
-    var lane = zoneLane(z);
-    if (theirs) lane = pitchLanes - 1 - lane;
-    final f = laneFlank(lane);
+    final f = zoneFlankFor(z, theirs: theirs);
     counts[f] = counts[f]! + v;
   }
   final total = counts.values.fold(0.0, (a, b) => a + b);
   return {for (final f in Flank.values) f: total > 0 ? counts[f]! / total : 0};
 }
+
+/// The record's shots as the FEED needs them — see `RecordedShot` in
+/// `match_events.dart`.
+///
+/// One place rather than the same eight lines at the two `generateMatchEvents`
+/// call sites: the full match and the re-simulated remainder have to agree about
+/// what a shot is, or a tactics change at half time would rewrite the first half
+/// of the feed in a different dialect from the second.
+List<RecordedShot> recordedShots(List<PositionalEvent> events) => [
+  for (final e in events)
+    if (e.type == 'shot')
+      (
+        minute: e.minute,
+        side: e.side,
+        playerId: e.playerId,
+        outcome: e.outcome,
+        zone: e.zone,
+        xg: e.xg ?? 0,
+      ),
+];

@@ -48,6 +48,7 @@ void main() {
     params: const <String, Object?>{},
     card: null,
     playerId: null,
+    zone: null,
   );
 
   /// How the engine tags a ROLLED event — a chance or a corner — for each side

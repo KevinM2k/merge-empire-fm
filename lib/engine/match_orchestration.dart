@@ -1105,6 +1105,14 @@ MatchResult simulateMatch(
         for (final e in injuries) (name: e.name ?? '', minute: e.minute),
       ],
       chanceWeights: chanceWeights,
+      // **THE FEED IS THE RECORD'S, not a second invention beside it.** Every
+      // goal and every chance below is a shot the sequences actually took, at
+      // the minute they took it and credited to whoever hit it — which is what
+      // lets the 2D cutaway above the feed run the passage down the same flank
+      // the text names. Empty for a fixed-rating tie, and then the old invented
+      // feed is what comes out.
+      shots: recordedShots(positional),
+      isHome: isHome,
     ))
       e.toMap(),
   ];
@@ -2204,6 +2212,9 @@ List<Map<String, dynamic>> reSimulateRemainder(
       minMin: fromMinute + 1,
       chanceWeights: chanceWeights,
       addedTime: _num(result['addedTime'])?.toInt(),
+      // The remainder's own shots, for the same reason as the full match.
+      shots: recordedShots(remainder),
+      isHome: isHome,
     ))
       e.toMap(),
   ];

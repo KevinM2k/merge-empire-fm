@@ -99,6 +99,49 @@ class MatchHeatmap extends StatelessWidget {
   }
 }
 
+/// The pitch's own shape, and the reason the heatmap has to be told its width.
+const double pitchAspect = 7 / 10;
+
+/// The heatmap at a fixed size, 7:10 like the pitch it stands on.
+///
+/// **A HEIGHT ALONE IS NOT ENOUGH INSIDE A ROW, and it fails silently.** A
+/// non-flexible Row child is laid out with UNBOUNDED width, and `SquadPitch`
+/// takes what it is offered rather than deriving its width from the height it
+/// was given — so the summary card's pitch grew to about 300pt on a 400pt phone
+/// and squeezed everything beside it into a column one character wide: the club
+/// names came out `Tes…` and `Ayt…`, "Attacks by flank" wrapped mid-word, and
+/// the flank bars ran off the right-hand edge with a debug stripe under them.
+///
+/// No widget test had ever measured it — they assert the heatmap is PRESENT —
+/// and a `RenderFlex overflowed` assertion does not fail a test that never
+/// pumps the offending width. It was found by taking a screenshot and looking
+/// at it, which is what `test/screenshots/match_screens.dart` is for.
+class SizedHeatmap extends StatelessWidget {
+  const SizedHeatmap({
+    required this.positional,
+    required this.height,
+    this.metric = ZoneMetric.touches,
+    this.playerId,
+    super.key,
+  });
+
+  final Map<String, dynamic> positional;
+  final double height;
+  final ZoneMetric metric;
+  final String? playerId;
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    width: height * pitchAspect,
+    height: height,
+    child: MatchHeatmap(
+      positional: positional,
+      metric: metric,
+      playerId: playerId,
+    ),
+  );
+}
+
 /// Two translucent washes per zone, one a side, each as strong as that zone's
 /// share of the side's busiest zone.
 ///
@@ -218,10 +261,7 @@ class PositionalCard extends ConsumerWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              SizedBox(
-                height: 168,
-                child: MatchHeatmap(positional: positional),
-              ),
+              SizedHeatmap(positional: positional, height: 168),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(

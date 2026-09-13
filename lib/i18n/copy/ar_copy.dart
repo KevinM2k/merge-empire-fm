@@ -474,6 +474,8 @@ const Map<String, String> arCopy = <String, String>{
       'من واجه من',
   'match.inspect.duel_line':
       '{won}-{lost} ({pct}%)',
+  'match.inspect.shot_line_one':
+      'تسديدة واحدة، {xg} xG',
   'match.inspect.shot_line':
       '{shots} تسديدات، {xg} xG',
   'match.inspect.versus':

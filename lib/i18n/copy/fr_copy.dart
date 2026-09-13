@@ -532,6 +532,8 @@ const Map<String, String> frCopy = <String, String>{
       'Qui a affronté qui',
   'match.inspect.duel_line':
       '{won}-{lost} ({pct} %)',
+  'match.inspect.shot_line_one':
+      '{shots} tir, {xg} xG',
   'match.inspect.shot_line':
       '{shots} tirs, {xg} xG',
   'match.inspect.versus':

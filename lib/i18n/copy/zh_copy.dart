@@ -403,6 +403,8 @@ const Map<String, String> zhCopy = <String, String>{
       '谁对上了谁',
   'match.inspect.duel_line':
       '{won}-{lost}（{pct}%）',
+  'match.inspect.shot_line_one':
+      '{shots}次射门，xG {xg}',
   'match.inspect.shot_line':
       '{shots}次射门，xG {xg}',
   'match.inspect.versus':

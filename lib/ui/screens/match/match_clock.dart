@@ -64,6 +64,14 @@ typedef TimelineEvent = ({
   /// names one; so does the man who was sent off, which is what the suspension
   /// is written against.
   String? playerId,
+
+  /// The zone a goal or chance was struck from, or null for an event the
+  /// positional record did not produce — see `MatchEvent.zone`.
+  ///
+  /// This is what lets the 2D cutaway pick a passage that runs down the flank
+  /// the attack actually came down, instead of naming one side in the text and
+  /// drawing the other.
+  int? zone,
 });
 
 /// **WHICH CLUB A FEED EVENT BELONGS TO, and the engine means two different
@@ -124,14 +132,22 @@ const Set<String> venueTaggedEvents = {'chance', 'corner', 'commentary'};
 /// Pure and shared rather than the same `??` written at two call sites: they
 /// are the live cut and the replay OF that cut, and the one thing they must
 /// never do is disagree with each other.
+/// **AND A CHANCE HAS A SHOOTER NOW, which is the other half of that row.**
+/// Once the feed is built off the positional record a chance carries the man the
+/// sim had hitting it (`MatchEvent.zone`'s neighbour in `match_events.dart`), so
+/// the dot on the pitch can be his. It used to return null for anything but a
+/// goal, which left every chance cutaway putting a generic lineup name on
+/// whoever the passage happened to end with.
 String? clipScorerName(
   Map<String, dynamic>? save,
   TimelineEvent event, {
   required bool ours,
   required String? Function(Map<String, dynamic>? save, String id) nameOf,
 }) {
-  if (!ours || event.type != 'goal') return null;
-  return nameOf(save, event.scorerId ?? '') ?? event.scorer;
+  if (!ours || (event.type != 'goal' && event.type != 'chance')) return null;
+  final id = event.scorerId;
+  if (id == null || id.isEmpty) return event.scorer;
+  return nameOf(save, id) ?? event.scorer;
 }
 
 /// The state of a match at some point through it.
@@ -187,6 +203,7 @@ List<TimelineEvent> timelineOf(
           player: e['player'] as String?,
           card: e['card'] as String?,
           playerId: e['playerInstanceId'] as String?,
+          zone: (e['zone'] as num?)?.toInt(),
           params: e['textParams'] is Map
               ? {
                   for (final entry in (e['textParams'] as Map).entries)

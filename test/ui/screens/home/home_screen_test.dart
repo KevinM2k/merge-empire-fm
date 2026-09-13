@@ -6,6 +6,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import '../../../support/match_flow.dart';
 import 'package:merge_empire_fc/engine/cup_engine.dart' show previewCupTie;
 import 'package:merge_empire_fc/ui/screens/home/next_match_card.dart'
     show nextMatchProvider;
@@ -790,33 +792,8 @@ void main() {
     /// the sting; it holds, so a player can read the commentary back, and the
     /// row of controls becomes a single CONTINUE. So a test that plays a match
     /// has to press it — the same way it has to answer a post-match card.
-    Future<void> skipMatch(WidgetTester tester) async {
-      final skip = find.byKey(const ValueKey('match-skip'));
-      if (skip.evaluate().isNotEmpty) await tester.tap(skip);
-      await tester.pumpAndSettle();
-      await tester.pump(const Duration(milliseconds: 1500));
-      await tester.pumpAndSettle();
-      // **AND COLIN HAS THE FLOOR FIRST.** He reacts at the whistle to a result
-      // worth a sentence — `fullTimeReactionKey` — and his bubble is the shape
-      // every coach line takes: the page dimmed behind it and a tap anywhere
-      // done with it. So the tap that would have pressed CONTINUE clears him
-      // instead, and the one after it leaves.
-      //
-      // **Guarded, and this is the one place a guard is honest**: nine results
-      // earn a line and most afternoons do not, and the scoreline here is
-      // simulated. The assertion inside is what keeps it from going silent.
-      final colin = find.byKey(const ValueKey('match-coach-line'));
-      if (colin.evaluate().isNotEmpty) {
-        await tester.tapAt(const Offset(20, 20));
-        await tester.pumpAndSettle();
-        expect(colin, findsNothing, reason: 'his bubble would eat CONTINUE');
-      }
-      final go = find.byKey(const ValueKey('match-continue'));
-      if (go.evaluate().isNotEmpty) {
-        await tester.tap(go);
-        await tester.pumpAndSettle();
-      }
-    }
+    Future<void> skipMatch(WidgetTester tester) async =>
+        skipToFullTime(tester);
 
     testWidgets('a ready save can start one, and it takes over', (
       tester,

@@ -1013,6 +1013,8 @@ const Map<String, String> enCopy = <String, String>{
       'Who met whom',
   'match.inspect.duel_line':
       '{won}-{lost} ({pct}%)',
+  'match.inspect.shot_line_one':
+      '{shots} shot, {xg} xG',
   'match.inspect.shot_line':
       '{shots} shots, {xg} xG',
   'match.inspect.versus':

@@ -521,6 +521,8 @@ const Map<String, String> esCopy = <String, String>{
       'Quién se enfrentó a quién',
   'match.inspect.duel_line':
       '{won}-{lost} ({pct} %)',
+  'match.inspect.shot_line_one':
+      '{shots} tiro, {xg} xG',
   'match.inspect.shot_line':
       '{shots} tiros, {xg} xG',
   'match.inspect.versus':

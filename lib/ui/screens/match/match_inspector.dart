@@ -32,6 +32,8 @@ import 'package:merge_empire_fc/ui/screens/match/goal_replay.dart'
 import 'package:merge_empire_fc/ui/screens/match/match_heatmap.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 
+Map<String, dynamic>? _map(Object? v) => v is Map<String, dynamic> ? v : null;
+
 /// Pairings listed before the list is cut off. Eleven against eleven is up to
 /// 121 and the tail is all single meetings; the top of the list is the story.
 const int matchupsShown = 8;
@@ -56,6 +58,13 @@ Future<void> showMatchInspector(
 typedef InspectedPlayer = ({
   String id,
   String name,
+
+  /// The slot he played in, uppercased — `RF`, `LB`. **Which player** is half
+  /// the question; where he was standing is the other half, and a list of
+  /// eleven names with no positions against them is not a team sheet. Ours comes
+  /// off the save's lineup; an AI pseudo-player IS his slot, so his name and
+  /// this are the same string and only one of them is drawn.
+  String slot,
   bool ours,
   int won,
   int lost,
@@ -82,14 +91,28 @@ List<InspectedPlayer> inspectedPlayers(
     );
   }
 
+  // instanceId -> the slot he was fielded in, off the save's own lineup.
+  final slotOf = <String, String>{};
+  for (final raw in (_map(save?['squad'])?['lineup'] as List? ?? const [])) {
+    if (raw is Map && raw['cardInstanceId'] is String) {
+      slotOf['${raw['cardInstanceId']}'] = '${raw['slotId'] ?? ''}'
+          .toUpperCase();
+    }
+  }
+
   InspectedPlayer row(DuelRecord d) {
     final ours = !MatchHeatmap.isTheirs(d.id);
     final goal = atGoal(d.id);
+    final slot = ours ? (slotOf[d.id] ?? '') : d.id.substring(3).toUpperCase();
     return (
       id: d.id,
+      // The card's name, then the slot he filled, then his bare id — a row with
+      // no text in it is worse than a row with an id in it, and a player sold
+      // mid-cup-run can reach the last of those.
       name: ours
-          ? (cardDisplayName(save, d.id) ?? d.id)
-          : d.id.substring(3).toUpperCase(),
+          ? (cardDisplayName(save, d.id) ?? (slot.isEmpty ? d.id : slot))
+          : slot,
+      slot: slot,
       ours: ours,
       won: d.won,
       lost: d.lost,
@@ -209,13 +232,11 @@ class _MatchInspectorState extends ConsumerState<MatchInspector> {
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  SizedBox(
+                  SizedHeatmap(
+                    positional: widget.positional,
                     height: 210,
-                    child: MatchHeatmap(
-                      positional: widget.positional,
-                      metric: _metric,
-                      playerId: held,
-                    ),
+                    metric: _metric,
+                    playerId: held,
                   ),
                   const SizedBox(width: 12),
                   Expanded(
@@ -276,7 +297,20 @@ class _MatchInspectorState extends ConsumerState<MatchInspector> {
               const SizedBox(height: 10),
               Text(t('match.inspect.players'), style: muted),
               const SizedBox(height: 4),
-              for (final p in players)
+              // **UNDER THE CLUB'S OWN NAME, both sides.** Sixteen rows of duel
+              // records with nothing but a coloured dot to say whose they were
+              // is a list you have to decode; the screenshot made that obvious
+              // at a glance. Ours first, because it is your squad you came to
+              // look at.
+              for (final p in players) ...[
+                if (p == players.first ||
+                    p.ours != players[players.indexOf(p) - 1].ours)
+                  _SideHeading(
+                    label: p.ours
+                        ? '${widget.result['clubName'] ?? ''}'
+                        : '${widget.result['opponentName'] ?? ''}',
+                    ink: p.ours ? kit.accentBright : conceded,
+                  ),
                 _PlayerRow(
                   player: p,
                   selected: p.id == held,
@@ -286,6 +320,7 @@ class _MatchInspectorState extends ConsumerState<MatchInspector> {
                   onTap: () =>
                       setState(() => _player = p.id == held ? null : p.id),
                 ),
+              ],
               const SizedBox(height: 12),
               Text(t('match.inspect.matchups'), style: muted),
               const SizedBox(height: 4),
@@ -296,6 +331,11 @@ class _MatchInspectorState extends ConsumerState<MatchInspector> {
                   won: m.won,
                   lost: m.lost,
                   muted: kit.textMuted,
+                  // Whose attack it was, so a pairing between two sets of slot
+                  // names still says which way round it ran.
+                  ink: MatchHeatmap.isTheirs(m.attacker)
+                      ? conceded
+                      : kit.accentBright,
                 ),
               const SizedBox(height: 12),
               Text(t('match.inspect.hint'), style: muted),
@@ -409,6 +449,16 @@ class _PlayerRow extends StatelessWidget {
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
+              if (player.slot.isNotEmpty && player.slot != player.name) ...[
+                SizedBox(
+                  width: 28,
+                  child: Text(
+                    player.slot,
+                    style: text.labelSmall?.copyWith(color: muted),
+                  ),
+                ),
+                const SizedBox(width: 4),
+              ],
               Expanded(
                 child: Text(
                   player.name,
@@ -427,10 +477,18 @@ class _PlayerRow extends StatelessWidget {
               if (player.shots > 0) ...[
                 const SizedBox(width: 8),
                 Text(
-                  t('match.inspect.shot_line', {
-                    'shots': player.shots,
-                    'xg': player.xg.toStringAsFixed(1),
-                  }),
+                  // One shot is not "1 shots". Nine of the ten locales inflect
+                  // the noun and the tenth does not care, so the singular is its
+                  // own key rather than a rule written here.
+                  t(
+                    player.shots == 1
+                        ? 'match.inspect.shot_line_one'
+                        : 'match.inspect.shot_line',
+                    {
+                      'shots': player.shots,
+                      'xg': player.xg.toStringAsFixed(1),
+                    },
+                  ),
                   style: text.labelSmall?.copyWith(color: muted),
                 ),
               ],
@@ -450,6 +508,7 @@ class _MatchupRow extends StatelessWidget {
     required this.won,
     required this.lost,
     required this.muted,
+    required this.ink,
   });
 
   final String attacker;
@@ -457,6 +516,7 @@ class _MatchupRow extends StatelessWidget {
   final int won;
   final int lost;
   final Color muted;
+  final Color ink;
 
   @override
   Widget build(BuildContext context) {
@@ -465,6 +525,15 @@ class _MatchupRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       child: Row(
         children: [
+          Container(
+            width: 8,
+            height: 8,
+            margin: const EdgeInsets.only(right: 8),
+            decoration: BoxDecoration(
+              color: ink.withValues(alpha: 0.8),
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
           Expanded(
             child: Text(
               t('match.inspect.versus', {
@@ -487,4 +556,24 @@ class _MatchupRow extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Whose players the rows under it are.
+class _SideHeading extends StatelessWidget {
+  const _SideHeading({required this.label, required this.ink});
+
+  final String label;
+  final Color ink;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.fromLTRB(8, 8, 8, 2),
+    child: Text(
+      label,
+      style: Theme.of(
+        context,
+      ).textTheme.labelMedium?.copyWith(color: ink, letterSpacing: 0.6),
+      overflow: TextOverflow.ellipsis,
+    ),
+  );
 }

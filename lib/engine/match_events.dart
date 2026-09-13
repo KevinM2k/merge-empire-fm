@@ -130,6 +130,7 @@ class MatchEvent {
     this.big,
     this.player,
     this.addedTime,
+    this.zone,
   });
 
   final int minute;
@@ -148,6 +149,15 @@ class MatchEvent {
   final String? player;
   final int? addedTime;
 
+  /// The zone a goal or a chance was struck from — `pitch_space.dart`'s twenty,
+  /// in the sim's absolute frame — or null for an event the positional record
+  /// did not produce.
+  ///
+  /// It travels so the 2D cutaway can run the passage down the flank the attack
+  /// actually came down. Without it the passage was a blind weighted pick and
+  /// could sweep down the left under commentary naming a right-sided move.
+  final int? zone;
+
   /// The feed entry as the match result stores it.
   ///
   /// A result crosses the sim, the match screen and the quest engine, so it
@@ -161,6 +171,17 @@ class MatchEvent {
     if (team != null) 'team': team,
     if (type == 'goal') 'scorer': scorer,
     if (type == 'goal') 'scorerInstanceId': scorerInstanceId,
+    // A CHANCE has a shooter too, once the feed is built off the positional
+    // record — the man the sim had hitting it. Written only when there is one,
+    // so a chance from the fallback path stays exactly the map it always was.
+    // The NAME travels with the id for the same reason a goal's does: a player
+    // sold before full time still had the chance, and the pitch needs something
+    // to put on his dot once the card has gone.
+    if (type == 'chance' && scorerInstanceId != null) ...{
+      'scorer': scorer,
+      'scorerInstanceId': scorerInstanceId,
+    },
+    if (zone != null) 'zone': zone,
     if (textKey != null) 'textKey': textKey,
     if (xg != null) 'xg': xg,
     if (shotResult != null) 'shotResult': shotResult,
@@ -172,6 +193,71 @@ class MatchEvent {
 
 /// An injury to place in the feed.
 typedef InjuryEntry = ({String name, int? minute});
+
+/// One shot the positional sim actually recorded.
+///
+/// **THE SIM IS THE AUTHORITY ON WHAT HAPPENED, and the feed used to invent all
+/// of it.** `attack_sequence.dart` settles the score by running attacks: it
+/// knows the minute, which side was attacking, WHO hit it, the zone it came
+/// from and the calibrated probability it went in. The feed took none of that —
+/// goal minutes came off [_pickGoalMinute], the scorer off [pickWeightedScorer]
+/// and chances off an unseeded coin with a made-up xG — so the commentary could
+/// credit a striker the sim never had shooting, and the 2D cutaway, picking its
+/// passage blind, could sweep down the left while the text said right. A player
+/// watching that is being told two different things about one moment.
+typedef RecordedShot = ({
+  int minute,
+
+  /// `ours` or `theirs` — the sim's own word for the side attacking.
+  String side,
+
+  /// The shooter: one of our card instance ids, or the AI's `ai:<slot>`.
+  String playerId,
+
+  /// `goal`, `miss` or `blocked`.
+  String outcome,
+
+  /// `pitch_space.dart`'s twenty, in the sim's absolute frame.
+  int zone,
+
+  double xg,
+});
+
+/// **WHY THE FEED STILL ROLLS WHAT IT NO LONGER USES.**
+///
+/// Sourcing the feed from the positional record is a PRESENTATION change: the
+/// scoreline was settled before [generateMatchEvents] was called and must come
+/// out the other side untouched. But the goal-minute picker, the weighted scorer
+/// and the invented chance loop all draw from the seeded stream, and
+/// `util/random.dart`'s stream is shared with everything that happens after —
+/// including, in a re-simulated remainder and in every later match of a season,
+/// the sequences that DECIDE scorelines. Skip those draws and the whole season
+/// reshuffles: measured at 583 of 672 golden scorelines moving, with goals a
+/// match drifting 2.42 to 2.33. Nothing was wrong with the new numbers; they
+/// were simply a different roll of the same dice, and a golden churn that size
+/// hides whatever else a commit did.
+///
+/// So every draw the old code made is still made, in the same order, and the
+/// answer is thrown away wherever the record has a better one. `match_events_test`
+/// pins it both ways: with a record and without, the feed consumes the identical
+/// stream, and without one it is byte-identical.
+///
+/// Dropping the discarded draws later is a one-line change and a golden
+/// regeneration — worth doing deliberately, not as a side effect of this.
+const bool drawsAreStreamStable = true;
+
+/// The xG at which a chance is worth watching. The JS's own threshold, and the
+/// cutaway re-checks it.
+const double bigChanceXg = 0.22;
+
+/// The candidate with that instance id, or null when the squad no longer has
+/// one — a shooter substituted off before full time, most often.
+ScorerCandidate? _candidateFor(List<ScorerCandidate> pool, String instanceId) {
+  for (final c in pool) {
+    if (c.instanceId == instanceId) return c;
+  }
+  return null;
+}
 
 /// Builds the full event feed for a match.
 ///
@@ -186,6 +272,19 @@ List<MatchEvent> generateMatchEvents({
   int maxMin = 90,
   ({double home, double away})? chanceWeights,
   int? addedTime,
+
+  /// The positional record's shots, in the order the sim took them. Given, the
+  /// goals and the chances in the feed ARE these shots; empty, the feed is
+  /// invented exactly as it always was — which is still the path for a result
+  /// with no record, and `match_events_test` keeps both pinned.
+  List<RecordedShot> shots = const [],
+
+  /// Which side of the fixture we are on, for the one event type whose `team`
+  /// names the home CLUB rather than us. See [venueTaggedEvents] in
+  /// `match_clock.dart`: a goal's `home` is ours whatever the venue, a chance's
+  /// `home` is the home club, and the two conventions are load-bearing at the
+  /// other end. Only read when [shots] is non-empty.
+  bool isHome = true,
 }) {
   final resolvedAdded = maxMin == 90 ? (addedTime ?? seeded.randomInt(1, 5)) : 0;
   final fullTimeMin = maxMin + resolvedAdded;
@@ -201,25 +300,78 @@ List<MatchEvent> generateMatchEvents({
   final goalMax = fullTimeMin - 1;
   final goalMin = math.min(math.max(minMin, 1), goalMax);
 
-  final allGoals = [
-    ...List.filled(homeGoals, 'home'),
-    ...List.filled(awayGoals, 'away'),
-  ];
-
-  for (final team in allGoals) {
-    final minute = _pickGoalMinute(used, goalMin, goalMax);
-    final scorer =
-        team == 'home' && playerData.isNotEmpty ? pickWeightedScorer(playerData) : null;
-    events.add(
-      MatchEvent(
-        minute: minute,
-        type: 'goal',
-        team: team,
-        scorer: scorer?.name,
-        scorerInstanceId: scorer?.instanceId,
-      ),
-    );
+  // The record's own shots, split the way the feed needs them. A shot that went
+  // in is a goal event; everything else is a chance.
+  final recordedGoals = <String, List<RecordedShot>>{'ours': [], 'theirs': []};
+  final recordedChances = <RecordedShot>[];
+  for (final shot in shots) {
+    if (shot.outcome == 'goal') {
+      recordedGoals[shot.side]?.add(shot);
+    } else {
+      recordedChances.add(shot);
+    }
   }
+
+  /// A GOAL's `team` is ours or theirs, whatever the venue — the goal list is
+  /// built off `homeGoals`/`awayGoals`, which are ours and theirs.
+  String goalTeam(String side) => side == 'ours' ? 'home' : 'away';
+
+  /// A CHANCE's `team` is the home CLUB, because `chanceWeights` is written
+  /// venue-first and `eventIsOurs` reads it that way. Keeping the two
+  /// conventions exactly as they were is deliberate: they are documented at the
+  /// far end and a screen depends on the difference.
+  String chanceTeam(String side) =>
+      (side == 'ours') == isHome ? 'home' : 'away';
+
+  /// The goals one side scored, the recorded ones first.
+  ///
+  /// **A RECORDED GOAL KEEPS ITS OWN MINUTE AND ITS OWN SCORER.** What stays
+  /// invented is the remainder, and there is a real reason for one: λ past what
+  /// the shots can carry is rolled as plain Poisson on top (see
+  /// `calibrateShots`), so a side can finish with more goals than it had shots
+  /// recorded and those goals have nobody behind them. They get the old picked
+  /// minute and the old weighted scorer — which is also the whole path for a
+  /// result with no positional record at all, so the draw order there is
+  /// untouched: minute then scorer, our goals before theirs.
+  void addGoals(String side, int count) {
+    final recorded = recordedGoals[side] ?? const <RecordedShot>[];
+    for (var i = 0; i < count; i++) {
+      // **DRAWN EVEN WHEN THE RECORD ANSWERS, AND THEN THROWN AWAY** — see
+      // [drawsAreStreamStable] for why, because this reads like a mistake and
+      // is not one.
+      final pickedMinute = _pickGoalMinute(used, goalMin, goalMax);
+      final pickedScorer = side == 'ours' && playerData.isNotEmpty
+          ? pickWeightedScorer(playerData)
+          : null;
+      final shot = i < recorded.length ? recorded[i] : null;
+      events.add(
+        MatchEvent(
+          minute: shot?.minute.clamp(goalMin, goalMax).toInt() ?? pickedMinute,
+          type: 'goal',
+          team: goalTeam(side),
+          // A recorded goal is credited to the man who hit it. The weighted pick
+          // stays for a goal with no shot behind it — λ past what the shots can
+          // carry is rolled as plain Poisson on top (see `calibrateShots`), so a
+          // side can finish with more goals than recorded shots and those have
+          // nobody behind them.
+          scorer: shot == null
+              ? pickedScorer?.name
+              : (side == 'ours'
+                    ? _candidateFor(playerData, shot.playerId)?.name
+                    : null),
+          scorerInstanceId: shot == null
+              ? pickedScorer?.instanceId
+              : (side == 'ours'
+                    ? _candidateFor(playerData, shot.playerId)?.instanceId
+                    : null),
+          zone: shot?.zone,
+        ),
+      );
+    }
+  }
+
+  addGoals('ours', homeGoals);
+  addGoals('theirs', awayGoals);
 
   // Chance weights are needed up here so commentary can be team-tagged.
   final wHome = math.max(0.1, chanceWeights?.home ?? (homeGoals + 1));
@@ -277,8 +429,15 @@ List<MatchEvent> generateMatchEvents({
   }
 
   // Non-goal chances, which drive the momentum bar.
+  //
+  // **THE INVENTED ONES ARE STILL ROLLED IN FULL and then dropped** when the
+  // record has shots — [drawsAreStreamStable] again. What reaches the feed is
+  // the shots the sim actually took: minute, side, shooter, zone and xG all its
+  // own, so the feed, the momentum bar and the 2D passage become three readings
+  // of ONE set of events instead of three separate inventions.
   final span = fullTimeMin - minMin + 1;
   final chanceCount = (span / 7 + 0.5).floor();
+  final fromTheRecord = recordedChances.isNotEmpty;
   for (var i = 0; i < chanceCount; i++) {
     final m = _pickUnused(used, math.min(math.max(minMin, 2), goalMax), goalMax);
     final team = (_rng.nextDouble() * wTotal) < wHome ? 'home' : 'away';
@@ -286,6 +445,7 @@ List<MatchEvent> generateMatchEvents({
     // On-target probability scales with xG — better chances are likelier to hit
     // the target.
     final onTarget = _rng.nextDouble() < (0.25 + xg * 1.2);
+    if (fromTheRecord) continue;
     events.add(
       MatchEvent(
         minute: m,
@@ -293,7 +453,32 @@ List<MatchEvent> generateMatchEvents({
         team: team,
         xg: xg,
         shotResult: onTarget ? 'on_target' : 'off',
-        big: xg >= 0.22,
+        big: xg >= bigChanceXg,
+      ),
+    );
+  }
+  for (final shot in recordedChances) {
+    events.add(
+      MatchEvent(
+        // Two shots may share a minute because two shots genuinely did.
+        minute: shot.minute
+            .clamp(math.min(math.max(minMin, 2), goalMax), goalMax)
+            .toInt(),
+        type: 'chance',
+        team: chanceTeam(shot.side),
+        xg: shot.xg,
+        // A block is not a shot that tested the keeper, and the cutaway has no
+        // defender's block to draw — `outcomeForEvent` folds one into a shot off
+        // target, which is what it already does with the JS's `blocked`.
+        shotResult: shot.outcome == 'miss' ? 'on_target' : 'off',
+        big: shot.xg >= bigChanceXg,
+        scorer: shot.side == 'ours'
+            ? _candidateFor(playerData, shot.playerId)?.name
+            : null,
+        scorerInstanceId: shot.side == 'ours'
+            ? _candidateFor(playerData, shot.playerId)?.instanceId
+            : null,
+        zone: shot.zone,
       ),
     );
   }

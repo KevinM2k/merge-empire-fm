@@ -533,6 +533,8 @@ const Map<String, String> deCopy = <String, String>{
       'Wer gegen wen',
   'match.inspect.duel_line':
       '{won}-{lost} ({pct} %)',
+  'match.inspect.shot_line_one':
+      '{shots} Schuss, {xg} xG',
   'match.inspect.shot_line':
       '{shots} Schüsse, {xg} xG',
   'match.inspect.versus':

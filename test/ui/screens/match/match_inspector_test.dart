@@ -257,12 +257,11 @@ void main() {
       tester,
     ) async {
       await pumpInspector(tester);
-      expect(
-        find.text(
-          t('match.inspect.versus', {'attacker': 'rf', 'defender': 'LB'}),
-        ),
-        findsOneWidget,
+      final top = find.text(
+        t('match.inspect.versus', {'attacker': 'rf', 'defender': 'LB'}),
       );
+      await _scrollTo(tester, top);
+      expect(top, findsOneWidget);
       // NAMES, not ids: their striker reads as his slot and ours as his card.
       expect(
         find.text(

@@ -42,6 +42,7 @@ void main() {
     params: const <String, Object?>{},
     card: null,
     playerId: null,
+    zone: null,
   );
 
   /// Four chances, one of them big, and one goal — at home, so the engine's

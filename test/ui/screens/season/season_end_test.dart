@@ -9,6 +9,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import '../../../support/match_flow.dart';
 import 'package:merge_empire_fc/data/players.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
@@ -237,6 +239,10 @@ void main() {
 
     await tester.tap(find.byKey(const ValueKey('play-match')));
     await tester.pumpAndSettle();
+    // **AND HE MAY ALREADY BE IN FRONT OF THE BUTTON.** His card covers the
+    // match controls, so a tap on SKIP while he is talking clears him instead
+    // of pressing it and the match simply runs on. See `support/match_flow.dart`.
+    await dismissCoachLine(tester);
     final skip = find.byKey(const ValueKey('match-skip'));
     if (skip.evaluate().isNotEmpty) await tester.tap(skip);
     await tester.pumpAndSettle();
@@ -254,12 +260,7 @@ void main() {
     // **Guarded, and this is the one place a guard is honest**: nine results
     // earn a line and most afternoons do not, and the scoreline here is
     // simulated. The assertion inside is what keeps it from going silent.
-    final colin = find.byKey(const ValueKey('match-coach-line'));
-    if (colin.evaluate().isNotEmpty) {
-      await tester.tapAt(const Offset(20, 20));
-      await tester.pumpAndSettle();
-      expect(colin, findsNothing, reason: 'his bubble would eat CONTINUE');
-    }
+    await dismissCoachLine(tester);
     final go = find.byKey(const ValueKey('match-continue'));
     expect(go, findsOneWidget, reason: 'full time offered no way out');
     await tester.tap(go);

@@ -185,6 +185,7 @@ void main() {
       params: const {},
       card: null,
       playerId: null,
+      zone: null,
       player: null,
     );
 
@@ -255,26 +256,63 @@ void main() {
       );
     });
 
-    test('and neither does a chance', () {
+    TimelineEvent chance({String? scorer, String? scorerId}) => (
+      minute: 30,
+      type: 'chance',
+      team: 'home',
+      scorer: scorer,
+      scorerId: scorerId,
+      textKey: null,
+      shotResult: 'on_target',
+      big: true,
+      xg: 0.4,
+      player: null,
+      params: const {},
+      card: null,
+      playerId: null,
+      zone: 6,
+    );
+
+    test('AND A CHANCE NAMES ITS SHOOTER, now that it has one', () {
+      // The feed is built off the positional record, so a chance carries the man
+      // the sim had hitting it — see `RecordedShot` in `match_events.dart`. This
+      // used to return null for everything but a goal, which left the pitch
+      // putting a generic lineup name on the man the feed had just named. That
+      // is the same row as the goal above, in the other event type.
       expect(
         clipScorerName(
           const {},
-          (
-            minute: 30,
-            type: 'chance',
-            team: 'home',
-            scorer: 'Recorded Name',
-            scorerId: 'gone',
-            textKey: null,
-            shotResult: 'on_target',
-            big: true,
-            xg: 0.4,
-            player: null,
-            params: {},
-            card: null,
-            playerId: null,
-          ),
+          chance(scorer: 'Recorded Name', scorerId: 'here'),
           ours: true,
+          nameOf: onTheGrid,
+        ),
+        'Live Name',
+      );
+      expect(
+        clipScorerName(
+          const {},
+          chance(scorer: 'Recorded Name', scorerId: 'gone'),
+          ours: true,
+          nameOf: onTheGrid,
+        ),
+        'Recorded Name',
+      );
+    });
+
+    test('and a chance with no shooter still names nobody', () {
+      // The fallback feed — a fixed-rating tie, an old save — records no
+      // shooter, and inventing one for the dot is exactly what this rule is
+      // against.
+      expect(
+        clipScorerName(const {}, chance(), ours: true, nameOf: onTheGrid),
+        isNull,
+      );
+      // Nor is their chance ours to name.
+      expect(
+        clipScorerName(
+          const {},
+          chance(scorer: 'Their Man', scorerId: 'here'),
+          ours: false,
           nameOf: onTheGrid,
         ),
         isNull,
@@ -309,6 +347,7 @@ void main() {
       params: params,
       card: null,
       playerId: null,
+      zone: null,
     );
 
     List<FeedLine> feed(List<TimelineEvent> events, {bool isHome = true}) =>
@@ -421,6 +460,7 @@ void main() {
           params: const <String, Object?>{},
           card: null,
           playerId: null,
+          zone: null,
         );
         expect(eventIsOurs(whistle, isHome: true), isTrue);
         expect(eventIsOurs(whistle, isHome: false), isTrue);
