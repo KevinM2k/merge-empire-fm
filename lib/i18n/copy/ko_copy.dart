@@ -455,4 +455,37 @@ const Map<String, String> koCopy = <String, String>{
   'role.widePlaymaker': '와이드 플레이메이커',
   'role.widePlaymaker.hint': '내려와서 빌드업에 가담하므로 더 많은 플레이가 더 일찍 그를 거칩니다.',
   'role.widePlaymaker.short': 'WP',
+
+  // ── The match inspector ─────────────────────────────────
+  //
+  // `ui/screens/match/match_inspector.dart`. Same frame as `match.analysis.*`:
+  // attacking upward, and each side's own left and right.
+  'match.inspect.open':
+      '자세한 분석',
+  'match.inspect.title':
+      '경기 분석',
+  'match.inspect.touches':
+      '볼 터지',
+  'match.inspect.shots':
+      '싛',
+  'match.inspect.xg':
+      'xG',
+  'match.inspect.total':
+      '{metric}: {ours} 대 {theirs}',
+  'match.inspect.players':
+      '선수별 경합 — 하나를 누르면 그 선수만 보여줍니다',
+  'match.inspect.matchups':
+      '맞붙은 상대',
+  'match.inspect.duel_line':
+      '{won}-{lost}({pct}%)',
+  'match.inspect.shot_line':
+      '싛 {shots}회, xG {xg}',
+  'match.inspect.versus':
+      '{attacker} 대 {defender}',
+  'match.inspect.whole_team':
+      '팀 전증',
+  'match.inspect.showing':
+      '{name}만 보여 주고 있습니다.',
+  'match.inspect.hint':
+      '우리 골보가 아래에 있고 위로 공경합니다. 맨 위 구역이 상대 박스입니다. 우리 오른진은 그림의 오른쪽이 아니라 왼쪽, 오른울 수버가 서는 자리입니다.',
 };

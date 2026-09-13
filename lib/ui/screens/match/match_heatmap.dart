@@ -28,6 +28,7 @@ import 'package:merge_empire_fc/ui/screens/match/cutaway/cutaway_stage.dart'
     show cardDisplayName;
 import 'package:merge_empire_fc/ui/screens/match/goal_replay.dart'
     show conceded;
+import 'package:merge_empire_fc/ui/screens/match/match_inspector.dart';
 import 'package:merge_empire_fc/ui/screens/squad/squad_pitch.dart';
 import 'package:merge_empire_fc/ui/theme/glass.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
@@ -47,27 +48,49 @@ Map<String, dynamic>? positionalOf(Map<String, dynamic> result) {
 }
 
 /// The twenty zones, painted over the pitch.
+///
+/// [metric] chooses what the wash measures — touches, shots or expected goals
+/// — and [playerId] narrows the whole map to ONE man's involvement, which is
+/// the individual heatmap the inspector offers. A player is painted in his own
+/// side's ink and the other side is left blank, because half a pitch of the
+/// opposition's total behind one full-back's map is a comparison nobody asked
+/// for.
 class MatchHeatmap extends StatelessWidget {
-  const MatchHeatmap({required this.positional, super.key});
+  const MatchHeatmap({
+    required this.positional,
+    this.metric = ZoneMetric.touches,
+    this.playerId,
+    super.key,
+  });
 
   final Map<String, dynamic> positional;
+  final ZoneMetric metric;
+  final String? playerId;
 
-  List<int> _zones(String side) {
-    final raw = (positional['zone'] as Map?)?[side];
-    return raw is List
-        ? [for (final v in raw) (v as num).toInt()]
-        : List.filled(pitchZones, 0);
-  }
+  /// Whether an id is one of the AI's pseudo-players — see `attack_sequence`.
+  static bool isTheirs(String id) => id.startsWith('ai:');
 
   @override
   Widget build(BuildContext context) {
     final kit = Theme.of(context).extension<KitTheme>()!;
+    final held = playerId;
+    final empty = List<double>.filled(pitchZones, 0);
+    final ours = held == null
+        ? zoneGrid(positional, 'ours', metric)
+        : isTheirs(held)
+        ? empty
+        : playerZoneGrid(positional, held, metric);
+    final theirs = held == null
+        ? zoneGrid(positional, 'theirs', metric)
+        : isTheirs(held)
+        ? playerZoneGrid(positional, held, metric)
+        : empty;
     return SquadPitch(
       child: CustomPaint(
         key: const ValueKey('match-heatmap'),
         painter: HeatmapPainter(
-          ours: _zones('ours'),
-          theirs: _zones('theirs'),
+          ours: ours,
+          theirs: theirs,
           ourInk: kit.accentBright,
           theirInk: conceded,
         ),
@@ -78,6 +101,11 @@ class MatchHeatmap extends StatelessWidget {
 
 /// Two translucent washes per zone, one a side, each as strong as that zone's
 /// share of the side's busiest zone.
+///
+/// **The grids are `num`, not `int`**, because the inspector paints expected
+/// goals through this same painter and a zone's xG is a fraction. Each side is
+/// scaled to its OWN peak, so a view of touches and a view of xG read the same
+/// way and neither side's quiet end is washed out by the other's busy one.
 class HeatmapPainter extends CustomPainter {
   const HeatmapPainter({
     required this.ours,
@@ -86,8 +114,8 @@ class HeatmapPainter extends CustomPainter {
     required this.theirInk,
   });
 
-  final List<int> ours;
-  final List<int> theirs;
+  final List<num> ours;
+  final List<num> theirs;
   final Color ourInk;
   final Color theirInk;
 
@@ -95,14 +123,17 @@ class HeatmapPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final w = size.width / pitchLanes;
     final h = size.height / pitchBands;
-    void wash(List<int> zones, Color ink) {
-      final peak = zones.fold(0, (a, b) => a > b ? a : b);
-      if (peak == 0) return;
+    void wash(List<num> zones, Color ink) {
+      final peak = zones.fold<double>(
+        0,
+        (a, b) => b.toDouble() > a ? b.toDouble() : a,
+      );
+      if (peak <= 0) return;
       for (var z = 0; z < pitchZones && z < zones.length; z++) {
-        if (zones[z] == 0) continue;
+        if (zones[z] <= 0) continue;
         // A gentle curve so the quiet zones still show and the busiest one
         // does not blot out the markings.
-        final t = zones[z] / peak;
+        final t = zones[z].toDouble() / peak;
         final alpha = 0.12 + 0.6 * t * t;
         canvas.drawRect(
           Rect.fromLTWH(zoneLane(z) * w, zoneBand(z) * h, w, h).deflate(1.5),
@@ -117,10 +148,21 @@ class HeatmapPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(HeatmapPainter old) =>
-      old.ours != ours ||
-      old.theirs != theirs ||
+      !_same(old.ours, ours) ||
+      !_same(old.theirs, theirs) ||
       old.ourInk != ourInk ||
       old.theirInk != theirInk;
+
+  /// Grids are rebuilt on every view change, so identity would repaint for
+  /// nothing; two grids holding the same numbers are the same picture.
+  static bool _same(List<num> a, List<num> b) {
+    if (identical(a, b)) return true;
+    if (a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (a[i] != b[i]) return false;
+    }
+    return true;
+  }
 }
 
 /// The card on the summary: heatmap, flank shares, the busiest duellist.
@@ -185,7 +227,7 @@ class PositionalCard extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    _Legend(
+                    HeatmapLegend(
                       ourName: ourName,
                       theirName: theirName,
                       ourInk: kit.accentBright,
@@ -195,7 +237,7 @@ class PositionalCard extends ConsumerWidget {
                     Text(t('match.analysis.flanks'), style: muted),
                     const SizedBox(height: 4),
                     for (final flank in Flank.values)
-                      _FlankRow(
+                      FlankRow(
                         label: t('match.analysis.${flank.name}'),
                         ours: ours[flank]!,
                         theirs: theirs[flank]!,
@@ -234,7 +276,20 @@ class PositionalCard extends ConsumerWidget {
             ),
           ],
           const SizedBox(height: 6),
-          Text(t('match.analysis.hint'), style: muted),
+          Row(
+            children: [
+              Expanded(child: Text(t('match.analysis.hint'), style: muted)),
+              // The whole record, pokeable — the heatmap per metric and per
+              // player, the duel records and the pairings. A `TextButton`
+              // because the moulded three paint their face in a
+              // `backgroundBuilder` and this wants no face at all.
+              TextButton(
+                key: const ValueKey('summary-positional-inspect'),
+                onPressed: () => showMatchInspector(context, result),
+                child: Text(t('match.inspect.open')),
+              ),
+            ],
+          ),
         ],
       ),
     );
@@ -259,8 +314,11 @@ String _xg(Object? v) => v is num ? v.toStringAsFixed(1) : '0.0';
   return (ours: ours, theirs: theirs);
 }
 
-class _Legend extends StatelessWidget {
-  const _Legend({
+/// The two sides' inks and names, stacked — shared with the inspector so the
+/// card and the sheet never disagree about which colour is whose.
+class HeatmapLegend extends StatelessWidget {
+  const HeatmapLegend({
+    super.key,
     required this.ourName,
     required this.theirName,
     required this.ourInk,
@@ -300,8 +358,9 @@ class _Legend extends StatelessWidget {
 }
 
 /// One flank: our share against theirs, as two bars meeting in the middle.
-class _FlankRow extends StatelessWidget {
-  const _FlankRow({
+class FlankRow extends StatelessWidget {
+  const FlankRow({
+    super.key,
     required this.label,
     required this.ours,
     required this.theirs,

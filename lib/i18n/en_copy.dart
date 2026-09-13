@@ -988,4 +988,39 @@ const Map<String, String> enCopy = <String, String>{
   'role.widePlaymaker': 'Wide playmaker',
   'role.widePlaymaker.hint': 'Drops in to build, so more of the play comes through that flank earlier.',
   'role.widePlaymaker.short': 'WP',
+
+  // ── THE MATCH INSPECTOR ──────────────────────────────────────────────────
+  //
+  // `ui/screens/match/match_inspector.dart`: the positional record opened up —
+  // the heatmap per metric and per player, the duel records and the pairings.
+  // A reading surface over what the sim already recorded, so "does this behave
+  // like football?" can be answered by looking at a match.
+  'match.inspect.open':
+      'Inspect',
+  'match.inspect.title':
+      'Match inspector',
+  'match.inspect.touches':
+      'Touches',
+  'match.inspect.shots':
+      'Shots',
+  'match.inspect.xg':
+      'xG',
+  'match.inspect.total':
+      '{metric}: {ours} to {theirs}',
+  'match.inspect.players':
+      'Duels by player — tap one to see that map alone',
+  'match.inspect.matchups':
+      'Who met whom',
+  'match.inspect.duel_line':
+      '{won}-{lost} ({pct}%)',
+  'match.inspect.shot_line':
+      '{shots} shots, {xg} xG',
+  'match.inspect.versus':
+      '{attacker} v {defender}',
+  'match.inspect.whole_team':
+      'Whole team',
+  'match.inspect.showing':
+      'Showing {name} only.',
+  'match.inspect.hint':
+      'Your goal is at the bottom and you attack upward, so the top band is their box. Your right flank is the left of the pitch, where your right-back stands.',
 };

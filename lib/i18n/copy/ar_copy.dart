@@ -451,4 +451,37 @@ const Map<String, String> arCopy = <String, String>{
   'role.widePlaymaker': 'صانع ألعاب طرفي',
   'role.widePlaymaker.hint': 'يتراجع للبناء، فيمر عبره لعب أكثر وفي وقت أبكر.',
   'role.widePlaymaker.short': 'صط',
+
+  // ── The match inspector ─────────────────────────────────
+  //
+  // `ui/screens/match/match_inspector.dart`. Same frame as `match.analysis.*`:
+  // attacking upward, and each side's own left and right.
+  'match.inspect.open':
+      'تحليل مفصّل',
+  'match.inspect.title':
+      'تحليل المباراة',
+  'match.inspect.touches':
+      'لمسات الكرة',
+  'match.inspect.shots':
+      'التسديدات',
+  'match.inspect.xg':
+      'xG',
+  'match.inspect.total':
+      '{metric}: {ours} مقابل {theirs}',
+  'match.inspect.players':
+      'الالتحامات لكل لاعب — اضغط على أحدهم لترى هذه الخريطة وحدها',
+  'match.inspect.matchups':
+      'من واجه من',
+  'match.inspect.duel_line':
+      '{won}-{lost} ({pct}%)',
+  'match.inspect.shot_line':
+      '{shots} تسديدات، {xg} xG',
+  'match.inspect.versus':
+      '{attacker} ضد {defender}',
+  'match.inspect.whole_team':
+      'الفريق بأكمله',
+  'match.inspect.showing':
+      'يُعرض {name} فقط.',
+  'match.inspect.hint':
+      'مرماك في الأسفل وتهاجم نحو الأعلى، فالشريط الأعلى هو منطقتهم. جهتك اليمنى هي يسار الملعب، حيث يقف ظهيرك الأيمن.',
 };

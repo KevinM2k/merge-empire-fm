@@ -145,24 +145,222 @@ typedef DuelRecord = ({String id, int won, int lost});
 /// Our most-involved player — the most duels, ties to the better record — or
 /// null when nobody on our side was recorded. AI pseudo-players (`ai:`) are
 /// never ours.
+///
+/// The top of [duelRecords] rather than a second sweep of the same map: the
+/// inspector needs the whole list in that order anyway, and two orderings of
+/// one record that disagreed on a tie is exactly the bug CLAUDE.md's reuse rule
+/// is about.
 DuelRecord? busiestDuellist(Map<String, dynamic>? positional) {
+  final all = duelRecords(positional, ours: true);
+  return all.isEmpty ? null : all.first;
+}
+
+// ---------------------------------------------------------------------------
+// The inspection layer.
+//
+// Everything below is computed ON DEMAND from the raw `ev` stream rather than
+// baked into [positionalSummaryFromMaps], and that is deliberate. The summary
+// persists — `lastMatchResult` and the cup history carry it — while `ev` lives
+// only on the in-memory result the match and summary screens read. A per-player
+// zone grid is twenty numbers a player and a matchup table is up to 121 rows; a
+// season of those in the save is the bloat the library header warns about. The
+// screens that want them have `ev` in hand, so they are paid for when they are
+// looked at and nothing is paid when they are not.
+//
+// Every zone index in the stream is in the sim's ONE absolute frame (see
+// `pitch_space.dart`), for both sides, so none of these needs to know whose
+// half it is reading.
+// ---------------------------------------------------------------------------
+
+/// What a zone grid counts.
+///
+/// [touches] is every recorded duel and shot — the busy-ness the heatmap has
+/// always painted. [shots] counts only shots that were not blocked, the same
+/// population `positional['shots']` totals. [xg] sums their calibrated
+/// probabilities, so that grid adds up to the side's expected goals.
+enum ZoneMetric { touches, shots, xg }
+
+/// Is this event in [metric]'s population, and what does it contribute?
+double _contribution(Map<String, dynamic> e, ZoneMetric metric) {
+  final type = e['t'];
+  switch (metric) {
+    case ZoneMetric.touches:
+      return type == 'duel' || type == 'shot' ? 1 : 0;
+    case ZoneMetric.shots:
+      return type == 'shot' && e['o'] != 'blocked' ? 1 : 0;
+    case ZoneMetric.xg:
+      return type == 'shot' && e['o'] != 'blocked'
+          ? ((e['xg'] as num?)?.toDouble() ?? 0)
+          : 0;
+  }
+}
+
+/// The events of a positional record, or empty when it holds none.
+List<Map<String, dynamic>> positionalEvents(Map<String, dynamic>? positional) {
+  final raw = positional?['ev'];
+  if (raw is! List) return const [];
+  return [
+    for (final e in raw)
+      if (e is Map<String, dynamic>) e,
+  ];
+}
+
+/// The zone an event happened in, or -1 for one that cannot be placed.
+int _zoneOf(Map<String, dynamic> e) {
+  final z = (e['z'] as num?)?.toInt() ?? -1;
+  return z >= 0 && z < pitchZones ? z : -1;
+}
+
+/// One side's twenty zones under [metric].
+///
+/// [ZoneMetric.touches] is the same population `positional['zone']` counts, and
+/// `match_analysis_test` pins that the two agree — this exists so that the
+/// three views the inspector offers come off one code path and one painter.
+List<double> zoneGrid(
+  Map<String, dynamic>? positional,
+  String side,
+  ZoneMetric metric,
+) {
+  final grid = List<double>.filled(pitchZones, 0);
+  for (final e in positionalEvents(positional)) {
+    if ((e['s'] as String? ?? 'ours') != side) continue;
+    final z = _zoneOf(e);
+    if (z < 0) continue;
+    grid[z] += _contribution(e, metric);
+  }
+  return grid;
+}
+
+/// ONE PLAYER'S twenty zones — his individual heatmap.
+///
+/// Every event he was in, as the man on the ball (`p`) or the man who met him
+/// (`op`), which is what makes this work for a defender too: a centre-back is
+/// never the carrier of one of our attacks and would have an empty map if only
+/// `p` counted. [ZoneMetric.shots] and [ZoneMetric.xg] stay the SHOOTER's, so a
+/// defender's grid under either is empty by construction rather than by
+/// accident — he was in those events, he did not take the shot.
+List<double> playerZoneGrid(
+  Map<String, dynamic>? positional,
+  String playerId,
+  ZoneMetric metric,
+) {
+  final grid = List<double>.filled(pitchZones, 0);
+  for (final e in positionalEvents(positional)) {
+    final onTheBall = '${e['p']}' == playerId;
+    final met = e['op'] == playerId;
+    if (!onTheBall && !met) continue;
+    if (metric != ZoneMetric.touches && !onTheBall) continue;
+    final z = _zoneOf(e);
+    if (z < 0) continue;
+    grid[z] += _contribution(e, metric);
+  }
+  return grid;
+}
+
+/// A pairing and how it went, always from the ATTACKER's point of view:
+/// [won] is his, [lost] is the defender's.
+typedef Matchup = ({String attacker, String defender, int won, int lost});
+
+/// Every attacker-versus-defender pairing in the record, the most-contested
+/// first, ties to the attacker's better record and then by name so the order
+/// is stable for a screen or a golden.
+///
+/// [side] keeps only the pairings where that side was attacking; null takes
+/// both. A shot counts as a pairing with the man who tried to block it, which
+/// is how the sequence records one.
+List<Matchup> matchups(Map<String, dynamic>? positional, {String? side}) {
+  final tally = <(String, String), ({int won, int lost})>{};
+  for (final e in positionalEvents(positional)) {
+    if (side != null && (e['s'] as String? ?? 'ours') != side) continue;
+    final type = e['t'];
+    if (type != 'duel' && type != 'shot') continue;
+    final op = e['op'];
+    if (op is! String) continue;
+    final outcome = e['o'];
+    final won = outcome == 'win' || outcome == 'goal' || outcome == 'miss';
+    final key = ('${e['p']}', op);
+    final held = tally[key] ?? (won: 0, lost: 0);
+    tally[key] = won
+        ? (won: held.won + 1, lost: held.lost)
+        : (won: held.won, lost: held.lost + 1);
+  }
+  final out = <Matchup>[
+    for (final e in tally.entries)
+      (
+        attacker: e.key.$1,
+        defender: e.key.$2,
+        won: e.value.won,
+        lost: e.value.lost,
+      ),
+  ];
+  out.sort((a, b) {
+    final byTotal = (b.won + b.lost).compareTo(a.won + a.lost);
+    if (byTotal != 0) return byTotal;
+    final byWon = b.won.compareTo(a.won);
+    if (byWon != 0) return byWon;
+    final byAttacker = a.attacker.compareTo(b.attacker);
+    return byAttacker != 0 ? byAttacker : a.defender.compareTo(b.defender);
+  });
+  return out;
+}
+
+/// Every recorded player's duel record, the most-involved first — the list
+/// [busiestDuellist] takes its answer off.
+///
+/// [ours] true drops the AI pseudo-players (`ai:`), false keeps only them, null
+/// takes everyone. Ties go to the better record and then to the id, so two
+/// identical lines never swap places between runs.
+List<DuelRecord> duelRecords(Map<String, dynamic>? positional, {bool? ours}) {
   final raw = positional?['duels'];
-  if (raw is! Map) return null;
-  DuelRecord? best;
+  if (raw is! Map) return const [];
+  final out = <DuelRecord>[];
   for (final e in raw.entries) {
     final id = '${e.key}';
-    if (id.startsWith('ai:')) continue;
+    if (ours != null && ours == id.startsWith('ai:')) continue;
     final rec = e.value;
     if (rec is! Map) continue;
     final won = (rec['w'] as num?)?.toInt() ?? 0;
     final lost = (rec['l'] as num?)?.toInt() ?? 0;
-    final total = won + lost;
-    if (total == 0) continue;
-    if (best == null ||
-        total > best.won + best.lost ||
-        (total == best.won + best.lost && won > best.won)) {
-      best = (id: id, won: won, lost: lost);
-    }
+    if (won + lost == 0) continue;
+    out.add((id: id, won: won, lost: lost));
   }
-  return best;
+  out.sort((a, b) {
+    final byTotal = (b.won + b.lost).compareTo(a.won + a.lost);
+    if (byTotal != 0) return byTotal;
+    final byWon = b.won.compareTo(a.won);
+    return byWon != 0 ? byWon : a.id.compareTo(b.id);
+  });
+  return out;
+}
+
+/// A duel record as a win rate, or null when there is nothing to rate.
+double? duelWinRate(DuelRecord? record) {
+  if (record == null || record.won + record.lost == 0) return null;
+  return record.won / (record.won + record.lost);
+}
+
+/// A zone grid's share by flank, read in the OWNER's own left and right.
+///
+/// The same collapse [flankShares] does — lanes 0–1 right, 2 centre, 3–4 left,
+/// reversed for the side attacking the other way — over a grid instead of the
+/// persisted tally, so the inspector's flank bars follow whatever view is on
+/// screen and narrow with it to one player.
+///
+/// **It is not the same POPULATION as [flankShares]**, and that is deliberate
+/// rather than a drift: the persisted tally counts every shot ATTEMPTED,
+/// blocked ones included, because that is where the attack got to; a grid
+/// counts whatever its [ZoneMetric] counts. `match_analysis_test` pins that the
+/// two differ by exactly the blocked shots and nothing else.
+Map<Flank, double> gridFlankShares(List<num> grid, {required bool theirs}) {
+  final counts = {for (final f in Flank.values) f: 0.0};
+  for (var z = 0; z < pitchZones && z < grid.length; z++) {
+    final v = grid[z].toDouble();
+    if (v <= 0) continue;
+    var lane = zoneLane(z);
+    if (theirs) lane = pitchLanes - 1 - lane;
+    final f = laneFlank(lane);
+    counts[f] = counts[f]! + v;
+  }
+  final total = counts.values.fold(0.0, (a, b) => a + b);
+  return {for (final f in Flank.values) f: total > 0 ? counts[f]! / total : 0};
 }

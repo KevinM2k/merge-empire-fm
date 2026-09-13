@@ -427,4 +427,37 @@ const Map<String, String> jaCopy = <String, String>{
   'role.widePlaymaker': 'ワイドプレーメーカー',
   'role.widePlaymaker.hint': '下がってビルドアップに関わり、早い段階から多くのプレーが彼を経由する。',
   'role.widePlaymaker.short': 'WP',
+
+  // ── The match inspector ─────────────────────────────────
+  //
+  // `ui/screens/match/match_inspector.dart`. Same frame as `match.analysis.*`:
+  // attacking upward, and each side's own left and right.
+  'match.inspect.open':
+      '詳しく見る',
+  'match.inspect.title':
+      'マッチ分析',
+  'match.inspect.touches':
+      'プレー数',
+  'match.inspect.shots':
+      'シュート',
+  'match.inspect.xg':
+      'xG',
+  'match.inspect.total':
+      '{metric}：{ours} 対 {theirs}',
+  'match.inspect.players':
+      '選手別のデュエル。タップするとその選手だけのヒートマップになります。',
+  'match.inspect.matchups':
+      '対峙した組み合わせ',
+  'match.inspect.duel_line':
+      '{won}-{lost}（{pct}%）',
+  'match.inspect.shot_line':
+      'シュート{shots}本、xG {xg}',
+  'match.inspect.versus':
+      '{attacker} 対 {defender}',
+  'match.inspect.whole_team':
+      'チーム全体',
+  'match.inspect.showing':
+      '{name}のみ表示しています。',
+  'match.inspect.hint':
+      '自陣ゴールが下で、上方向へ攻めます。つまり一番上の帯が相手のボックスです。右サイドはピッチの左側、右サイビックが立つ場所です。',
 };

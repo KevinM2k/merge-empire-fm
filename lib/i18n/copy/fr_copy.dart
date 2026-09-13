@@ -509,4 +509,37 @@ const Map<String, String> frCopy = <String, String>{
   'role.widePlaymaker': 'Meneur excentré',
   'role.widePlaymaker.hint': 'Décroche pour construire : plus de jeu passe par lui, plus tôt.',
   'role.widePlaymaker.short': 'ME',
+
+  // ── The match inspector ─────────────────────────────────
+  //
+  // `ui/screens/match/match_inspector.dart`. Same frame as `match.analysis.*`:
+  // attacking upward, and each side's own left and right.
+  'match.inspect.open':
+      'Analyser',
+  'match.inspect.title':
+      'Analyse du match',
+  'match.inspect.touches':
+      'Ballons joués',
+  'match.inspect.shots':
+      'Tirs',
+  'match.inspect.xg':
+      'xG',
+  'match.inspect.total':
+      '{metric} : {ours} contre {theirs}',
+  'match.inspect.players':
+      'Duels par joueur — appuyez pour n’avoir que sa carte',
+  'match.inspect.matchups':
+      'Qui a affronté qui',
+  'match.inspect.duel_line':
+      '{won}-{lost} ({pct} %)',
+  'match.inspect.shot_line':
+      '{shots} tirs, {xg} xG',
+  'match.inspect.versus':
+      '{attacker} contre {defender}',
+  'match.inspect.whole_team':
+      'Toute l’équipe',
+  'match.inspect.showing':
+      'Seul {name} est affiché.',
+  'match.inspect.hint':
+      'Votre but est en bas et vous attaquez vers le haut : la bande du haut est leur surface. Votre côté droit est à gauche du terrain, là où se tient votre latéral droit.',
 };

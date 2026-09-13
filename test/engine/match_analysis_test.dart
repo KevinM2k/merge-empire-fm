@@ -166,4 +166,214 @@ void main() {
       );
     });
   });
+
+  // -------------------------------------------------------------------------
+  // The inspection layer: the views a screen reads off the raw stream.
+  // -------------------------------------------------------------------------
+
+  group('zoneGrid', () {
+    test('touches agree with the persisted zone counts, zone for zone', () {
+      // The invariant that lets the inspector use ONE code path for all three
+      // views: the on-demand grid and the summary's own aggregate are the same
+      // population counted twice.
+      final events = [
+        _ev(z: 3),
+        _ev(z: 3, o: 'lose'),
+        _ev(z: 7, t: 'shot', o: 'miss', xg: 0.1),
+        _ev(z: 7, t: 'shot', o: 'blocked'),
+        _ev(z: 12, s: 'theirs', p: 'ai:rs', op: 'a'),
+      ];
+      final sum = positionalSummary(events);
+      for (final side in positionalSides) {
+        final persisted = (sum['zone'] as Map)[side] as List;
+        final grid = zoneGrid(sum, side, ZoneMetric.touches);
+        for (var z = 0; z < pitchZones; z++) {
+          expect(grid[z], (persisted[z] as num).toDouble(), reason: '$side $z');
+        }
+      }
+    });
+
+    test('shots count only what was not blocked, and xG sums their chances', () {
+      final sum = positionalSummary([
+        _ev(z: 7, t: 'shot', o: 'miss', xg: 0.1),
+        _ev(z: 7, t: 'shot', o: 'goal', xg: 0.25),
+        _ev(z: 7, t: 'shot', o: 'blocked'),
+        _ev(z: 7),
+      ]);
+      expect(zoneGrid(sum, 'ours', ZoneMetric.touches)[7], 4);
+      expect(zoneGrid(sum, 'ours', ZoneMetric.shots)[7], 2);
+      expect(zoneGrid(sum, 'ours', ZoneMetric.xg)[7], closeTo(0.35, 1e-9));
+    });
+
+    test('the xG grid adds up to the side total the summary reports', () {
+      final sum = positionalSummary([
+        _ev(z: 2, t: 'shot', o: 'goal', xg: 0.4),
+        _ev(z: 7, t: 'shot', o: 'miss', xg: 0.125),
+        _ev(z: 11, s: 'theirs', p: 'ai:rs', t: 'shot', o: 'miss', xg: 0.2),
+      ]);
+      final ours = zoneGrid(sum, 'ours', ZoneMetric.xg);
+      expect(
+        ours.fold<double>(0, (a, b) => a + b),
+        closeTo(((sum['xg'] as Map)['ours'] as num).toDouble(), 1e-9),
+      );
+    });
+
+    test('a record with no events, or a zone off the grid, is all zeros', () {
+      expect(zoneGrid(null, 'ours', ZoneMetric.touches), List.filled(pitchZones, 0.0));
+      expect(zoneGrid(const {}, 'ours', ZoneMetric.shots), List.filled(pitchZones, 0.0));
+      final strayed = positionalSummaryFromMaps([
+        {'m': 1, 'z': 99, 's': 'ours', 'p': 'a', 't': 'duel', 'o': 'win'},
+      ]);
+      expect(zoneGrid(strayed, 'ours', ZoneMetric.touches), List.filled(pitchZones, 0.0));
+    });
+  });
+
+  group('playerZoneGrid', () {
+    test('counts a man on the ball AND a man who met him', () {
+      final sum = positionalSummary([
+        _ev(z: 3, p: 'rf', op: 'ai:lb'),
+        _ev(z: 3, p: 'rf', op: 'ai:lb', o: 'lose'),
+        _ev(z: 8, p: 'cf', op: 'ai:rcb'),
+      ]);
+      // Our winger's own map, and the full-back's, are the same two events.
+      expect(playerZoneGrid(sum, 'rf', ZoneMetric.touches)[3], 2);
+      expect(playerZoneGrid(sum, 'rf', ZoneMetric.touches)[8], 0);
+      expect(playerZoneGrid(sum, 'ai:lb', ZoneMetric.touches)[3], 2);
+      expect(playerZoneGrid(sum, 'ai:rcb', ZoneMetric.touches)[8], 1);
+    });
+
+    test('a defender has no shots and no xG of his own', () {
+      // He is in the event; he did not hit it. A defender's shot map being
+      // empty is the point, not a gap.
+      final sum = positionalSummary([
+        _ev(z: 2, p: 'cf', op: 'ai:lcb', t: 'shot', o: 'goal', xg: 0.3),
+      ]);
+      expect(playerZoneGrid(sum, 'cf', ZoneMetric.shots)[2], 1);
+      expect(playerZoneGrid(sum, 'cf', ZoneMetric.xg)[2], closeTo(0.3, 1e-9));
+      expect(playerZoneGrid(sum, 'ai:lcb', ZoneMetric.touches)[2], 1);
+      expect(playerZoneGrid(sum, 'ai:lcb', ZoneMetric.shots)[2], 0);
+      expect(playerZoneGrid(sum, 'ai:lcb', ZoneMetric.xg)[2], 0);
+    });
+
+    test('the players\' touch maps add up to their side\'s', () {
+      final events = [
+        _ev(z: 3, p: 'rf', op: 'ai:lb'),
+        _ev(z: 7, p: 'cf', op: 'ai:rcb', t: 'shot', o: 'miss', xg: 0.2),
+        _ev(z: 9, p: 'lf', op: 'ai:rb', o: 'lose'),
+      ];
+      final sum = positionalSummary(events);
+      final side = zoneGrid(sum, 'ours', ZoneMetric.touches);
+      final summed = List<double>.filled(pitchZones, 0);
+      for (final id in ['rf', 'cf', 'lf']) {
+        final g = playerZoneGrid(sum, id, ZoneMetric.touches);
+        for (var z = 0; z < pitchZones; z++) {
+          summed[z] += g[z];
+        }
+      }
+      expect(summed, side);
+    });
+
+    test('nobody by that name is an empty map, not a crash', () {
+      final sum = positionalSummary([_ev(z: 3, p: 'rf', op: 'ai:lb')]);
+      expect(
+        playerZoneGrid(sum, 'nobody', ZoneMetric.touches),
+        List.filled(pitchZones, 0.0),
+      );
+    });
+  });
+
+  group('matchups', () {
+    test('tallies each pairing from the attacker\'s side of it', () {
+      final sum = positionalSummary([
+        _ev(z: 3, p: 'rf', op: 'ai:lb', o: 'win'),
+        _ev(z: 3, p: 'rf', op: 'ai:lb', o: 'win'),
+        _ev(z: 3, p: 'rf', op: 'ai:lb', o: 'lose'),
+        _ev(z: 9, p: 'lf', op: 'ai:rb', o: 'lose'),
+      ]);
+      final all = matchups(sum);
+      expect(all.first, (attacker: 'rf', defender: 'ai:lb', won: 2, lost: 1));
+      expect(all.last, (attacker: 'lf', defender: 'ai:rb', won: 0, lost: 1));
+    });
+
+    test('a shot is a pairing with the man who tried to block it', () {
+      final sum = positionalSummary([
+        _ev(z: 2, p: 'cf', op: 'ai:gk', t: 'shot', o: 'goal', xg: 0.4),
+        _ev(z: 2, p: 'cf', op: 'ai:gk', t: 'shot', o: 'blocked'),
+      ]);
+      expect(matchups(sum).single, (
+        attacker: 'cf',
+        defender: 'ai:gk',
+        won: 1,
+        lost: 1,
+      ));
+    });
+
+    test('a side filter keeps only that side\'s attacks', () {
+      final sum = positionalSummary([
+        _ev(z: 3, p: 'rf', op: 'ai:lb'),
+        _ev(z: 16, s: 'theirs', p: 'ai:rs', op: 'lcb'),
+      ]);
+      expect(matchups(sum, side: 'ours').single.attacker, 'rf');
+      expect(matchups(sum, side: 'theirs').single.attacker, 'ai:rs');
+      expect(matchups(sum).length, 2);
+    });
+
+    test('ties are broken by name, so the order never wobbles', () {
+      final sum = positionalSummary([
+        _ev(z: 3, p: 'rf', op: 'ai:lb'),
+        _ev(z: 3, p: 'cf', op: 'ai:lcb'),
+        _ev(z: 3, p: 'lf', op: 'ai:rb'),
+      ]);
+      expect(
+        matchups(sum).map((m) => m.attacker),
+        ['cf', 'lf', 'rf'],
+      );
+    });
+
+    test('an unopposed event is nobody\'s matchup', () {
+      final sum = positionalSummary([_ev(z: 3, p: 'rf', op: null)]);
+      expect(matchups(sum), isEmpty);
+    });
+  });
+
+  group('duelRecords', () {
+    test('sorts by involvement and filters by side', () {
+      final sum = positionalSummary([
+        _ev(z: 3, p: 'rf', op: 'ai:lb'),
+        _ev(z: 3, p: 'rf', op: 'ai:lb', o: 'lose'),
+        _ev(z: 3, p: 'rf', op: 'ai:lb'),
+        _ev(z: 9, p: 'lf', op: 'ai:rb'),
+      ]);
+      final ours = duelRecords(sum, ours: true);
+      expect(ours.map((d) => d.id), ['rf', 'lf']);
+      expect(ours.first, (id: 'rf', won: 2, lost: 1));
+      expect(duelRecords(sum, ours: false).map((d) => d.id), [
+        'ai:lb',
+        'ai:rb',
+      ]);
+      expect(duelRecords(sum).length, 4);
+    });
+
+    test('busiestDuellist is the top of our list', () {
+      final sum = positionalSummary([
+        _ev(z: 3, p: 'rf', op: 'ai:lb'),
+        _ev(z: 3, p: 'rf', op: 'ai:lb', o: 'lose'),
+        _ev(z: 9, p: 'lf', op: 'ai:rb'),
+      ]);
+      expect(busiestDuellist(sum), duelRecords(sum, ours: true).first);
+      expect(busiestDuellist(sum)?.id, 'rf');
+    });
+
+    test('no record, or nobody in it, is an empty list and a null best', () {
+      expect(duelRecords(null), isEmpty);
+      expect(duelRecords(const {}), isEmpty);
+      expect(busiestDuellist(positionalSummary(const [])), isNull);
+    });
+
+    test('duelWinRate is the share, and null for nobody', () {
+      expect(duelWinRate((id: 'rf', won: 3, lost: 1)), closeTo(0.75, 1e-9));
+      expect(duelWinRate((id: 'rf', won: 0, lost: 0)), isNull);
+      expect(duelWinRate(null), isNull);
+    });
+  });
 }

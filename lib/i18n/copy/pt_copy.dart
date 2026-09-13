@@ -491,4 +491,37 @@ const Map<String, String> ptCopy = <String, String>{
   'role.widePlaymaker': 'Armador aberto',
   'role.widePlaymaker.hint': 'Recua para construir, e mais jogo passa por ele mais cedo.',
   'role.widePlaymaker.short': 'AA',
+
+  // ── The match inspector ─────────────────────────────────
+  //
+  // `ui/screens/match/match_inspector.dart`. Same frame as `match.analysis.*`:
+  // attacking upward, and each side's own left and right.
+  'match.inspect.open':
+      'Analisar',
+  'match.inspect.title':
+      'Análise do jogo',
+  'match.inspect.touches':
+      'Toques',
+  'match.inspect.shots':
+      'Chutes',
+  'match.inspect.xg':
+      'xG',
+  'match.inspect.total':
+      '{metric}: {ours} a {theirs}',
+  'match.inspect.players':
+      'Duelos por jogador — toque em um para ver só esse mapa',
+  'match.inspect.matchups':
+      'Quem enfrentou quem',
+  'match.inspect.duel_line':
+      '{won}-{lost} ({pct} %)',
+  'match.inspect.shot_line':
+      '{shots} chutes, {xg} xG',
+  'match.inspect.versus':
+      '{attacker} contra {defender}',
+  'match.inspect.whole_team':
+      'Time inteiro',
+  'match.inspect.showing':
+      'Mostrando apenas {name}.',
+  'match.inspect.hint':
+      'Seu gol fica embaixo e você ataca para cima, então a faixa de cima é a área deles. Seu lado direito é a esquerda do campo, onde fica seu lateral-direito.',
 };

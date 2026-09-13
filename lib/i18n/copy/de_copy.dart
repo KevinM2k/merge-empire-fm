@@ -510,4 +510,37 @@ const Map<String, String> deCopy = <String, String>{
   'role.widePlaymaker': 'Spielmacher außen',
   'role.widePlaymaker.hint': 'Lässt sich zum Aufbau fallen, sodass mehr Spiel früher über ihn läuft.',
   'role.widePlaymaker.short': 'SA',
+
+  // ── The match inspector ─────────────────────────────────
+  //
+  // `ui/screens/match/match_inspector.dart`. Same frame as `match.analysis.*`:
+  // attacking upward, and each side's own left and right.
+  'match.inspect.open':
+      'Analysieren',
+  'match.inspect.title':
+      'Spielanalyse',
+  'match.inspect.touches':
+      'Ballkontakte',
+  'match.inspect.shots':
+      'Schüsse',
+  'match.inspect.xg':
+      'xG',
+  'match.inspect.total':
+      '{metric}: {ours} zu {theirs}',
+  'match.inspect.players':
+      'Zweikämpfe pro Spieler — antippen für nur diese Karte',
+  'match.inspect.matchups':
+      'Wer gegen wen',
+  'match.inspect.duel_line':
+      '{won}-{lost} ({pct} %)',
+  'match.inspect.shot_line':
+      '{shots} Schüsse, {xg} xG',
+  'match.inspect.versus':
+      '{attacker} gegen {defender}',
+  'match.inspect.whole_team':
+      'Ganze Mannschaft',
+  'match.inspect.showing':
+      'Nur {name} wird gezeigt.',
+  'match.inspect.hint':
+      'Ihr Tor ist unten und Sie greifen nach oben an, das oberste Feld ist also deren Strafraum. Ihre rechte Seite liegt links auf dem Platz, dort steht Ihr Rechtsverteidiger.',
 };

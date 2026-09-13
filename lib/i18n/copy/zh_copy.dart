@@ -380,4 +380,37 @@ const Map<String, String> zhCopy = <String, String>{
   'role.widePlaymaker': '边路组织者',
   'role.widePlaymaker.hint': '回撤参与组织，更多进攻更早经过他。',
   'role.widePlaymaker.short': 'WP',
+
+  // ── The match inspector ─────────────────────────────────
+  //
+  // `ui/screens/match/match_inspector.dart`. Same frame as `match.analysis.*`:
+  // attacking upward, and each side's own left and right.
+  'match.inspect.open':
+      '详细分析',
+  'match.inspect.title':
+      '比赛分析',
+  'match.inspect.touches':
+      '触球',
+  'match.inspect.shots':
+      '射门',
+  'match.inspect.xg':
+      'xG',
+  'match.inspect.total':
+      '{metric}：{ours} 对 {theirs}',
+  'match.inspect.players':
+      '球员对抗记录 — 点一个只看他的热图',
+  'match.inspect.matchups':
+      '谁对上了谁',
+  'match.inspect.duel_line':
+      '{won}-{lost}（{pct}%）',
+  'match.inspect.shot_line':
+      '{shots}次射门，xG {xg}',
+  'match.inspect.versus':
+      '{attacker} 对 {defender}',
+  'match.inspect.whole_team':
+      '全队',
+  'match.inspect.showing':
+      '只显示{name}。',
+  'match.inspect.hint':
+      '自家球门在下方，向上方进攻，所以最上面一条是对方的禁区。自家右边路在图上的左侧，也就是右后开站位的地方。',
 };

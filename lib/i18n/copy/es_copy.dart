@@ -498,4 +498,37 @@ const Map<String, String> esCopy = <String, String>{
   'role.widePlaymaker': 'Creador de banda',
   'role.widePlaymaker.hint': 'Retrocede para construir, y más juego pasa por él antes.',
   'role.widePlaymaker.short': 'CB',
+
+  // ── The match inspector ─────────────────────────────────
+  //
+  // `ui/screens/match/match_inspector.dart`. Same frame as `match.analysis.*`:
+  // attacking upward, and each side's own left and right.
+  'match.inspect.open':
+      'Analizar',
+  'match.inspect.title':
+      'Análisis del partido',
+  'match.inspect.touches':
+      'Toques',
+  'match.inspect.shots':
+      'Tiros',
+  'match.inspect.xg':
+      'xG',
+  'match.inspect.total':
+      '{metric}: {ours} a {theirs}',
+  'match.inspect.players':
+      'Duelos por jugador — toca uno para ver solo su mapa',
+  'match.inspect.matchups':
+      'Quién se enfrentó a quién',
+  'match.inspect.duel_line':
+      '{won}-{lost} ({pct} %)',
+  'match.inspect.shot_line':
+      '{shots} tiros, {xg} xG',
+  'match.inspect.versus':
+      '{attacker} contra {defender}',
+  'match.inspect.whole_team':
+      'Todo el equipo',
+  'match.inspect.showing':
+      'Solo se muestra a {name}.',
+  'match.inspect.hint':
+      'Tu portería está abajo y atacas hacia arriba, así que la franja superior es su área. Tu banda derecha es la izquierda del campo, donde se coloca tu lateral derecho.',
 };

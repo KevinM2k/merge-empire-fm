@@ -393,6 +393,32 @@ void main() {
     expect(card.dy, lessThan(row.dy));
   });
 
+  testWidgets('and the card opens the inspector, which is how it is reached', (
+    tester,
+  ) async {
+    // Reachability, not decoration: the sheet is the only way to see the
+    // per-player maps and the pairings, so the button that opens it is part of
+    // the feature. See CLAUDE.md on checking who CALLS a thing.
+    seeded.setSeed(3);
+    final ours = pitchSideForAi(70, '4-3-3', mirrored: false);
+    final theirs = pitchSideForAi(64, '4-4-2');
+    final out = <PositionalEvent>[];
+    positionalWindowGoals(
+      ctx: SequenceContext(attackers: ours, defenders: theirs, side: 'ours'),
+      lambda: 1.5,
+      fromMinute: 0,
+      toMinute: 90,
+      out: out,
+    );
+    final res = result()..['positional'] = positionalSummary(out);
+    await pumpSummary(tester, res);
+    await scrollReport(tester, const ValueKey('summary-positional-inspect'));
+    await tester.tap(find.byKey(const ValueKey('summary-positional-inspect')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('match-inspector')), findsOneWidget);
+    expect(find.byKey(const ValueKey('inspect-metric-touches')), findsOneWidget);
+  });
+
   testWidgets('and a match with no record has no card', (tester) async {
     await pumpSummary(tester, result());
     await scrollReport(tester, const ValueKey('summary-reaction-row'));

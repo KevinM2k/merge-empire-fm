@@ -507,4 +507,37 @@ const Map<String, String> itCopy = <String, String>{
   'role.widePlaymaker': 'Regista largo',
   'role.widePlaymaker.hint': 'Arretra per costruire, così più gioco passa da lui e prima.',
   'role.widePlaymaker.short': 'RL',
+
+  // ── The match inspector ─────────────────────────────────
+  //
+  // `ui/screens/match/match_inspector.dart`. Same frame as `match.analysis.*`:
+  // attacking upward, and each side's own left and right.
+  'match.inspect.open':
+      'Analizza',
+  'match.inspect.title':
+      'Analisi della partita',
+  'match.inspect.touches':
+      'Tocchi',
+  'match.inspect.shots':
+      'Tiri',
+  'match.inspect.xg':
+      'xG',
+  'match.inspect.total':
+      '{metric}: {ours} a {theirs}',
+  'match.inspect.players':
+      'Duelli per giocatore — tocca per vedere solo la sua mappa',
+  'match.inspect.matchups':
+      'Chi ha affrontato chi',
+  'match.inspect.duel_line':
+      '{won}-{lost} ({pct} %)',
+  'match.inspect.shot_line':
+      '{shots} tiri, {xg} xG',
+  'match.inspect.versus':
+      '{attacker} contro {defender}',
+  'match.inspect.whole_team':
+      'Tutta la squadra',
+  'match.inspect.showing':
+      'Viene mostrato solo {name}.',
+  'match.inspect.hint':
+      'La tua porta è in basso e attacchi verso l’alto, quindi la fascia in cima è la loro area. La tua fascia destra è a sinistra del campo, dove sta il tuo terzino destro.',
 };
