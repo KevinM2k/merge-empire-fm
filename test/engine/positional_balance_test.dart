@@ -111,13 +111,14 @@ CardInstance _card(String id, String pos, int tier) => CardInstance({
   'definitionId': 'player_t${tier}_${pos.toLowerCase()}',
 });
 
-/// Our 4-3-3 from real cards, every slot at [tier] except the overrides.
+/// Our eleven from real cards, every slot at [tier] except the overrides.
 PitchSide _lineupSide({
+  String shape = '4-3-3',
   int tier = 5,
   Map<String, int> tiers = const {},
   Map<String, String> roles = const {},
 }) {
-  final slots = formations['4-3-3']!.slots;
+  final slots = formations[shape]!.slots;
   final cards = [
     for (final s in slots)
       _card(s.slotId, s.slotPosition, tiers[s.slotId] ?? tier),
@@ -737,6 +738,124 @@ void main() {
         );
       }
       expect(goals / n, closeTo(1.35, 0.06));
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // DOES A SHAPE BEHAVE LIKE THE SHAPE IT IS?
+  //
+  // The one thing a golden structurally cannot ask, and the thing the whole
+  // positional layer is FOR: change nothing but where the eleven stand — same
+  // ratings, same lambda, same opponent — and the match should be played
+  // somewhere else. If a 4-3-3 and a 4-2-3-1 produce the same map, the
+  // coordinates are decoration.
+  // -------------------------------------------------------------------------
+
+  group('a shape is played where it stands', () {
+    test('every slot in every shape works the flank its own x implies', () {
+      // No sampling at all: this is the influence map read straight off the
+      // formation. Lanes are 20 wide and the outer two either side are the
+      // flanks, so x under 40 is the team's own right and 60 or over its left —
+      // see `pitch_space.dart`. A shape whose winger peaks in the middle would
+      // mean the anchor arithmetic had come adrift from the coordinates the
+      // squad screen draws him at, and the heatmap would be lying about a
+      // player the manager can see standing there.
+      final wrong = <String>[];
+      for (final entry in formations.entries) {
+        final side = _lineupSide(shape: entry.key);
+        for (final p in side.players) {
+          if (p.slotPosition == 'GK') continue;
+          final slot = entry.value.slots.firstWhere(
+            (s) => s.slotId == p.slotId,
+          );
+          final want = slot.x < 40
+              ? Flank.right
+              : (slot.x >= 60 ? Flank.left : Flank.centre);
+          final got = zoneFlankFor(p.attacking.peakZone, theirs: false);
+          if (got != want) {
+            wrong.add('${entry.key}/${p.slotId} x${slot.x} '
+                '${want.name} -> ${got.name}');
+          }
+        }
+      }
+      expect(wrong, isEmpty);
+    });
+
+    /// 2,000 matches of [shape] against one unchanging 4-4-2, on one lambda.
+    ({Map<Flank, double> flanks, double goals, int shots}) season(String shape) {
+      seeded.setSeed(77);
+      final us = _lineupSide(
+        shape: shape,
+      ).scaledToTeam(attack: 70, defence: 70);
+      final them = _side(70, '4-4-2');
+      final out = <PositionalEvent>[];
+      var goals = 0;
+      const n = 2000;
+      for (var i = 0; i < n; i++) {
+        goals += positionalWindowGoals(
+          ctx: SequenceContext(attackers: us, defenders: them, side: 'ours'),
+          lambda: 1.35,
+          fromMinute: 0,
+          toMinute: 90,
+          out: out,
+        );
+      }
+      final sum = positionalSummary(out);
+      return (
+        flanks: flankShares(sum, 'ours'),
+        goals: goals / n,
+        shots: (sum['shots'] as Map)['ours'] as int,
+      );
+    }
+
+    test('the widest shape attacks widest and the narrowest narrowest', () {
+      // A 4-3-3's forwards stand at x 20 and 80; a 4-2-3-1 has ONE of them, in
+      // the middle, behind an attacking midfielder also in the middle. Measured
+      // 23.3% of shots through the centre against 36.9% — the shape doing
+      // exactly what a manager picking it would expect.
+      final wide = season('4-3-3');
+      final narrow = season('4-2-3-1');
+      expect(
+        narrow.flanks[Flank.centre]!,
+        greaterThan(wide.flanks[Flank.centre]! + 0.08),
+        reason: '${wide.flanks} vs ${narrow.flanks}',
+      );
+    });
+
+    test('and wing-backs widen a shape without changing its forwards', () {
+      // 3-5-2 and 5-3-2 field the SAME two strikers at x 37 and 63. The only
+      // difference is the men behind them — wing-backs at 10 and 90 against a
+      // midfield three at 25, 50 and 75 — and that alone moves five points of
+      // the attack off the middle. This is the cleanest "only positioning
+      // changed" case in the set.
+      final wingBacks = season('3-5-2');
+      final three = season('5-3-2');
+      expect(
+        three.flanks[Flank.centre]!,
+        greaterThan(wingBacks.flanks[Flank.centre]! + 0.025),
+        reason: '5-3-2 ${three.flanks} vs 3-5-2 ${wingBacks.flanks}',
+      );
+    });
+
+    test('a wide shape trades volume for quality, not goals', () {
+      // Wide shots are worth a third of central ones, so a side that attacks
+      // down the flanks needs more of them — or rather, gets FEWER and better
+      // ones once the calibration has scaled the lot to lambda. Measured 9,700
+      // shots for the 4-3-3 against 13,405 for the 4-2-3-1.
+      final wide = season('4-3-3');
+      final narrow = season('4-2-3-1');
+      expect(wide.shots, lessThan((narrow.shots * 0.85).round()));
+      expect(wide.shots, greaterThan(0));
+    });
+
+    test('and NO shape scores more than the goal model said it would', () {
+      // The line under all of it: a shape decides where the match is played and
+      // who plays it, and cannot decide how many goals a side of this quality
+      // scores against a defence of that quality. 0.08 is three standard errors
+      // at 2,000 matches.
+      for (final shape in formations.keys) {
+        expect(season(shape).goals, closeTo(1.35, 0.08), reason: shape);
+      }
     });
   });
 }
