@@ -122,7 +122,7 @@ test file should grow a group for this pool.
 | ✈️ Away Day Hero | away from home | 50% | +4% | +7% | +11% |
 | 🎩 Big Game Player | opponent rated above us | ~40% | +5% | +9% | +14% |
 | 🚀 Fast Starter | minutes 1–20 | 22% of match | +7% | +13% | +20% |
-| 🌧 Mudlark | rain or snow | ~20% | +7% | +13% | +20% |
+| 🛟 Relegation Scrapper | we are in the drop zone | ~20% | +7% | +13% | +20% |
 | ⏱ Last Gasp | minute 76 → the whistle | 17% of match | +8% | +15% | +23% |
 | 🏆 Cup Fighter | any cup tie | ~15% | +8% | +15% | +23% |
 | 🔄 Super Sub | brought on with ≤20 min left | manager's choice | +12% | +20% | +30% |
@@ -158,7 +158,7 @@ shape it is:
 | cup tie | `result['isCup']` |
 | grudge | the existing `grudgeBoost` in `match_orchestration.dart` |
 | opponent stronger | `opponentRating` vs `squadRating` |
-| weather | `weather_engine` |
+| in the drop zone | `result['playerInRelegationZone']`, already stamped and already read by `matchRatingMods` |
 | subbed on late | the substitution path, which already re-sims |
 | down to ten | the sending-off path, which already re-sims |
 | booked | `booking_engine`, which already re-sims |
