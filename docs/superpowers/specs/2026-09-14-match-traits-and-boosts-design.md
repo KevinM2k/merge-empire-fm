@@ -190,8 +190,8 @@ referee or the physio did are taken at the bench, in front of the consequence,
 with the clock stopped. Close the panel and the chance is gone — you cannot
 bring that player back once play has restarted.
 
-Two for pushing, two for repairing. Roar chases a game; Bus protects one — and
-Bus is deliberately *not* a rating change, so it is distinct from the
+Roar chases a game; Bus protects one — and Bus is deliberately *not* a rating
+change, so it is distinct from the
 ultra-defensive tactic already on the tactic strip. A tactic makes you harder to
 score against; Bus makes the game a non-event for both sides. It is a damping
 factor on the Poisson rate in `reSimulateRemainder`, one new named parameter
