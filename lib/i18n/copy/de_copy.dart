@@ -587,6 +587,10 @@ const Map<String, String> deCopy = <String, String>{
   'squad.trait.slot.player': "Spieler",
   'squad.trait.slot.match': "Spiel",
   'squad.trait.slot.locked': "Gesperrt",
+  'squad.traits.all': "Alle Merkmale",
+  'squad.traits.all.title': "Alle Merkmale",
+  'squad.traits.match_blurb':
+      "Spielmerkmale zünden nur in den Momenten, die zählen — auswärts, im Pokal, in den letzten fünfzehn Minuten, mit zehn Mann. Öffne den Platz und würfle eins.",
   'matchtrait.none': "Noch kein Spielmerkmal",
   'squad.detail.matchslot.locked': "Ein zweites Merkmal, nur für das Spiel selbst. Öffnet sich für einen Edelstein.",
   'squad.detail.matchslot.unlock': "Platz für {gems} Edelstein öffnen",

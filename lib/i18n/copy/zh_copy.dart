@@ -411,6 +411,10 @@ const Map<String, String> zhCopy = <String, String>{
   'squad.trait.slot.player': "球员",
   'squad.trait.slot.match': "比赛",
   'squad.trait.slot.locked': "已锁定",
+  'squad.traits.all': "查看全部特性",
+  'squad.traits.all.title': "全部特性",
+  'squad.traits.match_blurb':
+      "比赛特性只在关键时刻触发——客场、杯赛、最后十五分钟、少一人作战。打开槽位，转一次试试。",
   'matchtrait.none': "尚无比赛特性",
   'squad.detail.matchslot.locked': "第二个特性，只在比赛中生效。花1颗宝石开启。",
   'squad.detail.matchslot.unlock': "花{gems}颗宝石开启栏位",

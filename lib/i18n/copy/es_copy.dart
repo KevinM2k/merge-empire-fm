@@ -568,6 +568,10 @@ const Map<String, String> esCopy = <String, String>{
   'squad.trait.slot.player': "Jugador",
   'squad.trait.slot.match': "Partido",
   'squad.trait.slot.locked': "Bloqueado",
+  'squad.traits.all': "Ver todos los rasgos",
+  'squad.traits.all.title': "Todos los rasgos",
+  'squad.traits.match_blurb':
+      "Los rasgos de partido solo se activan en los momentos que importan: fuera de casa, en copa, en los últimos quince, con diez. Abre el hueco y tira por uno.",
   'matchtrait.none': "Aún sin rasgo de partido",
   'squad.detail.matchslot.locked': "Un segundo rasgo, para el partido en sí. Se abre por una gema.",
   'squad.detail.matchslot.unlock': "Abrir hueco por {gems} gema",

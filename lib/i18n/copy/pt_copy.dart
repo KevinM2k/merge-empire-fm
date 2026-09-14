@@ -560,6 +560,10 @@ const Map<String, String> ptCopy = <String, String>{
   'squad.trait.slot.player': "Jogador",
   'squad.trait.slot.match': "Jogo",
   'squad.trait.slot.locked': "Bloqueado",
+  'squad.traits.all': "Ver todos os traços",
+  'squad.traits.all.title': "Todos os traços",
+  'squad.traits.match_blurb':
+      "Os traços de jogo só disparam nos momentos que importam — fora de casa, na taça, nos últimos quinze, com dez. Abre a vaga e rola um.",
   'matchtrait.none': "Ainda sem traço de jogo",
   'squad.detail.matchslot.locked': "Um segundo traço, para o jogo em si. Abre por uma gema.",
   'squad.detail.matchslot.unlock': "Abrir vaga por {gems} gema",

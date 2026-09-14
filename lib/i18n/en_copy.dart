@@ -300,6 +300,10 @@ const Map<String, String> enCopy = <String, String>{
   'squad.trait.slot.player': 'Player',
   'squad.trait.slot.match': 'Match',
   'squad.trait.slot.locked': 'Locked',
+  'squad.traits.all': 'See all traits',
+  'squad.traits.all.title': 'Every trait',
+  'squad.traits.match_blurb':
+      'Match traits fire only in the moments that matter — away days, cup ties, the last fifteen, ten men. Open the slot and roll for one.',
   'matchtrait.none': 'No match trait yet',
   'squad.detail.matchslot.locked':
       'A second trait, for the match itself. Opens for one gem.',

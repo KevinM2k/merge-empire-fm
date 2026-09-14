@@ -9,6 +9,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:merge_empire_fc/data/match_traits.dart' show matchTraitList;
 import 'package:merge_empire_fc/engine/match_trait_engine.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/state/card_instance.dart';
@@ -158,6 +159,45 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('trait-reel-name')), findsOneWidget);
       expect(find.byKey(const ValueKey('matchtrait-reel-name')), findsNothing);
+    });
+  });
+
+  group('EVERY TRAIT, IN ONE SHEET', () {
+    testWidgets('lists this position\'s pool and the whole match pool, marking his', (
+      tester,
+    ) async {
+      final container = await pumpSquad(
+        tester,
+        mutate: (s) {
+          final cells = (s['grid'] as Map<String, dynamic>)['cells'] as List;
+          final first = cells.firstWhere((c) => c != null) as Map<String, dynamic>;
+          first['matchSlot'] = true;
+          first['matchTrait'] = <String, dynamic>{'id': 'fortress', 'level': 2};
+        },
+      );
+      await openDetailOfFirst(tester, container);
+      await scrollSheetTo(tester, 'detail-trait');
+      await tester.tap(find.byKey(const ValueKey('detail-trait-catalogue')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('trait-catalogue')), findsOneWidget);
+      // Every match trait is a row; `none` from the player pool is not.
+      // The list builds lazily, so walk it by its own position rather than
+      // by dragging — a drag inside a modal sheet is the sheet's to dismiss.
+      final position = tester
+          .state<ScrollableState>(find.descendant(
+            of: find.byKey(const ValueKey('trait-catalogue')),
+            matching: find.byType(Scrollable),
+          ))
+          .position;
+      for (final trait in matchTraitList) {
+        final row = find.byKey(ValueKey('trait-catalogue-${trait.id}'));
+        while (row.evaluate().isEmpty && position.pixels < position.maxScrollExtent) {
+          position.jumpTo(position.pixels + 150);
+          await tester.pump();
+        }
+        expect(row, findsOneWidget, reason: trait.id);
+      }
+      expect(find.byKey(const ValueKey('trait-catalogue-none')), findsNothing);
     });
   });
 }

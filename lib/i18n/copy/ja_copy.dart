@@ -458,6 +458,10 @@ const Map<String, String> jaCopy = <String, String>{
   'squad.trait.slot.player': "選手",
   'squad.trait.slot.match': "試合",
   'squad.trait.slot.locked': "ロック中",
+  'squad.traits.all': "全特性を見る",
+  'squad.traits.all.title': "すべての特性",
+  'squad.traits.match_blurb':
+      "試合特性は大事な場面でだけ発動する — アウェイ、カップ戦、ラスト15分、10人での戦い。スロットを開けてルーレットを回そう。",
   'matchtrait.none': "試合特性はまだありません",
   'squad.detail.matchslot.locked': "試合中だけ働く二つ目の特性。ジェム1個で開放。",
   'squad.detail.matchslot.unlock': "ジェム{gems}個でスロットを開放",

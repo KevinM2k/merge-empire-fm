@@ -585,6 +585,10 @@ const Map<String, String> frCopy = <String, String>{
   'squad.trait.slot.player': "Joueur",
   'squad.trait.slot.match': "Match",
   'squad.trait.slot.locked': "Verrouillé",
+  'squad.traits.all': "Voir tous les traits",
+  'squad.traits.all.title': "Tous les traits",
+  'squad.traits.match_blurb':
+      "Les traits de match ne s'activent que dans les moments qui comptent — à l'extérieur, en coupe, dans les quinze dernières minutes, à dix. Ouvrez l'emplacement et tentez votre chance.",
   'matchtrait.none': "Pas encore de trait de match",
   'squad.detail.matchslot.locked': "Un second trait, pour le match lui-même. S'ouvre pour une gemme.",
   'squad.detail.matchslot.unlock': "Ouvrir l'emplacement pour {gems} gemme",

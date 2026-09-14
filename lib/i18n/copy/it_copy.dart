@@ -578,6 +578,10 @@ const Map<String, String> itCopy = <String, String>{
   'squad.trait.slot.player': "Giocatore",
   'squad.trait.slot.match': "Partita",
   'squad.trait.slot.locked': "Bloccato",
+  'squad.traits.all': "Vedi tutti i tratti",
+  'squad.traits.all.title': "Tutti i tratti",
+  'squad.traits.match_blurb':
+      "I tratti da partita scattano solo nei momenti che contano — in trasferta, in coppa, negli ultimi quindici, in dieci. Apri lo slot e tenta la sorte.",
   'matchtrait.none': "Ancora nessun tratto da partita",
   'squad.detail.matchslot.locked': "Un secondo tratto, per la partita stessa. Si apre con una gemma.",
   'squad.detail.matchslot.unlock': "Apri lo slot per {gems} gemma",

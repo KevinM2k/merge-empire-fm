@@ -514,6 +514,10 @@ const Map<String, String> arCopy = <String, String>{
   'squad.trait.slot.player': "اللاعب",
   'squad.trait.slot.match': "المباراة",
   'squad.trait.slot.locked': "مقفل",
+  'squad.traits.all': "عرض كل السمات",
+  'squad.traits.all.title': "كل السمات",
+  'squad.traits.match_blurb':
+      "سمات المباراة تعمل فقط في اللحظات المهمة — خارج الأرض، في الكأس، في آخر خمس عشرة دقيقة، بعشرة لاعبين. افتح الخانة وجرّب حظك.",
   'matchtrait.none': "لا سمة مباراة بعد",
   'squad.detail.matchslot.locked': "سمة ثانية تعمل في المباراة فقط. تُفتح بجوهرة واحدة.",
   'squad.detail.matchslot.unlock': "افتح الخانة بـ{gems} جوهرة",

@@ -38,6 +38,7 @@ import 'package:merge_empire_fc/ui/popups/feature_unlock.dart';
 import 'package:merge_empire_fc/ui/screens/grid/grid_providers.dart' show proModeProvider;
 import 'package:merge_empire_fc/ui/screens/shop/purchase_flow.dart';
 import 'package:merge_empire_fc/ui/screens/squad/detail_controls.dart';
+import 'package:merge_empire_fc/ui/screens/squad/trait_catalogue_sheet.dart';
 import 'package:merge_empire_fc/ui/screens/squad/trait_reel.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/trait_copy.dart';
@@ -310,14 +311,45 @@ class TraitBlockState extends ConsumerState<TraitBlock> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text(
-            t('squad.traits').toUpperCase(),
-            style: TextStyle(
-              color: lit ? kit.accentBright : kit.textMuted,
-              fontSize: 12,
-              fontWeight: FontWeight.w900,
-              letterSpacing: 1.2,
-            ),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  t('squad.traits').toUpperCase(),
+                  style: TextStyle(
+                    color: lit ? kit.accentBright : kit.textMuted,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+              ),
+              // Every trait there is, and what it does — see the sheet.
+              GestureDetector(
+                key: const ValueKey('detail-trait-catalogue'),
+                behavior: HitTestBehavior.opaque,
+                onTap: () => showTraitCatalogue(
+                  context,
+                  position: widget.def.position,
+                  hardMode: ref.read(proModeProvider),
+                  heldPlayer: playerHeld?.id,
+                  heldMatch: matchHeld?.id,
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 2),
+                  child: Text(
+                    t('squad.traits.all'),
+                    style: TextStyle(
+                      color: kit.accentBright,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      decoration: TextDecoration.underline,
+                      decorationColor: kit.accentBright,
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
           const SizedBox(height: 10),
           IntrinsicHeight(

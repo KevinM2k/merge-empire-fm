@@ -486,6 +486,10 @@ const Map<String, String> koCopy = <String, String>{
   'squad.trait.slot.player': "선수",
   'squad.trait.slot.match': "경기",
   'squad.trait.slot.locked': "잠김",
+  'squad.traits.all': "모든 특성 보기",
+  'squad.traits.all.title': "모든 특성",
+  'squad.traits.match_blurb':
+      "경기 특성은 중요한 순간에만 발동합니다 — 원정, 컵 대회, 마지막 15분, 10명일 때. 슬롯을 열고 룰렛을 돌려보세요.",
   'matchtrait.none': "아직 경기 특성이 없습니다",
   'squad.detail.matchslot.locked': "경기 중에만 작동하는 두 번째 특성. 젬 1개로 개방.",
   'squad.detail.matchslot.unlock': "젬 {gems}개로 슬롯 개방",
