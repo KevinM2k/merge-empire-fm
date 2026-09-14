@@ -75,6 +75,13 @@ const Map<String, Boost> boosts = {
     kind: BoostKind.proactive, gemCost: 1, packSize: 1,
     windowMinutes: _window,
   ),
+  // The attacking mirror of the Bus: OUR chances convert for a window,
+  // theirs untouched. A rating lift would have been a second Roar.
+  'sharp_shooting': Boost(
+    id: 'sharp_shooting', icon: 'target',
+    kind: BoostKind.proactive, gemCost: 1, packSize: 1,
+    windowMinutes: _window,
+  ),
   'var_review': Boost(
     id: 'var_review', icon: 'tv',
     kind: BoostKind.retrospective, gemCost: 1, packSize: 1,
@@ -82,13 +89,6 @@ const Map<String, Boost> boosts = {
   'physio_sponge': Boost(
     id: 'physio_sponge', icon: 'bandage',
     kind: BoostKind.retrospective, gemCost: 1, packSize: 1,
-  ),
-  // The attacking mirror of the Bus: OUR chances convert for a window,
-  // theirs untouched. A rating lift would have been a second Roar.
-  'sharp_shooting': Boost(
-    id: 'sharp_shooting', icon: 'target',
-    kind: BoostKind.proactive, gemCost: 1, packSize: 1,
-    windowMinutes: _window,
   ),
   // The bench's third undo: a yellow card wiped, so the man plays at full
   // rating again and carries no ban towards the next one.

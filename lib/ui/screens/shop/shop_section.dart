@@ -214,11 +214,13 @@ class ShopSectionFrame extends ConsumerWidget {
           : null,
     );
     if (folds) {
+      // Full width, whatever the title's length: the whole line is the
+      // tap target, and the chevron sits at the same edge on every shelf.
       heading = GestureDetector(
         key: ValueKey('shop-section-toggle-${id.name}'),
         behavior: HitTestBehavior.opaque,
         onTap: toggle,
-        child: heading,
+        child: SizedBox(width: double.infinity, child: heading),
       );
     }
 
@@ -228,7 +230,7 @@ class ShopSectionFrame extends ConsumerWidget {
       // under the tab that names it and the same 18 reads as a dropped row.
       padding: EdgeInsets.fromLTRB(12, headed ? 18 : 2, 12, 6),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           // The shop's own heading, which the trophy room now wears too —
           // see [SectionHeading], where this row lives.
