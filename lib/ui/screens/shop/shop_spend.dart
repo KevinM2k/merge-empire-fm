@@ -392,10 +392,12 @@ class MatchBoostsSection extends ConsumerWidget {
         columns: 3,
         children: [
           for (final boost in boostList)
+            // No description on the tile: three across, two clamped lines
+            // read as "The ground erupts - the ..." and were cut off on every
+            // one. The confirm card carries it. Reported from the couch.
             ShopTile(
               tileKey: 'boost-${boost.id}',
               title: t('boost.${boost.id}.name'),
-              subtitle: t('boost.${boost.id}.desc'),
               glyph: Text(boost.icon, style: const TextStyle(fontSize: 30)),
               badge: t('boost.shop.count', {
                 'n': '${boostCount(game.state, boost.id)}',
