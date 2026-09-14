@@ -7,6 +7,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:merge_empire_fc/data/players.dart' show getPlayerDef, ratioRange;
 import 'package:merge_empire_fc/engine/boost_engine.dart';
 import 'package:merge_empire_fc/engine/match_tactics.dart' show strategies;
 import 'package:merge_empire_fc/providers/game_providers.dart';
@@ -15,6 +16,7 @@ import 'package:merge_empire_fc/ui/screens/match/cutaway/cutaway_game.dart'
 import 'package:merge_empire_fc/ui/screens/match/cutaway/cutaway_stage.dart';
 import 'package:merge_empire_fc/ui/screens/match/match_screen.dart';
 import 'package:merge_empire_fc/ui/shell/shell_controller.dart';
+import 'package:merge_empire_fc/util/random.dart' show setSeed;
 
 import 'match_screen_test.dart';
 
@@ -42,6 +44,12 @@ Map<String, dynamic> _save({
 }) {
   final s = squadSave();
   final cells = (s['grid'] as Map<String, dynamic>)['cells'] as List;
+  // `migrateRatios` back-fills each card's ATK/DEF split off an unseeded
+  // generator at load, so without this every run rates the eleven a point apart.
+  for (final c in cells.whereType<Map<String, dynamic>>()) {
+    final (lo, hi) = ratioRange[getPlayerDef(c['definitionId'] as String?)?.position]!;
+    c['attackRatio'] = (lo + hi) / 2;
+  }
   (s['squad'] as Map<String, dynamic>)['lineup'] = [
     for (var i = 0; i < 11; i++)
       <String, dynamic>{
@@ -84,6 +92,11 @@ Future<void> _finish(WidgetTester tester, MatchScreenState state) async {
 }
 
 void main() {
+  // The shared stream is seeded off the wall clock, and injuries and cautions
+  // come off it — either moves the star the ratings below compare. See
+  // `match_trait_wiring_test` for the same trap.
+  setUp(() => setSeed(7));
+
   group('THE BOOST STRIP', () {
     testWidgets('shows the two proactive boosts with what you own', (
       tester,
@@ -141,7 +154,10 @@ void main() {
       expect(find.byKey(const ValueKey('match-live-glow')), findsOneWidget);
       expect(find.byKey(const ValueKey('match-live-source-pill')), findsOneWidget);
       expect(state.notes.any((n) => n.key == 'boost.roar.live'), isTrue);
-      final lifted = state.liveRatings['liveSquadRating'] as num;
+      // The split, not the star: the star is an int blended from the already
+      // rounded pair, and on a ~15-rated eleven a 10% lift can round away.
+      final liftedAtk = state.liveRatings['liveAttackRating'] as num;
+      final liftedDef = state.liveRatings['liveDefenceRating'] as num;
 
       // The pill is a caption for the MOMENT: gone in a few seconds, the glow
       // still there.
@@ -161,8 +177,8 @@ void main() {
       expect(state.resimCount, 2);
       expect(find.byKey(const ValueKey('match-boost-band-crowd_roar')), findsNothing);
       expect(state.notes.any((n) => n.key == 'boost.roar.over'), isTrue);
-      final after = state.liveRatings['liveSquadRating'] as num;
-      expect(lifted, greaterThan(after));
+      expect(liftedAtk, greaterThan(state.liveRatings['liveAttackRating'] as num));
+      expect(liftedDef, greaterThan(state.liveRatings['liveDefenceRating'] as num));
       await _finish(tester, state);
     });
 
