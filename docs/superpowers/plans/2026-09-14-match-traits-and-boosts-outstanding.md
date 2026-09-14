@@ -1,125 +1,62 @@
 # Match traits and manager boosts — what is left
 
-Handover for `match-traits-and-boosts`. The features are built; three tests
-fail. Nothing is pushed and there is no PR.
+Handover for `match-traits-and-boosts`. The features are built and the suite
+is green. Nothing is pushed and there is no PR.
 
 **Spec:** `docs/superpowers/specs/2026-09-14-match-traits-and-boosts-design.md`
 **Plan:** `docs/superpowers/plans/2026-09-14-match-traits-and-boosts.md`
 
 ## Where it stands
 
-22 commits, working tree clean, `flutter analyze` clean.
+26 commits, working tree clean, `flutter analyze` clean. The three failures
+below are fixed; nothing is pushed and there is no PR.
 
-Full suite, `TZ=UTC flutter test`, 14 Sep 2026: **6,911 passed, 3 failed.**
-
-**Run it with `set -o pipefail`.** `flutter test 2>&1 | tail -40` reported exit
-code **0** with three tests failing — the pipe swallowed the status. That is
-how this nearly went out believed green.
+**Run the suite with `set -o pipefail`.** `flutter test 2>&1 | tail -40`
+reported exit code **0** with three tests failing — the pipe swallowed the
+status. That is how this nearly went out believed green.
 
 ---
 
-## 1. The type floor — nine literals under 12pt
+## 1. The type floor — fixed
 
-`test/architecture_test.dart :: no text is declared below the type floor`
+Nine literals under 12pt across `boost_strip`, `bench_boost_row`,
+`boost_bar_paint` and `match_statboard`, all raised to 12. The pill's
+reserved `LiveSourcePill.height` went 16 → 18 to hold 12pt at `height: 1.4`;
+`match_screen_test`'s layout group is green with the 2pt shift.
 
-`minFontSize` is 12. The rule's own note says the way to fit type into a slot
-that cannot hold it is `FittedBox`, which shrinks at DRAW time — never a
-smaller literal, because "the next tight slot will want a 10 too, and a rule
-that lives only in a doc comment loses that argument every time."
+## 2. The weight floor — fixed
 
-| File | Lines | What it is |
-|---|---|---|
-| `lib/ui/screens/match/boost_strip.dart` | 153, 163, 178 | the `→ 65'` window end, the `x2` count, the gem price |
-| `lib/ui/screens/match/bench_boost_row.dart` | 110, 125, 144 | the count, the gem price, the reason line |
-| `lib/ui/screens/match/boost_bar_paint.dart` | 201 | the live-source pill's text |
-| `lib/ui/screens/match/match_statboard.dart` | 377, 406 | the Active heading, the `until 65'` label |
+`bench_boost_row.dart`'s reason line asked for w500 on the dead branch. Both
+branches are w700 now; the colour already carried "quieter when dead".
 
-**How to fix each:**
+## 3. Crowd Roar — fixed, and it was not Colin
 
-- **`boost_strip.dart`** — all three are already inside the tile's
-  `FittedBox(fit: BoxFit.scaleDown)` at line 129. Raise them to 12 and the
-  FittedBox absorbs it. No layout risk.
-- **`bench_boost_row.dart`** — NOT inside a FittedBox. Either wrap the tile's
-  content row the way `boost_strip` does, or raise to 12 and confirm the tile
-  still fits two of them side by side at 400px. The reason line already has
-  `maxLines: 2` + ellipsis, so it degrades safely; the count and price row is
-  the one to watch.
-- **`boost_bar_paint.dart`** — the pill. Raising 10 → 12 at `height: 1.4` needs
-  16.8pt, and `LiveSourcePill.height` is **16** (line 175). Bump that constant
-  to 18 as well. It is a reserved height, so the board's layout moves by 2pt —
-  re-run `match_screen_test`'s `ONE INSET DOWN THE PAGE` group afterwards.
-- **`match_statboard.dart`** — plain raise to 12. The sheet scrolls, so there
-  is no slot to overflow.
+The handover's hypothesis was that a Coach Colin card held the clock so the
+window never closed. The captured log said otherwise: `boostWindows` was
+empty and `resimCount` was 2 — the failing line was `lifted > after` on
+`liveSquadRating`, with both at `15.0`. Alone, the file failed about one run
+in three; "green alone" had been luck.
 
-## 2. The weight floor — one `w500`
+Three random inputs, none seeded by the test:
 
-`test/ui/font_weight_test.dart :: and NOTHING in lib/ui asks for a weight under the floor`
+- **`migrateRatios` back-fills `attackRatio` on every card at load** off an
+  unseeded `math.Random` (mirroring the JS), and it wins over
+  `definitionRatios`. The eleven's ATK/DEF split moved a point per run.
+- **The shared stream is seeded off the wall clock**, and injuries and
+  cautions come off it. `match_trait_wiring_test` documents the same trap.
+- **The star is an int blended from an already-rounded pair**, so on a
+  ~15-rated eleven a 10% lift sometimes rounds away (`12/17 → 15`, `11/16 → 15`).
 
-`lib/ui/screens/match/bench_boost_row.dart:146`:
+`_save()` now stamps each cell's `attackRatio` at its position's midpoint, the
+file's `setUp` calls `setSeed(7)`, and the Roar assertion compares the
+ATK/DEF pair the lift actually lands on. 15 consecutive runs green. The
+`PARK THE BUS` and `TWO ROARS STACK` cases flaked off the same inputs.
 
-```dart
-fontWeight: live ? FontWeight.w700 : FontWeight.w500,
-```
-
-`pubspec.yaml` bundles ONE Barlow cut at `uiBaseWeight` = **w600**, so asking
-for w500 asks for a face that is not there. The intent was "quieter when the
-tile is dead" — carry that with the COLOUR, which the line already does
-(`kit.textMuted` against `kit.accentBright`), and make both branches w700. Or
-use w600 for the dead branch if the contrast reads too flat.
-
-## 3. Crowd Roar fails ONLY in the full suite
-
-`test/ui/screens/match/boost_strip_test.dart :: THE BOOST STRIP CROWD ROAR: debits, opens a window, lifts the side, and says so`
-
-**Reproduce it before changing anything.** Confirmed so far:
-
-- Passes run on its own.
-- Passes with the whole `test/ui/screens/match/` directory — 496 tests, green.
-- Fails in `TZ=UTC flutter test`.
-
-The failing assertion in the last full run was not captured (`tail -40` cut it),
-so **the first job is a full run that keeps the failure block**, e.g.
-`set -o pipefail; TZ=UTC flutter test 2>&1 | tee /tmp/suite.log` and then read
-around the `[E]`.
-
-**Working hypothesis, untested.** The test's `_runTo` helper finishes a cutaway
-but does NOT answer a Coach Colin card:
-
-```dart
-Future<void> _runTo(WidgetTester tester, MatchScreenState state, int minute) async {
-  for (var i = 0; i < 400 && state.frame.minute < minute && !state.frame.finished; i++) {
-    if (state.clipPlaying) { …onDone!(CutawayOutcome.goal); await tester.pump(); continue; }
-    await tester.pump(minuteDurationFor(1));
-  }
-}
-```
-
-Colin holds the match whenever he has something to say, and `_tick` returns
-early while `_paused`. If he speaks between the tap at 40' and the window's end
-at 65', the clock never reaches 65 and `boostWindows` is still populated when
-the assertion runs — which is exactly the failure seen. `retrospective_boosts_test.dart`
-has a `_runTo` that DOES answer him (`_coachSpeaks`, `pumpAndSettle` when
-paused); lifting that shape across is the likely fix.
-
-CLAUDE.md documents this family of failure: "two failures in four full-suite
-runs and none in twelve on its own."
-
-**But do not assume it.** Two other explanations fit "green alone, green by
-directory, red in full" and are worth ruling out from the captured log:
-
-- **A shared-stream position.** The strip test never calls `setSeed`, so the
-  seeded stream's position at the start of the CROWD ROAR case depends on what
-  the earlier cases in that file consumed. Within-file order should not change
-  between runs, so this is the weaker theory — but if the log shows a different
-  minute or a different scoreline than a solo run, this is why.
-- **A stale `build/unit_test_assets`.** Ruled out for this run — the suite was
-  started after `rm -rf build/unit_test_assets` — but it is the first thing to
-  re-check if the symptom becomes an `ink_sparkle.frag` decode error rather
-  than this assertion.
-
-**If it is Colin:** the fix belongs in the test, not the screen. Do not wrap the
-dismissal in `if (…isNotEmpty)` — CLAUDE.md is explicit that this turns a missed
-control into a failure forty lines later in an assertion about something else.
+**Not fixed, not ours:** `test/ui/screens/home/repaint_scope_test.dart` failed
+once in a full run and once in ~16 solo runs on this branch; 20/20 on a `main`
+worktree. It samples ONE 16ms frame of a live shell with an unseeded gesture
+rig, and nothing on this branch reaches the home screen's paint tree. Re-run
+before reading it as a regression.
 
 ---
 
