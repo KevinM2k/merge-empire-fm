@@ -589,7 +589,7 @@ void main() {
   });
 
   group('reSimulateRemainder', () {
-    group('goalRateMult', () {
+    group('the boost windows', () {
       Map<String, dynamic> fresh() => <String, dynamic>{
         'divisionId': 'regional_league',
         'isHome': true,
@@ -606,10 +606,11 @@ void main() {
         'injuryLog': <Object?>[],
       };
 
-      test('DAMPS BOTH SIDES, NOT JUST THEIRS', () {
+      test('A BUS DAMPS BOTH SIDES, NOT JUST THEIRS', () {
         // Park the Bus kills the game for everyone — that is what makes it
         // distinct from the ultra-defensive tactic already on the strip,
-        // which only makes us harder to score against.
+        // which only makes us harder to score against. On both ATK figures,
+        // so the board shows it.
         num ours = 0, theirs = 0, dampOurs = 0, dampTheirs = 0;
         for (var seed = 0; seed < 400; seed++) {
           seeded.setSeed(seed);
@@ -620,15 +621,41 @@ void main() {
 
           seeded.setSeed(seed);
           final b = fresh();
+          final live = <String, dynamic>{};
           reSimulateRemainder(
             b, 20, 'balanced', 0, 0, _state(),
-            goalRateMult: 0.45,
+            ourAttackMult: 0.75,
+            oppAttackMult: 0.75,
+            liveRatingsOut: live,
           );
           dampOurs += b['homeGoals'] as num;
           dampTheirs += b['awayGoals'] as num;
+          expect(live['liveOppAttackRating'], closeTo(45, 1e-9));
         }
-        expect(dampOurs, lessThan(ours * 0.7));
-        expect(dampTheirs, lessThan(theirs * 0.7));
+        expect(dampOurs, lessThan(ours * 0.85));
+        expect(dampTheirs, lessThan(theirs * 0.85));
+      });
+
+      test('SHARP SHOOTING LIFTS OUR ATK ALONE, and the board reads it', () {
+        seeded.setSeed(3);
+        final plain = <String, dynamic>{};
+        reSimulateRemainder(
+          fresh(), 20, 'balanced', 0, 0, _state(),
+          liveRatingsOut: plain,
+        );
+        seeded.setSeed(3);
+        final sharp = <String, dynamic>{};
+        reSimulateRemainder(
+          fresh(), 20, 'balanced', 0, 0, _state(),
+          ourAttackMult: 1.25,
+          liveRatingsOut: sharp,
+        );
+        expect(
+          sharp['liveAttackRating'],
+          closeTo((plain['liveAttackRating'] as num) * 1.25, 1e-9),
+        );
+        expect(sharp['liveDefenceRating'], plain['liveDefenceRating']);
+        expect(sharp['liveOppAttackRating'], plain['liveOppAttackRating']);
       });
 
       test('defaults to 1.0, so every existing caller is unchanged', () {
@@ -639,7 +666,8 @@ void main() {
         final b = fresh();
         reSimulateRemainder(
           b, 20, 'balanced', 0, 0, _state(),
-          goalRateMult: 1.0,
+          ourAttackMult: 1.0,
+          oppAttackMult: 1.0,
         );
         expect(a['homeGoals'], b['homeGoals']);
         expect(a['awayGoals'], b['awayGoals']);

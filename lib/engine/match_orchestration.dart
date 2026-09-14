@@ -1673,18 +1673,12 @@ List<Map<String, dynamic>> reSimulateRemainder(
   /// the result is byte-for-byte what the JS produces.
   Map<String, dynamic>? liveRatingsOut,
 
-  /// **KILLS THE GAME FOR BOTH SIDES**, which is what makes Park the Bus a
-  /// different thing from the ultra-defensive tactic on the strip: a tactic
-  /// makes us harder to score against, this makes the next twenty-five minutes
-  /// a non-event for everyone. 1.0 is an ordinary remainder, and every caller
-  /// that does not pass it gets exactly the arithmetic it had before — the
-  /// parity harness is what holds that true.
-  double goalRateMult = 1.0,
-
-  /// OUR attack alone, after the fixture's modifiers and before the tactic —
-  /// Sharp Shooting. 1.0 is the arithmetic every other caller gets, and the
-  /// board reads the lifted figure through [liveRatingsOut].
+  /// OUR attack after the fixture's modifiers and before the tactic, and
+  /// THEIR attack after their referee — the boost windows. 1.0 is the
+  /// arithmetic every other caller gets, which the parity harness holds
+  /// true, and the board reads the moved figures through [liveRatingsOut].
   double ourAttackMult = 1.0,
+  double oppAttackMult = 1.0,
 }) {
   final strat = strategies[strategyId] ?? strategies[defaultStrategy];
   final addedTime = _num(result['addedTime'])?.toInt() ?? 0;
@@ -1717,7 +1711,7 @@ List<Map<String, dynamic>> reSimulateRemainder(
   // for the same reason our booking is applied inside the rating rather than
   // after the tactic: both are facts about the players, and the tactic and the
   // clock are what act on the result of them.
-  oppAttack *= oppRatingMult;
+  oppAttack *= oppRatingMult * oppAttackMult;
   oppDefence *= oppRatingMult;
 
   double adjAttack;
@@ -1827,10 +1821,10 @@ List<Map<String, dynamic>> reSimulateRemainder(
   // remainder.
   final variance = (strat?.variance ?? 1.0) * rollSwingFactor(strat);
   final remainHome = poissonGoals(
-    goalRateLambda(adjAttack, oppDefence) * fraction * variance * goalRateMult,
+    goalRateLambda(adjAttack, oppDefence) * fraction * variance,
   );
   final remainAway = poissonGoals(
-    goalRateLambda(oppAttack, adjDefence) * fraction * variance * goalRateMult,
+    goalRateLambda(oppAttack, adjDefence) * fraction * variance,
   );
 
   // **WHAT THE REMAINDER WAS ROLLED WITH, so the board can print it.**

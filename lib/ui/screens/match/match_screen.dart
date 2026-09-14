@@ -3054,8 +3054,8 @@ class MatchScreenState extends ConsumerState<MatchScreen>
       // pitch, so his caution stops costing.
       bookedMultipliers: _liveMultipliers(at),
       oppRatingMult: oppTeamRatingMult(_oppYellows, _oppSendOffs),
-      goalRateMult: _boosts.goalRateMultAt(at),
       ourAttackMult: _boosts.ourAttackMultAt(at),
+      oppAttackMult: _boosts.oppAttackMultAt(at),
       liveRatingsOut: _liveRatings,
     );
     widget.result['events'] = [...kept, ...fresh];

@@ -23,14 +23,17 @@ const double crowdRoarMult = 1.10;
 /// The most stacked Roars may reach. Two are 1.21; a third is where it stops.
 const double maxCrowdRoarStack = 1.25;
 
-/// The goal rate for BOTH sides under a Bus. Under half, so a parked side is
-/// visibly a different match rather than a slightly quieter one.
-const double parkTheBusGoalRate = 0.45;
+/// **The two windows are RATING lifts, on the board.** Both began as goal-rate
+/// multipliers — a dead game for the Bus, a loaded coin for Sharp Shooting —
+/// and neither could be seen doing anything; the numbers at the top of the
+/// match never moved. Asked for from the couch, twice. Bigger than the
+/// Roar's ten per cent since each buys one stat.
+///
+/// Everyone behind the ball: BOTH sides' ATK down, ours and theirs — a
+/// dead game, on the board's two attack figures.
+const double parkTheBusAttack = 0.75;
 
 /// OUR attack under Sharp Shooting; defence and the other side untouched.
-/// A rating lift rather than a goal-rate one, because a goal rate is a
-/// loaded coin nobody can see — the ATK figure on the board has to jump.
-/// Bigger than the Roar's ten per cent since it buys one stat only.
 const double sharpShootingAttack = 1.25;
 
 /// One live window. `toMinute` is exclusive: a 25-minute window tapped at 40
@@ -100,16 +103,20 @@ class MatchBoostState {
     return math.min(maxCrowdRoarStack, mult);
   }
 
-  /// The goal-rate damping at [minute]: a Bus, or nothing. A floor, not a
-  /// product — see the header.
-  double goalRateMultAt(int minute) =>
-      activeAt(minute).any((b) => b.id == 'park_the_bus')
-          ? parkTheBusGoalRate
-          : 1.0;
+  /// Our ATK at [minute]: Sharp Shooting up, a Bus down, both if both. A
+  /// second window of the same boost does not stack — it is a state, not a
+  /// product.
+  double ourAttackMultAt(int minute) {
+    final live = activeAt(minute);
+    var mult = 1.0;
+    if (live.any((b) => b.id == 'sharp_shooting')) mult *= sharpShootingAttack;
+    if (live.any((b) => b.id == 'park_the_bus')) mult *= parkTheBusAttack;
+    return mult;
+  }
 
-  /// Our ATK alone: Sharp Shooting, or nothing.
-  double ourAttackMultAt(int minute) =>
-      activeAt(minute).any((b) => b.id == 'sharp_shooting')
-          ? sharpShootingAttack
+  /// THEIR ATK at [minute]: a Bus, or nothing.
+  double oppAttackMultAt(int minute) =>
+      activeAt(minute).any((b) => b.id == 'park_the_bus')
+          ? parkTheBusAttack
           : 1.0;
 }

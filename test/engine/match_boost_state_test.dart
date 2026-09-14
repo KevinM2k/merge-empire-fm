@@ -7,7 +7,8 @@ void main() {
       final s = MatchBoostState();
       expect(s.live, isEmpty);
       expect(s.ratingMultAt(10), 1.0);
-      expect(s.goalRateMultAt(10), 1.0);
+      expect(s.ourAttackMultAt(10), 1.0);
+      expect(s.oppAttackMultAt(10), 1.0);
     });
 
     test('a window runs from its start for its length', () {
@@ -46,16 +47,17 @@ void main() {
         ..start('crowd_roar', 40, 25)
         ..start('park_the_bus', 40, 25);
       expect(s.ratingMultAt(50), closeTo(crowdRoarMult, 1e-9));
-      expect(s.goalRateMultAt(50), closeTo(parkTheBusGoalRate, 1e-9));
+      expect(s.oppAttackMultAt(50), closeTo(parkTheBusAttack, 1e-9));
+      expect(s.ourAttackMultAt(50), closeTo(parkTheBusAttack, 1e-9));
     });
 
-    // Two buses do not make the game twice as dead: the damping is a floor,
-    // not a product.
-    test('a second Bus does not stack the damping', () {
+    // Two buses are one bus: the lift is a state, not a product.
+    test('a second Bus does not stack', () {
       final s = MatchBoostState()
         ..start('park_the_bus', 40, 25)
         ..start('park_the_bus', 41, 25);
-      expect(s.goalRateMultAt(50), closeTo(parkTheBusGoalRate, 1e-9));
+      expect(s.oppAttackMultAt(50), closeTo(parkTheBusAttack, 1e-9));
+      expect(s.ourAttackMultAt(50), closeTo(parkTheBusAttack, 1e-9));
     });
 
     test('a retrospective boost has no window and starts nothing', () {
@@ -88,14 +90,14 @@ void main() {
       expect(s.endOf('park_the_bus'), isNull);
     });
 
-    test('sharp shooting is OUR attack alone, on top of a bus', () {
+    test('sharp shooting is OUR attack alone, and a bus trims it back', () {
       final s = MatchBoostState()..start('sharp_shooting', 40, 25);
       expect(s.ourAttackMultAt(50), sharpShootingAttack);
-      expect(s.goalRateMultAt(50), 1.0);
+      expect(s.oppAttackMultAt(50), 1.0);
       expect(s.ourAttackMultAt(70), 1.0);
       s.start('park_the_bus', 50, 25);
-      expect(s.goalRateMultAt(60), parkTheBusGoalRate);
-      expect(s.ourAttackMultAt(60), sharpShootingAttack);
+      expect(s.oppAttackMultAt(60), parkTheBusAttack);
+      expect(s.ourAttackMultAt(60), closeTo(sharpShootingAttack * parkTheBusAttack, 1e-9));
     });
   });
 }

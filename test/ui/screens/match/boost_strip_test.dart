@@ -216,7 +216,7 @@ void main() {
       await _finish(tester, state);
     });
 
-    testWidgets('PARK THE BUS damps the goal rate rather than the rating', (
+    testWidgets('PARK THE BUS trims BOTH sides\' ATK, on the board', (
       tester,
     ) async {
       await pumpMatch(tester, _playable(), save: _save(), instance: 'bus');
@@ -227,8 +227,9 @@ void main() {
       expect(state.boostWindows.single.id, 'park_the_bus');
       expect(find.byKey(const ValueKey('match-boost-band-park_the_bus')), findsOneWidget);
       expect(state.notes.any((n) => n.key == 'boost.bus.live'), isTrue);
-      // A Bus is not a rating change: the live figure is the plain one.
-      final bussed = state.liveRatings['liveSquadRating'] as num;
+      final busAtk = state.liveRatings['liveAttackRating'] as num;
+      final busOpp = state.liveRatings['liveOppAttackRating'] as num;
+      final busDef = state.liveRatings['liveDefenceRating'] as num;
       await _finish(tester, state);
 
       await pumpMatch(tester, _playable(), save: _save(), instance: 'plain');
@@ -236,7 +237,9 @@ void main() {
       await tester.pump(minuteDurationFor(40));
       plain.applyStrategy(strategies.keys.firstWhere((id) => id != plain.strategy));
       await tester.pump();
-      expect(bussed, plain.liveRatings['liveSquadRating']);
+      expect(busAtk, lessThan(plain.liveRatings['liveAttackRating'] as num));
+      expect(busOpp, lessThan(plain.liveRatings['liveOppAttackRating'] as num));
+      expect(busDef, plain.liveRatings['liveDefenceRating']);
       await _finish(tester, plain);
     });
 
