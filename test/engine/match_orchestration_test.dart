@@ -441,6 +441,100 @@ void main() {
     });
   });
 
+  group('undoInjury — the Physio Sponge', () {
+    /// A save with c3 hurt and his square emptied, the way the sim leaves a
+    /// casualty, plus the log entry the sim writes beside it.
+    (Map<String, dynamic> state, Map<String, dynamic> result, String slotId)
+    hurt() {
+      final state = _state();
+      final lineup = (state['squad'] as Map<String, dynamic>)['lineup'] as List;
+      final row = lineup
+          .cast<Map<String, dynamic>>()
+          .firstWhere((r) => r['cardInstanceId'] == 'c3');
+      final slotId = row['slotId'] as String;
+      row['cardInstanceId'] = null;
+      final cells = (state['grid'] as Map<String, dynamic>)['cells'] as List;
+      final cell = cells
+          .whereType<Map<String, dynamic>>()
+          .firstWhere((c) => c['instanceId'] == 'c3');
+      cell['injured'] = true;
+      cell['injuredAt'] = _now;
+      cell['injuryDurationMs'] = 86400000;
+      final result = <String, dynamic>{
+        'injuredName': 'Smith',
+        'injuryCount': 1,
+        'injuryLog': <Map<String, dynamic>>[
+          {
+            'iid': 'c3',
+            'minute': 30,
+            'name': 'Smith',
+            'prevSlotId': slotId,
+            'replacedBy': null,
+          },
+        ],
+      };
+      return (state, result, slotId);
+    }
+
+    Map<String, dynamic> cellOf(Map<String, dynamic> state, String id) =>
+        ((state['grid'] as Map<String, dynamic>)['cells'] as List)
+            .whereType<Map<String, dynamic>>()
+            .firstWhere((c) => c['instanceId'] == id);
+
+    Map<String, dynamic> rowOf(Map<String, dynamic> state, String slotId) =>
+        ((state['squad'] as Map<String, dynamic>)['lineup'] as List)
+            .cast<Map<String, dynamic>>()
+            .firstWhere((r) => r['slotId'] == slotId);
+
+    test('HEALS HIM AND PUTS HIM BACK IN HIS OWN SQUARE', () {
+      final (state, result, slotId) = hurt();
+      expect(undoInjury(result, state, 'c3'), isTrue);
+      final cell = cellOf(state, 'c3');
+      expect(cell['injured'], isFalse);
+      expect(cell.containsKey('injuredAt'), isFalse);
+      expect(cell.containsKey('injuryDurationMs'), isFalse);
+      expect(rowOf(state, slotId)['cardInstanceId'], 'c3');
+    });
+
+    test('marks the log entry cancelled and fixes the counters', () {
+      final (state, result, _) = hurt();
+      undoInjury(result, state, 'c3');
+      final entry = (result['injuryLog'] as List).first as Map;
+      expect(entry['cancelled'], isTrue);
+      expect(result['injuryCount'], 0);
+      expect(result['injuredName'], isNull);
+    });
+
+    test('is one undo: a second call finds nothing', () {
+      final (state, result, _) = hurt();
+      expect(undoInjury(result, state, 'c3'), isTrue);
+      expect(undoInjury(result, state, 'c3'), isFalse);
+    });
+
+    test('an unknown man, or one never hurt, is refused', () {
+      final (state, result, _) = hurt();
+      expect(undoInjury(result, state, 'nope'), isFalse);
+      expect(undoInjury(result, state, 'c1'), isFalse);
+      expect(cellOf(state, 'c3')['injured'], isTrue);
+    });
+
+    // A manual sub since wins the square — the same rule the cancel branch of
+    // reSimulateRemainder applies. He is healed, but he is not put back over
+    // whoever the manager brought on.
+    test('does not evict a replacement who has taken the square', () {
+      final (state, result, slotId) = hurt();
+      rowOf(state, slotId)['cardInstanceId'] = 'c12';
+      expect(undoInjury(result, state, 'c3'), isTrue);
+      expect(cellOf(state, 'c3')['injured'], isFalse);
+      expect(rowOf(state, slotId)['cardInstanceId'], 'c12');
+    });
+
+    test('a result with no log is refused', () {
+      final (state, _, _) = hurt();
+      expect(undoInjury(<String, dynamic>{}, state, 'c3'), isFalse);
+    });
+  });
+
   group('reSimulateRemainder', () {
     group('goalRateMult', () {
       Map<String, dynamic> fresh() => <String, dynamic>{

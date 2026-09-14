@@ -2177,6 +2177,58 @@ List<CardInstance?> _cells(Map<String, dynamic>? state) {
   return [for (final c in cells) CardInstance.from(c)];
 }
 
+/// Undo an injury that has ALREADY happened — the Physio Sponge.
+///
+/// The cancel branch of [reSimulateRemainder] does exactly this for an injury
+/// still ahead of the clock: heal the card, put him back in the square the
+/// injury emptied unless a manual change has since taken it, mark the log
+/// entry so nothing re-applies it, and fix the two counters. This is the same
+/// undo applied to an entry BEHIND the clock. The feed's injury line stands —
+/// it happened, and then he got up.
+///
+/// Returns false when there is nothing to undo: no log, no live entry for him,
+/// or no such card.
+bool undoInjury(
+  MatchResult result,
+  Map<String, dynamic>? state,
+  String instanceId,
+) {
+  final rawLog = result['injuryLog'];
+  if (rawLog is! List) return false;
+  for (final raw in rawLog) {
+    final entry = _map(raw);
+    if (entry == null ||
+        entry['iid'] != instanceId ||
+        _flag(entry['cancelled'])) {
+      continue;
+    }
+    final card = _cardById(state, instanceId);
+    if (card == null) return false;
+    card.raw['injured'] = false;
+    card.raw.remove('injuredAt');
+    card.raw.remove('injuryDurationMs');
+    final slot = _findSlot(state, (s) => s['slotId'] == entry['prevSlotId']);
+    // Only restore the victim if the slot still holds what the injury left
+    // there — a manual sub since wins.
+    if (slot != null && slot['cardInstanceId'] == entry['replacedBy']) {
+      slot['cardInstanceId'] = instanceId;
+    }
+    entry['cancelled'] = true;
+    result['injuryCount'] = math.max(
+      0,
+      (_num(result['injuryCount']) ?? 1) - 1,
+    );
+    result['injuredName'] = rawLog
+        .map(_map)
+        .firstWhere(
+          (e) => e != null && !_flag(e['cancelled']),
+          orElse: () => null,
+        )?['name'];
+    return true;
+  }
+  return false;
+}
+
 List<CardInstance> _cards(Map<String, dynamic>? state) =>
     _cells(state).whereType<CardInstance>().toList();
 

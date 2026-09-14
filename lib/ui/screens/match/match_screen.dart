@@ -41,12 +41,13 @@ import 'package:merge_empire_fc/ui/screens/match/cutaway/cutaway_game.dart'
 import 'package:merge_empire_fc/ui/screens/match/cutaway/cutaway_stage.dart';
 import 'package:merge_empire_fc/engine/booking_engine.dart';
 import 'package:merge_empire_fc/engine/match_trait_engine.dart';
+import 'package:merge_empire_fc/engine/boost_engine.dart';
 import 'package:merge_empire_fc/data/match_traits.dart'
     show MatchTraitCondition, getMatchTrait;
 import 'package:merge_empire_fc/ui/screens/match/goal_replay.dart'
     show conceded;
 import 'package:merge_empire_fc/engine/match_orchestration.dart'
-    show ourMatchSplit, recordFixtureResult, reSimulateRemainder;
+    show ourMatchSplit, recordFixtureResult, reSimulateRemainder, undoInjury;
 import 'package:merge_empire_fc/ui/screens/home/coach_bubble.dart'
     show coachSuggestedTacticProvider;
 import 'package:merge_empire_fc/ui/screens/home/league_providers.dart'
@@ -682,6 +683,9 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
   bool get paused => _paused;
   Map<String, dynamic> get liveRatings => _liveRatings;
   int get resimCount => _resimCount;
+  Set<String> get sentOffIds => _sentOff;
+  Set<String> get cautionedIds => _cautioned;
+  List<FeedLine> get notes => _notes;
 
   /// Held from initState: `ref` is not usable once the widget is disposed, and
   /// handing the gates back is exactly a teardown job.
@@ -1768,6 +1772,11 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
       sentOffSlots: _sentOffSlots,
       cautioned: _cautioned,
     );
+    // **CLOSING THE BENCH IS THE DECISION.** Whoever was on offer for a review
+    // or a sponge and was not taken is not coming back — you cannot undo a
+    // red card five minutes after play has restarted.
+    _varSpent.addAll(_sentOff);
+    _physioSpent.addAll(_physioCandidates());
     if (mounted) setState(() => _paused = false);
   }
 
@@ -1882,7 +1891,11 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
     );
     if (!mounted) return;
     setState(() => _paused = false);
-    if (spent || nobody) return;
+    // **UNLESS A SPONGE IS HELD.** A bench with nobody to bring on is
+    // pointless, which is why this guard exists — and with a sponge in hand it
+    // is the one place the boost can be taken, so the guard would have hidden
+    // it in the exact case it is worth most.
+    if ((spent || nobody) && physioTarget == null) return;
     if (frame.finished) return;
     await openSubs(openOn: holes.length == 1 ? holes.first : null);
   }
@@ -1984,6 +1997,176 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
       // the same reasoning a substitution passes `rerollInjuries: false`.
       _resimulate(due.minute, _strategy, rerollInjuries: false);
     }
+    if (mounted) {
+      setState(() => _timeline = timelineOf(widget.result, bookings: _bookings));
+    }
+  }
+
+  /// A line of the port's own in the feed, after the events of its minute.
+  void _note(String key, Map<String, Object?> params, {String? aboutId}) {
+    _notes.add((
+      minute: _minute,
+      type: 'boost',
+      key: key,
+      params: params,
+      seed: '$key-$_minute',
+      goal: null,
+      aboutId: aboutId,
+      card: null,
+      playerId: null,
+      offId: null,
+    ));
+  }
+
+  // ── VAR and the Physio Sponge ─────────────────────────────────────────────
+  //
+  // Neither PREVENTS anything. By the time either is reachable the man is off
+  // the pitch, his square is empty and the referee's list has moved on; both
+  // are an undo, taken at the bench in front of the consequence with the clock
+  // stopped. Both re-decide the rest of the match from NOW — never from the
+  // incident's minute, which would rewrite minutes the player has already
+  // watched, the thing the 13 Sep audit exists to prevent. He simply comes
+  // back on, and a late overturn is worth less, which is how it balances.
+
+  /// **ONE OFFER PER MAN PER MATCH.** Replace him, or close the bench without
+  /// using it, and that is the decision — he does not come back. A second
+  /// casualty later gets its own offer; this man does not get a second one.
+  /// Screen-owned like [_withdrawn]: the panel forgets and this must not.
+  final Set<String> _physioSpent = <String>{};
+  final Set<String> _varSpent = <String>{};
+
+  /// Casualties a sponge could still reach: hurt, logged, the injury already
+  /// told, not replaced, not passed on. The bench and the guard in
+  /// [_onInjuryShown] both read this.
+  List<String> _physioCandidates() {
+    final log = widget.result['injuryLog'];
+    if (log is! List) return const [];
+    final state = ref.read(gameProvider).state;
+    return [
+      for (final raw in log)
+        if (raw is Map<String, dynamic>)
+          if (raw['iid'] case final String id)
+            if (raw['cancelled'] != true &&
+                ((raw['minute'] as num?) ?? 0) <= _minute &&
+                !_withdrawn.contains(id) &&
+                !_physioSpent.contains(id) &&
+                (cardById(state, id)?.injured ?? false))
+              id,
+    ];
+  }
+
+  bool canPhysio(String instanceId) =>
+      !frame.finished &&
+      boostCount(ref.read(gameProvider).state, 'physio_sponge') > 0 &&
+      _physioCandidates().contains(instanceId);
+
+  bool canVar(String instanceId) =>
+      !frame.finished &&
+      boostCount(ref.read(gameProvider).state, 'var_review') > 0 &&
+      _sentOff.contains(instanceId) &&
+      !_varSpent.contains(instanceId);
+
+  /// The man the bench should offer each boost for, or null.
+  String? get physioTarget =>
+      _physioCandidates().where(canPhysio).lastOrNull;
+  String? get varTarget => _sentOff.where(canVar).lastOrNull;
+
+  /// Put a man back in the square [slots] banked for him.
+  void _restoreToSlot(String instanceId, Map<String, PitchSlot> slots) {
+    final entry = slots.entries
+        .where((e) => e.value.cardInstanceId == instanceId)
+        .firstOrNull;
+    if (entry == null) return;
+    ref.read(gameProvider).update((state) {
+      final squad = state['squad'];
+      final lineup = squad is Map<String, dynamic> ? squad['lineup'] : null;
+      if (lineup is! List) return;
+      for (final row in lineup) {
+        if (row is Map<String, dynamic> && row['slotId'] == entry.key) {
+          row['cardInstanceId'] = instanceId;
+        }
+      }
+    });
+    slots.remove(entry.key);
+  }
+
+  /// Overturn his sending-off: he returns now, on a yellow.
+  ///
+  /// A straight red is downgraded to a caution; a second yellow is rescinded
+  /// and the first stands. Either way he is booked, which is what keeps the
+  /// review from being a clean slate. Off BOTH lists — `_bookings` feeds the
+  /// feed, the skip's catch-up and the ban the whistle writes;
+  /// `_bookingRecords` is the red that would land on his career card.
+  void applyVar(String instanceId) {
+    if (!canVar(instanceId)) return;
+    final game = ref.read(gameProvider);
+    if (!game.update((s) => spendBoost(s, 'var_review'))) return;
+    _varSpent.add(instanceId);
+
+    final row = _bookings
+        .where(
+          (b) =>
+              b['playerInstanceId'] == instanceId &&
+              cardSendsOff('${b['card'] ?? cardYellow}'),
+        )
+        .lastOrNull;
+    final minute = ((row?['minute'] as num?) ?? _minute).toInt();
+    if (row != null) {
+      if (row['card'] == cardSecondYellow) {
+        _bookings.remove(row);
+      } else {
+        row['card'] = cardYellow;
+        // The rewritten row is a card the clock has already dealt with.
+        _cardsApplied.add(_cardKey(minute, cardYellow, instanceId));
+      }
+    }
+    _bookingRecords = [
+      for (final b in _bookingRecords)
+        if (b.instanceId != instanceId ||
+            b.minute != minute ||
+            !cardSendsOff(b.card))
+          b
+        else if (b.card == cardRed)
+          (
+            minute: b.minute,
+            instanceId: b.instanceId,
+            name: b.name,
+            card: cardYellow,
+          ),
+    ];
+
+    _sentOff.remove(instanceId);
+    _cautioned.add(instanceId);
+    _restoreToSlot(instanceId, _sentOffSlots);
+    _note(
+      'boost.var.overturned',
+      {'player': cardById(game.state, instanceId)?.name() ?? ''},
+      aboutId: instanceId,
+    );
+    unawaited(_sound.play('boostVar'));
+    _resimulate(_minute, _strategy, rerollInjuries: false);
+    if (mounted) {
+      setState(() => _timeline = timelineOf(widget.result, bookings: _bookings));
+    }
+  }
+
+  /// Patch him up: healed, back in his own square, and the rest re-decided.
+  ///
+  /// The cards the referee struck off him when he went down are not restored
+  /// — a man who has just been patched up is not going to dive into anything.
+  void applyPhysio(String instanceId) {
+    if (!canPhysio(instanceId)) return;
+    final game = ref.read(gameProvider);
+    if (!game.update((s) => spendBoost(s, 'physio_sponge'))) return;
+    _physioSpent.add(instanceId);
+    game.update((s) => undoInjury(widget.result, s, instanceId));
+    _note(
+      'boost.physio.recovered',
+      {'player': cardById(game.state, instanceId)?.name() ?? ''},
+      aboutId: instanceId,
+    );
+    unawaited(_sound.play('boostPhysio'));
+    _resimulate(_minute, _strategy, rerollInjuries: false);
     if (mounted) {
       setState(() => _timeline = timelineOf(widget.result, bookings: _bookings));
     }
