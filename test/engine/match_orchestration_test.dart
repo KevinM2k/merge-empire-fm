@@ -442,6 +442,63 @@ void main() {
   });
 
   group('reSimulateRemainder', () {
+    group('goalRateMult', () {
+      Map<String, dynamic> fresh() => <String, dynamic>{
+        'divisionId': 'regional_league',
+        'isHome': true,
+        'squadRating': 60,
+        'ourAttackRating': 60,
+        'ourDefenceRating': 60,
+        'effOppAttackRating': 60,
+        'effOppDefenceRating': 60,
+        'opponentRating': 60,
+        'addedTime': 0,
+        'homeGoals': 0,
+        'awayGoals': 0,
+        'events': <Object?>[],
+        'injuryLog': <Object?>[],
+      };
+
+      test('DAMPS BOTH SIDES, NOT JUST THEIRS', () {
+        // Park the Bus kills the game for everyone — that is what makes it
+        // distinct from the ultra-defensive tactic already on the strip,
+        // which only makes us harder to score against.
+        num ours = 0, theirs = 0, dampOurs = 0, dampTheirs = 0;
+        for (var seed = 0; seed < 400; seed++) {
+          seeded.setSeed(seed);
+          final a = fresh();
+          reSimulateRemainder(a, 20, 'balanced', 0, 0, _state());
+          ours += a['homeGoals'] as num;
+          theirs += a['awayGoals'] as num;
+
+          seeded.setSeed(seed);
+          final b = fresh();
+          reSimulateRemainder(
+            b, 20, 'balanced', 0, 0, _state(),
+            goalRateMult: 0.45,
+          );
+          dampOurs += b['homeGoals'] as num;
+          dampTheirs += b['awayGoals'] as num;
+        }
+        expect(dampOurs, lessThan(ours * 0.7));
+        expect(dampTheirs, lessThan(theirs * 0.7));
+      });
+
+      test('defaults to 1.0, so every existing caller is unchanged', () {
+        seeded.setSeed(7);
+        final a = fresh();
+        reSimulateRemainder(a, 20, 'balanced', 0, 0, _state());
+        seeded.setSeed(7);
+        final b = fresh();
+        reSimulateRemainder(
+          b, 20, 'balanced', 0, 0, _state(),
+          goalRateMult: 1.0,
+        );
+        expect(a['homeGoals'], b['homeGoals']);
+        expect(a['awayGoals'], b['awayGoals']);
+      });
+    });
+
     test('a cup tie never ends level', () {
       for (var seed = 0; seed < 40; seed++) {
         seeded.setSeed(seed);

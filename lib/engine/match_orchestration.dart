@@ -1664,6 +1664,14 @@ List<Map<String, dynamic>> reSimulateRemainder(
   /// So the caller passes a map to be filled. Null, and nothing is written and
   /// the result is byte-for-byte what the JS produces.
   Map<String, dynamic>? liveRatingsOut,
+
+  /// **KILLS THE GAME FOR BOTH SIDES**, which is what makes Park the Bus a
+  /// different thing from the ultra-defensive tactic on the strip: a tactic
+  /// makes us harder to score against, this makes the next twenty-five minutes
+  /// a non-event for everyone. 1.0 is an ordinary remainder, and every caller
+  /// that does not pass it gets exactly the arithmetic it had before — the
+  /// parity harness is what holds that true.
+  double goalRateMult = 1.0,
 }) {
   final strat = strategies[strategyId] ?? strategies[defaultStrategy];
   final addedTime = _num(result['addedTime'])?.toInt() ?? 0;
@@ -1805,10 +1813,12 @@ List<Map<String, dynamic>> reSimulateRemainder(
   // Tempo times a FRESH hot/cold roll: Counter Attack's gamble re-rolls with the
   // remainder.
   final variance = (strat?.variance ?? 1.0) * rollSwingFactor(strat);
-  final remainHome =
-      poissonGoals(goalRateLambda(adjAttack, oppDefence) * fraction * variance);
-  final remainAway =
-      poissonGoals(goalRateLambda(oppAttack, adjDefence) * fraction * variance);
+  final remainHome = poissonGoals(
+    goalRateLambda(adjAttack, oppDefence) * fraction * variance * goalRateMult,
+  );
+  final remainAway = poissonGoals(
+    goalRateLambda(oppAttack, adjDefence) * fraction * variance * goalRateMult,
+  );
 
   // **WHAT THE REMAINDER WAS ROLLED WITH, so the board can print it.**
   //
