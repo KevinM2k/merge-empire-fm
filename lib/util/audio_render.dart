@@ -284,6 +284,85 @@ class Render {
   }
 
   double random() => _rng.nextDouble();
+
+  /// A BUS with a room on it — the JS's `_crowd` sub-graph.
+  ///
+  /// Web Audio lets a builder make its own gain node, hang sources off it, and
+  /// split THAT into a dry path and a convolver; the crowd does exactly this so
+  /// twenty-two voices and a hundred claps share one reverb rather than each
+  /// carrying their own. This renderer mixes every chain straight into [out],
+  /// so a bus is a child [Render] of the same length: [build] fills it, the dry
+  /// copy is mixed at `level * (1 - wet/2)`, and if [wet] is above zero the
+  /// child is convolved with a [decay]-second room and mixed at `level * wet`.
+  ///
+  /// The child is seeded from this render's own stream, so a sound with a room
+  /// on it renders the same way every boot, like everything else here.
+  void room({
+    required void Function(Render bus) build,
+    required double level,
+    required double wet,
+    required double decay,
+  }) {
+    final bus = Render(seconds: seconds, seed: _rng.nextInt(1 << 31));
+    build(bus);
+    final dry = level * (1 - wet * 0.5);
+    for (var i = 0; i < frames; i++) {
+      out[i] += bus.out[i] * dry;
+    }
+    if (wet <= 0) return;
+    final tail = convolve(bus.out, roomImpulse(decay, bus._rng), frames);
+    final wetGain = level * wet;
+    for (var i = 0; i < frames; i++) {
+      out[i] += tail[i] * wetGain;
+    }
+  }
+}
+
+/// Exponentially-decaying noise, which is a cheap room — the JS's
+/// `_roomImpulse`. The 2.5 power favours the early reflections, so it reads as
+/// a concrete bowl rather than a cathedral.
+///
+/// **Normalised the way Web Audio's `convolver.normalize = true` is, near
+/// enough:** scaled so its energy sums to one, so a longer tail spreads the
+/// same energy rather than multiplying the level by its own length. The exact
+/// Blink calibration constant is not reproduced; the test pins the property
+/// that matters, that a tail is quieter than the burst that caused it.
+Float32List roomImpulse(double decay, math.Random rng) {
+  final len = math.max(1, (audioSampleRate * decay).ceil());
+  final h = Float32List(len);
+  var energy = 0.0;
+  for (var i = 0; i < len; i++) {
+    h[i] = (rng.nextDouble() * 2 - 1) * math.pow(1 - i / len, 2.5);
+    energy += h[i] * h[i];
+  }
+  final scale = energy > 0 ? 1 / math.sqrt(energy) : 1.0;
+  for (var i = 0; i < len; i++) {
+    h[i] *= scale;
+  }
+  return h;
+}
+
+/// Direct FIR convolution of [x] with [h], clipped to [frames].
+///
+/// Naive on purpose. Measured before it was chosen: the roar's 1.05 seconds
+/// against its 0.34-second tail is about half a second of arithmetic in a
+/// background isolate at warm-up, once, and an FFT would be more code than the
+/// crowd. Clipping is the JS's own behaviour — its comment says the direct
+/// sound has to finish early "or convolution runs past the render window and
+/// the tail gets chopped off mid-decay" — and the builders leave room for it.
+Float32List convolve(Float32List x, Float32List h, int frames) {
+  final y = Float32List(frames);
+  final n = x.length;
+  final m = h.length;
+  for (var i = 0; i < n && i < frames; i++) {
+    final xi = x[i];
+    if (xi == 0) continue;
+    final limit = math.min(m, frames - i);
+    for (var j = 0; j < limit; j++) {
+      y[i + j] += xi * h[j];
+    }
+  }
+  return y;
 }
 
 // ── The master chain ─────────────────────────────────────────────────────────
