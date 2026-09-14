@@ -290,6 +290,45 @@ const Map<String, String> enCopy = <String, String>{
   // The cigar it replaced is retired: a lit one in a game aimed at children.
   'customise.item.face.bubblegum': 'Bubblegum',
 
+  // ── The second trait slot ────────────────────────────────────────────────
+  //
+  // The port's own: the JS has one trait per card. Every match trait is
+  // CONDITIONAL — see `data/match_traits.dart` for why that is the licence for
+  // a gem-gated slot at all — so each description says when it fires.
+  'squad.matchtrait': 'Match trait',
+  'matchtrait.none': 'No match trait yet',
+  'squad.detail.matchslot.locked':
+      'A second trait, for the match itself. Opens for one gem.',
+  'squad.detail.matchslot.unlock': 'Open slot for {gems} gem',
+  'squad.detail.matchslot.need_gem': 'You need a gem to open this slot.',
+  'squad.detail.sell_burns_slot':
+      'The second trait slot goes with the player. The gem is not refunded.',
+  'matchtrait.name.fortress': 'Fortress',
+  'matchtrait.desc.fortress': 'Immovable at home — but only at home',
+  'matchtrait.name.away_day': 'Away Day Hero',
+  'matchtrait.desc.away_day': 'Loves a hostile ground — thrives on the road',
+  'matchtrait.name.big_game': 'Big Game Player',
+  'matchtrait.desc.big_game': 'Turns up against the better side',
+  'matchtrait.name.fast_starter': 'Fast Starter',
+  'matchtrait.desc.fast_starter': 'Out of the blocks — huge for the opening twenty',
+  'matchtrait.name.relegation_scrapper': 'Relegation Scrapper',
+  'matchtrait.desc.relegation_scrapper': 'Fights hardest when the drop is real',
+  'matchtrait.name.last_gasp': 'Last Gasp',
+  'matchtrait.desc.last_gasp': 'Finds something in the closing minutes',
+  'matchtrait.name.cup_fighter': 'Cup Fighter',
+  'matchtrait.desc.cup_fighter':
+      'Made for the cup — nothing else brings out the same fight',
+  'matchtrait.name.super_sub': 'Super Sub',
+  'matchtrait.desc.super_sub': 'Devastating off the bench in the closing twenty',
+  'matchtrait.name.derby_devil': 'Derby Devil',
+  'matchtrait.desc.derby_devil': 'Lives for the grudge match',
+  'matchtrait.name.ten_man_wall': 'Ten Man Wall',
+  'matchtrait.desc.ten_man_wall': 'Rallies the ten — lifts everyone left on the pitch',
+  'matchtrait.name.ice_veins': 'Ice Veins',
+  'matchtrait.desc.ice_veins': 'Plays the same booked — the coolest head in the game',
+  'matchtrait.name.warrior': 'Warrior',
+  'matchtrait.desc.warrior': 'Plays through it — may shrug off a knock and carry on',
+
   // ── The interface's own audio channel ────────────────────────────────────
   //
   // A third row beside Sound and Music. The press cue rides the theme's splash

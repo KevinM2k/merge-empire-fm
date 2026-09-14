@@ -30,12 +30,10 @@
 library;
 
 import 'dart:async';
-import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/data/art_paths.dart';
-import 'package:merge_empire_fc/providers/sound_providers.dart';
 import 'package:merge_empire_fc/data/players.dart';
 import 'package:merge_empire_fc/data/traits.dart';
 import 'package:merge_empire_fc/engine/booking_engine.dart'
@@ -52,7 +50,6 @@ import 'package:merge_empire_fc/data/divisions.dart' show divisions;
 import 'package:merge_empire_fc/engine/goal_model.dart' show getInjuryChance;
 import 'package:merge_empire_fc/engine/trait_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
-import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 import 'package:merge_empire_fc/ui/widgets/player_card.dart'
     show formGlyph, formInk;
 import 'package:merge_empire_fc/providers/game_providers.dart';
@@ -60,8 +57,6 @@ import 'package:merge_empire_fc/state/card_instance.dart';
 import 'package:merge_empire_fc/ui/popups/bottom_sheet_popup.dart';
 import 'package:merge_empire_fc/ui/screens/grid/grid_providers.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
-import 'package:merge_empire_fc/ui/widgets/store_button.dart'
-    show mouldedButtonStyle;
 import 'package:merge_empire_fc/ui/widgets/art_image.dart';
 import 'package:merge_empire_fc/ui/widgets/card_glyph.dart';
 import 'package:merge_empire_fc/ui/popups/coach_card.dart';
@@ -69,6 +64,9 @@ import 'package:merge_empire_fc/ui/popups/player_name_card.dart';
 import 'package:merge_empire_fc/ui/popups/feature_unlock.dart';
 import 'package:merge_empire_fc/ui/widgets/player_portrait.dart';
 import 'package:merge_empire_fc/ui/widgets/trait_copy.dart';
+import 'package:merge_empire_fc/ui/screens/squad/detail_controls.dart';
+import 'package:merge_empire_fc/ui/screens/squad/match_trait_block.dart';
+import 'package:merge_empire_fc/ui/screens/squad/trait_reel.dart';
 import 'package:merge_empire_fc/util/format.dart';
 
 Map<String, dynamic>? _map(Object? v) => v is Map<String, dynamic> ? v : null;
@@ -288,13 +286,17 @@ class _PlayerDetailState extends ConsumerState<_PlayerDetail> {
             key: const ValueKey('detail-trait-away'),
             style: TextStyle(fontSize: 12, color: kit.textMuted),
           )
-        else
+        else ...[
           TraitBlock(
             instanceId: instanceId,
             def: def,
             hold: hold,
             onHold: (h) => setState(() => _hold = h),
           ),
+          const SizedBox(height: detailGap),
+          // The second slot: gem-gated, match-only. Same reel, its own block.
+          MatchTraitBlock(instanceId: instanceId, def: def),
+        ],
         const SizedBox(height: detailGap),
         _CareerStats(card: card, def: def),
 
@@ -972,7 +974,7 @@ class _SlotActions extends StatelessWidget {
       row = Row(
         children: [
           Expanded(
-            child: _HeroPill(
+            child: HeroPill(
               buttonKey: const ValueKey('detail-swap'),
               glyph: 'refresh',
               label: t('squad.detail.replace'),
@@ -982,7 +984,7 @@ class _SlotActions extends StatelessWidget {
           ),
           const SizedBox(width: 10),
           Expanded(
-            child: _HeroPill(
+            child: HeroPill(
               buttonKey: const ValueKey('detail-bench'),
               glyph: 'arrowDown',
               label: t('squad.detail.to_bench'),
@@ -995,7 +997,7 @@ class _SlotActions extends StatelessWidget {
     } else if (selectable) {
       // Nobody unavailable can be sent on: the match engine rates a loaned or
       // listed player zero, so putting one in the side fields a hole.
-      row = _HeroPill(
+      row = HeroPill(
         buttonKey: const ValueKey('detail-send-on'),
         glyph: 'arrowUp',
         label: t('squad.detail.send_on'),
@@ -1023,118 +1025,6 @@ class _SlotActions extends StatelessWidget {
   }
 }
 
-/// One of the hero's two controls, and the trait roll.
-///
-/// **A MOULDED BUTTON, like everything else in the app.**
-///
-/// It was a hand-rolled 999-radius pill — one white, one gold, both with a soft
-/// drop shadow — and it was the only button language in the game: every
-/// Elevated/Filled/Outlined button wears `mouldedButtonStyle`, which is a
-/// 10-radius face over a hard three-point bottom edge that sinks when it is
-/// pressed. Reported from the couch: the three controls on this sheet are not
-/// uniform with the rest of the app.
-///
-/// **The old note said a Material button would not do, and the half of it that
-/// was right is kept.** Two things were true: the theme's `ElevatedButton`
-/// brings the club's own accent, which on half the kits in the game is a Replace
-/// button the same green as the shirt behind it; and the pair has to be legible
-/// whatever the man is wearing. The first is what `_SlotActions`' scrim already
-/// answers — see its own note — and the second is what a SOLID face answers,
-/// which is what `mouldedButtonStyle(face:)` paints. Neither of them argues for
-/// a different shape, which is all the couch was looking at.
-///
-/// So the affirmative one keeps its gold and the other takes the theme's own
-/// button outright; what changes is that both are now the shape the other
-/// eighty-odd buttons in the app are.
-class _HeroPill extends StatelessWidget {
-  const _HeroPill({
-    required this.buttonKey,
-    required this.glyph,
-    required this.label,
-    required this.gold,
-    required this.onTap,
-  });
-
-  final Key buttonKey;
-
-  /// A name from the app's own icon set — see `game_icon.dart`. It was a
-  /// literal `⇄`, `↩`, `⇡`: three glyphs the font renders differently on every
-  /// platform, on a sheet where every other mark in the game is drawn. Reported
-  /// from the couch along with the buttons themselves.
-  final String glyph;
-  final String label;
-
-  /// The affirmative one. Gold is the game's own "this is the thing to press";
-  /// the other is the same pill in white, so the pair reads as a choice rather
-  /// than as one button and one link.
-  final bool gold;
-
-  /// Null when the pill is dead — mid-spin, or with nothing in the bank. It is
-  /// the same signal `ElevatedButton.onPressed` carried, kept nullable rather
-  /// than wrapped in an `Opacity`, so "is this pressable" stays one question
-  /// with one answer.
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final kit = Theme.of(context).extension<KitTheme>()!;
-    return SizedBox(
-      height: 44,
-      child: ElevatedButton(
-        key: buttonKey,
-        onPressed: onTap,
-        // **THROUGH THE HELPER, because a moulded face cannot be coloured any
-        // other way.** The face is painted in a `backgroundBuilder` over a
-        // transparent Material, so `styleFrom(backgroundColor:)` would land
-        // UNDERNEATH it and `side:` would draw a second outline clear of the
-        // moulded one. Null for the other one on purpose: that IS the theme's
-        // `ElevatedButton`, which is the whole point of the change.
-        style: gold ? _goldMould(kit) : null,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // No colour: `GameIcon` falls back to the ambient
-            // `DefaultTextStyle`, which inside a button is the style's own
-            // resolved foreground — so the glyph greys out with the label
-            // rather than staying dark ink on the disabled face.
-            GameIcon(glyph, size: 15),
-            const SizedBox(width: 8),
-            Flexible(
-              child: Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w900),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// The gold face the affirmative controls wear.
-///
-/// Gold is the game's own "this is the thing to press", and it is not a colour
-/// of the kit — a club that plays in gold would otherwise have a Bench button
-/// indistinguishable from its Replace one — so the three tones are literals
-/// here the way `dangerInk` is a literal in `kit_theme_ext.dart`. The edge is
-/// the face's own shade, so the button is one object rather than a colour in a
-/// frame.
-ButtonStyle _goldMould(KitTheme kit) => mouldedButtonStyle(
-  face: heroGoldFace,
-  edge: heroGoldEdge,
-  ink: heroGoldInk,
-  dead: kit.surface2,
-  deadInk: kit.textMuted,
-  border: kit.border,
-);
-
-const Color heroGoldFace = Color(0xFFE8C877);
-const Color heroGoldEdge = Color(0xFF8F681F);
-const Color heroGoldInk = Color(0xFF3A2A08);
 
 /// Per-player fitness. PRO MODE ONLY — casual play has team energy pips, and a
 /// bar pinned at full for every casual player is a number that never moves.
@@ -1488,131 +1378,33 @@ class TraitBlock extends ConsumerStatefulWidget {
 
 class TraitBlockState extends ConsumerState<TraitBlock>
     with SingleTickerProviderStateMixin {
-  /// How long the reels run. **The spec's own `ANIM_MS`, which is 5000** —
-  /// 900ms was a flick, 1900 was a guess, and neither is what the JS does. The
-  /// name reel stops at 58% of it, so the answer lands at 2.9s and the level
-  /// follows it two seconds later, which is the ~3s that was asked for.
-  static const Duration spin = Duration(milliseconds: 5000);
+  /// The machine — see `trait_reel.dart`. Both slots spin the same one.
+  final GlobalKey<TraitReelState> _reel = GlobalKey<TraitReelState>();
 
-  /// How many times round before it lands — `BASE_NAME = 3 * nameItems.length`
-  /// in `TraitRoulette.js`, which then searches FORWARD for the outcome, so a
-  /// spin is three laps plus wherever it comes up. The looping delegate is what
-  /// makes the laps free.
-  static const int _revolutions = 3;
-
-  /// The spec's easing: `easeOut = (t) => 1 - Math.pow(1 - t, 2.5)`.
-  ///
-  /// **`Curves.easeOutCubic` is pow 3 and it is why the reel crept.** At the
-  /// halfway mark a cubic is 87.5% of the way home, so seven eighths of the
-  /// travel happened in the first second and the remaining four were a reel
-  /// inching onto its stop. Pow 2.5 is 82% at the half — still a decelerating
-  /// reel, but one that is visibly turning for most of the spin.
-  static const Curve _ease = _EaseOutPow(2.5);
-
-  /// Row height, and the reel shows three rows: the one either side is what
-  /// makes it a wheel rather than a label.
-  static const double _rowHeight = 26;
-
-  /// **They start on what the card ALREADY has**, which is the JS's own first
-  /// act — it sets both strips to the current trait before anything spins. A
-  /// reel parked on the top of the pool tells the player their man has whatever
-  /// happens to sort first, and the answer only becomes true after they pay.
-  late final FixedExtentScrollController _names;
-  late final FixedExtentScrollController _levels;
-
-  @override
-  void initState() {
-    super.initState();
-    final trait = _map(
-      cardById(ref.read(gameProvider).state, widget.instanceId)?.raw['trait'],
-    );
-    final id = trait?['id'] as String?;
-    final pool = getTraitPoolForPosition(
-      widget.def.position,
-      hardMode: ref.read(proModeProvider),
-    );
-    final at = pool.indexWhere((t) => t.id == id);
-    _names = FixedExtentScrollController(initialItem: at < 0 ? 0 : at);
-    _levels = FixedExtentScrollController(
-      initialItem: id == null || id == 'none'
-          ? _noneRow
-          : (((trait?['level'] as num?)?.toInt() ?? 1) - 1).clamp(0, 2),
-    );
-  }
+  /// Test seams: the spin and the answer flash, as the reel times them.
+  static const Duration spin = TraitReelState.spin;
+  static const Duration flash = TraitReelState.flash;
 
   bool _spinning = false;
 
   /// Test seam.
   bool get spinning => _spinning;
 
-  /// The band's answer flash — see the band in `build`. One shot, so it
-  /// settles: a repeating controller would keep asking for frames and no
-  /// widget test in the suite could ever `pumpAndSettle` this sheet again.
-  /// How long the answer flash runs. The JS's `0.45s ease 2` — two pulses.
-  static const Duration flash = Duration(milliseconds: 900);
-
-  late final AnimationController _flash = AnimationController(
-    vsync: this,
-    duration: flash,
-  );
-
-  /// Green when the roll paid, red when it did not. Null outside a flash.
-  Color? _flashInk;
-
-  @override
-  void dispose() {
-    _flash.dispose();
-    _names.dispose();
-    _levels.dispose();
-    super.dispose();
-  }
-
-  /// Where a looping reel has to be told to stop so that it always SPINS.
-  ///
-  /// **`animateToItem` takes an ABSOLUTE index, and the target was written as
-  /// one.** `pool.length * _revolutions + landing` is three laps from the reel's
-  /// STARTING position, so it is three laps only on the first roll — after that
-  /// the reel is already parked out there, and the second and third rolls asked
-  /// it to travel the handful of rows between the old trait and the new one. The
-  /// spin turned into a nudge, on exactly the rolls a player has paid for and is
-  /// watching. Reported from the couch.
-  ///
-  /// So it is measured from where the reel IS: [laps] full turns, plus however
-  /// far round the pool the answer happens to sit from here. Always forward,
-  /// because a reel that can run backwards is a reel that sometimes reads as
-  /// undoing the last roll.
-  static int _reelTarget({
-    required FixedExtentScrollController from,
-    required int rows,
-    required int landing,
-    required int laps,
-  }) {
-    final at = from.hasClients ? from.selectedItem : from.initialItem;
-    final ahead = ((landing - at) % rows + rows) % rows;
-    return at + laps * rows + ahead;
-  }
-
-  /// **The ratchet.** `rouletteClick` shipped with the port and NOTHING played
-  /// it — a reel that turns in silence is the largest part of why a spin does
-  /// not feel like one. The JS fires a click every time a tile boundary passes;
-  /// `retriggerFloor` in `sound_service.dart` is 70ms, so the fast head of the
-  /// spin thins itself out rather than machine-gunning, which is the exact job
-  /// that floor was put there to do.
-  ///
-  /// Returns the detach, because a listener outliving the spin would click
-  /// every time the reel was nudged.
-  VoidCallback _ratchet(FixedExtentScrollController controller) {
-    var last = 0;
-    void onScroll() {
-      if (!controller.hasClients) return;
-      final tile = (controller.offset / _rowHeight).floor();
-      if (tile == last) return;
-      last = tile;
-      unawaited(ref.read(soundServiceProvider).play('rouletteClick'));
-    }
-
-    controller.addListener(onScroll);
-    return () => controller.removeListener(onScroll);
+  /// Where the reels start: on what the card ALREADY has — the JS's own first
+  /// act. A reel parked on the top of the pool tells the player their man has
+  /// whatever happens to sort first.
+  ({int name, int level}) _initial(
+    List<Trait> pool,
+    Map<String, dynamic>? trait,
+  ) {
+    final id = trait?['id'] as String?;
+    final at = pool.indexWhere((t) => t.id == id);
+    return (
+      name: at < 0 ? 0 : at,
+      level: id == null || id == 'none'
+          ? noneRow
+          : (((trait?['level'] as num?)?.toInt() ?? 1) - 1).clamp(0, 2),
+    );
   }
 
   /// What this trait is worth on THIS card.
@@ -1697,65 +1489,27 @@ class TraitBlockState extends ConsumerState<TraitBlock>
     // level it rolled alongside means nothing — the reel has to say so rather
     // than stop on a numeral.
     final isNone = roll.id == 'none';
+    final reel = _reel.currentState;
+    if (reel == null) return;
     setState(() => _spinning = true);
     // **The outcome is written to the save BEFORE the reels move** — deliberately,
     // because a spin that decided at the end would have to be unwound when the
     // debit was refused. So the sheet is told to keep showing the man he was
     // until they stop; every number on it reads the save.
     widget.onHold((trait: was));
-
-    // Both reels animate at once and the LEVEL is the one that stops last,
-    // which is the JS's arrangement and the reason it has any suspense: the
-    // name tells you what you won and the level tells you how much, so the
-    // second answer has to arrive after the first. `TraitRoulette.js` stops the
-    // name reel at 58% of the spin; the port had it 120ms early, which is not
-    // a beat, it is a rounding error.
-    final stopRatchets = [_ratchet(_names), _ratchet(_levels)];
-    // **THE SAME DISTANCE, not the same number of revolutions.** The level reel
-    // has four rows to the name reel's pool, so `_revolutions` laps of it
-    // travelled a fraction as far and barely moved — it read as one reel
-    // spinning beside a number that changed. Matching the ROW COUNT is what
-    // makes both sides visibly roll.
-    final levelLaps =
-        _revolutions * (pool.length / _levelRows.length).ceil();
-    await Future.wait([
-      _names.animateToItem(
-        _reelTarget(
-          from: _names,
-          rows: pool.length,
-          landing: landing,
-          laps: _revolutions,
-        ),
-        duration: spin * 0.58,
-        curve: _ease,
-      ),
-      _levels.animateToItem(
-        _reelTarget(
-          from: _levels,
-          rows: _levelRows.length,
-          landing: isNone ? _noneRow : (roll.level - 1).clamp(0, 2),
-          laps: levelLaps,
-        ),
-        duration: spin,
-        curve: _ease,
-      ),
-    ]);
-    for (final stop in stopRatchets) {
-      stop();
-    }
+    await reel.spinTo(
+      nameIndex: landing,
+      levelRow: isNone ? noneRow : (roll.level - 1).clamp(0, 2),
+    );
     if (!mounted) return;
     setState(() => _spinning = false);
     widget.onHold(null);
 
     // The band answers before anything else does.
-    setState(
-      () => _flashInk = isNone
-          ? const Color(0xFFF87171)
-          : const Color(0xFF00B45A),
+    await reel.flashAnswer(
+      isNone ? const Color(0xFFF87171) : const Color(0xFF00B45A),
     );
-    await _flash.forward(from: 0);
     if (!mounted) return;
-    setState(() => _flashInk = null);
 
     // **AND A LOST ROLL IS NOT CELEBRATED.** `getTrait('none')` is a real entry
     // rather than null, so the celebration fired for it too: a player who paid
@@ -1800,6 +1554,7 @@ class TraitBlockState extends ConsumerState<TraitBlock>
         : _map(card?.raw['trait']);
 
     final held = getTrait(trait?['id'] as String?);
+    final initial = _initial(pool, _map(card?.raw['trait']));
     final ratios =
         _map(ref.watch(gameProvider).state?['definitionRatios']) ?? const {};
 
@@ -1865,7 +1620,7 @@ class TraitBlockState extends ConsumerState<TraitBlock>
             Row(
               key: const ValueKey('detail-trait-label'),
               children: [
-                _TraitDisc(
+                TraitDisc(
                   glyph: '?',
                   colour: kit.textMuted,
                   fill: kit.surface2,
@@ -1890,144 +1645,21 @@ class TraitBlockState extends ConsumerState<TraitBlock>
               effects: _effectsOf(card, trait, ratios),
             ),
           const SizedBox(height: 12),
-          // **THE TWO REELS ARE ONE MACHINE, and it looks like one now.** They
-          // were two bare `ListWheelScrollView`s eight points apart, which is a
-          // pair of scrolling lists rather than a roller — reported as the
-          // spinner not looking impressive. What makes a roller read as a
-          // roller is a WINDOW: one frame round both columns, a rule between
-          // them so the numeral has its own cell, and a lit band across the
-          // middle marking the row that counts. The reference shot draws it the
-          // same way, and it needed no new copy at all.
-          //
-          // **THE HANDLE IS GONE, and that is a divergence from the spec.**
-          // `TraitRoulette.js` puts a rod-and-ball lever beside the face and
-          // the port had ported it. Asked for directly: the gold pill under the
-          // window is the only control a roll needs, and it is the one that
-          // says what one costs. Nothing else on this sheet has two ways to
-          // press it.
-          Container(
-            height: _rowHeight * 3,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              color: kit.surface2,
-              border: Border.all(color: kit.border),
-            ),
-            clipBehavior: Clip.antiAlias,
-            child: Stack(
-              children: [
-                // The band the answer stops on. Under the reels, so a name
-                // scrolling past is lit by it rather than hidden behind it.
-                // **AND IT ANSWERS.** The JS flashes this band green when the
-                // spin paid and red when it came back `none`, twice over
-                // 0.9s — without it a lost roll and a won one look identical
-                // the moment the reels stop, which is the one frame the player
-                // is actually watching.
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  top: _rowHeight,
-                  height: _rowHeight,
-                  child: AnimatedBuilder(
-                    animation: _flash,
-                    builder: (context, _) {
-                      final ink = _flashInk ?? kit.accent;
-                      return DecoratedBox(
-                        decoration: BoxDecoration(
-                          color: ink.withValues(
-                            alpha: 0.14 + 0.24 * _flash.value,
-                          ),
-                          border: Border.symmetric(
-                            horizontal: BorderSide(
-                              color: ink.withValues(
-                                alpha: 0.45 + 0.55 * _flash.value,
-                              ),
-                            ),
-                          ),
-                        ),
-                      );
-                    },
+          TraitReel(
+            key: _reel,
+            names: [
+              for (final trait in pool)
+                Text(
+                  '${trait.icon} ${traitName(trait)}',
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
-                Row(
-                  children: [
-                    Expanded(
-                      flex: 3,
-                      child: _Reel(
-                        reelKey: 'trait-reel-name',
-                        controller: _names,
-                        rowHeight: _rowHeight,
-                        children: [
-                          for (final trait in pool)
-                            Text(
-                              '${trait.icon} ${traitName(trait)}',
-                              overflow: TextOverflow.ellipsis,
-                              style: const TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.w800,
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                    // The rule that gives the numeral its own cell.
-                    Container(width: 1, color: kit.border),
-                    Expanded(
-                      child: _Reel(
-                        reelKey: 'trait-reel-level',
-                        controller: _levels,
-                        rowHeight: _rowHeight,
-                        children: [
-                          for (final row in _levelRows)
-                            Text(
-                              row.label,
-                              textAlign: TextAlign.center,
-                              // Its own metal, which beats the reel's default
-                              // ink — an explicit colour wins over
-                              // `DefaultTextStyle`.
-                              style: TextStyle(
-                                fontWeight: FontWeight.w900,
-                                color: row.ink,
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                // **THE EDGE FADE, and the spec has always had one.** `.tr2`
-                // ends with a `linear-gradient(180deg, surface 0%, transparent
-                // 10%, transparent 90%, surface 100%)` laid over the whole
-                // face, and the port drew neither it nor anything in its place:
-                // the rows above and below the answer were as solid as the
-                // answer, so three equally-lit lines read as a list with a
-                // stripe on it rather than as a drum with a face. Asked for as
-                // "slightly transparent or more skewed" — this is both halves,
-                // the fade here and the curve on the reel itself.
-                //
-                // Last in the stack, which is the JS's order too: it dissolves
-                // the lit band's own top and bottom edges into the frame.
-                Positioned.fill(
-                  key: const ValueKey('trait-reel-fade'),
-                  child: IgnorePointer(
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                          colors: [
-                            kit.surface2,
-                            kit.surface2.withValues(alpha: 0),
-                            kit.surface2.withValues(alpha: 0),
-                            kit.surface2,
-                          ],
-                          stops: const [0, 0.1, 0.9, 1],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
+            ],
+            initialName: initial.name,
+            initialLevel: initial.level,
           ),
           const SizedBox(height: 12),
           // **A GOLD BAR ACROSS THE CARD.** The cost rides on the button with
@@ -2036,7 +1668,7 @@ class TraitBlockState extends ConsumerState<TraitBlock>
           // hero's Bench pill does, because they are the two affirmative
           // controls on this sheet and there is no reason for them to be two
           // different colours.
-          _HeroPill(
+          HeroPill(
             buttonKey: const ValueKey('detail-trait-roll'),
             // `star`, not 🎲: the emoji is a platform's own drawing on a sheet
             // where every other mark is the game's, and it rendered flat grey
@@ -2061,136 +1693,6 @@ class TraitBlockState extends ConsumerState<TraitBlock>
       ),
     );
   }
-}
-
-/// I, II, III — the levels, in the one place they are written.
-const List<String> _roman = ['I', 'II', 'III'];
-
-/// The LEVEL REEL's rows — the three numerals, and the dash a lost roll lands
-/// on.
-///
-/// **The fourth row is not decoration.** `none` sits in the trait pool on both
-/// sides (`traits.dart`, `traits.js`), so a roll can come back with nothing —
-/// that is the downside of the gamble. A three-row reel had nowhere to put it,
-/// so a lost spin stopped on a numeral and read as a win. `TraitRoulette.js`
-/// carries `{ label: '—', level: 0 }` for exactly this.
-///
-/// The metals are the JS's `LEVEL_COLORS`, unchanged. They are not kit colours
-/// and must not be: bronze, silver and gold are what a LEVEL is, the same
-/// ladder the club's facilities are tinted by.
-const List<({String label, Color ink})> _levelRows = [
-  (label: 'I', ink: Color(0xFFCD7F32)),
-  (label: 'II', ink: Color(0xFFAAAAAA)),
-  (label: 'III', ink: Color(0xFFFFD700)),
-  (label: '-', ink: Color(0xFF999999)),
-];
-
-/// The row a lost roll stops on.
-const int _noneRow = 3;
-
-/// The glyph on its own disc, so it reads as a badge rather than as an emoji
-/// that happens to start the line.
-/// The trait's face — a MEDAL, not a circle with a glyph in it.
-///
-/// **It is the most interesting thing on this sheet and looked the least like
-/// it.** A 1.4px outlined disc is the shape this app uses for a filter chip; a
-/// trait is a thing you spent coins to win, and a thing you won has a rim, a
-/// light on it and a level stamped on its corner. The level moved here off the
-/// block's title row for the same reason: a numeral in a header is a
-/// specification, and on the medal it is what the medal is worth.
-class _TraitDisc extends StatelessWidget {
-  const _TraitDisc({
-    required this.glyph,
-    required this.colour,
-    required this.fill,
-    this.level,
-    this.levelInk,
-  });
-
-  final String glyph;
-  final Color colour;
-  final Color fill;
-
-  /// The roman numeral, or null for a card with no trait yet.
-  final String? level;
-  final Color? levelInk;
-
-  @override
-  Widget build(BuildContext context) => SizedBox(
-    width: 56,
-    height: 56,
-    child: Stack(
-      clipBehavior: Clip.none,
-      children: [
-        Container(
-          width: 52,
-          height: 52,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            // Lit from the top left, the way anything struck out of metal is.
-            gradient: RadialGradient(
-              center: const Alignment(-0.35, -0.45),
-              radius: 0.95,
-              colors: [
-                Color.lerp(fill, Colors.white, 0.22)!,
-                fill,
-                Color.lerp(fill, Colors.black, 0.18)!,
-              ],
-              stops: const [0, 0.55, 1],
-            ),
-            border: Border.all(
-              color: colour.withValues(alpha: 0.85),
-              width: 2.2,
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: colour.withValues(alpha: 0.30),
-                blurRadius: 10,
-                spreadRadius: 0.5,
-              ),
-            ],
-          ),
-          child: Text(
-            glyph,
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.w900,
-              color: colour,
-            ),
-          ),
-        ),
-        if (level != null)
-          Positioned(
-            right: -2,
-            bottom: -2,
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-              decoration: BoxDecoration(
-                color: colour,
-                borderRadius: BorderRadius.circular(999),
-                border: Border.all(
-                  color: Theme.of(
-                    context,
-                  ).extension<KitTheme>()!.surface,
-                  width: 1.5,
-                ),
-              ),
-              child: Text(
-                level!,
-                key: const ValueKey('detail-trait-level'),
-                style: TextStyle(
-                  color: levelInk ?? Colors.white,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 0.6,
-                ),
-              ),
-            ),
-          ),
-      ],
-    ),
-  );
 }
 
 /// The trait a card is actually carrying, drawn as a thing he HAS.
@@ -2272,12 +1774,12 @@ class _TraitBadge extends StatelessWidget {
       key: const ValueKey('detail-trait-label'),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _TraitDisc(
+        TraitDisc(
           glyph: trait.icon,
           colour: kit.accent,
           fill: kit.accent.withValues(alpha: 0.18),
           level: switch ((instance['level'] as num?)?.toInt() ?? 0) {
-            final l when l > 0 => _roman[l.clamp(1, 3) - 1],
+            final l when l > 0 => romanLevels[l.clamp(1, 3) - 1],
             _ => null,
           },
           levelInk: kit.accentInk,
@@ -2342,69 +1844,3 @@ class _TraitBadge extends StatelessWidget {
 /// one. Flutter has the cylinder, so it gets both: the curve here and the
 /// window's own edge fade over it.
 
-class _Reel extends StatelessWidget {
-  const _Reel({
-    required this.reelKey,
-    required this.controller,
-    required this.rowHeight,
-    required this.children,
-  });
-
-  final String reelKey;
-  final FixedExtentScrollController controller;
-  final double rowHeight;
-  final List<Widget> children;
-
-  @override
-  Widget build(BuildContext context) {
-    final kit = Theme.of(context).extension<KitTheme>()!;
-    // **NO FRAME OF ITS OWN.** This drew a second `surface2` box with a second
-    // border inside the window's, so the machine had a box round it and two
-    // more inside it. The window is the frame; the reel is only the strip
-    // turning behind it. The lit band belongs to the window too — one `hl`
-    // spanning the whole face, as the JS has it, because it is the band that
-    // has to flash the answer and a per-reel copy could not.
-    return ListWheelScrollView.useDelegate(
-      key: ValueKey(reelKey),
-      controller: controller,
-      itemExtent: rowHeight,
-      // A reel the player cannot flick: the roll is bought, not spun by hand.
-      physics: const NeverScrollableScrollPhysics(),
-      // The drum. `diameterRatio` is the cylinder's width against the viewport
-      // — smaller is a tighter barrel — and 1.6 was near enough flat to read as
-      // three stacked labels. 1.1 turns the rows either side visibly away from
-      // the reader, and the perspective is what stops that being a plain scale.
-      perspective: 0.006,
-      diameterRatio: 1.1,
-      // And they dim. The answer is the only row at full strength, so the eye
-      // has somewhere to land the moment the reel stops.
-      overAndUnderCenterOpacity: 0.42,
-      childDelegate: ListWheelChildLoopingListDelegate(
-        children: [
-          for (final child in children)
-            Center(
-              child: DefaultTextStyle.merge(
-                style: TextStyle(color: kit.accentBright),
-                child: child,
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-/// The spec's spin easing, which `Curves` has no member for.
-///
-/// `TraitRoulette.js` runs the whole spin through `1 - Math.pow(1 - t, 2.5)`;
-/// the nearest built-in either side is `easeOutQuad` (2) or `easeOutCubic` (3),
-/// and the difference between 2.5 and 3 is the difference between a reel that
-/// is still turning at three seconds and one that is not.
-class _EaseOutPow extends Curve {
-  const _EaseOutPow(this.power);
-
-  final double power;
-
-  @override
-  double transformInternal(double t) => 1 - math.pow(1 - t, power).toDouble();
-}

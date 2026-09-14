@@ -14,6 +14,7 @@
 /// same idea, which is exactly the split the shop already makes.
 library;
 
+import 'package:merge_empire_fc/data/match_traits.dart';
 import 'package:merge_empire_fc/data/players.dart';
 import 'package:merge_empire_fc/data/traits.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
@@ -51,6 +52,28 @@ String traitTitle(Map<String, dynamic>? instance) {
 String traitInstanceDesc(Map<String, dynamic>? instance) {
   final trait = getTrait(instance?['id'] as String?);
   return trait == null ? '' : traitDesc(trait);
+}
+
+/// The second slot's copy, by the same rule. These keys live in
+/// `en_copy.dart` and the nine `copy/*_copy.dart` overlays rather than the
+/// generated catalogues — the JS has one trait per card and never named these.
+String matchTraitName(MatchTrait trait) =>
+    _catalogue('matchtrait.name.${trait.id}') ?? trait.name;
+
+String matchTraitDesc(MatchTrait trait) =>
+    _catalogue('matchtrait.desc.${trait.id}') ?? trait.desc;
+
+/// `🔄 Super Sub III`, localised.
+String matchTraitTitle(Map<String, dynamic>? instance) {
+  if (instance == null) return '';
+  final trait = getMatchTrait(instance['id'] as String?);
+  if (trait == null) return '';
+  final level = (instance['level'] as num?)?.toInt();
+  final label = level == null ? null : getMatchTraitLevel(trait, level)?.label;
+  final name = matchTraitName(trait);
+  return label == null || label.isEmpty
+      ? '${trait.icon} $name'
+      : '${trait.icon} $name $label';
 }
 
 /// What a TIER is called — "Bronze", "Legend" — with the catalogue winning.

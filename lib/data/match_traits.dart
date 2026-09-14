@@ -159,7 +159,7 @@ const Map<String, MatchTrait> matchTraits = {
   ),
   'cup_fighter': MatchTrait(
     id: 'cup_fighter', name: 'Cup Fighter', icon: '🏆',
-    desc: 'Made for the cup — nothing else brings it out of him',
+    desc: 'Made for the cup — nothing else brings out the same fight',
     condition: MatchTraitCondition.cupTie,
     levels: [
       MatchTraitLevel(level: 1, label: 'I', mult: 1.08),
@@ -193,7 +193,7 @@ const Map<String, MatchTrait> matchTraits = {
   // ── When it has gone wrong: three that own an axis outright ──────────────
   'ten_man_wall': MatchTrait(
     id: 'ten_man_wall', name: 'Ten Man Wall', icon: '🧱',
-    desc: 'Rallies the ten — lifts EVERY man left on the pitch',
+    desc: 'Rallies the ten — lifts EVERYONE left on the pitch',
     condition: MatchTraitCondition.tenMen,
     levels: [
       MatchTraitLevel(level: 1, label: 'I', mult: 1.03),
