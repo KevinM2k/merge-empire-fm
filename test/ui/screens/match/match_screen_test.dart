@@ -4164,7 +4164,8 @@ void main() {
       // The cooldown bar was a two-point row UNDER the panel and inside the
       // strip's own padding, so the gap below the buttons was eight and the gap
       // above them six — on the control the eye returns to most.
-      await pumpMatch(tester, matchResult());
+      // A played save: the boost strip is hidden for the tutorial's match.
+      await pumpMatch(tester, matchResult(), save: squadSave());
       final strip = tester.getRect(find.byKey(const ValueKey('match-tactics')));
       // **AND A LINE OF COMMENTARY STARTS WHERE A TACTIC DOES.** The feed used
       // to pay the inset twice — once for the band and again inside each plate

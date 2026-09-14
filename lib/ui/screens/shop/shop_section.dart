@@ -30,6 +30,12 @@ enum ShopSectionId {
   /// grid now — see `matchDayTiles`.
   gems('shop.section.gems', Icons.diamond, Color(0xFF7FD4FF)),
   coins('shop.section.coins', Icons.monetization_on, Color(0xFFFFC83C)),
+
+  /// The four manager boosts spent DURING a match, on a shelf of their own
+  /// above the season boosts: a consumable you tap at 40' is a different
+  /// purchase from a kit sponsor, and one heading over both answered neither.
+  /// Asked for from the couch.
+  matchBoosts('shop.section.match_boosts', Icons.campaign, Color(0xFFFF8A3D)),
   boosts('shop.section.boosts', Icons.bolt, Color(0xFF66BB6A)),
 
   /// **THE BOOSTS SHELF WAS TWO SHELVES.** A Magic Sponge and an Energy Refill
@@ -105,6 +111,7 @@ const List<ShopTab> shopTabs = [
     icon: Icons.bolt,
     ink: Color(0xFF66BB6A),
     sections: [
+      ShopSectionId.matchBoosts,
       ShopSectionId.boosts,
       ShopSectionId.income,
       // The voucher ladder last: it is eight tiles and it buried everything

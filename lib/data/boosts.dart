@@ -7,11 +7,10 @@
 /// The kind is what decides where a boost is offered, and the window is what
 /// decides whether the progress bar has a band to burn for it.
 ///
-/// **Priced against the gem catalogue's own anchors** — scout voucher 1, energy
-/// refill 5, trophy polish 5. A one-shot match boost at five would be the
-/// dearest thing on the shelf for the shortest effect; a pack of three at two
-/// is about a week of the day-7 daily, cheap enough to be SPENT rather than
-/// hoarded, which is how a consumable teaches its own value.
+/// **One gem buys one**, against the gem catalogue's own anchors — scout
+/// voucher 1, energy refill 5, trophy polish 5. The cheapest thing on the
+/// shelf for the shortest effect, so a boost is SPENT rather than hoarded,
+/// which is how a consumable teaches its own value. Asked for from the couch.
 ///
 /// The catalogue's second law — "NEVER RAW RATING" — is why Crowd Roar is a
 /// window and not a permanent, and why Park the Bus is not a rating change at
@@ -65,21 +64,21 @@ const int _window = 25;
 const Map<String, Boost> boosts = {
   'crowd_roar': Boost(
     id: 'crowd_roar', icon: '📣',
-    kind: BoostKind.proactive, gemCost: 2, packSize: 3,
+    kind: BoostKind.proactive, gemCost: 1, packSize: 1,
     windowMinutes: _window,
   ),
   'park_the_bus': Boost(
     id: 'park_the_bus', icon: '🚌',
-    kind: BoostKind.proactive, gemCost: 2, packSize: 3,
+    kind: BoostKind.proactive, gemCost: 1, packSize: 1,
     windowMinutes: _window,
   ),
   'var_review': Boost(
     id: 'var_review', icon: '📺',
-    kind: BoostKind.retrospective, gemCost: 2, packSize: 3,
+    kind: BoostKind.retrospective, gemCost: 1, packSize: 1,
   ),
   'physio_sponge': Boost(
     id: 'physio_sponge', icon: '🩹',
-    kind: BoostKind.retrospective, gemCost: 2, packSize: 3,
+    kind: BoostKind.retrospective, gemCost: 1, packSize: 1,
   ),
 };
 

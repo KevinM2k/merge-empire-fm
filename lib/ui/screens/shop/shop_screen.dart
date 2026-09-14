@@ -69,7 +69,7 @@ class ShopScreenState extends ConsumerState<ShopScreen> {
       ShopSection.coins => ShopSectionId.coins,
       ShopSection.gems => ShopSectionId.gems,
       // The match screen's boost strip, for a tile the player owns none of.
-      ShopSection.boosts => ShopSectionId.boosts,
+      ShopSection.boosts => ShopSectionId.matchBoosts,
     };
     final index = shopTabOf(id);
     if (index >= 0) {
@@ -84,6 +84,7 @@ class ShopScreenState extends ConsumerState<ShopScreen> {
     ShopSectionId.offers => const OffersSection(),
     ShopSectionId.gems => const GemPacksSection(),
     ShopSectionId.coins => const CoinPacksSection(),
+    ShopSectionId.matchBoosts => const MatchBoostsSection(),
     ShopSectionId.boosts => const BoostsSection(),
     ShopSectionId.income => const IncomeSection(),
     ShopSectionId.vouchers => const VouchersSection(),

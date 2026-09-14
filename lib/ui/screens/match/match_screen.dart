@@ -44,6 +44,7 @@ import 'package:merge_empire_fc/engine/match_trait_engine.dart';
 import 'package:merge_empire_fc/engine/boost_engine.dart';
 import 'package:merge_empire_fc/data/boosts.dart' show BoostKind, getBoost;
 import 'package:merge_empire_fc/engine/match_boost_state.dart';
+import 'package:merge_empire_fc/engine/tutorial_engine.dart' show tutorialFinished;
 import 'package:merge_empire_fc/ui/screens/match/boost_strip.dart';
 import 'package:merge_empire_fc/ui/screens/match/bench_boost_row.dart';
 import 'package:merge_empire_fc/ui/screens/match/boost_bar_paint.dart';
@@ -1799,7 +1800,7 @@ class MatchScreenState extends ConsumerState<MatchScreen>
       sentOff: _sentOff,
       sentOffSlots: _sentOffSlots,
       cautioned: _cautioned,
-      boostOffers: _benchOffers,
+      boostOffers: _boostsHidden ? null : _benchOffers,
     );
     // **CLOSING THE BENCH IS THE DECISION.** Whoever was on offer for a review
     // or a sponge and was not taken is not coming back — you cannot undo a
@@ -2097,12 +2098,19 @@ class MatchScreenState extends ConsumerState<MatchScreen>
     ];
   }
 
+  /// **NONE OF THE FOUR DURING THE TUTORIAL.** The script walks a new player
+  /// through one match, and a gem shelf in the middle of it is a second
+  /// lesson on top of the first. Asked for from the couch: just hide them.
+  bool get _boostsHidden => !tutorialFinished(ref.read(gameProvider).state);
+
   bool canPhysio(String instanceId) =>
+      !_boostsHidden &&
       !frame.finished &&
       boostCount(ref.read(gameProvider).state, 'physio_sponge') > 0 &&
       _physioCandidates().contains(instanceId);
 
   bool canVar(String instanceId) =>
+      !_boostsHidden &&
       !frame.finished &&
       boostCount(ref.read(gameProvider).state, 'var_review') > 0 &&
       _sentOff.contains(instanceId) &&
@@ -3389,7 +3397,7 @@ class MatchScreenState extends ConsumerState<MatchScreen>
                     // beside in the manager's head: a change to how the side
                     // plays for a while. The bench pair are not here — see
                     // `boost_strip.dart`.
-                    if (!f.finished)
+                    if (!f.finished && !_boostsHidden)
                       BoostStrip(
                         onUse: useBoost,
                         endOf: _boosts.endOf,

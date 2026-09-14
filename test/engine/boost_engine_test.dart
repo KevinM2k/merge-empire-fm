@@ -57,23 +57,26 @@ void main() {
   });
 
   group('buyBoostPack', () {
-    test('costs its gems and delivers its three', () {
+    test('costs its gem and delivers one, and again makes two', () {
       final s = <String, dynamic>{
         'resources': {'gems': 5},
       };
       final r = buyBoostPack(s, 'crowd_roar');
       expect(r.ok, isTrue);
       expect(r.reason, isNull);
+      expect((s['resources'] as Map)['gems'], 4);
+      expect(boostCount(s, 'crowd_roar'), 1);
+      buyBoostPack(s, 'crowd_roar');
       expect((s['resources'] as Map)['gems'], 3);
-      expect(boostCount(s, 'crowd_roar'), 3);
+      expect(boostCount(s, 'crowd_roar'), 2);
     });
 
     test('REFUSES WITHOUT THE GEMS AND DELIVERS NOTHING', () {
       final s = <String, dynamic>{
-        'resources': {'gems': 1},
+        'resources': {'gems': 0},
       };
       expect(buyBoostPack(s, 'crowd_roar').reason, 'insufficient_gems');
-      expect((s['resources'] as Map)['gems'], 1);
+      expect((s['resources'] as Map)['gems'], 0);
       expect(boostCount(s, 'crowd_roar'), 0);
     });
 
@@ -86,9 +89,9 @@ void main() {
     });
 
     test('blocked reason matches what a purchase would refuse on', () {
-      expect(boostPackBlocked({'resources': {'gems': 1}}, 'crowd_roar'),
+      expect(boostPackBlocked({'resources': {'gems': 0}}, 'crowd_roar'),
           'insufficient_gems');
-      expect(boostPackBlocked({'resources': {'gems': 2}}, 'crowd_roar'), isNull);
+      expect(boostPackBlocked({'resources': {'gems': 1}}, 'crowd_roar'), isNull);
       expect(boostPackBlocked({'resources': {'gems': 9}}, 'nope'),
           'unknown_boost');
     });

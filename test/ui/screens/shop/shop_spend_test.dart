@@ -34,38 +34,50 @@ void main() {
   group('THE FOUR MANAGER BOOSTS', () {
     const ids = ['crowd_roar', 'park_the_bus', 'var_review', 'physio_sponge'];
 
-    testWidgets('ARE ON THE BOOSTS SHELF, three to a pack for two gems', (
+    testWidgets('ARE ON THEIR OWN SHELF, one gem each, and the badge counts the bag', (
       tester,
     ) async {
       final container = await pumpShopWidget(
         tester,
         (s) => (s['resources'] as Map<String, dynamic>)['gems'] = 500,
-        BoostsSection.new,
+        MatchBoostsSection.new,
       );
       for (final id in ids) {
         expect(find.byKey(ValueKey('shop-buy-boost-$id')), findsOneWidget, reason: id);
       }
+      expect(find.text(t('boost.shop.count', {'n': '0'})), findsNWidgets(4));
       final gems = container.read(gemsProvider);
       await buyRow(tester, 'boost-crowd_roar');
-      expect(container.read(gemsProvider), gems - 2);
-      expect(boostCount(container.read(gameProvider).state, 'crowd_roar'), 3);
+      expect(container.read(gemsProvider), gems - 1);
+      expect(boostCount(container.read(gameProvider).state, 'crowd_roar'), 1);
       expect(find.byKey(const ValueKey('spend-receipt-boost-crowd_roar')), findsOneWidget);
       await tester.tap(find.byKey(const ValueKey('spend-receipt-ok-boost-crowd_roar')));
       await tester.pumpAndSettle();
+      expect(find.text(t('boost.shop.count', {'n': '1'})), findsOneWidget);
+      // And again: the badge follows the bag.
+      await buyRow(tester, 'boost-crowd_roar');
+      await tester.tap(find.byKey(const ValueKey('spend-receipt-ok-boost-crowd_roar')));
+      await tester.pumpAndSettle();
+      expect(boostCount(container.read(gameProvider).state, 'crowd_roar'), 2);
+      expect(find.text(t('boost.shop.count', {'n': '2'})), findsOneWidget);
       await settleSave(tester);
     });
 
-    testWidgets('and not on the Income shelf', (tester) async {
+    testWidgets('and not on the Boosts or Income shelves', (tester) async {
       await pumpShopWidget(tester, (_) {}, IncomeSection.new);
+      for (final id in ids) {
+        expect(find.byKey(ValueKey('shop-buy-boost-$id')), findsNothing, reason: id);
+      }
+      await pumpShopWidget(tester, (_) {}, BoostsSection.new);
       for (final id in ids) {
         expect(find.byKey(ValueKey('shop-buy-boost-$id')), findsNothing, reason: id);
       }
     });
 
-    testWidgets('a pack nobody can afford is still LIVE, like every gem row', (
+    testWidgets('a boost nobody can afford is still LIVE, like every gem row', (
       tester,
     ) async {
-      final container = await pumpShopWidget(tester, (_) {}, BoostsSection.new);
+      final container = await pumpShopWidget(tester, (_) {}, MatchBoostsSection.new);
       expect(
         tester.widget<StoreButton>(find.byKey(const ValueKey('shop-buy-boost-var_review'))).onTap,
         isNotNull,

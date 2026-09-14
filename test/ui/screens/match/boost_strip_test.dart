@@ -5,12 +5,17 @@
 /// Harness borrowed from `match_screen_test.dart`.
 library;
 
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:merge_empire_fc/data/players.dart' show getPlayerDef, ratioRange;
 import 'package:merge_empire_fc/engine/boost_engine.dart';
 import 'package:merge_empire_fc/engine/match_tactics.dart' show strategies;
 import 'package:merge_empire_fc/providers/game_providers.dart';
+import 'package:merge_empire_fc/state/save_slots.dart';
+import 'package:merge_empire_fc/state/save_store.dart';
 import 'package:merge_empire_fc/ui/screens/match/cutaway/cutaway_game.dart'
     show CutawayOutcome;
 import 'package:merge_empire_fc/ui/screens/match/cutaway/cutaway_stage.dart';
@@ -113,6 +118,30 @@ void main() {
         'x2',
       );
       await _finish(tester, stateOf(tester));
+    });
+
+    testWidgets('AND IS NOT THERE AT ALL DURING THE TUTORIAL', (tester) async {
+      // Loaded first: `settleTutorial` finishes the script on any save with
+      // cards on the grid, so the flag is put back AFTER the load, the way a
+      // tutorial in progress holds it within one session.
+      final container = ProviderContainer(
+        overrides: [
+          saveStoreProvider.overrideWithValue(
+            MemorySaveStore({saveKeyPrimary: jsonEncode(_save())}),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+      container.read(gameProvider).load();
+      container.read(gameProvider).state!['tutorial'] =
+          <String, dynamic>{'done': false, 'step': 3};
+      await pumpMatch(tester, _playable(), container: container, instance: 'tut');
+      expect(find.byKey(const ValueKey('match-boosts')), findsNothing);
+      // Nor can the bench offer either of the other two.
+      final state = stateOf(tester);
+      expect(state.physioTarget, isNull);
+      expect(state.varTarget, isNull);
+      await _finish(tester, state);
     });
 
     testWidgets('AN UNOWNED BOOST SHOWS ITS PRICE AND GOES TO THE SHOP', (

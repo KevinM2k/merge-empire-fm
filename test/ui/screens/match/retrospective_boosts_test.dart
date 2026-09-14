@@ -324,7 +324,7 @@ void main() {
       expect(find.byKey(const ValueKey('bench-boost-price-var_review')), findsOneWidget);
       expect(
         tester.widget<Text>(find.byKey(const ValueKey('bench-boost-reason-var_review'))).data,
-        t('boost.bench.buy', {'gems': '2'}),
+        t('boost.bench.buy', {'gems': '1'}),
       );
       await _finish(tester, state);
     });

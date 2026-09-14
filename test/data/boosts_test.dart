@@ -20,10 +20,10 @@ void main() {
       });
     });
 
-    test('a pack is three for two gems', () {
+    test('one gem buys one', () {
       for (final b in boostList) {
-        expect(b.packSize, 3, reason: b.id);
-        expect(b.gemCost, 2, reason: b.id);
+        expect(b.packSize, 1, reason: b.id);
+        expect(b.gemCost, 1, reason: b.id);
       }
     });
 

@@ -179,38 +179,6 @@ class _SpendShelf extends ConsumerWidget {
                           game.update((s) => buyConsumable(s, row.id)).reason,
                     )),
             ),
-          // **THE FOUR MANAGER BOOSTS, three to a pack.** Priced against the
-          // gem anchors beside them — a pack at two is about a week of the
-          // day-7 daily, cheap enough to be SPENT rather than hoarded, which is
-          // how a consumable teaches its own value. See `data/boosts.dart`.
-          if (!income)
-            for (final boost in boostList)
-              ShopTile(
-                tileKey: 'boost-${boost.id}',
-                title: t('boost.${boost.id}.name'),
-                subtitle: boostCount(game.state, boost.id) > 0
-                    ? '${t('boost.${boost.id}.desc')}\n'
-                        '${t('boost.shop.owned', {'n': '${boostCount(game.state, boost.id)}'})}'
-                    : t('boost.${boost.id}.desc'),
-                glyph: Text(boost.icon, style: const TextStyle(fontSize: 30)),
-                badge: t('boost.shop.pack', {'n': '${boost.packSize}'}),
-                price: formatCoins(boost.gemCost),
-                tone: StoreTone.gem,
-                disabledReason: blockedCopy(boostPackBlocked(game.state, boost.id)),
-                onBuy: blockedCopy(boostPackBlocked(game.state, boost.id)) != null
-                    ? null
-                    : () => offerToBuy(context, ref, (
-                        key: 'boost-${boost.id}',
-                        title: t('boost.${boost.id}.name'),
-                        subtitle: t('boost.${boost.id}.desc'),
-                        body: null,
-                        glyph: 'gem',
-                        currency: SpendCurrency.gems,
-                        cost: boost.gemCost,
-                        buy: () =>
-                            game.update((s) => buyBoostPack(s, boost.id)).reason,
-                      )),
-              ),
           // **NOT THE PLAIN SCOUT VOUCHER.** It is the bottom rung of the
           // voucher LADDER below and it was being drawn twice — once as a loose
           // gem item beside the TV broadcast deal, once in the section a player
@@ -399,6 +367,56 @@ class VouchersSection extends ConsumerWidget {
                       )),
               );
             }(),
+        ],
+      ),
+    );
+  }
+}
+
+/// The four manager boosts, three across, on a shelf of their own — see
+/// `ShopSectionId.matchBoosts`. One gem buys one; the badge is how many are
+/// in the bag, so a second buy reads x2 where the first read x1.
+class MatchBoostsSection extends ConsumerWidget {
+  const MatchBoostsSection({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    // The bag is a pick, so a buy redraws the badge; the gem balance is the
+    // shelf's other input and already has its own.
+    ref.watch(saveRevisionProvider);
+    ref.watch(gemsProvider);
+    final game = ref.read(gameProvider);
+    return ShopSectionFrame(
+      id: ShopSectionId.matchBoosts,
+      child: ShopGrid(
+        columns: 3,
+        children: [
+          for (final boost in boostList)
+            ShopTile(
+              tileKey: 'boost-${boost.id}',
+              title: t('boost.${boost.id}.name'),
+              subtitle: t('boost.${boost.id}.desc'),
+              glyph: Text(boost.icon, style: const TextStyle(fontSize: 30)),
+              badge: t('boost.shop.count', {
+                'n': '${boostCount(game.state, boost.id)}',
+              }),
+              price: formatCoins(boost.gemCost),
+              tone: StoreTone.gem,
+              disabledReason: blockedCopy(boostPackBlocked(game.state, boost.id)),
+              onBuy: blockedCopy(boostPackBlocked(game.state, boost.id)) != null
+                  ? null
+                  : () => offerToBuy(context, ref, (
+                      key: 'boost-${boost.id}',
+                      title: t('boost.${boost.id}.name'),
+                      subtitle: t('boost.${boost.id}.desc'),
+                      body: null,
+                      glyph: 'gem',
+                      currency: SpendCurrency.gems,
+                      cost: boost.gemCost,
+                      buy: () =>
+                          game.update((s) => buyBoostPack(s, boost.id)).reason,
+                    )),
+            ),
         ],
       ),
     );
