@@ -45,6 +45,8 @@ import 'package:merge_empire_fc/engine/sponsor_engine.dart';
 import 'package:merge_empire_fc/engine/squad_rating.dart';
 import 'package:merge_empire_fc/engine/tactic_coach.dart';
 import 'package:merge_empire_fc/engine/trait_engine.dart';
+import 'package:merge_empire_fc/engine/match_trait_engine.dart'
+    show warriorShrugChance;
 import 'package:merge_empire_fc/engine/transfer_engine.dart';
 import 'package:merge_empire_fc/util/analytics.dart';
 import 'package:merge_empire_fc/util/event_bus.dart';
@@ -742,7 +744,13 @@ MatchResult simulateMatch(
       if (grudgeBoost > 0) {
         chance = math.min(0.65, chance * grudgeInjuryMultiplier);
       }
-      return seeded.random() < chance * mult;
+      // **WARRIOR, and it costs no draw.** The second slot's trait is "a
+      // knock that lands is shrugged off with probability p" — which in
+      // expectation is the chance times (1 - p), so it goes on the number
+      // rather than as a second roll. No card in the parity fixtures carries
+      // it, and for every other card the factor is exactly one, so the draw
+      // order the JS harness compares is untouched.
+      return seeded.random() < chance * mult * (1 - warriorShrugChance(candidate));
     }
 
     if (pool.isNotEmpty) {
@@ -2007,6 +2015,9 @@ List<Map<String, dynamic>> reSimulateRemainder(
       _cells(state),
       _lineupOf(state),
     ).teamInjuryReduction;
+    // Warrior, exactly as at kickoff — see the roll there for why it is a
+    // factor on the chance and not a second draw.
+    chance *= 1 - warriorShrugChance(candidate);
     if (seeded.random() < chance) {
       result['injuryCount'] = priorInjuryCount + 1;
       candidate.raw['injured'] = true;

@@ -441,6 +441,59 @@ void main() {
     });
   });
 
+  group('Warrior — the second slot\'s injury shrug', () {
+    /// Every card in the XI carrying Warrior at [level], or none.
+    Map<String, dynamic> squad({int? level}) {
+      final state = _state(seasonsPlayed: 8);
+      if (level != null) {
+        final cells = (state['grid'] as Map<String, dynamic>)['cells'] as List;
+        for (final c in cells.whereType<Map<String, dynamic>>()) {
+          c['matchSlot'] = true;
+          c['matchTrait'] = {'id': 'warrior', 'level': level};
+        }
+      }
+      return state;
+    }
+
+    int injuriesOver(int seeds, {int? level}) {
+      var n = 0;
+      for (var seed = 0; seed < seeds; seed++) {
+        seeded.setSeed(seed);
+        final result = simulateMatch(squad(level: level), 'regional_league');
+        n += (result['injuryCount'] as num?)?.toInt() ?? 0;
+      }
+      return n;
+    }
+
+    test('A SQUAD OF WARRIORS IS HURT LESS OFTEN, at its level', () {
+      // Level III shrugs seventy per cent of knocks off, so about thirty per
+      // cent of the plain squad's injuries should land. Wide bounds: the roll
+      // is seeded but the count is small.
+      final plain = injuriesOver(400);
+      final iii = injuriesOver(400, level: 3);
+      expect(plain, greaterThan(20), reason: 'the fixture never injures anyone');
+      expect(iii, lessThan(plain * 0.55));
+      expect(iii, greaterThan(0), reason: 'Warrior is not immunity');
+    });
+
+    test('and a locked slot shrugs nothing off', () {
+      var withSlot = 0, without = 0;
+      for (var seed = 0; seed < 200; seed++) {
+        seeded.setSeed(seed);
+        final s = squad(level: 3);
+        for (final c in ((s['grid'] as Map<String, dynamic>)['cells'] as List)
+            .whereType<Map<String, dynamic>>()) {
+          c.remove('matchSlot');
+        }
+        withSlot += (simulateMatch(s, 'regional_league')['injuryCount'] as num?)?.toInt() ?? 0;
+        seeded.setSeed(seed);
+        without += (simulateMatch(squad(), 'regional_league')['injuryCount'] as num?)?.toInt() ?? 0;
+      }
+      // Same draws, same factor of one: the two runs are the same run.
+      expect(withSlot, without);
+    });
+  });
+
   group('undoInjury — the Physio Sponge', () {
     /// A save with c3 hurt and his square emptied, the way the sim leaves a
     /// casualty, plus the log entry the sim writes beside it.
