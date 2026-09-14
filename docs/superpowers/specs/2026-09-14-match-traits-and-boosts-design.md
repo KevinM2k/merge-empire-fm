@@ -177,12 +177,18 @@ rather than duplicating it. Locked state is a padlock and a `💎 1` button.
 
 ### The four
 
-| | Boost | Effect | Tapped from |
-|---|---|---|---|
-| 📣 | **Crowd Roar** | +10% squad ATK & DEF for 25 in-game minutes | the strip |
-| 🚌 | **Park the Bus** | goal rate for **both** sides × 0.45 for 25 in-game minutes | the strip |
-| 📺 | **VAR Review** | our last card overturned — a red becomes a yellow and the man returns, a yellow is rescinded | the strip **and** the red-card coach card |
-| 🩹 | **Physio Sponge** | the man who just went down is patched up and stays on | the strip **and** the injury coach card |
+| | Boost | Effect | Lives | Window |
+|---|---|---|---|---|
+| 📣 | **Crowd Roar** | +10% squad ATK & DEF for 25 in-game minutes | main screen strip | any time |
+| 🚌 | **Park the Bus** | goal rate for **both** sides × 0.45 for 25 in-game minutes | main screen strip | any time |
+| 📺 | **VAR Review** | the sending-off is overturned and the man comes back on | the bench, only | while the panel is open for that red |
+| 🩹 | **Physio Sponge** | the man who just went down is patched up and stays on | the bench, only | while the panel is open for that injury |
+
+**Proactive on the pitch, retrospective on the bench.** The two that change how
+the side plays are tapped while watching; the two that undo something the
+referee or the physio did are taken at the bench, in front of the consequence,
+with the clock stopped. Close the panel and the chance is gone — you cannot
+bring that player back once play has restarted.
 
 Two for pushing, two for repairing. Roar chases a game; Bus protects one — and
 Bus is deliberately *not* a rating change, so it is distinct from the
@@ -191,18 +197,111 @@ score against; Bus makes the game a non-event for both sides. It is a damping
 factor on the Poisson rate in `reSimulateRemainder`, one new named parameter
 beside the `oppRatingMult` already there.
 
-### Placement — two doors, one inventory
+### Placement — and why the bench, not the coach card
 
-A red card **already** pauses the match into a Coach Colin card explaining four
-rules, then opens the subs panel (`match_screen.dart:1871`). An injury does the
-same. Those are the moments VAR and Physio want to exist in, and
-`showCoachCard` already takes an `actions:` list — so the second door is an extra
-`CoachAction`, not new machinery.
+A red card and an injury both pause the match into a Coach Colin card and then
+open the subs panel behind it (`match_screen.dart:1871`, `:1990`). The card
+looks like the obvious place to offer a retrospective boost. It is not:
 
-The strip under the tactic bar is the shelf: it shows all four with an owned
-count, greys the ones you have none of and shows their price, and tapping a
-grey one goes to the shop. Proactive boosts are tapped there. Reactive ones can
-be tapped there too, but will normally be taken on the card that is already up.
+- **The red-card card shows only ONCE, ever.** It is gated on
+  `hasSeenTip(state, redCardTipId)`, while `await openSubs()` runs
+  unconditionally. A boost on the card would be invisible at every red card
+  after the first.
+- **A Coach Colin card has no barrier**, so it is the least reliable surface on
+  the screen to hang a control from.
+- **The panel already carries the state both boosts need.** `showSubsPanel`
+  takes `sentOff`, `sentOffSlots` and `cautioned`, and `_sentOffSlots` exists
+  precisely so a man can be drawn back into the square he was taken from. VAR
+  is that map read in the other direction.
+
+So the bench is the only door for the retrospective pair, and the coach card
+**mentions** it in text without being a button — the door is signposted where
+the player is already looking.
+
+**VAR is sendings-off only.** A yellow does not open the panel; only
+`cardSendsOff` reaches `_onSendingOff`. Taken deliberately rather than worked
+around: it matches what VAR reviews in the real game, it is the more dramatic
+moment, and it drops the `_bookingRecords` yellow cleanup entirely.
+
+**The injury guard has to move.** `_onInjuryShown` ends with
+`if (spent || nobody) return;` — the panel does not open when the changes are
+spent or nobody fit is on the bench. That is exactly when a Physio is worth
+most, so bench-only would make the boost unreachable in its best case. The
+guard becomes "…unless a Physio is held": a panel with nobody to bring on is
+pointless, which is why the guard exists, and with a Physio in hand it is not.
+
+**The deadline is the panel closing, and the lock is per PLAYER per MATCH.**
+Injury lands, the bench opens, the boost is offered. Replace him, or dismiss
+without using it, and that player cannot be Physio'd again for the rest of the
+match — the same for a sending-off and VAR. A different casualty later in the
+same match gets its own offer; the man you passed on does not come back.
+
+Two screen-owned sets carry it, beside `_withdrawn` and `_sentOffSlots` which
+are already screen-owned for the same reason (the panel forgets, the screen
+must not): `_physioSpent` and `_varSpent`, by instance id.
+
+The bench can be reopened from the subs button at any time, so a locked tile
+greys **with a reason** — "too late, play has restarted" — rather than going
+silently dead. A greyed control with no explanation is what generates "is this
+broken?" reports.
+
+### What a retrospective boost actually undoes
+
+Neither boost prevents anything: by the time either is reachable the damage is
+already written.
+
+- **Physio.** The sim vacates the injured man's slot before the screen sees the
+  event, and `_dropBookingsForInjuriesUpTo` has already struck his remaining
+  cards off the referee's list. So Physio is the reverse of `_playerSentOff`:
+  put the card back in its slot, clear the injury, restore any card he had
+  legitimately collected, re-simulate. Injuries need their own slot map, the
+  way sendings-off have `_sentOffSlots`.
+- **VAR.** Restore him to the slot `_sentOffSlots` banked, drop the red from
+  both lists — `_bookings`, which feeds the ban the whistle writes, and
+  `_bookingRecords`, which puts the red on his career card — and re-simulate.
+
+**Both re-simulate from the CURRENT minute, never from the incident minute.**
+Overturning a 20th-minute red at 85 minutes would rewrite sixty-five minutes of
+a match the player has already watched, which is the thing the 13 Sep audit
+exists to prevent. The man returns *now*; goals already scored stand. This is
+the contract a substitution already plays by (`_resimulate(_minute, …)`), and
+it self-balances the window: a late overturn is simply worth less.
+
+### How an injury is identified
+
+The feed event `type: 'injury'` is the JS's — minute, type and a NAME, with no
+instance id, and none can be added because the parity harness compares that
+array field for field. The port inserts a `no_sub` marker on the same minute
+which **does** carry `instanceId`, and that is the hook.
+`_dropBookingsForInjuriesUpTo` already reads it for the same reason.
+
+### Commentary
+
+**Every boost says so in the feed.** A boost that changes the match without
+appearing in the commentary is the same fault as the card that "looked like
+theatre" — the player reads the feed, so the feed is where it becomes real.
+
+The vehicle is `_notes`, the port's own `List<FeedLine>` that already carries
+the tactic changes. It is stable-merged into the feed by minute and a note
+lands **after** the events of its own minute, because — in the file's own words
+— "the switch answers what just happened". A VAR line under the red card that
+prompted it is exactly that rule working. It also keeps this clear of the
+`events` array, which the parity harness compares field for field.
+
+Pools, `|`-separated like the rest of the commentary, so a repeat playthrough
+does not read the same line twice:
+
+| Key | Fires |
+|---|---|
+| `boost.var.overturned` | the red is rescinded — "VAR has overturned it. The card is withdrawn and {player} stays on." |
+| `boost.physio.recovered` | the injury is undone — "{player} is back on his feet, waving the stretcher away. He's carrying on." |
+| `boost.roar.live` | Crowd Roar tapped — "The manager turns to the crowd, and the ground erupts." |
+| `boost.roar.over` | its window ends — "The noise settles, and the game finds its rhythm again." |
+| `boost.bus.live` | Park the Bus tapped — "Everyone behind the ball. They are going to see this one out." |
+| `boost.bus.over` | its window ends — "The shackles come off, and there is space again." |
+
+The two `.over` lines are not decoration: the burning bar shows the window
+visually, and the feed is what a player reading rather than watching gets.
 
 ### Stacking and signalling
 
@@ -284,12 +383,14 @@ possible bug in a paid feature.
 
 ### Layout cost
 
-The strip costs the commentary feed about 40px on a screen `match_screen.dart`
-repeatedly says has none to spare. `_MatchLayout` needs a `hasBoostStrip`
-alongside its `hasTacticStrip`, and the boost strip is shorter than the tactic
-strip (34px vs 46px) to limit the damage. If it reads as too tight on a short
-phone, the honest fix is a fifth and sixth boost so the shelf is two clean rows
-and the strip scrolls — but see it running first.
+Only the two proactive boosts sit on the match screen, so the strip is two tiles
+rather than four — roughly half the height the earlier four-tile design would
+have taken off the commentary feed, on a screen `match_screen.dart` repeatedly
+says has none to spare. `_MatchLayout` still needs a `hasBoostStrip` beside its
+`hasTacticStrip`, and the strip is shorter than the tactic strip (34px vs 46px).
+
+The bench pair cost the match screen nothing at all: the subs panel is a
+`heightFraction: 0.92` bottom sheet with room for a boost row.
 
 ---
 
@@ -311,6 +412,16 @@ repo's rule is that a deliberate divergence belongs on the screen.
   condition holds and one where it does not, and reads the multiplier map.
 - **Boosts**: debit-on-tap, the window's two re-sims, stacking and the cap, and
   that an abandoned match does not refund.
+- **The retrospective pair**, each needing a widget test that plays to a real
+  red card and a real injury: that the panel opens with the boost lit, that
+  dismissing it greys the tile with a reason, that a restored man is back in his
+  own slot and off both booking lists, and that the re-sim ran from the current
+  minute rather than the incident's. The injury case must cover the
+  subs-spent/nobody-fit path, which is the one the guard used to close.
+- **The per-player lock**: a second injury in the same match still offers a
+  Physio, and the man who was passed on never does again.
+- **The feed lines**, in all ten locales, each landing after the event of its
+  own minute rather than before it.
 - **Reachability**: `bash tool/unreached.sh` and `bash tool/unreached_ui.sh`
   after, because a trait nobody can roll is exactly the failure those scripts
   exist to find.
