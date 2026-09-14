@@ -21,14 +21,21 @@ import 'package:merge_empire_fc/ui/screens/placeholder_screen.dart';
 import 'package:merge_empire_fc/ui/shell/app_shell.dart';
 import 'package:merge_empire_fc/ui/shell/shell_controller.dart';
 import 'package:merge_empire_fc/ui/shell/shell_routes.dart';
+import 'package:merge_empire_fc/ui/shell/tab_bar.dart';
 import 'package:merge_empire_fc/ui/shell/tabs.dart';
 import 'package:merge_empire_fc/ui/theme/theme_providers.dart';
+import 'package:merge_empire_fc/util/time.dart';
 
-Future<ProviderContainer> pumpShell(WidgetTester tester) async {
+Future<ProviderContainer> pumpShell(
+  WidgetTester tester, {
+  Map<String, dynamic>? state,
+}) async {
   final container = ProviderContainer(
     overrides: [
       saveStoreProvider.overrideWithValue(
-        MemorySaveStore({saveKeyPrimary: jsonEncode(createDefaultState())}),
+        MemorySaveStore({
+          saveKeyPrimary: jsonEncode(state ?? createDefaultState()),
+        }),
       ),
     ],
   );
@@ -81,6 +88,40 @@ PlaceholderScreenState screenState(WidgetTester tester, ShellTab tab) =>
     tester.state<PlaceholderScreenState>(
       find.byKey(ValueKey('screen-${tab.name}'), skipOffstage: false),
     );
+
+
+/// A save with a rival's bid pending, so the shell puts the transfer pill up.
+///
+/// The pill is the only thing in the shell that has to CLEAR the tab bar rather
+/// than sit under it, which is the one thing the pill's own test — it builds a
+/// bare `Scaffold` with no bar at all — cannot ask.
+Map<String, dynamic> _saveWithParkedBid() {
+  final s = createDefaultState();
+  final cells = (s['grid'] as Map<String, dynamic>)['cells'] as List<dynamic>;
+  cells[0] = <String, dynamic>{
+    'definitionId': 'player_t3_fwd',
+    'instanceId': 'c0',
+    'variant': 0,
+    'seasonsPlayed': 0,
+  };
+  s['transferMarket'] = <String, dynamic>{
+    'pendingOffer': <String, dynamic>{
+      'offerId': 'offer_1',
+      'fromTeam': 'Ayton Rovers',
+      'cardInstanceId': 'c0',
+      'definitionId': 'player_t3_fwd',
+      'playerName': 'Test Player',
+      'price': 5000,
+      'variant': 0,
+      // NOW, not epoch: the boot migration clears any offer older than five
+      // minutes, so a fixture stamped 1 is gone before the shell sees it.
+      'createdAt': now(),
+    },
+    'grudges': <String, dynamic>{},
+    'lastOfferAt': now(),
+  };
+  return s;
+}
 
 void main() {
   tearDown(resetLocale);
@@ -308,6 +349,36 @@ void main() {
       isFalse,
       reason: 'back restores it too',
     );
+  });
+
+  /// **THE PARKED BID'S WAY BACK WAS BEHIND THE TAB BAR.** `extendBody` runs
+  /// the body under the bar and the Scaffold paints the bar over it, so a pill
+  /// pinned to `bottom: 0` was covered by the five buttons and the bar took
+  /// every tap meant for it — minimise the review and the offer was gone until
+  /// the idle roll happened to announce it again.
+  ///
+  /// `hitTestable` is the assertion that matters: on screen but untappable is
+  /// exactly the shape of the bug, and a `findsOneWidget` passed throughout it.
+  testWidgets('the transfer pill clears the tab bar on every tab', (
+    tester,
+  ) async {
+    await pumpShell(tester, state: _saveWithParkedBid());
+
+    for (final tab in tabOrder) {
+      await tester.tap(find.byKey(ValueKey('tab-${tab.name}')));
+      await settle(tester);
+
+      expect(
+        find.byKey(const ValueKey('transfer-pill')).hitTestable(),
+        findsOneWidget,
+        reason: 'the pill is tappable on ${tab.name}',
+      );
+      expect(
+        tester.getRect(find.byKey(const ValueKey('transfer-pill'))).bottom,
+        lessThanOrEqualTo(tester.getRect(find.byType(ShellTabBar)).top),
+        reason: 'and it sits above the bar rather than under it on ${tab.name}',
+      );
+    }
   });
 
   testWidgets('the home tab has no sub-tabs left to reset', (tester) async {
