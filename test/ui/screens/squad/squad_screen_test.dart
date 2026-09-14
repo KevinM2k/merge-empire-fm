@@ -2099,17 +2099,21 @@ void main() {
   }
 
   group('AND HIS AGE IS ON THE SHEET', () {
-    /// Give the first bench man [seasons] of service.
+    /// Make the first bench man [age] years old.
+    ///
+    /// It used to hand him seasons of SERVICE. The badge reads a birthday now —
+    /// a ten-season servant of twenty-six is not a veteran and the sheet should
+    /// not call him one.
     Future<String> aged(
       WidgetTester tester,
       ProviderContainer container,
-      int seasons,
+      int age,
     ) async {
       final id = container.read(benchProvider).first.instanceId;
       container.read(gameProvider).update((s) {
         for (final raw in (s['grid'] as Map<String, dynamic>)['cells'] as List) {
           if (raw is Map<String, dynamic> && raw['instanceId'] == id) {
-            raw['seasonsPlayed'] = seasons;
+            raw['age'] = age;
           }
         }
       });
@@ -2126,7 +2130,7 @@ void main() {
 
     testWidgets('a veteran is told he is one', (tester) async {
       final container = await pumpSquad(tester, cards: 14);
-      final id = await aged(tester, container, 13);
+      final id = await aged(tester, container, retirementAge - 3);
       await openSheet(tester, id);
       expect(find.byKey(const ValueKey('detail-age-badge')), findsOneWidget);
       expect(
@@ -2140,7 +2144,7 @@ void main() {
 
     testWidgets('and a young player is not', (tester) async {
       final container = await pumpSquad(tester, cards: 14);
-      final id = await aged(tester, container, 2);
+      final id = await aged(tester, container, 24);
       await openSheet(tester, id);
       expect(find.byKey(const ValueKey('detail-age-badge')), findsNothing);
     });

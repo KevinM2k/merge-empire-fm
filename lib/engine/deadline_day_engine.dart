@@ -170,7 +170,7 @@ num _bidPrice(
   var price =
       def.sellValue * tierMult * _divMult(state) * bidPremium * divGapMult(gap);
   if (_num(_map(card?.sponsor)?['multiplier']) != null) price *= 1.5;
-  final aging = agingPenalty(card?.seasonsPlayed ?? 0);
+  final aging = agingPenalty(card?.wearYears ?? 0);
   if (aging > 0 && def.rating > 0) {
     price *= math.max(0.2, (def.rating - aging) / def.rating);
   }

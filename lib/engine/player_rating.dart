@@ -44,7 +44,7 @@ int getEffectiveRating(CardInstance? card) {
 
   final aging = math.max(
     0,
-    agingPenalty(card.seasonsPlayed) - tb.agingReduction,
+    ageDeclinePenalty(card.age) - tb.agingReduction,
   );
 
   final composed = r - sponsorPenalty - aging + tb.ratingBonus + card.form;

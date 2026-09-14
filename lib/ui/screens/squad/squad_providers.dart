@@ -62,8 +62,9 @@ typedef PitchSlot = ({
   /// green/amber/red, so a misfit is visible without doing the arithmetic.
   double penalty,
 
-  /// Seasons played — the age tell, amber at ten and red at fourteen.
-  int seasons,
+  /// **How old he is** — the age tell on the token, drawn only once it means
+  /// something (31 up) and coloured by how far down the curve he is.
+  int age,
 });
 
 /// The squad's headline numbers.
@@ -238,7 +239,7 @@ final pitchSlotsProvider = savePick<List<PitchSlot>>((s) {
           penalty: view == null
               ? 0.0
               : computePositionPenalty(view.position, slot.slotPosition),
-          seasons: instance?.seasonsPlayed ?? 0,
+          age: instance?.age ?? 0,
         );
       }(),
   ];
@@ -365,7 +366,7 @@ typedef SlotCandidate = ({
   CardView card,
   int effRating,
   double penalty,
-  int seasons,
+  int age,
   bool available,
 });
 
@@ -422,7 +423,7 @@ final slotCandidatesProvider = Provider.family<List<SlotCandidate>, String>((
         fatigue: true,
       ).rating,
       penalty: computePositionPenalty(view.position, slotPosition),
-      seasons: instance.seasonsPlayed,
+      age: instance.age,
       available: instance.isSelectable && !view.suspended,
     ));
   }

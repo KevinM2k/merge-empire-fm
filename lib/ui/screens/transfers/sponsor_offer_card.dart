@@ -67,7 +67,11 @@ CoachRead sponsorRead(
   if (starter && impact.ratingDrop > 0 && inDropZone(clubStanding(state))) {
     return refuse('manager.sponsor.relegation_starter', {'player': name});
   }
-  if (impact.injuryPct > 0 && player.seasonsPlayed >= 7) {
+  // **Old enough for the extra risk to land, which is an AGE question now.**
+  // The deal adds injury chance on top of what the years already cost him, and
+  // a seven-season servant who is twenty-five is not the man this line is
+  // about — his prime has years left in it.
+  if (impact.injuryPct > 0 && player.age >= declineStartAge) {
     return refuse('manager.sponsor.injury_prone', {
       'player': name,
       'seasons': player.seasonsPlayed,

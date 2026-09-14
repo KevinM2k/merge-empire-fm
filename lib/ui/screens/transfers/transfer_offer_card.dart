@@ -110,13 +110,20 @@ CoachRead transferRead(
           .round();
 
   final seasons = card?.seasonsPlayed ?? 0;
+  // **Two different facts about the same player, and the verdict needs both.**
+  // Service is what the loyalty lines are about — a man who has been here seven
+  // seasons is a servant whatever his birthday says. Age is what the DECLINE
+  // lines are about, because age is what takes the rating off him.
+  final age = card?.age ?? derivedAge(def?.tier ?? 1, seasons);
   final injured = card?.injured ?? false;
   final form = _num(card?.raw['form']).toInt();
   final sponsored = card?.sponsor != null;
   final tier = _num(offer['tier'] ?? def?.tier ?? 1).toInt();
-  final penalty = agingPenalty(seasons);
-  final seasonsLeft = seasons >= 15 ? 0 : 15 - seasons;
-  final injuryChance = getInjuryChance(seasons);
+  final penalty = ageDeclinePenalty(age);
+  final seasonsLeft = math.max(0, retirementAge - age);
+  final injuryChance = getInjuryChance(
+    card?.wearYears ?? wearYears(def?.tier ?? 1, age),
+  );
   final name =
       card?.name('${offer['playerName'] ?? ''}') ??
       '${offer['playerName'] ?? ''}';
@@ -142,21 +149,21 @@ CoachRead transferRead(
       (verdict: CoachVerdict.yourCall, text: t(key, p));
 
   if (premiumPct >= 200) return sell('manager.transfer.incredible');
-  if (seasons >= 14) {
+  if (age >= retirementAge - 1) {
     return sell('manager.transfer.final_season', {
       'penalty': penalty,
       'seasonsLeft': seasonsLeft,
     });
   }
-  if (seasons >= 10 && injured) {
+  if (age >= declineStartAge + 2 && injured) {
     return sell('manager.transfer.declining_injured', {
       'penalty': penalty,
       'seasonsLeft': seasonsLeft,
     });
   }
-  if (seasons >= 10) {
+  if (age >= declineStartAge + 2) {
     return sell('manager.transfer.long_decline', {
-      'seasons': seasons,
+      'age': age,
       'penalty': penalty,
       'seasonsLeft': seasonsLeft,
     });

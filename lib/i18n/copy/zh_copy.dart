@@ -8,6 +8,20 @@ library;
 
 /// Replaces the generated entry, or adds a key Chinese did not have.
 const Map<String, String> zhCopy = <String, String>{
+
+  // ── 球员现在有「年龄」了 ─────────────────────────────────────────────────
+  //
+  // 生成的文案描述的是被取代的旧模型（「评分下降从第 10 赛季开始，第 15 退役」），
+  // 那些数字现在全都不对。围绕年龄重写，占位符与调用处传入的一致。
+  'coach.squad.veteran': '{name} 现在 {age} 岁——从这里开始年龄会显现。{retire} 岁退役。',
+  'coach.squad.declining': '{name} {age} 岁，已过巅峰——评分已掉 {pen} 分。距退役 {left} 赛季。',
+  'coach.squad.sell_now': '{name} {age} 岁且下滑很快——评分已掉 {pen} 分。只剩 {left} 赛季，现在正是出售时机。',
+  'squad.badge.sell_now': '⚠️ 立即出售——急剧下滑',
+  'squad.stat.age': '年龄',
+  'squad.detail.age_decline': '年龄损耗',
+  'offseason.retired': '40 岁退役',
+  'manager.transfer.long_decline': '{age} 岁，因年龄已掉 {penalty} 评分。距退役只剩 {seasonsLeft} 赛季。出售窗口正在关闭。',
+
   'customise.item.face.bubblegum': '泡泡糖',
 
   // 位于“声音”和“音乐”旁的第三行：每个按钮的点击音。

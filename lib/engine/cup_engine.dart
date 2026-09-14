@@ -862,7 +862,7 @@ List<CupInjury> _rollCupInjuries(
   ).teamInjuryReduction;
 
   bool injuryRoll(CardInstance candidate, double mult) {
-    var chance = getInjuryChance(candidate.seasonsPlayed, _divisionIdx(state));
+    var chance = getInjuryChance(candidate.wearYears, _divisionIdx(state));
     chance += sponsorDrawback(_map(candidate.raw['sponsor'])).injuryPenalty;
     chance -= getTraitBonus(
       candidate,
@@ -899,7 +899,7 @@ void _applyInjury(Map<String, dynamic> state, CupInjury entry) {
   entry.name = getCardName(card.raw, 'A player');
   card.raw['injured'] = true;
   card.raw['injuredAt'] = now();
-  card.raw['injuryDurationMs'] = getInjuryDuration(card.seasonsPlayed);
+  card.raw['injuryDurationMs'] = getInjuryDuration(card.wearYears);
   // The same as a league game in both modes: vacate the slot, no automatic
   // replacement.
   entry.slot = removeInjuredFromLineup(state, card.instanceId);

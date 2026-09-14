@@ -188,8 +188,8 @@ Map<String, dynamic>? buildOffer(
     price *= 1 + transferSponsorBonus;
   }
 
-  // Ageing players fetch less: their remaining seasons reduce value.
-  final aging = agingPenalty(card.seasonsPlayed);
+  // Ageing players fetch less: their years on the pitch reduce value.
+  final aging = agingPenalty(card.wearYears);
   if (aging > 0 && def.rating > 0) {
     price *= math.max(0.2, (def.rating - aging) / def.rating);
   }

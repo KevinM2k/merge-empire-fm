@@ -591,10 +591,232 @@ int getCardRating(PlayerDef? def, {num ratingBonus = 0}) {
   return math.max(1, math.min(def.maxRating, raw)).round();
 }
 
-/// Veterans decline past ten seasons of service — 10 rating points per season
-/// beyond.
-int agingPenalty([int seasonsPlayed = 0]) =>
-    seasonsPlayed <= 10 ? 0 : (seasonsPlayed - 10) * 10;
+// ── Age ─────────────────────────────────────────────────────────────────────
+
+// **A CARD HAS AN AGE NOW, and it replaces "ten seasons then a cliff".**
+//
+// The old model counted SERVICE: a card arrived at zero, was untouched for ten
+// seasons, then lost ten rating points a season and vanished at fifteen. Every
+// card aged at the same rate from the same start, so a World Legend and a
+// Bronze Rookie scouted on the same day retired on the same day — and a merge
+// reset the counter to zero, which meant the way to keep a squad young was to
+// merge, not to buy young.
+//
+// This is a divergence the JS does not have: **a player is a person with a
+// birthday.** He is scouted at an age that rises with his tier — 18 for a
+// Bronze Rookie up to 25 for a World Legend, because a world-class player got
+// there by playing — he peaks through his twenties, declines from 31 at an
+// accelerating rate, and retires at 40. A veteran is therefore YOURS for far
+// longer than fifteen seasons if you want him; he is simply worse every year
+// you keep him.
+//
+// `seasonsPlayed` survives untouched and still means what it always did:
+// seasons of SERVICE at this club, which is what loyalty, the achievements and
+// the quests are counted in. Age drives everything that is about WEAR —
+// decline, demotion, the injury curve, stamina, retirement. They are different
+// facts about a player and this is the first build where they can disagree,
+// because a merged card carries its parents' years and starts service again at
+// zero.
+//
+// Deliberately a small pure table with no engine imports: the merge engine, the
+// season-end sweep, the card themes and the coach all read the same numbers, so
+// nothing can hold a second opinion about when a player is old.
+
+/// The youngest a card can be: a Bronze Rookie's scout age, and the anchor
+/// every age curve in the game is measured from.
+const int youngestAge = 18;
+
+/// The age a freshly scouted card of each tier arrives at.
+///
+/// **It rises with the tier because the tier is a career.** A Bronze Rookie is
+/// eighteen and has played nobody; a World Legend is twenty-five and has. The
+/// gap is also what makes [mergedAge] mean something — merging two teenagers
+/// into a Silver Rising lands on a player who is still young for his tier,
+/// while merging two thirty-year-olds into one does not.
+const Map<int, int> tierScoutAge = <int, int>{
+  1: youngestAge,
+  2: 19,
+  3: 20,
+  4: 21,
+  5: 22,
+  6: 23,
+  7: 24,
+  8: 25,
+  9: 26,
+};
+
+/// The age a card of [tier] is scouted at, and the floor a merge into that tier
+/// lands on.
+int scoutAgeForTier(int tier) => tierScoutAge[tier] ?? tierScoutAge[1]!;
+
+/// The prime, inclusive: nothing is taken off a rating between these.
+///
+/// [peakAgeStart] is deliberately the same 25 a World Legend is scouted at, so
+/// the top of the merge ladder arrives already in its prime rather than with
+/// years of growing still to do.
+const int peakAgeStart = 25;
+const int peakAgeEnd = 30;
+
+/// The first age that costs rating.
+const int declineStartAge = peakAgeEnd + 1;
+
+/// He leaves the club the season he turns forty.
+const int retirementAge = 40;
+
+/// **QUADRATIC, so the fall starts as a rumour and ends as a collapse.**
+///
+/// `(age - 30)² ~/ 2`, floored at a point so the first year past the prime
+/// always costs something: 1 at 31, 4 at 33, 12 at 35, 24 at 37, 40 in a
+/// player's last season. A World Legend built at 88 is still a Legendary Icon
+/// at 35 and a Silver Star at 39, which is the shape asked for — you can hold
+/// on to him, and holding on to him costs you.
+///
+/// Linear would have been the easy port of the old ten-a-season rule and it is
+/// the wrong curve: a flat drop makes the decision to sell obvious on the first
+/// season it lands, and then every season after it is the same decision again.
+///
+/// **It TRUNCATES rather than rounding, and that is load-bearing.** Rounding
+/// half up puts the final season at 41, and 41 is one point past what the JS
+/// takes off its own fourteen-season veteran — which `match_orchestration_
+/// parity_test` dresses a whole squad with. One rating point there is not
+/// cosmetic: it flips a goal from one side to the other twenty-five events
+/// deep. Truncating lands the last playable age on exactly the reference's 40,
+/// so the two runtimes still play the same match out of the same decrepit
+/// squad. The `max` is what keeps 31 from rounding away to nothing.
+int ageDeclinePenalty(int age) {
+  final past = age - peakAgeEnd;
+  if (past <= 0) return 0;
+  return math.max(1, past * past ~/ 2);
+}
+
+/// **WHAT A VETERAN IS DISCOUNTED BY IN THE MARKET, and it is not what he is
+/// declining by.**
+///
+/// The JS's own rule — nothing for ten years, then ten rating points a year —
+/// and it stays the JS's, because every price in this game is pinned against a
+/// node fixture: the sell shelf, the loan fee, a rival's bid, Deadline Day. A
+/// curve here would have been a rewrite of the whole economy hiding inside a
+/// feature about birthdays, and the harnesses would have been right to fail it.
+///
+/// **It takes [wearYears], not seasons of service.** Identical for a card
+/// nobody merged, so the references still reproduce to the last digit — and the
+/// right figure for a merged thirty-four-year-old, who used to reset to zero
+/// and sell as a debutant.
+///
+/// [ageDeclinePenalty] is the other one and they are not interchangeable: that
+/// is what comes off a RATING, on a curve, against a birthday. This is what
+/// comes off a PRICE.
+int agingPenalty([int wearYears = 0]) =>
+    wearYears <= 10 ? 0 : (wearYears - 10) * 10;
+
+/// The age a merge produces.
+///
+/// **The older parent's age, never younger than the new tier's own scout age.**
+/// Two eighteen-year-old Bronze Rookies make a nineteen-year-old Bronze Pro —
+/// the "slight bump" — because nineteen is where a Bronze Pro starts. A
+/// twenty-two-year-old merged with an eighteen-year-old makes a
+/// twenty-two-year-old: the older man is in there, and a merge is not a way to
+/// launder a veteran into a youngster.
+///
+/// That single `max` is both rules at once, which is why there is no separate
+/// "+1 if they matched" term: the bump falls out of the tier floor, so it
+/// applies exactly when both parents are young for what they became.
+int mergedAge(int ageA, int ageB, int intoTier) =>
+    math.max(math.max(ageA, ageB), scoutAgeForTier(intoTier));
+
+/// **Years of WEAR: how long this card has been playing at this level.**
+///
+/// `age` minus the age his tier is scouted at. For a card nobody merged that is
+/// exactly his `seasonsPlayed`, which is the point — the injury curve and the
+/// stamina drain were tuned against a service count and keep every number they
+/// had, down to the last digit of the JS reference.
+///
+/// What it fixes is the MERGED veteran. Service resets to zero on a merge and
+/// an age does not, so a thirty-four-year-old freshly merged into a World
+/// Legend read as a debutant to both curves: never injured, never tired. He is
+/// nine years past what a World Legend is scouted at, and this is the figure
+/// that says so.
+int wearYears(int tier, int age) => math.max(0, age - scoutAgeForTier(tier));
+
+/// The age a card written before ages existed reads as.
+///
+/// Its tier says where it started and its service says how long ago that was,
+/// which is the closest thing to a birthday the old save holds. A ten-season
+/// Bronze Rookie comes back twenty-eight and still has his prime in front of
+/// him; a ten-season World Legend comes back thirty-five and is on the way
+/// down, which is roughly where the old model had both of them.
+int derivedAge(int tier, int seasonsPlayed) =>
+    scoutAgeForTier(tier) + math.max(0, seasonsPlayed);
+
+/// **What a card has to LOSE to stop being this tier** — nine points for a
+/// World Legend, who runs 86 to 95.
+///
+/// Usually the band's own height, because the bands are contiguous: drop nine
+/// from the bottom of 86-95 and you are into 76-85. **T9 is the exception and
+/// it is why this is not just `maxRating - rating`.** The Football Icon is a
+/// flat 100, floor and ceiling alike, so its height is nought — and a walk that
+/// subtracts nought takes a free rung, which drew every Icon as a World Legend
+/// on the day it was scouted. What leaving T9 actually costs is the gap down to
+/// the best World Legend there is: 100 to 95, five points. The `max` is both
+/// readings at once.
+///
+/// The BAND, not a definition's own spread: `PlayerDef.rating` is the band
+/// floor times `_posVariance`, so it answers a different question for each of
+/// the four positions. [effectiveTierFor] wants the LADDER, and the ladder is
+/// the same ladder for a keeper and a striker.
+int tierDropCost(int tier) {
+  _Tier? here;
+  _Tier? below;
+  for (final t in _tiers) {
+    if (t.tier == tier) here = t;
+    if (t.tier == tier - 1) below = t;
+  }
+  here ??= _tiers.first;
+  final height = here.maxRating - here.rating;
+  final gap = below == null ? height : here.rating - below.maxRating;
+  return math.max(1, math.max(height, gap));
+}
+
+/// **THE TIER THE CARD PRESENTS AS once age has eaten into it.**
+///
+/// A World Legend who has declined past what a World Legend is worth stops
+/// LOOKING like one: the border, the gradient and the tier chip drop to
+/// Legendary Icon, then Gold Superstar, and so on down. Nothing else about him
+/// changes — same portrait, same name, same age, same `definitionId`, so he
+/// still merges, sells and scouts as what he is. The colour is the warning, and
+/// for a T8 forward it comes at 35, 37, 38 and 39: Legend, Gold Superstar, Gold
+/// Elite, and silver in his final season.
+///
+/// **A RUNG PER BAND LOST, walked down the ladder's own steps**, rather than
+/// asking which band the declined rating lands in. That looks like the obvious
+/// implementation and it is wrong for three positions out of four: a fresh card
+/// sits exactly ON its tier's floor (a T7 midfielder is a 76 and the band
+/// starts at 76), so an absolute test demotes him the first year he loses a
+/// single point — a colour change for one rating point, which reads as a bug
+/// rather than as a decline. Only forwards have headroom, because only their
+/// variance is above 1.
+///
+/// Measuring the LOSS against the heights instead gives every position the same
+/// grace and the same cadence, and means two World Legends of an age wear the
+/// same colour whatever spread they rolled. A tier is nine or ten points tall;
+/// lose that much and you have lost a tier's worth of quality.
+///
+/// Deliberately measured off the age alone — not off `getEffectiveRating`.
+/// Form, sponsor drawback and the trait bonus all move week to week, and a card
+/// that changes colour because a striker had a bad run is a card that means
+/// nothing. Age only goes one way, so this only goes one way.
+int effectiveTierFor(PlayerDef? def, int age) {
+  if (def == null) return 1;
+  var remaining = ageDeclinePenalty(age);
+  var tier = def.tier;
+  while (tier > 1) {
+    final band = tierDropCost(tier);
+    if (remaining < band) break;
+    remaining -= band;
+    tier--;
+  }
+  return tier;
+}
 
 /// The headline stat floats up to ~9% above the rating.
 const double peakLift = 0.09;

@@ -13,6 +13,7 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:merge_empire_fc/data/players.dart';
+import 'package:merge_empire_fc/engine/season_end.dart' show ageMilestone;
 import 'package:merge_empire_fc/engine/squad_state_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
@@ -318,30 +319,33 @@ void main() {
 
     test('most of a squad wears nothing', () {
       // A badge on every card says nothing about any of them — the rule the
-      // form arrow already follows.
-      for (var s = 0; s < 7; s++) {
-        expect(ageBadgeKeyFor(s), isNull, reason: '$s seasons');
+      // form arrow already follows. Nothing comes off a rating before
+      // `declineStartAge`, so nothing is said before it either.
+      for (var a = 16; a < declineStartAge; a++) {
+        expect(ageBadgeKeyFor(a), isNull, reason: 'age $a');
       }
     });
 
     test('and the ladder climbs in the order it becomes urgent', () {
-      for (var s = 7; s < 10; s++) {
-        expect(ageBadgeKeyFor(s), 'squad.badge.ageing', reason: '$s');
+      for (var a = declineStartAge; a < declineStartAge + 2; a++) {
+        expect(ageBadgeKeyFor(a), 'squad.badge.ageing', reason: '$a');
       }
-      for (var s = 10; s < 13; s++) {
-        expect(ageBadgeKeyFor(s), 'squad.badge.declining', reason: '$s');
+      for (var a = declineStartAge + 2; a < retirementAge - 3; a++) {
+        expect(ageBadgeKeyFor(a), 'squad.badge.declining', reason: '$a');
       }
-      expect(ageBadgeKeyFor(13), 'squad.badge.sell_now');
-      expect(ageBadgeKeyFor(14), 'squad.badge.last_season');
+      for (var a = retirementAge - 3; a < retirementAge - 1; a++) {
+        expect(ageBadgeKeyFor(a), 'squad.badge.sell_now', reason: '$a');
+      }
+      expect(ageBadgeKeyFor(retirementAge - 1), 'squad.badge.last_season');
     });
 
-    test('A MAN IN HIS LAST SEASON IS STILL IN IT AT FIFTEEN', () {
-      // `processAgeRegression` retires at fifteen, and it runs at the season
-      // END — so a save can hold a card at fifteen that has not been swept yet,
+    test('A MAN IN HIS LAST SEASON IS STILL IN IT AT FORTY', () {
+      // `processAgeRegression` retires at forty, and it runs at the season
+      // END — so a save can hold a card at forty that has not been swept yet,
       // and telling him he is merely "declining" would be the last thing the
       // game said about him.
-      expect(ageBadgeKeyFor(retirementSeasons), 'squad.badge.last_season');
-      expect(ageBadgeKeyFor(40), 'squad.badge.last_season');
+      expect(ageBadgeKeyFor(retirementAge), 'squad.badge.last_season');
+      expect(ageBadgeKeyFor(55), 'squad.badge.last_season');
     });
 
     test('and only the two that mean ACT NOW are urgent', () {
@@ -352,19 +356,36 @@ void main() {
     });
 
     test('IT AGREES WITH COLIN, which is the whole reason it lives here', () {
-      // His ladder: >=14 final season, ==13 sell now, 10..12 declining,
-      // 7..9 veteran. If one moves without the other, a card can say "Ageing"
-      // while he is calling the same man a sell-now.
-      String? colin(int s) {
-        if (s >= 14) return 'squad.badge.last_season';
-        if (s == 13) return 'squad.badge.sell_now';
-        if (s >= 10 && s < 13) return 'squad.badge.declining';
-        if (s >= 7 && s < 10) return 'squad.badge.ageing';
+      // His ladder, and `season_end.ageMilestone`'s, both read the decline
+      // curve: 39 final season, 37-38 sell now, 33-36 declining, 31-32 ageing.
+      // If one moves without the others, a card can say "Ageing" while he is
+      // calling the same man a sell-now.
+      String? colin(int a) {
+        if (a >= retirementAge - 1) return 'squad.badge.last_season';
+        if (a >= retirementAge - 3) return 'squad.badge.sell_now';
+        if (a >= declineStartAge + 2) return 'squad.badge.declining';
+        if (a >= declineStartAge) return 'squad.badge.ageing';
         return null;
       }
 
-      for (var s = 0; s <= 20; s++) {
-        expect(ageBadgeKeyFor(s), colin(s), reason: '$s seasons');
+      for (var a = 16; a <= 45; a++) {
+        expect(ageBadgeKeyFor(a), colin(a), reason: 'age $a');
+      }
+    });
+
+    test('and it is the same ladder the season-end sweep announces', () {
+      const pairs = {
+        'final-season': 'squad.badge.last_season',
+        'sell-now': 'squad.badge.sell_now',
+        'declining': 'squad.badge.declining',
+        'at-risk': 'squad.badge.ageing',
+      };
+      for (var a = 16; a <= 45; a++) {
+        expect(
+          pairs[ageMilestone(a)],
+          ageBadgeKeyFor(a),
+          reason: 'age $a',
+        );
       }
     });
   });

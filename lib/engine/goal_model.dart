@@ -35,23 +35,34 @@ double divisionInjuryMultiplier([int divIdx = 0]) {
   return 1.0 + (1.7 - 1.0) * (clamped / 6);
 }
 
-/// Injury probability from seasons at the club times divisional intensity.
+/// Injury probability from years of WEAR times divisional intensity.
 ///
-/// Linear rise to the peak at season 10, then a quadratic ramp after it:
-/// Sunday League runs 12% fresh, ~20% at peak and ~36% by season 14; Champions
-/// Cup runs ~20% fresh and caps at 55%.
-double getInjuryChance([int seasonsPlayed = 0, int divIdx = 0]) {
-  final prePeak = math.min(10, seasonsPlayed);
-  final postPeak = math.max(0, seasonsPlayed - 10);
+/// Linear rise to the peak at ten years, then a quadratic ramp after it:
+/// Sunday League runs 12% fresh, ~20% at peak and ~36% by year 14; Champions
+/// Cup runs ~20% fresh and caps at 55%. Every one of those is the JS's own
+/// number, unchanged.
+///
+/// **What changed is the INPUT, not the curve.** It counted `seasonsPlayed`,
+/// and service stopped meaning "how long has he been playing" the day a merge
+/// began carrying its parents' years forward: a thirty-four-year-old merged
+/// into a World Legend has no service at all and read as a debutant here —
+/// never injured, never tired, for as long as you kept merging him. `wearYears`
+/// is the same figure for a card nobody merged, so the reference still matches
+/// to the last digit, and the right one for a card somebody did.
+double getInjuryChance([int wearYears = 0, int divIdx = 0]) {
+  final prePeak = math.min(10, wearYears);
+  final postPeak = math.max(0, wearYears - 10);
   final base = baseInjuryChance + 0.008 * prePeak + 0.010 * postPeak * postPeak;
   return math.min(0.55, base * divisionInjuryMultiplier(divIdx));
 }
 
-/// Injury duration in milliseconds, scaling with age and capped at an hour.
-int getInjuryDuration([int seasonsPlayed = 0]) {
+/// Injury duration in milliseconds, scaling with wear and capped at an hour.
+///
+/// Takes the same figure as [getInjuryChance], for the same reason.
+int getInjuryDuration([int wearYears = 0]) {
   const baseMs = 10 * 60 * 1000; // fresh players
-  const perSeason = 5 * 60 * 1000;
-  return math.min(60 * 60 * 1000, baseMs + seasonsPlayed * perSeason);
+  const perYear = 5 * 60 * 1000;
+  return math.min(60 * 60 * 1000, baseMs + wearYears * perYear);
 }
 
 /// A side can field a match while it has this many healthy players.

@@ -115,6 +115,14 @@ double fatigueMult(CardInstance? card, Map<String, dynamic>? state) {
   return k;
 }
 
+/// **SERVICE, not age, and this one is deliberate.**
+///
+/// Fatigue is how hard this club has run this player: a merge produces a new
+/// body out of two, and the drain starting again is the same rule the JS has
+/// and the same rule this game has always shipped. `getInjuryChance` reads
+/// `wearYears` instead because fragility is about the YEARS on a player rather
+/// than the minutes we have asked of him — the two questions genuinely differ,
+/// and only one of them changed.
 double _ageMult(CardInstance? card) =>
     1 + PlayerEnergy.ageDrainPerSeason * (card?.seasonsPlayed ?? 0);
 

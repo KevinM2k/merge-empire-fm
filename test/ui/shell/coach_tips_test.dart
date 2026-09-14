@@ -7,6 +7,8 @@
 library;
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:merge_empire_fc/data/players.dart'
+    show declineStartAge, retirementAge;
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
 import 'package:merge_empire_fc/ui/shell/coach_tips.dart';
@@ -27,6 +29,7 @@ void main() {
     int injured = 0,
     bool pair = false,
     int seasonsPlayed = 0,
+    int? age,
     num coins = 5000,
     num energy = 10,
     Map<String, dynamic>? clubAssets,
@@ -41,6 +44,7 @@ void main() {
           'definitionId': pair && i < 2 ? 'player_t1_mid' : 'player_t2_def',
           'variant': 0,
           'seasonsPlayed': seasonsPlayed,
+          'age': ?age,
           if (i < injured) 'injured': true,
         },
     ];
@@ -96,7 +100,7 @@ void main() {
   group('the squad', () {
     test('two injuries is a crisis, and it comes first', () {
       final tip = coachTipFor(
-        saveWith(n: 11, injured: 2, seasonsPlayed: 14),
+        saveWith(n: 11, injured: 2, age: retirementAge - 1),
         ShellTab.squad,
       );
       // A final-season veteran is also true here. Health wins.
@@ -105,7 +109,7 @@ void main() {
 
     test('a final season is a day-long tip, not a ten-minute one', () {
       final tip = coachTipFor(
-        saveWith(n: 11, seasonsPlayed: 14),
+        saveWith(n: 11, age: retirementAge - 1),
         ShellTab.squad,
       );
       expect(tip, isNotNull);
@@ -118,14 +122,21 @@ void main() {
     });
 
     test('and the age ladder runs in the order it becomes urgent', () {
-      String? textAt(int seasons) => coachTipFor(
-        saveWith(n: 11, seasonsPlayed: seasons),
-        ShellTab.squad,
-      )?.text;
-      final ages = [7, 10, 13, 14].map(textAt).toList();
-      expect(ages.every((t) => t != null), isTrue);
+      // **AGES, not seasons of service.** The rungs are the decline curve —
+      // 31 the first year that costs anything, 33 compounding, 37 the last
+      // point at which selling fetches something, 39 the final season — and
+      // they are the same four `ageBadgeKeyFor` puts on the card.
+      String? textAt(int age) =>
+          coachTipFor(saveWith(n: 11, age: age), ShellTab.squad)?.text;
+      final rungs = [
+        declineStartAge,
+        declineStartAge + 2,
+        retirementAge - 3,
+        retirementAge - 1,
+      ].map(textAt).toList();
+      expect(rungs.every((t) => t != null), isTrue);
       expect(
-        ages.toSet().length,
+        rungs.toSet().length,
         4,
         reason: 'four different situations must not read as one',
       );

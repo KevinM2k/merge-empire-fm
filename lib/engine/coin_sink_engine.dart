@@ -105,15 +105,22 @@ int _findCardById(List<dynamic> cells, String? instanceId) {
   return -1;
 }
 
-int _findMaxSeasonsCard(List<dynamic> cells) {
+/// The squad's OLDEST card, which is who the loyalty bonus is for when no
+/// target is named.
+///
+/// It used to be the longest-serving one. Those were the same card while
+/// service and age were the same number; they are not any more, and the man the
+/// bonus helps is the one the years are catching up with rather than the one
+/// who has been here longest.
+int _findOldestCard(List<dynamic> cells) {
   var best = -1;
-  var bestSeasons = -1;
+  var bestAge = -1;
   for (var i = 0; i < cells.length; i++) {
-    final card = _map(cells[i]);
-    if (card == null) continue;
-    final s = _num(card['seasonsPlayed'])?.toInt() ?? 0;
-    if (s > bestSeasons) {
-      bestSeasons = s;
+    final raw = _map(cells[i]);
+    if (raw == null) continue;
+    final age = CardInstance(raw).age;
+    if (age > bestAge) {
+      bestAge = age;
       best = i;
     }
   }
@@ -181,7 +188,11 @@ typedef SinkPurchase = ({
   String? sinkId,
   num cost,
   int? cardIdx,
-  int? seasonsReduced,
+
+  /// Years taken off the target's AGE — what the bonus has always actually
+  /// bought, now that the thing it delays is measured in birthdays. Fewer than
+  /// two when the card is already at its tier's youngest.
+  int? yearsReduced,
 });
 
 SinkPurchase _fail(String reason, [num cost = 0]) => (
@@ -190,7 +201,7 @@ SinkPurchase _fail(String reason, [num cost = 0]) => (
   sinkId: null,
   cost: cost,
   cardIdx: null,
-  seasonsReduced: null,
+  yearsReduced: null,
 );
 
 /// Buy a coin sink, debiting the wallet and applying the effect.
@@ -213,7 +224,7 @@ SinkPurchase purchaseCoinSink(
   if (sink.id == 'loyalty_bonus') {
     targetIdx = cardInstanceId != null
         ? _findCardById(cells, cardInstanceId)
-        : _findMaxSeasonsCard(cells);
+        : _findOldestCard(cells);
     if (targetIdx < 0) return _fail('no_target');
   }
 
@@ -229,14 +240,23 @@ SinkPurchase purchaseCoinSink(
   final divIdx = _divisionIndex(state);
 
   int? cardIdx;
-  int? seasonsReduced;
+  int? yearsReduced;
 
   switch (sink.id) {
     case 'loyalty_bonus':
-      final card = _map(cells[targetIdx])!;
-      final prev = _num(card['seasonsPlayed'])?.toInt() ?? 0;
-      card['seasonsPlayed'] = math.max(0, prev - 2);
-      seasonsReduced = prev - (card['seasonsPlayed'] as int);
+      // **TWO YEARS OFF THE AGE, not off the service count.** It used to take
+      // two seasons off `seasonsPlayed`, which is what delayed the decline back
+      // when service and decline were the same number. They are not any more —
+      // so the same two-season deduction would have bought nothing at all, on
+      // the one sink a player pays per tier for. Floored at the tier's own
+      // scout age: the bonus makes a veteran feel younger, not younger than
+      // anybody of his standing has ever been.
+      final raw = _map(cells[targetIdx])!;
+      final card = CardInstance(raw);
+      final def = getPlayerDef(card.definitionId);
+      final prev = card.age;
+      raw['age'] = math.max(scoutAgeForTier(def?.tier ?? 1), prev - 2);
+      yearsReduced = prev - (raw['age'] as int);
 
     case 'kit_redesign':
       _branch(state, 'club')['kitPrimaryColor'] = color;
@@ -268,7 +288,7 @@ SinkPurchase purchaseCoinSink(
     sinkId: sinkId,
     cost: cost,
     cardIdx: cardIdx,
-    seasonsReduced: seasonsReduced,
+    yearsReduced: yearsReduced,
   );
   emit('coins:updated', resources['fanCoins']);
   emit('coinSink:purchased', result);

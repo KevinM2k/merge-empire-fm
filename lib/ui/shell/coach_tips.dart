@@ -197,9 +197,14 @@ FloatingTip? _squadTip(Map<String, dynamic> save) {
   String nameOf(CardInstance card) =>
       getCardName(card.raw, t('common.veteran'));
 
-  // Age, in the order it becomes urgent. A player retires after fifteen
-  // seasons, so the last one is a warning and the two before it are a window.
-  final finalSeason = cards.where((c) => c.seasonsPlayed >= 14).toList();
+  // Age, in the order it becomes urgent. A player retires at `retirementAge`,
+  // so his last year is a warning and the two before it are a window. Same
+  // ladder as `ageBadgeKeyFor` and `season_end.ageMilestone`, read a third way
+  // — the badge on the card and the sentence out of Colin's mouth must agree
+  // about the same player.
+  final finalSeason = cards
+      .where((c) => c.age >= retirementAge - 1)
+      .toList();
   if (finalSeason.isNotEmpty) {
     return _tip(
       t('coach.squad.final_season', {
@@ -211,36 +216,46 @@ FloatingTip? _squadTip(Map<String, dynamic> save) {
       cooldown: coachDayCooldown,
     );
   }
-  final sellNow = cards.where((c) => c.seasonsPlayed == 13).toList();
+  final sellNow = cards
+      .where((c) => c.age >= retirementAge - 3 && c.age < retirementAge - 1)
+      .toList();
   if (sellNow.isNotEmpty) {
+    final card = sellNow.first;
     return _tip(
-      t('coach.squad.sell_now', {'name': nameOf(sellNow.first)}),
+      t('coach.squad.sell_now', {
+        'name': nameOf(card),
+        'age': card.age,
+        'pen': ageDeclinePenalty(card.age),
+        'left': retirementAge - card.age,
+      }),
       'squad',
     );
   }
   final declining = cards
-      .where((c) => c.seasonsPlayed >= 10 && c.seasonsPlayed < 13)
+      .where((c) => c.age >= declineStartAge + 2 && c.age < retirementAge - 3)
       .toList();
   if (declining.isNotEmpty) {
     final card = declining.first;
     return _tip(
       t('coach.squad.declining', {
         'name': nameOf(card),
-        'pen': agingPenalty(card.seasonsPlayed),
-        'left': 15 - card.seasonsPlayed,
+        'age': card.age,
+        'pen': ageDeclinePenalty(card.age),
+        'left': retirementAge - card.age,
       }),
       'squad',
     );
   }
   final veterans = cards
-      .where((c) => c.seasonsPlayed >= 7 && c.seasonsPlayed < 10)
+      .where((c) => c.age >= declineStartAge && c.age < declineStartAge + 2)
       .toList();
   if (veterans.isNotEmpty) {
     final card = veterans.first;
     return _tip(
       t('coach.squad.veteran', {
         'name': nameOf(card),
-        'seasons': card.seasonsPlayed,
+        'age': card.age,
+        'retire': retirementAge,
       }),
       'squad',
     );

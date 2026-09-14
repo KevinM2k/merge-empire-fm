@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:merge_empire_fc/data/players.dart' show scoutAgeForTier;
 import 'package:merge_empire_fc/engine/goal_model.dart';
 import 'package:merge_empire_fc/state/card_instance.dart';
 import 'package:merge_empire_fc/util/random.dart' as seeded;
@@ -42,7 +43,10 @@ void main() {
   });
 
   group('getInjuryChance', () {
-    test('matches the JS across ages and divisions', () {
+    test('matches the JS across wear and divisions', () {
+      // **The curve is the JS's, untouched.** What changed is the figure fed
+      // to it: `seasonsPlayed` became `wearYears`, which is the same number
+      // for a card nobody merged — so every one of these still holds.
       const cases = <(int, int, double)>[
         (0, 0, 0.12),
         (8, 0, 0.184),
@@ -52,11 +56,11 @@ void main() {
         (8, 6, 0.31279999999999997),
         (14, 6, 0.55),
       ];
-      for (final (seasons, div, expected) in cases) {
+      for (final (wear, div, expected) in cases) {
         expect(
-          getInjuryChance(seasons, div),
+          getInjuryChance(wear, div),
           closeTo(expected, 1e-12),
-          reason: 'S$seasons div$div',
+          reason: 'wear $wear div$div',
         );
       }
     });
@@ -65,26 +69,52 @@ void main() {
       expect(getInjuryChance(0, 0), baseInjuryChance);
     });
 
-    test('rises with age', () {
+    test('rises with wear', () {
       var prev = 0.0;
-      for (var s = 0; s <= 14; s++) {
-        final c = getInjuryChance(s);
-        expect(c, greaterThanOrEqualTo(prev), reason: 'season $s');
+      for (var w = 0; w <= 14; w++) {
+        final c = getInjuryChance(w);
+        expect(c, greaterThanOrEqualTo(prev), reason: 'wear $w');
         prev = c;
       }
     });
 
     test('ramps quadratically past the peak', () {
-      // Linear to season 10, then a quadratic climb.
+      // Linear to year 10, then a quadratic climb.
       final prePeakStep = getInjuryChance(9) - getInjuryChance(8);
       final postPeakStep = getInjuryChance(14) - getInjuryChance(13);
       expect(postPeakStep, greaterThan(prePeakStep * 2));
     });
 
+    test('and a MERGED veteran is no longer a debutant to it', () {
+      // The hole `wearYears` exists to close. A merge resets service and
+      // carries the parents' age forward, so a thirty-four-year-old freshly
+      // merged into a World Legend had `seasonsPlayed` zero and read as the
+      // fittest man on the pitch — for as long as you kept merging him.
+      final merged = CardInstance(<String, dynamic>{
+        'definitionId': 'player_t8_fwd',
+        'seasonsPlayed': 0,
+        'age': 34,
+      });
+      expect(merged.wearYears, 34 - scoutAgeForTier(8));
+      expect(
+        getInjuryChance(merged.wearYears),
+        greaterThan(getInjuryChance(0)),
+      );
+
+      // And a card nobody merged reads exactly its service count, which is
+      // what keeps the reference above true.
+      final homegrown = CardInstance(<String, dynamic>{
+        'definitionId': 'player_t8_fwd',
+        'seasonsPlayed': 6,
+        'age': scoutAgeForTier(8) + 6,
+      });
+      expect(homegrown.wearYears, homegrown.seasonsPlayed);
+    });
+
     test('is capped so no card is a certainty to get hurt', () {
       expect(getInjuryChance(99, 6), 0.55);
-      for (var s = 0; s <= 40; s++) {
-        expect(getInjuryChance(s, 6), lessThanOrEqualTo(0.55));
+      for (var w = 0; w <= 40; w++) {
+        expect(getInjuryChance(w, 6), lessThanOrEqualTo(0.55));
       }
     });
   });
@@ -97,10 +127,10 @@ void main() {
       );
     });
 
-    test('never falls with age', () {
+    test('never falls with wear', () {
       var prev = 0;
-      for (var s = 0; s <= 20; s++) {
-        final d = getInjuryDuration(s);
+      for (var w = 0; w <= 20; w++) {
+        final d = getInjuryDuration(w);
         expect(d, greaterThanOrEqualTo(prev));
         prev = d;
       }

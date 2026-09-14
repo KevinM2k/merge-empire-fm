@@ -108,6 +108,14 @@ CardView? cardViewFor(
   return (
     name: getCardName(_map(raw), def.name),
     tier: def.tier,
+    // **WHAT HE LOOKS LIKE, which age can take down a rung.** The definition's
+    // tier above draws the portrait; this one draws the border, the gradient
+    // and the tier chip — see [CardView.displayTier]. Equal to the tier above
+    // for anybody who has not started declining, which is most of a squad.
+    displayTier: card.displayTier,
+    // **The one number that says which way he is about to go.** Drawn on the
+    // card face rather than left to the detail sheet — see [CardView.age].
+    age: card.age,
     rating: getCardStats(card, definitionRatios: definitionRatios).rating,
     position: def.position,
     injured: card.injured,

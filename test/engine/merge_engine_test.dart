@@ -16,12 +16,14 @@ Map<String, dynamic> _card(
   String? instanceId,
   int? loanMatchesLeft,
   String? loanedOut,
+  int? age,
 }) => {
   'definitionId': definitionId,
   'instanceId': instanceId ?? '$definitionId-$variant',
   'variant': variant,
   'loanMatchesLeft': ?loanMatchesLeft,
   'loanedOut': ?loanedOut,
+  'age': ?age,
 };
 
 void main() {
@@ -38,6 +40,11 @@ void main() {
       expect(card.definitionId, 'player_t3_mid');
       expect(card.instanceId, isNotEmpty);
       expect(card.seasonsPlayed, 0);
+      // **Scouted at his TIER's age, with no service behind him.** A card
+      // scouted as a World Legend is twenty-five on day one; the two counters
+      // start apart and stay apart.
+      expect(card.age, scoutAgeForTier(3));
+      expect(createInstance('player_t8_fwd').age, 25);
       expect(card.form, 0);
       expect(card.raw['variant'], inInclusiveRange(0, playerVariants - 1));
       expect(card.raw['stats'], {
@@ -266,6 +273,53 @@ void main() {
       expect(cells[0], isNull);
       expect((cells[1] as Map)['definitionId'], 'player_t2_fwd');
       expect(r.result!.definitionId, 'player_t2_fwd');
+    });
+
+    test('THE OLDER PARENT IS IN THE CARD THEY BECOME', () {
+      // A merge is not a way to launder a veteran into a youngster. The card
+      // that comes out is as old as the older card that went in.
+      final cells = <dynamic>[
+        _card('player_t1_fwd', instanceId: 'a', age: 22),
+        _card('player_t1_fwd', instanceId: 'b', age: 18),
+      ];
+      attemptMerge(0, 1, cells);
+      expect(CardInstance(cells[1] as Map<String, dynamic>).age, 22);
+    });
+
+    test('and two youngsters get the new tier\'s own age, not a year each', () {
+      // Two eighteen-year-old Bronze Rookies make a nineteen-year-old Bronze
+      // Pro — the "slight bump". It falls out of the tier floor rather than a
+      // separate +1 rule, so it applies exactly when both parents are young for
+      // what they became.
+      final cells = <dynamic>[
+        _card('player_t1_fwd', instanceId: 'a', age: 18),
+        _card('player_t1_fwd', instanceId: 'b', age: 18),
+      ];
+      attemptMerge(0, 1, cells);
+      expect(CardInstance(cells[1] as Map<String, dynamic>).age, 19);
+      expect(scoutAgeForTier(2), 19);
+    });
+
+    test('and the floor never drags a veteran DOWN', () {
+      final cells = <dynamic>[
+        _card('player_t1_fwd', instanceId: 'a', age: 34),
+        _card('player_t1_fwd', instanceId: 'b', age: 34),
+      ];
+      attemptMerge(0, 1, cells);
+      expect(CardInstance(cells[1] as Map<String, dynamic>).age, 34);
+    });
+
+    test('SERVICE RESETS AND AGE DOES NOT, which is the whole point', () {
+      // The old model reset the decline clock on every merge, so the way to
+      // keep a squad young was to merge rather than to buy young.
+      final cells = <dynamic>[
+        {..._card('player_t1_fwd', instanceId: 'a', age: 33), 'seasonsPlayed': 9},
+        {..._card('player_t1_fwd', instanceId: 'b', age: 33), 'seasonsPlayed': 9},
+      ];
+      attemptMerge(0, 1, cells);
+      final merged = CardInstance(cells[1] as Map<String, dynamic>);
+      expect(merged.seasonsPlayed, 0);
+      expect(merged.age, 33);
     });
 
     test('the merged card inherits its parents gender', () {

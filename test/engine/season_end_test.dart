@@ -3,6 +3,8 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:merge_empire_fc/data/config.dart';
+import 'package:merge_empire_fc/data/players.dart'
+    show ageDeclinePenalty, derivedAge, getPlayerDef, retirementAge;
 import 'package:merge_empire_fc/engine/match_tactics.dart'
     show matchesPerSeason, opponentsPerSeason;
 import 'package:merge_empire_fc/engine/season_end.dart';
@@ -91,7 +93,15 @@ Map<String, dynamic> _state([Map<String, dynamic> over = const {}]) {
 void _dressSquad(Map<String, dynamic> state) {
   final cells = (state['grid'] as Map<String, dynamic>)['cells'] as List;
   Map<String, dynamic> at(int i) => cells[i] as Map<String, dynamic>;
-  at(0)['seasonsPlayed'] = 14;
+  // **The veteran is dressed by his AGE now, and the service count stays put
+  // beside it.** The JS retires on fifteen seasons of service and this port
+  // retires at forty — two models of the same moment, and the reference dump
+  // has no `age` to write. Setting both is what keeps the SAME card leaving in
+  // both runs, which is what `ageingReport` is comparing; `seasonsPlayed` is
+  // still 14 here because the fixture's card digest reads it.
+  at(0)
+    ..['seasonsPlayed'] = 14
+    ..['age'] = retirementAge - 1;
   at(1)['seasonsPlayed'] = 9;
   at(2)
     ..['injured'] = true
@@ -565,7 +575,7 @@ void main() {
   });
 
   group('the squad over the summer', () {
-    test('everybody ages a season', () {
+    test('everybody gets a season AND a birthday', () {
       final state = _played('midTable');
       endSeason(state);
       final cells = (state['grid'] as Map<String, dynamic>)['cells'] as List;
@@ -573,21 +583,27 @@ void main() {
         (c) => (c as Map?)?['instanceId'] == 'c1',
       ) as Map;
       expect(one['seasonsPlayed'], 10);
+      // Two counters that used to be one. This card was never given an age, so
+      // it started at the one its tier and service imply and moved on by one.
+      final tier = getPlayerDef(one['definitionId'] as String)!.tier;
+      expect(one['age'], derivedAge(tier, 9) + 1);
     });
 
-    test('a loanee does not age', () {
+    test('a loanee does neither', () {
       // A loan is measured in matches, not seasons, and ageing one would let it
       // drift toward the retirement sweep.
       final state = _played('midTable');
       final cells = (state['grid'] as Map<String, dynamic>)['cells'] as List;
       (cells[8] as Map)
         ..['loanMatchesLeft'] = 4
-        ..['seasonsPlayed'] = 3;
+        ..['seasonsPlayed'] = 3
+        ..['age'] = 27;
       endSeason(state);
       expect((cells[8] as Map)['seasonsPlayed'], 3);
+      expect((cells[8] as Map)['age'], 27);
     });
 
-    test('a fifteen-season veteran retires', () {
+    test('a player who turns forty retires', () {
       final state = _played('midTable');
       final report = endSeason(state).ageingReport;
       expect(report, hasLength(1));
@@ -595,6 +611,36 @@ void main() {
       expect(report.single['toTierName'], 'Retired');
       final cells = (state['grid'] as Map<String, dynamic>)['cells'] as List;
       expect(cells.any((c) => (c as Map?)?['instanceId'] == 'c0'), isFalse);
+    });
+
+    test('AND FIFTEEN SEASONS OF SERVICE NO LONGER DOES', () {
+      // The rule the JS runs on, and the one this port has left. A card can now
+      // serve a club for two decades; what ends a career is a birthday.
+      final state = _played('midTable');
+      final cells = (state['grid'] as Map<String, dynamic>)['cells'] as List;
+      (cells[0] as Map)
+        ..['seasonsPlayed'] = 20
+        ..['age'] = 30;
+      expect(endSeason(state).ageingReport, isEmpty);
+      expect(cells.any((c) => (c as Map?)?['instanceId'] == 'c0'), isTrue);
+    });
+
+    test('and the coach is warned on the way down, every year of it', () {
+      // `ageMilestone` is the ladder the badge and Colin both read. The sweep
+      // announces it so nothing has to poll the squad for who is fading.
+      final state = _played('midTable');
+      final cells = (state['grid'] as Map<String, dynamic>)['cells'] as List;
+      (cells[1] as Map)['age'] = 32;
+      final seen = <Map<String, dynamic>>[];
+      on('player:ageing', (p) => seen.add(p as Map<String, dynamic>));
+      endSeason(state);
+      final him = seen.firstWhere(
+        (e) => (e['card'] as Map)['instanceId'] == 'c1',
+      );
+      expect(him['age'], 33);
+      expect(him['milestone'], 'declining');
+      expect(him['penalty'], ageDeclinePenalty(33));
+      expect(him['seasonsLeft'], retirementAge - 33);
     });
 
     test('a nearly-healed injury clears over the break', () {

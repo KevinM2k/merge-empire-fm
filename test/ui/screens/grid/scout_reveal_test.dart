@@ -365,6 +365,8 @@ void main() {
             view: (
               name: 'A Kid',
               tier: 1,
+              displayTier: 1,
+              age: 24,
               rating: 40,
               position: 'GK',
               injured: false,

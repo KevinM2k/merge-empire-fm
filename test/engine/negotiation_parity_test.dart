@@ -103,10 +103,20 @@ Map<String, dynamic> _squadFor(String label) => switch (label) {
 /// A card map, minus the instance id — that embeds a module counter reflecting
 /// how many cards each runtime happened to have built already, which says
 /// nothing about the deal. Its shape is asserted separately.
+///
+/// **And minus `age`, which the JS has no answer for.** This port gives every
+/// card a birthday; the reference runtime counts seasons of service and has no
+/// such field, so a rolled card carries one key more than the dump could. The
+/// age RULES are pinned in `players_test` and `merge_engine_test`; what a rolled
+/// card is scouted at is `scoutAgeForTier`, asserted below.
 Map<String, dynamic> _withoutId(CardInstance card) {
-  final out = Map<String, dynamic>.of(card.raw)..remove('instanceId');
+  final out = Map<String, dynamic>.of(card.raw)
+    ..remove('instanceId')
+    ..remove('age');
   return jsonDecode(jsonEncode(out)) as Map<String, dynamic>;
 }
+
+
 
 /// Seeds both streams the way the dump did, and returns the shared unseeded one.
 void _seedBoth(int seed, int mathSeed) {
@@ -316,6 +326,9 @@ void main() {
         );
         // The id is dropped from the comparison, so its shape is checked here.
         expect(card.instanceId, startsWith('${def.id}_'));
+        // And so is the age, which the reference has no column for: a card a
+        // rival rolls arrives at its tier's own scout age, like any other.
+        expect(card.age, scoutAgeForTier(def.tier), reason: 'tier ${def.tier}');
       }
     });
 
@@ -347,7 +360,9 @@ void main() {
         expect(
           [
             for (final c in (offer['incoming'] as List).cast<Map<String, dynamic>>())
-              (Map<String, dynamic>.of(c)..remove('instanceId')),
+              (Map<String, dynamic>.of(c)
+                ..remove('instanceId')
+                ..remove('age')),
           ],
           row['incoming'],
           reason: why,

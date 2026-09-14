@@ -264,7 +264,7 @@ double baselineInjuryRisk(Map<String, dynamic>? state, [String? divisionId]) {
   final squadRed = computeSquadTraitTotals(cells, lineup).teamInjuryReduction;
   var sum = 0.0;
   for (final c in pool) {
-    var chance = getInjuryChance(c.seasonsPlayed, divIdx);
+    var chance = getInjuryChance(c.wearYears, divIdx);
     chance += sponsorDrawback(_map(c.sponsor)).injuryPenalty;
     chance -= getTraitBonus(c, getPlayerDef(c.definitionId)?.position)
         .injuryReduction;

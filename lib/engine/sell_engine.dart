@@ -36,7 +36,7 @@ double baseSellPrice(
   final divMult = math.pow(div.matchRevenueBase / 100, 0.35).toDouble();
   final base = def.sellValue * tierMult * divMult * sellMarketFactor;
 
-  final aging = agingPenalty(card?.seasonsPlayed ?? 0);
+  final aging = agingPenalty(card?.wearYears ?? 0);
   if (aging > 0 && def.rating > 0) {
     return base * math.max(0.2, (def.rating - aging) / def.rating);
   }

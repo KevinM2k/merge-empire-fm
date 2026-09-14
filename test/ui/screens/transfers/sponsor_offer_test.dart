@@ -15,6 +15,7 @@ const _id = 'c0';
   int coins = 100000,
   bool starter = true,
   int seasons = 0,
+  int? age,
   int form = 0,
 }) {
   final s = createDefaultState();
@@ -24,6 +25,7 @@ const _id = 'c0';
     'definitionId': 'player_t2_def',
     'variant': 0,
     'seasonsPlayed': seasons,
+    'age': ?age,
     'form': form,
   };
   ((s['grid'] as Map<String, dynamic>)['cells'] as List)[0] = raw;
@@ -51,11 +53,22 @@ void main() {
     expect(read.text, t('manager.sponsor.clean'));
   });
 
-  test('an injury catch on a veteran is a no', () {
-    final c = _club(seasons: 8);
+  test('an injury catch on a VETERAN is a no, and a veteran is an age', () {
+    // Eight seasons of service used to make him one. It does not any more: a
+    // twenty-five-year-old with eight seasons behind him has his prime in
+    // front of him, and the deal's extra risk is about the years on the man.
+    final c = _club(seasons: 8, age: 33);
     final read = sponsorRead(c.state, c.player, _injury());
     expect(read.verdict, CoachVerdict.decline);
     expect(read.text, contains('8'));
+  });
+
+  test('and the same catch on a man in his prime is not', () {
+    final c = _club(seasons: 8, age: 25);
+    expect(
+      sponsorRead(c.state, c.player, _injury()).verdict,
+      isNot(CoachVerdict.decline),
+    );
   });
 
   test('a form catch on a player already out of form is a no', () {

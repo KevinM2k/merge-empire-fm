@@ -7,6 +7,21 @@ library;
 
 /// Replaces the generated entry, or adds a key Spanish did not have.
 const Map<String, String> esCopy = <String, String>{
+
+  // ── El jugador ahora tiene EDAD ──────────────────────────────────────────
+  //
+  // Los textos generados describen el modelo sustituido — «las bajadas empiezan
+  // en la temporada 10, retiro en 15» — y esos números ya no son ciertos.
+  // Reescritos en torno a la edad, con los mismos marcadores.
+  'coach.squad.veteran': '{name} ya tiene {age} — a partir de aquí los años pesan. Se retira a los {retire}.',
+  'coach.squad.declining': '{name} tiene {age} y pasó su mejor momento — ya ha perdido {pen} pts de rating. {left} temporadas para el retiro.',
+  'coach.squad.sell_now': '{name} tiene {age} y cae rápido — {pen} pts de rating menos. Solo quedan {left} temporadas: es el momento de vender.',
+  'squad.badge.sell_now': '⚠️ Vende ya — cayendo rápido',
+  'squad.stat.age': 'Edad',
+  'squad.detail.age_decline': 'Pérdida por edad',
+  'offseason.retired': 'Retirado a los 40',
+  'manager.transfer.long_decline': '{age} años y {penalty} pts de rating perdidos por la edad. Solo quedan {seasonsLeft} temporadas para el retiro. La ventana de venta se cierra.',
+
   'customise.item.face.bubblegum': 'Chicle',
 
   // Una tercera fila junto a Sonido y Música: el clic de cada botón.
