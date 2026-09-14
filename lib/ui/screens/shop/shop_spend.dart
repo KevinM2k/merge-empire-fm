@@ -270,6 +270,9 @@ class VouchersSection extends ConsumerWidget {
         .watch(gemItemTilesProvider)
         .where((g) => g.item.id == _scoutVoucherGemId);
     final game = ref.read(gameProvider);
+    final shop = game.state?['shop'];
+    final randomArmed =
+        shop is Map<String, dynamic> && shop['freeScoutReady'] == true;
 
     return ShopSectionFrame(
       id: ShopSectionId.vouchers,
@@ -291,7 +294,15 @@ class VouchersSection extends ConsumerWidget {
               price: '${item.item.cost}',
               tone: StoreTone.gem,
               // Never locked: every division can scout a random player.
-              disabledReason: blockedCopy(item.blocked),
+              // "Held" is state-wide, so the chip goes on only when THIS is
+              // the one armed — a floor armed instead says nothing here; the
+              // section's note is the rule.
+              disabledReason: item.blocked == 'already_held'
+                  ? null
+                  : blockedCopy(item.blocked),
+              activeLabel: item.blocked == 'already_held' && randomArmed
+                  ? t('shop.already_active')
+                  : null,
               onBuy: blockedCopy(item.blocked) != null
                   ? null
                   : () => offerToBuy(context, ref, (

@@ -4531,26 +4531,30 @@ class _Scoreboard extends StatelessWidget {
                 bottomRight: Radius.circular(14),
               ),
               child: SizedBox(
-                height: bands.isEmpty ? 3 : (roarLive(bands) ? 8 : 6),
+                height: bands.isEmpty ? 3 : (barBurn(bands) != null ? 8 : 6),
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
                     LinearProgressIndicator(
                       value: (minute / 90).clamp(0.0, 1.0),
-                      backgroundColor: roarLive(bands)
-                          ? flameDeep.withValues(alpha: 0.35)
-                          : kit.border,
+                      backgroundColor: switch (barBurn(bands)) {
+                        final b? => burnColours(b).ground,
+                        null => kit.border,
+                      },
                       valueColor: AlwaysStoppedAnimation(
-                        roarLive(bands)
-                            ? flameMid
-                            : glassAccent(context, kit.accentBright),
+                        switch (barBurn(bands)) {
+                          final b? => burnColours(b).fill,
+                          null => glassAccent(context, kit.accentBright),
+                        },
                       ),
                     ),
-                    if (bands.isNotEmpty) BoostBands(windows: bands, glow: glow),
-                    if (roarLive(bands))
+                    if (bands.isNotEmpty)
+                      BoostBands(windows: bands, glow: glow, burn: barBurn(bands)),
+                    if (barBurn(bands) case final burn?)
                       FlameOverlay(
                         on: glow != null,
                         progress: (minute / 90).clamp(0.0, 1.0),
+                        burn: burn,
                       ),
                   ],
                 ),
