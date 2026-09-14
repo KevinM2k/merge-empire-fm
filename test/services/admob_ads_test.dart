@@ -403,4 +403,56 @@ void main() {
       expect(sent.single.params.containsKey('personalised'), isTrue);
     });
   });
+
+  group('A CONSENT FAILURE AT BOOT IS NOT A DEAD END', () {
+    // `startAds` runs once per launch, so an unresolved consent used to cost
+    // the whole session — the 43% of September's acquired users who never saw
+    // an ad. The first placement that wants one re-reads the answer instead.
+    test('the first ask re-resolves and brings the SDK up', () async {
+      var broughtUp = 0;
+      final ads = DeferredConsentAds(
+        () async {
+          broughtUp += 1;
+          return _ads(_Loader());
+        },
+        refresh: () async => true,
+      );
+
+      expect(await ads.show('energy_pip'), AdOutcome.rewarded);
+      expect(broughtUp, 1);
+    });
+
+    test('a refusal that is still a refusal never starts the SDK', () async {
+      var broughtUp = 0;
+      final ads = DeferredConsentAds(
+        () async {
+          broughtUp += 1;
+          return _ads(_Loader());
+        },
+        refresh: () async => false,
+      );
+
+      expect(await ads.show('energy_pip'), AdOutcome.unavailable);
+      expect(broughtUp, 0, reason: 'consent was not given');
+    });
+
+    test('it re-resolves ONCE, not on every tap', () async {
+      // A player tapping a dead button six times must not mean six consent
+      // round-trips.
+      var refreshes = 0;
+      final ads = DeferredConsentAds(
+        () async => _ads(_Loader()),
+        refresh: () async {
+          refreshes += 1;
+          return false;
+        },
+      );
+
+      await ads.show('energy_pip');
+      await ads.show('energy_pip');
+      await ads.show('lucky_boot');
+
+      expect(refreshes, 1);
+    });
+  });
 }
