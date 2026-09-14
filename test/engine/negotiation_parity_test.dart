@@ -159,24 +159,62 @@ void main() {
   });
 
   group('playerValue', () {
-    test('matches the JS across tier, age, sponsor and division', () {
+    // **THE FRESH ROWS ARE STILL PINNED TO THE DIGIT; the aged ones are pinned
+    // to the rule that replaced them.**
+    //
+    // The reference discounted a veteran by a percentage of his rating, per
+    // season of service. A card is priced off the tier it has FALLEN TO now —
+    // see `marketDefFor` — so those rows encode a rule the game no longer has.
+    // What has not changed is the arithmetic the fixture was really guarding:
+    // the fractional-power division multiplier, which drifts silently and would
+    // put every sale in the game a percent or two out.
+    CardInstance card(Map<String, dynamic> row) => CardInstance({
+      'instanceId': 'x',
+      'definitionId': 'player_t${row['tier']}_mid',
+      'seasonsPlayed': row['seasons'],
+      if (row['sponsored'] == true) 'sponsor': {'multiplier': 1.5},
+    });
+
+    test('matches the reference on a card that has not declined', () {
       final rows = _rows('playerValue');
       expect(rows, hasLength(90));
+      var checked = 0;
       for (final row in rows) {
+        if ((row['seasons'] as num) > 10) continue;
         final s = _baseState();
         (s['progression'] as Map)['currentDivision'] = row['division'];
-        final card = CardInstance({
-          'instanceId': 'x',
-          'definitionId': 'player_t${row['tier']}_mid',
-          'seasonsPlayed': row['seasons'],
-          if (row['sponsored'] == true) 'sponsor': {'multiplier': 1.5},
-        });
         expect(
-          playerValue(s, card),
+          playerValue(s, card(row)),
           row['value'],
           reason: 't${row['tier']} / ${row['seasons']}s / ${row['division']}',
         );
+        checked++;
       }
+      expect(checked, greaterThan(0), reason: 'the scan matched nothing');
+    });
+
+    test('AND VALUES EVERY ROW AT THE TIER IT WEARS', () {
+      var declined = 0;
+      for (final row in _rows('playerValue')) {
+        final s = _baseState();
+        (s['progression'] as Map)['currentDivision'] = row['division'];
+        final c = card(row);
+        final def = getPlayerDef(c.definitionId)!;
+        final worn = marketDefFor(def, c.age);
+        final fresh = CardInstance({
+          'instanceId': 'y',
+          'definitionId': worn.id,
+          'seasonsPlayed': 0,
+          if (row['sponsored'] == true) 'sponsor': {'multiplier': 1.5},
+        });
+        expect(
+          playerValue(s, c),
+          playerValue(s, fresh),
+          reason: 't${row['tier']} / ${row['seasons']}s wears ${worn.id}',
+        );
+        if (worn.tier != def.tier) declined++;
+      }
+      expect(declined, greaterThan(0), reason: 'no row declines');
     });
   });
 

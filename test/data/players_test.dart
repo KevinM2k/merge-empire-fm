@@ -378,6 +378,38 @@ void main() {
       expect(effectiveTierFor(rookie, retirementAge), 1);
     });
 
+    test('A DECLINED CARD IS PRICED AS THE TIER HE WEARS', () {
+      // The whole rule, in one line: a World Legend who has fallen to Gold
+      // Elite is a Gold Elite as far as the market is concerned. Priced off his
+      // definition instead, a thirty-nine-year-old rating 48 and drawn in
+      // silver fetched a hundred and forty-five times what silver fetches, and
+      // holding a veteran for ever cost nothing.
+      final legend = getPlayerDef('player_t8_fwd')!;
+      expect(marketDefFor(legend, peakAgeEnd).id, legend.id);
+      expect(marketDefFor(legend, 35).id, 'player_t7_fwd');
+      expect(marketDefFor(legend, 38).id, 'player_t5_fwd');
+      expect(marketDefFor(legend, retirementAge - 1).id, 'player_t4_fwd');
+    });
+
+    test('and a keeper is priced as a KEEPER of that tier', () {
+      // Position survives the fall: the ladder he drops down is his own.
+      for (final pos in ['fwd', 'mid', 'def', 'gk']) {
+        final def = getPlayerDef('player_t8_$pos')!;
+        final worn = marketDefFor(def, retirementAge - 1);
+        expect(worn.position, def.position, reason: pos);
+        expect(worn.tier, effectiveTierFor(def, retirementAge - 1));
+      }
+    });
+
+    test('and an Icon falls onto the ladder rather than off it', () {
+      // T9 is forward-only and scout-only, so the tier below is the first rung
+      // where all four positions exist. Nothing here may return null.
+      final icon = getPlayerDef('player_t9_fwd')!;
+      expect(marketDefFor(icon, peakAgeEnd).id, icon.id);
+      expect(marketDefFor(icon, retirementAge - 1).tier, lessThan(9));
+      expect(marketDefFor(icon, retirementAge - 1).position, 'FWD');
+    });
+
     test('AND AN ICON IS AN ICON THE DAY HE IS SCOUTED', () {
       // T9 is a flat 100 — floor and ceiling the same number — so its band has
       // no height at all, and a walk that only asks "is what is left smaller

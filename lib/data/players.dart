@@ -689,26 +689,6 @@ int ageDeclinePenalty(int age) {
   return math.max(1, past * past ~/ 2);
 }
 
-/// **WHAT A VETERAN IS DISCOUNTED BY IN THE MARKET, and it is not what he is
-/// declining by.**
-///
-/// The JS's own rule — nothing for ten years, then ten rating points a year —
-/// and it stays the JS's, because every price in this game is pinned against a
-/// node fixture: the sell shelf, the loan fee, a rival's bid, Deadline Day. A
-/// curve here would have been a rewrite of the whole economy hiding inside a
-/// feature about birthdays, and the harnesses would have been right to fail it.
-///
-/// **It takes [wearYears], not seasons of service.** Identical for a card
-/// nobody merged, so the references still reproduce to the last digit — and the
-/// right figure for a merged thirty-four-year-old, who used to reset to zero
-/// and sell as a debutant.
-///
-/// [ageDeclinePenalty] is the other one and they are not interchangeable: that
-/// is what comes off a RATING, on a curve, against a birthday. This is what
-/// comes off a PRICE.
-int agingPenalty([int wearYears = 0]) =>
-    wearYears <= 10 ? 0 : (wearYears - 10) * 10;
-
 /// The age a merge produces.
 ///
 /// **The older parent's age, never younger than the new tier's own scout age.**
@@ -737,6 +717,32 @@ int mergedAge(int ageA, int ageB, int intoTier) =>
 /// nine years past what a World Legend is scouted at, and this is the figure
 /// that says so.
 int wearYears(int tier, int age) => math.max(0, age - scoutAgeForTier(tier));
+
+/// **THE DEFINITION A CARD IS PRICED AS.** Its own until age has taken it down
+/// a tier, and then the one it is WEARING.
+///
+/// A World Legend who has declined to Gold Elite is worth what a Gold Elite is
+/// worth. That is the whole rule, and it is the rule because the alternative
+/// was indefensible: priced off the definition, a thirty-nine-year-old rating
+/// 48 and drawn in silver still fetched a hundred and forty-five times what a
+/// silver card fetches. Holding a veteran for ever cost nothing, which is the
+/// one thing the age system exists to make expensive.
+///
+/// **A percentage discount cannot do this job and it is worth saying why.** The
+/// ladder's values are exponential — a tier is worth two to four times the one
+/// below — while a rating is linear, so no `(rating - penalty) / rating` factor
+/// ever closes a gap of that size. It has to be the tier, and the tier the card
+/// already shows the player is the honest one to charge for.
+///
+/// The position is kept: a keeper who falls to Gold Elite is priced as a Gold
+/// Elite KEEPER. Falls back to [def] if the ladder has no card at that tier and
+/// position, which is only T9 — scout-only, forward-only, and it declines into
+/// T8 where the full four exist.
+PlayerDef marketDefFor(PlayerDef def, int age) {
+  final tier = effectiveTierFor(def, age);
+  if (tier == def.tier) return def;
+  return getPlayerDef(_buildId(tier, def.position)) ?? def;
+}
 
 /// The age a card written before ages existed reads as.
 ///

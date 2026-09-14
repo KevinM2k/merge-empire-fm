@@ -170,7 +170,9 @@ Map<String, dynamic>? buildOffer(
   // The price scales with division so it always feels meaningful against the
   // current economy, using the same power-scaled multiplier as the manual sell
   // screen so late-game offers do not reach absurd values.
-  final tierMult = transferTierMultiplier[def.tier] ?? 4;
+  // Priced as what he is WEARING — see `marketDefFor`.
+  final priced = marketDefFor(def, card.age);
+  final tierMult = transferTierMultiplier[priced.tier] ?? 4;
   final div = getDivision(
     _map(state['progression'])?['currentDivision'] as String? ?? '',
   );
@@ -178,21 +180,18 @@ Map<String, dynamic>? buildOffer(
 
   // What a fair market sale would fetch.
   final marketBasePrice = roundCoins(
-    def.sellValue * tierMult * scaledDivMult * 0.5,
+    priced.sellValue * tierMult * scaledDivMult * 0.5,
   );
 
   // A rival pays twice the self-sell base — always better than an average roll.
-  var price = def.sellValue * tierMult * scaledDivMult * 2;
+  var price = priced.sellValue * tierMult * scaledDivMult * 2;
 
   if (_num(_map(card.sponsor)?['multiplier']) != null) {
     price *= 1 + transferSponsorBonus;
   }
 
-  // Ageing players fetch less: their years on the pitch reduce value.
-  final aging = agingPenalty(card.wearYears);
-  if (aging > 0 && def.rating > 0) {
-    price *= math.max(0.2, (def.rating - aging) / def.rating);
-  }
+  // Ageing players fetch less, and `priced` above is how: a rival bids for the
+  // card in front of him, not for the one this was five years ago.
 
   // Stronger opponents pay a little more.
   price *= 0.9 + (opponentRating / 90) * 0.40;
