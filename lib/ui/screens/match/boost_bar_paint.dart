@@ -13,6 +13,8 @@
 /// positioned once per minute, not per frame.
 library;
 
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:merge_empire_fc/engine/match_boost_state.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
@@ -24,7 +26,139 @@ const Color flameHot = Color(0xFFFFE08A);
 const Color flameMid = Color(0xFFFF8A3D);
 const Color flameDeep = Color(0xFFD9481C);
 
+/// Whether a Roar is live at this minute: the bar burns whole, not a band.
+bool roarLive(List<LiveBoost> windows) => windows.any((b) => b.id == 'crowd_roar');
+
+/// **THE WHOLE BAR BURNS WHILE A ROAR IS LIVE.** A band from 40' to 65' told
+/// the player when the window was and not that they were IN it — reported as
+/// unclear where we are in that. So the clock's own fill keeps its transition
+/// and turns flame, and a looping fire-and-lightning pass runs over the full
+/// width until the window closes. The Bus keeps its grey band: it is the
+/// tactical opposite and should not look like the same thing.
+class FlameOverlay extends StatefulWidget {
+  const FlameOverlay({super.key, required this.on});
+
+  /// Animating, or a still frame for reduced motion and tests.
+  final bool on;
+
+  @override
+  State<FlameOverlay> createState() => _FlameOverlayState();
+}
+
+class _FlameOverlayState extends State<FlameOverlay>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _t = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1400),
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.on) _t.repeat();
+  }
+
+  @override
+  void didUpdateWidget(FlameOverlay old) {
+    super.didUpdateWidget(old);
+    if (widget.on && !_t.isAnimating) _t.repeat();
+    if (!widget.on && _t.isAnimating) _t.stop();
+  }
+
+  @override
+  void dispose() {
+    _t.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => RepaintBoundary(
+    child: CustomPaint(
+      key: const ValueKey('match-boost-band-crowd_roar'),
+      painter: _FlamePainter(_t),
+      child: const SizedBox.expand(),
+    ),
+  );
+}
+
+/// Tongues of flame along the bar and a bolt that flashes across it.
+///
+/// Fixed size every frame — only the paint moves. The tongues are a sum of
+/// sines scrolled by time, the bolt is a zigzag drawn for a fifth of each
+/// loop and gone the rest.
+class _FlamePainter extends CustomPainter {
+  _FlamePainter(this.t) : super(repaint: t);
+
+  final Animation<double> t;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final w = size.width;
+    final h = size.height;
+    final phase = t.value * 2 * math.pi;
+
+    // A hot wash over everything, breathing.
+    canvas.drawRect(
+      Offset.zero & size,
+      Paint()..color = flameMid.withValues(alpha: 0.25 + 0.15 * math.sin(phase)),
+    );
+
+    // Tongues: a ragged top edge, scrolling right to left.
+    final tongues = Path()..moveTo(0, h);
+    const step = 4.0;
+    for (var x = 0.0; x <= w; x += step) {
+      final u = x / 18;
+      final lick = 0.5 +
+          0.28 * math.sin(u - phase * 2) +
+          0.16 * math.sin(u * 2.3 + phase * 3) +
+          0.06 * math.sin(u * 5.1 - phase * 5);
+      tongues.lineTo(x, h * (1 - lick.clamp(0.0, 1.0)));
+    }
+    tongues
+      ..lineTo(w, h)
+      ..close();
+    canvas.drawPath(
+      tongues,
+      Paint()
+        ..shader = const LinearGradient(
+          begin: Alignment.bottomCenter,
+          end: Alignment.topCenter,
+          colors: [flameDeep, flameMid, flameHot],
+        ).createShader(Offset.zero & size),
+    );
+
+    // The bolt: a fifth of the loop, sweeping the width, white-hot.
+    final bolt = t.value % 1;
+    if (bolt < 0.2) {
+      final x0 = w * (bolt / 0.2);
+      final alpha = (1 - (bolt / 0.2)).clamp(0.0, 1.0);
+      final zig = Path()..moveTo(x0 - 18, 0);
+      var x = x0 - 18;
+      var up = false;
+      while (x < x0 + 18) {
+        x += 6;
+        zig.lineTo(x, up ? 0 : h);
+        up = !up;
+      }
+      canvas.drawPath(
+        zig,
+        Paint()
+          ..color = Colors.white.withValues(alpha: 0.85 * alpha)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.6
+          ..strokeCap = StrokeCap.round,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_FlamePainter old) => old.t != t;
+}
+
 /// The windows laid over the bar, each across its own minute range.
+///
+/// A Roar is not drawn here any more — see [FlameOverlay]. Only the Bus
+/// keeps a band.
 class BoostBands extends StatelessWidget {
   const BoostBands({
     super.key,
@@ -46,6 +180,7 @@ class BoostBands extends StatelessWidget {
         return Stack(
           children: [
             for (final b in windows)
+              if (b.id != 'crowd_roar')
               Positioned(
                 // The bar is `minute / 90`, so the bands are too — stoppage
                 // runs off the end the way the clock's own fill does.

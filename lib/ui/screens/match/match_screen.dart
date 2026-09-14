@@ -4456,27 +4456,33 @@ class _Scoreboard extends StatelessWidget {
               ),
             const SizedBox(height: 8),
             // **THE BAR BURNS WHILE A WINDOW IS OPEN.** It already means
-            // match time, so a window is a segment of it: the player sees when
-            // the boost started and when it ends without reading a number.
-            // Twice the height while anything is live, so the band is a band.
+            // match time. A Roar turns the WHOLE bar flame with fire running
+            // over it until the window closes — see `FlameOverlay`; a Bus is
+            // a grey band across its own minutes. Taller while anything is
+            // live, so the fire has somewhere to burn.
             ClipRRect(
               borderRadius: const BorderRadius.only(
                 bottomLeft: Radius.circular(14),
                 bottomRight: Radius.circular(14),
               ),
               child: SizedBox(
-                height: bands.isEmpty ? 3 : 6,
+                height: bands.isEmpty ? 3 : (roarLive(bands) ? 8 : 6),
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
                     LinearProgressIndicator(
                       value: (minute / 90).clamp(0.0, 1.0),
-                      backgroundColor: kit.border,
+                      backgroundColor: roarLive(bands)
+                          ? flameDeep.withValues(alpha: 0.35)
+                          : kit.border,
                       valueColor: AlwaysStoppedAnimation(
-                        glassAccent(context, kit.accentBright),
+                        roarLive(bands)
+                            ? flameMid
+                            : glassAccent(context, kit.accentBright),
                       ),
                     ),
                     if (bands.isNotEmpty) BoostBands(windows: bands, glow: glow),
+                    if (roarLive(bands)) FlameOverlay(on: glow != null),
                   ],
                 ),
               ),
