@@ -88,14 +88,14 @@ void main() {
       expect(s.endOf('park_the_bus'), isNull);
     });
 
-    test('sharp shooting is OUR rate alone, on top of a bus', () {
+    test('sharp shooting is OUR attack alone, on top of a bus', () {
       final s = MatchBoostState()..start('sharp_shooting', 40, 25);
-      expect(s.ourGoalRateMultAt(50), sharpShootingGoalRate);
+      expect(s.ourAttackMultAt(50), sharpShootingAttack);
       expect(s.goalRateMultAt(50), 1.0);
-      expect(s.ourGoalRateMultAt(70), 1.0);
+      expect(s.ourAttackMultAt(70), 1.0);
       s.start('park_the_bus', 50, 25);
       expect(s.goalRateMultAt(60), parkTheBusGoalRate);
-      expect(s.ourGoalRateMultAt(60), sharpShootingGoalRate);
+      expect(s.ourAttackMultAt(60), sharpShootingAttack);
     });
   });
 }

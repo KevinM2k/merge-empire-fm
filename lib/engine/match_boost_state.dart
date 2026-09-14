@@ -27,9 +27,11 @@ const double maxCrowdRoarStack = 1.25;
 /// visibly a different match rather than a slightly quieter one.
 const double parkTheBusGoalRate = 0.45;
 
-/// OUR goal rate under Sharp Shooting; theirs is untouched. Well over the
-/// Roar's ten per cent on the rating, because it buys one thing only.
-const double sharpShootingGoalRate = 1.4;
+/// OUR attack under Sharp Shooting; defence and the other side untouched.
+/// A rating lift rather than a goal-rate one, because a goal rate is a
+/// loaded coin nobody can see — the ATK figure on the board has to jump.
+/// Bigger than the Roar's ten per cent since it buys one stat only.
+const double sharpShootingAttack = 1.25;
 
 /// One live window. `toMinute` is exclusive: a 25-minute window tapped at 40
 /// pays through 64 and is gone at 65, which is the minute the re-sim fires.
@@ -105,9 +107,9 @@ class MatchBoostState {
           ? parkTheBusGoalRate
           : 1.0;
 
-  /// Our own goal rate on top of [goalRateMultAt]: Sharp Shooting, or nothing.
-  double ourGoalRateMultAt(int minute) =>
+  /// Our ATK alone: Sharp Shooting, or nothing.
+  double ourAttackMultAt(int minute) =>
       activeAt(minute).any((b) => b.id == 'sharp_shooting')
-          ? sharpShootingGoalRate
+          ? sharpShootingAttack
           : 1.0;
 }

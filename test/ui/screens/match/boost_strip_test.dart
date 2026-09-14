@@ -240,7 +240,7 @@ void main() {
       await _finish(tester, plain);
     });
 
-    testWidgets('SHARP SHOOTING lifts our rate alone, and the bar wears gold', (
+    testWidgets('SHARP SHOOTING lifts our ATK alone, and the bar wears gold', (
       tester,
     ) async {
       await pumpMatch(
@@ -257,8 +257,9 @@ void main() {
       expect(find.byKey(const ValueKey('match-boost-band-sharp_shooting')), findsOneWidget);
       expect(find.byKey(const ValueKey('match-boost-band-crowd_roar')), findsNothing);
       expect(state.notes.any((n) => n.key == 'boost.sharp.live'), isTrue);
-      // Not a rating change either: the figures on the board stay put.
-      final sharp = state.liveRatings['liveSquadRating'] as num;
+      // ATK up on the board, DEF where it was: the lift is one stat only.
+      final sharpAtk = state.liveRatings['liveAttackRating'] as num;
+      final sharpDef = state.liveRatings['liveDefenceRating'] as num;
       await _finish(tester, state);
 
       await pumpMatch(tester, _playable(), save: _save(), instance: 'plain2');
@@ -266,7 +267,8 @@ void main() {
       await tester.pump(minuteDurationFor(40));
       plain.applyStrategy(strategies.keys.firstWhere((id) => id != plain.strategy));
       await tester.pump();
-      expect(sharp, plain.liveRatings['liveSquadRating']);
+      expect(sharpAtk, greaterThan(plain.liveRatings['liveAttackRating'] as num));
+      expect(sharpDef, plain.liveRatings['liveDefenceRating']);
       await _finish(tester, plain);
     });
 

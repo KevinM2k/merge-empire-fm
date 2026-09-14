@@ -1681,9 +1681,10 @@ List<Map<String, dynamic>> reSimulateRemainder(
   /// parity harness is what holds that true.
   double goalRateMult = 1.0,
 
-  /// OUR rate alone, on top of [goalRateMult] — Sharp Shooting. 1.0 is the
-  /// arithmetic every other caller gets.
-  double ourGoalRateMult = 1.0,
+  /// OUR attack alone, after the fixture's modifiers and before the tactic —
+  /// Sharp Shooting. 1.0 is the arithmetic every other caller gets, and the
+  /// board reads the lifted figure through [liveRatingsOut].
+  double ourAttackMult = 1.0,
 }) {
   final strat = strategies[strategyId] ?? strategies[defaultStrategy];
   final addedTime = _num(result['addedTime'])?.toInt() ?? 0;
@@ -1794,7 +1795,7 @@ List<Map<String, dynamic>> reSimulateRemainder(
       liveRatings.defence,
       result,
     );
-    final liveAttack = live.attack;
+    final liveAttack = live.attack * ourAttackMult;
     final liveDefence = live.defence;
 
     adjAttack = math.max(1.0, applyTacticAtk(liveAttack, strat, oppAttackRatio));
@@ -1826,11 +1827,7 @@ List<Map<String, dynamic>> reSimulateRemainder(
   // remainder.
   final variance = (strat?.variance ?? 1.0) * rollSwingFactor(strat);
   final remainHome = poissonGoals(
-    goalRateLambda(adjAttack, oppDefence) *
-        fraction *
-        variance *
-        goalRateMult *
-        ourGoalRateMult,
+    goalRateLambda(adjAttack, oppDefence) * fraction * variance * goalRateMult,
   );
   final remainAway = poissonGoals(
     goalRateLambda(oppAttack, adjDefence) * fraction * variance * goalRateMult,

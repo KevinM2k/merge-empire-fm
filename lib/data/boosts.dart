@@ -75,8 +75,8 @@ const Map<String, Boost> boosts = {
     kind: BoostKind.proactive, gemCost: 1, packSize: 1,
     windowMinutes: _window,
   ),
-  // The attacking mirror of the Bus: OUR chances convert for a window,
-  // theirs untouched. A rating lift would have been a second Roar.
+  // OUR attack lifted for a window, defence and the other side untouched —
+  // on the board's ATK figure, so it can be seen doing it.
   'sharp_shooting': Boost(
     id: 'sharp_shooting', icon: 'target',
     kind: BoostKind.proactive, gemCost: 1, packSize: 1,

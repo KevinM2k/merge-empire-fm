@@ -3055,7 +3055,7 @@ class MatchScreenState extends ConsumerState<MatchScreen>
       bookedMultipliers: _liveMultipliers(at),
       oppRatingMult: oppTeamRatingMult(_oppYellows, _oppSendOffs),
       goalRateMult: _boosts.goalRateMultAt(at),
-      ourGoalRateMult: _boosts.ourGoalRateMultAt(at),
+      ourAttackMult: _boosts.ourAttackMultAt(at),
       liveRatingsOut: _liveRatings,
     );
     widget.result['events'] = [...kept, ...fresh];
