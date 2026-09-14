@@ -328,13 +328,33 @@ player is looking at. Nothing has to be invented to make the effect visible.
 What is missing is *attribution*. A conditional trait has a real
 discoverability problem: a player can own a Derby Devil for three weeks and
 never once notice it working, because a rating that moves for an unexplained
-reason reads as noise. So a temporary lift says so, at three levels:
+reason reads as noise.
 
-| | Where | Answers |
-|---|---|---|
-| **Glow** | the rating / ATK / DEF figures on the scoreboard | *something* is lifting you, right now |
-| **Pill** | a caption under them — `🔄 Super Sub` | *what* is doing it |
-| **Badge** | the firing player's `TraitBadge` on his pitch token, at the bench | *who* |
+**The glow is persistent and the pill is transient, and that split is the whole
+design.** Fortress, Big Game Player and Relegation Scrapper can all hold in the
+same fixture, on different players, with two boosts live on top — five things
+at once. Five captions on a board this dense is not a board.
+
+| | Where | Lifetime | Answers |
+|---|---|---|---|
+| **Glow** | the rating / ATK / DEF figures | as long as anything is lifting | *something* is lifting you |
+| **Pill** | a caption under them — `🔄 Super Sub` | ~2.5s, then it fades | *what* just changed |
+| **List** | an "Active" section in `MatchStatboard` | on demand | *everything* running |
+| **Badge** | the firing player's `TraitBadge` on his token, at the bench | while it fires | *who* |
+
+**At most ONE pill exists at any instant.** Two lifts starting at different
+minutes give two pills in sequence, never side by side. Two starting on the
+same minute — rare — collapse to `2 traits active`.
+
+**And the pill is for CHANGES, not states.** Kickoff is the crowded case, with
+several kickoff-condition traits lighting together — but at kickoff nothing has
+jumped; the board opens at that value. There is nothing to explain, so there is
+no pill. The pill answers "why did it just move?", which has one answer at a
+time.
+
+The full list goes in `MatchStatboard`, already the details door behind
+`match-stats-button`. It costs the match screen no height, and it is where
+somebody asking "what have I actually got running?" would look.
 
 The badge lives at the bench rather than on the match screen because **there
 are no player cards on the match screen to glow** — the pitch band is a 2D

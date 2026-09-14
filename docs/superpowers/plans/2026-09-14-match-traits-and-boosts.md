@@ -1607,35 +1607,51 @@ repeating controller that never settles means no widget test in the suite can
 `pumpAndSettle` this screen again — the same trap `TraitBlockState._flash`
 documents.
 
-- [ ] **Step 5: Glow the board, and name the source**
+- [ ] **Step 5: Glow the board, and name what just changed**
 
-A temporary lift has to be attributable or it reads as noise — a player can own
-a Derby Devil for weeks and never notice it working. The rating, ATK and DEF
-figures glow in the kit accent while anything temporary is live, and a pill
-under them names it: `🔄 Super Sub`, `📣 Crowd Roar`. More than one live shows a
-count and the strongest.
+A temporary lift has to be attributable or it reads as noise. Two separate
+pieces, and keeping them separate is the point:
+
+- **The glow is persistent.** The rating, ATK and DEF figures glow in the kit
+  accent for as long as anything temporary is lifting the side.
+- **The pill is transient, and there is only ever ONE.** A lift starting posts
+  a caption naming it — `🔄 Super Sub` — which fades after ~2.5s. Two lifts
+  starting at different minutes give two pills in sequence, never side by side.
+  Five things can hold at once (Fortress + Big Game Player + Relegation
+  Scrapper + two boosts), and five captions is not a board.
+- **No pill at kickoff.** It answers "why did it just move?" — at kickoff the
+  board simply opens at that value, so there is nothing to explain. Post a pill
+  on a TRANSITION only. Two on the same minute collapse to `2 traits active`.
 
 **It must not relayout.** A widget that changes SIZE every frame relayouts past
 any `RepaintBoundary` to the route and repaints the whole shell — the HUD coin
-count-up cost exactly this. Animate opacity and colour inside a fixed-size box;
-give the pill a reserved width rather than letting it grow. Reuse the strip's
-single `AnimationController` and stop it when nothing is live.
+count-up cost exactly this. The glow animates opacity and colour inside a
+fixed-size box; a fading pill needs only opacity, so it cannot relayout even in
+principle. Reuse the strip's single `AnimationController` and stop it when
+nothing is live.
 
-Add to the test: with a lit trait, `match-live-source-pill` is present and reads
-the trait's name; with nothing live it is absent; and the pill's box does not
-change size between the two.
+Add to the test: a lit trait posts `match-live-source-pill` reading its name;
+it is gone after 2.5s while the glow remains; kickoff-condition traits post no
+pill at all; and two lifts never produce two pills in the same frame.
 
-- [ ] **Step 6: Glow the firing player's badge at the bench**
+- [ ] **Step 6: List everything running in the stats sheet**
+
+`MatchStatboard` is already the details door behind `match-stats-button`, so an
+"Active" section there costs the match screen no height. It lists every live
+trait and boost with its source and, for a boost, the minute its window ends —
+the answer the one-at-a-time pill deliberately cannot give.
+
+- [ ] **Step 7: Glow the firing player's badge at the bench**
 
 `PitchToken` already wears `TraitBadge` off `CardView.trait`. Light that badge
 for a player whose match trait is currently firing — the "who" the board's pill
 cannot answer. This is the existing widget lit, not a second badge.
 
-- [ ] **Step 7: Run and watch it pass**
+- [ ] **Step 8: Run and watch it pass**
 
 Run: `flutter test test/ui/match/boost_strip_test.dart`
 
-- [ ] **Step 8: Analyze and commit**
+- [ ] **Step 9: Analyze and commit**
 
 ```bash
 flutter analyze
