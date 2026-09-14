@@ -398,7 +398,7 @@ class MatchBoostsSection extends ConsumerWidget {
             ShopTile(
               tileKey: 'boost-${boost.id}',
               title: t('boost.${boost.id}.name'),
-              glyph: Text(boost.icon, style: const TextStyle(fontSize: 30)),
+              glyph: _icon(boost.icon, hudGemInk),
               badge: t('boost.shop.count', {
                 'n': '${boostCount(game.state, boost.id)}',
               }),

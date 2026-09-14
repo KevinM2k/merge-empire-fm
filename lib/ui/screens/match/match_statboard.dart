@@ -23,6 +23,7 @@ library;
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 import 'package:merge_empire_fc/engine/match_tactics.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/ui/screens/match/match_clock.dart';
@@ -387,7 +388,7 @@ class MatchStatboard extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(vertical: 2),
                       child: Row(
                         children: [
-                          Text(lift.icon, style: const TextStyle(fontSize: 13)),
+                          GlyphOrIcon(lift.icon, size: 14, color: kit.accentBright),
                           const SizedBox(width: 6),
                           Expanded(
                             child: Text(

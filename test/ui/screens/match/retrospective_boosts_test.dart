@@ -243,6 +243,34 @@ void main() {
       return (c, state);
     }
 
+    testWidgets('A QUIET WORD WIPES THE OTHER MAN\'S YELLOW at the same bench', (
+      tester,
+    ) async {
+      final (c, state) = await atTheRed(
+        tester,
+        instance: 'quiet',
+        boosts: const {'var_review': 1, 'physio_sponge': 1, 'quiet_word': 1},
+      );
+      // c7 was booked at 51 and is still on; he is the word's man.
+      expect(state.cautionedIds, contains('c7'));
+      expect(state.quietTarget, 'c7');
+      expect(find.byKey(const ValueKey('bench-boost-quiet_word')), findsOneWidget);
+
+      state.applyQuietWord('c7');
+      await tester.pump();
+
+      expect(state.cautionedIds, isNot(contains('c7')));
+      expect(_ourCards(state), ['76:c3:red'], reason: 'his yellow is gone');
+      expect(boostCount(c.read(gameProvider).state, 'quiet_word'), 0);
+      expect(state.notes.any((n) => n.key == 'boost.quiet.wiped'), isTrue);
+      expect(state.canQuietWord('c7'), isFalse);
+
+      await _finish(tester, state);
+      // And the whistle writes nothing on his card.
+      final stats = _cell(c, 'c7')['stats'] as Map?;
+      expect(stats?['yellows'] ?? 0, 0);
+    });
+
     testWidgets('PUTS HIM BACK IN HIS OWN SQUARE, ON A YELLOW', (tester) async {
       final (c, state) = await atTheRed(tester, instance: 'var-back');
       expect(_slotOf(c, 's3'), isNull, reason: 'he was not sent off');

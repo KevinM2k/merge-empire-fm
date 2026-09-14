@@ -89,7 +89,7 @@ class _OfferTile extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  Text(boost?.icon ?? '', style: const TextStyle(fontSize: 16)),
+                  GameIcon(boost?.icon ?? '', size: 17, color: ink),
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(

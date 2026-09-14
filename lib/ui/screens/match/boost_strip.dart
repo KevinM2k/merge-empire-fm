@@ -132,7 +132,7 @@ class _BoostTile extends StatelessWidget {
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(boost.icon, style: const TextStyle(fontSize: 14)),
+                GameIcon(boost.icon, size: 15, color: ink),
                 const SizedBox(width: 6),
                 Text(
                   t('boost.${boost.id}.name'),

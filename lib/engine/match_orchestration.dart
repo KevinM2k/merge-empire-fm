@@ -1680,6 +1680,10 @@ List<Map<String, dynamic>> reSimulateRemainder(
   /// that does not pass it gets exactly the arithmetic it had before — the
   /// parity harness is what holds that true.
   double goalRateMult = 1.0,
+
+  /// OUR rate alone, on top of [goalRateMult] — Sharp Shooting. 1.0 is the
+  /// arithmetic every other caller gets.
+  double ourGoalRateMult = 1.0,
 }) {
   final strat = strategies[strategyId] ?? strategies[defaultStrategy];
   final addedTime = _num(result['addedTime'])?.toInt() ?? 0;
@@ -1822,7 +1826,11 @@ List<Map<String, dynamic>> reSimulateRemainder(
   // remainder.
   final variance = (strat?.variance ?? 1.0) * rollSwingFactor(strat);
   final remainHome = poissonGoals(
-    goalRateLambda(adjAttack, oppDefence) * fraction * variance * goalRateMult,
+    goalRateLambda(adjAttack, oppDefence) *
+        fraction *
+        variance *
+        goalRateMult *
+        ourGoalRateMult,
   );
   final remainAway = poissonGoals(
     goalRateLambda(oppAttack, adjDefence) * fraction * variance * goalRateMult,

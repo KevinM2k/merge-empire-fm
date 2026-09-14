@@ -32,7 +32,10 @@ void main() {
   tearDown(resetLocale);
 
   group('THE FOUR MANAGER BOOSTS', () {
-    const ids = ['crowd_roar', 'park_the_bus', 'var_review', 'physio_sponge'];
+    const ids = [
+      'crowd_roar', 'park_the_bus', 'var_review', 'physio_sponge',
+      'sharp_shooting', 'quiet_word',
+    ];
 
     testWidgets('ARE ON THEIR OWN SHELF, one gem each, and the badge counts the bag', (
       tester,
@@ -45,7 +48,7 @@ void main() {
       for (final id in ids) {
         expect(find.byKey(ValueKey('shop-buy-boost-$id')), findsOneWidget, reason: id);
       }
-      expect(find.text(t('boost.shop.count', {'n': '0'})), findsNWidgets(4));
+      expect(find.text(t('boost.shop.count', {'n': '0'})), findsNWidgets(6));
       final gems = container.read(gemsProvider);
       await buyRow(tester, 'boost-crowd_roar');
       expect(container.read(gemsProvider), gems - 1);

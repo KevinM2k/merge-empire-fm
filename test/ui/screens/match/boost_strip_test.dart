@@ -235,6 +235,36 @@ void main() {
       await _finish(tester, plain);
     });
 
+    testWidgets('SHARP SHOOTING lifts our rate alone, and the bar wears gold', (
+      tester,
+    ) async {
+      await pumpMatch(
+        tester,
+        _playable(),
+        save: _save(boosts: const {'sharp_shooting': 1}),
+        instance: 'sharp',
+      );
+      final state = stateOf(tester);
+      await tester.pump(minuteDurationFor(40));
+      await tester.tap(find.byKey(const ValueKey('match-boost-sharp_shooting')));
+      await tester.pump();
+      expect(state.boostWindows.single.id, 'sharp_shooting');
+      expect(find.byKey(const ValueKey('match-boost-band-sharp_shooting')), findsOneWidget);
+      expect(find.byKey(const ValueKey('match-boost-band-crowd_roar')), findsNothing);
+      expect(state.notes.any((n) => n.key == 'boost.sharp.live'), isTrue);
+      // Not a rating change either: the figures on the board stay put.
+      final sharp = state.liveRatings['liveSquadRating'] as num;
+      await _finish(tester, state);
+
+      await pumpMatch(tester, _playable(), save: _save(), instance: 'plain2');
+      final plain = stateOf(tester);
+      await tester.pump(minuteDurationFor(40));
+      plain.applyStrategy(strategies.keys.firstWhere((id) => id != plain.strategy));
+      await tester.pump();
+      expect(sharp, plain.liveRatings['liveSquadRating']);
+      await _finish(tester, plain);
+    });
+
     testWidgets('TWO ROARS STACK, and the window runs to the later end', (
       tester,
     ) async {

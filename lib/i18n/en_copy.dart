@@ -357,6 +357,14 @@ const Map<String, String> enCopy = <String, String>{
   'boost.locked.too_late': 'Too late. Play has restarted.',
   'boost.var_review.idle': 'No sending-off to review',
   'boost.physio_sponge.idle': 'Nobody is down',
+  'boost.sharp_shooting.name': 'Sharp Shooting',
+  'boost.sharp_shooting.desc': 'Every chance is a good one — our finishing sharpens for twenty-five minutes',
+  'boost.quiet_word.name': 'Quiet Word',
+  'boost.quiet_word.desc': 'A word in the referee\'s ear — a yellow card is wiped',
+  'boost.quiet_word.idle': 'Nobody is on a yellow',
+  'boost.sharp.live': 'The finishing coach has had a word. Every shot looks like it is going in.|Boots laced tighter. The chances that come are being buried.',
+  'boost.sharp.over': 'The radar cools, and a chance is a chance again.|The purple patch passes. Back to earning them.',
+  'boost.quiet.wiped': 'A quiet word with the referee, and {player}\'s yellow is forgotten.|The fourth official has a word. {player}\'s booking goes in the bin.',
   'coach.red_card.var_hint':
       'You have a VAR Review. Send it from the bench before play restarts.',
   'coach.injury.physio_hint':

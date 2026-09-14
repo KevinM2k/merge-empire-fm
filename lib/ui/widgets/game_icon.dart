@@ -413,6 +413,22 @@ class GameIcon extends StatelessWidget {
   }
 }
 
+/// A glyph that is one of [gameIcons] when the name is in the set, and the
+/// literal — an emoji — when it is not. The boosts draw from the set; the
+/// traits are still emoji, and the statboard lists both in one column.
+class GlyphOrIcon extends StatelessWidget {
+  const GlyphOrIcon(this.glyph, {super.key, this.size = 18, this.color});
+
+  final String glyph;
+  final double size;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) => gameIcons.containsKey(glyph)
+      ? GameIcon(glyph, size: size, color: color)
+      : Text(glyph, style: TextStyle(fontSize: size, color: color));
+}
+
 /// The coin chip that sits beside every currency figure — gold, and the same
 /// gold on both themes.
 class CoinIcon extends StatelessWidget {

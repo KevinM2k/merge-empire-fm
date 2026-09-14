@@ -27,6 +27,10 @@ const double maxCrowdRoarStack = 1.25;
 /// visibly a different match rather than a slightly quieter one.
 const double parkTheBusGoalRate = 0.45;
 
+/// OUR goal rate under Sharp Shooting; theirs is untouched. Well over the
+/// Roar's ten per cent on the rating, because it buys one thing only.
+const double sharpShootingGoalRate = 1.4;
+
 /// One live window. `toMinute` is exclusive: a 25-minute window tapped at 40
 /// pays through 64 and is gone at 65, which is the minute the re-sim fires.
 class LiveBoost {
@@ -99,5 +103,11 @@ class MatchBoostState {
   double goalRateMultAt(int minute) =>
       activeAt(minute).any((b) => b.id == 'park_the_bus')
           ? parkTheBusGoalRate
+          : 1.0;
+
+  /// Our own goal rate on top of [goalRateMultAt]: Sharp Shooting, or nothing.
+  double ourGoalRateMultAt(int minute) =>
+      activeAt(minute).any((b) => b.id == 'sharp_shooting')
+          ? sharpShootingGoalRate
           : 1.0;
 }

@@ -1807,6 +1807,7 @@ class MatchScreenState extends ConsumerState<MatchScreen>
     // red card five minutes after play has restarted.
     _varSpent.addAll(_sentOff);
     _physioSpent.addAll(_physioCandidates());
+    _quietSpent.addAll(_quietCandidates());
     if (mounted) setState(() => _paused = false);
   }
 
@@ -2028,7 +2029,7 @@ class MatchScreenState extends ConsumerState<MatchScreen>
       // A window closing is told before the remainder is re-rolled without
       // it, so the `.over` line lands beside the change it explains.
       for (final b in _boosts.expireThrough(due.minute)) {
-        _note(b.id == 'crowd_roar' ? 'boost.roar.over' : 'boost.bus.over', const {});
+        _note(_boostNoteKey(b.id, live: false), const {});
       }
       // Last Gasp switching ON is a lift the board has to explain; Fast
       // Starter switching OFF is not — a caption is for "why did it go up".
@@ -2077,6 +2078,13 @@ class MatchScreenState extends ConsumerState<MatchScreen>
   /// Screen-owned like [_withdrawn]: the panel forgets and this must not.
   final Set<String> _physioSpent = <String>{};
   final Set<String> _varSpent = <String>{};
+  final Set<String> _quietSpent = <String>{};
+
+  /// Cautions a word could still wipe: booked, still on, not passed on.
+  List<String> _quietCandidates() => [
+    for (final id in _cautioned)
+      if (!_withdrawn.contains(id) && !_quietSpent.contains(id)) id,
+  ];
 
   /// Casualties a sponge could still reach: hurt, logged, the injury already
   /// told, not replaced, not passed on. The bench and the guard in
@@ -2116,10 +2124,17 @@ class MatchScreenState extends ConsumerState<MatchScreen>
       _sentOff.contains(instanceId) &&
       !_varSpent.contains(instanceId);
 
+  bool canQuietWord(String instanceId) =>
+      !_boostsHidden &&
+      !frame.finished &&
+      boostCount(ref.read(gameProvider).state, 'quiet_word') > 0 &&
+      _quietCandidates().contains(instanceId);
+
   /// The man the bench should offer each boost for, or null.
   String? get physioTarget =>
       _physioCandidates().where(canPhysio).lastOrNull;
   String? get varTarget => _sentOff.where(canVar).lastOrNull;
+  String? get quietTarget => _quietCandidates().where(canQuietWord).lastOrNull;
 
   /// The two retrospective boosts as the bench should show them now.
   ///
@@ -2174,6 +2189,13 @@ class MatchScreenState extends ConsumerState<MatchScreen>
         ),
         idleKey: 'boost.physio_sponge.idle',
         apply: applyPhysio,
+      ),
+      offer(
+        id: 'quiet_word',
+        target: quietTarget,
+        passedOn: _cautioned.any(_quietSpent.contains),
+        idleKey: 'boost.quiet_word.idle',
+        apply: applyQuietWord,
       ),
     ];
   }
@@ -2257,6 +2279,35 @@ class MatchScreenState extends ConsumerState<MatchScreen>
     }
   }
 
+  /// Wipe his yellow: off the caution list, so he plays at full rating and
+  /// the whistle writes no ban for it. Off BOTH booking lists, as VAR is.
+  void applyQuietWord(String instanceId) {
+    if (!canQuietWord(instanceId)) return;
+    final game = ref.read(gameProvider);
+    if (!game.update((s) => spendBoost(s, 'quiet_word'))) return;
+    _quietSpent.add(instanceId);
+    _bookings.removeWhere(
+      (b) =>
+          b['playerInstanceId'] == instanceId &&
+          !cardSendsOff('${b['card'] ?? cardYellow}'),
+    );
+    _bookingRecords = [
+      for (final b in _bookingRecords)
+        if (b.instanceId != instanceId || cardSendsOff(b.card)) b,
+    ];
+    _cautioned.remove(instanceId);
+    _note(
+      'boost.quiet.wiped',
+      {'player': cardById(game.state, instanceId)?.name() ?? ''},
+      aboutId: instanceId,
+    );
+    unawaited(_sound.play('whistle'));
+    _resimulate(_minute, _strategy, rerollInjuries: false);
+    if (mounted) {
+      setState(() => _timeline = timelineOf(widget.result, bookings: _bookings));
+    }
+  }
+
   /// Patch him up: healed, back in his own square, and the rest re-decided.
   ///
   /// The cards the referee struck off him when he went down are not restored
@@ -2325,6 +2376,16 @@ class MatchScreenState extends ConsumerState<MatchScreen>
   /// same rule the trait reel plays by.
   final MatchBoostState _boosts = MatchBoostState();
 
+  /// The feed line a window opens and closes with.
+  static String _boostNoteKey(String id, {required bool live}) {
+    final short = switch (id) {
+      'crowd_roar' => 'roar',
+      'park_the_bus' => 'bus',
+      _ => 'sharp',
+    };
+    return 'boost.$short.${live ? 'live' : 'over'}';
+  }
+
   /// Tap a proactive boost: debit, open the window, re-decide the rest.
   ///
   /// Two re-simulations bound a window — this one now, and the one
@@ -2339,10 +2400,14 @@ class MatchScreenState extends ConsumerState<MatchScreen>
     if (!game.update((s) => spendBoost(s, id))) return;
     _boosts.start(id, _minute, boost.windowMinutes);
     scheduleResimAt(_minute + boost.windowMinutes, 'boost:$id');
-    final roar = id == 'crowd_roar';
-    _note(roar ? 'boost.roar.live' : 'boost.bus.live', const {});
-    unawaited(_sound.play(roar ? 'crowdCheerRoar' : 'crowdOoh'));
-    _showPill('${boost.icon} ${t('boost.$id.name')}');
+    _note(_boostNoteKey(id, live: true), const {});
+    unawaited(_sound.play(switch (id) {
+      'crowd_roar' => 'crowdCheerRoar',
+      'sharp_shooting' => 'whistle',
+      _ => 'crowdOoh',
+    }));
+    // The name alone: the icon is line art now, and the pill is a caption.
+    _showPill(t('boost.$id.name'));
     // Not a change of approach: the injuries the match had coming still come.
     _resimulate(_minute, _strategy, rerollInjuries: false);
     if (mounted) {
@@ -2991,6 +3056,7 @@ class MatchScreenState extends ConsumerState<MatchScreen>
       bookedMultipliers: _liveMultipliers(at),
       oppRatingMult: oppTeamRatingMult(_oppYellows, _oppSendOffs),
       goalRateMult: _boosts.goalRateMultAt(at),
+      ourGoalRateMult: _boosts.ourGoalRateMultAt(at),
       liveRatingsOut: _liveRatings,
     );
     widget.result['events'] = [...kept, ...fresh];

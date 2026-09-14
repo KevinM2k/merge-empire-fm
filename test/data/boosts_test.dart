@@ -1,16 +1,23 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:merge_empire_fc/data/boosts.dart';
+import 'package:merge_empire_fc/ui/widgets/game_icon.dart' show gameIcons;
 
 void main() {
   group('the boost catalogue', () {
-    test('four boosts, two of each kind', () {
-      expect(boostList.length, 4);
-      expect(boosts.length, 4);
-      expect(boostList.where((b) => b.kind == BoostKind.proactive).length, 2);
+    test('six boosts, three of each kind', () {
+      expect(boostList.length, 6);
+      expect(boosts.length, 6);
+      expect(boostList.where((b) => b.kind == BoostKind.proactive).length, 3);
       expect(
         boostList.where((b) => b.kind == BoostKind.retrospective).length,
-        2,
+        3,
       );
+    });
+
+    test('every icon is one of the app\'s own, not an emoji', () {
+      for (final b in boostList) {
+        expect(gameIcons.containsKey(b.icon), isTrue, reason: '${b.id}: ${b.icon}');
+      }
     });
 
     test('every key matches its id, and every boost has an icon', () {
@@ -40,15 +47,20 @@ void main() {
       expect(boosts['park_the_bus']!.windowMinutes, 25);
     });
 
-    test('the four are the four', () {
+    test('the six are the six', () {
       expect(boosts.keys.toSet(), {
         'crowd_roar',
         'park_the_bus',
         'var_review',
         'physio_sponge',
+        'sharp_shooting',
+        'quiet_word',
       });
       expect(boosts['var_review']!.kind, BoostKind.retrospective);
       expect(boosts['physio_sponge']!.kind, BoostKind.retrospective);
+      expect(boosts['quiet_word']!.kind, BoostKind.retrospective);
+      expect(boosts['sharp_shooting']!.kind, BoostKind.proactive);
+      expect(boosts['sharp_shooting']!.windowMinutes, 25);
     });
 
     test('lookups tolerate a null or unknown id', () {

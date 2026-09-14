@@ -1,4 +1,4 @@
-/// The four manager boosts — consumables spent during a live match.
+/// The six manager boosts — consumables spent during a live match.
 ///
 /// **Proactive on the pitch, retrospective on the bench.** Two change how the
 /// side plays for a window and are tapped from the match screen while
@@ -41,6 +41,9 @@ class Boost {
   });
 
   final String id;
+
+  /// A name from `game_icon.dart` — the app's own line art, not an emoji, so
+  /// a boost draws the way the shop and the HUD do. Asked for from the couch.
   final String icon;
   final BoostKind kind;
 
@@ -63,21 +66,34 @@ const int _window = 25;
 
 const Map<String, Boost> boosts = {
   'crowd_roar': Boost(
-    id: 'crowd_roar', icon: '📣',
+    id: 'crowd_roar', icon: 'megaphone',
     kind: BoostKind.proactive, gemCost: 1, packSize: 1,
     windowMinutes: _window,
   ),
   'park_the_bus': Boost(
-    id: 'park_the_bus', icon: '🚌',
+    id: 'park_the_bus', icon: 'shield',
     kind: BoostKind.proactive, gemCost: 1, packSize: 1,
     windowMinutes: _window,
   ),
   'var_review': Boost(
-    id: 'var_review', icon: '📺',
+    id: 'var_review', icon: 'tv',
     kind: BoostKind.retrospective, gemCost: 1, packSize: 1,
   ),
   'physio_sponge': Boost(
-    id: 'physio_sponge', icon: '🩹',
+    id: 'physio_sponge', icon: 'bandage',
+    kind: BoostKind.retrospective, gemCost: 1, packSize: 1,
+  ),
+  // The attacking mirror of the Bus: OUR chances convert for a window,
+  // theirs untouched. A rating lift would have been a second Roar.
+  'sharp_shooting': Boost(
+    id: 'sharp_shooting', icon: 'target',
+    kind: BoostKind.proactive, gemCost: 1, packSize: 1,
+    windowMinutes: _window,
+  ),
+  // The bench's third undo: a yellow card wiped, so the man plays at full
+  // rating again and carries no ban towards the next one.
+  'quiet_word': Boost(
+    id: 'quiet_word', icon: 'handshake',
     kind: BoostKind.retrospective, gemCost: 1, packSize: 1,
   ),
 };

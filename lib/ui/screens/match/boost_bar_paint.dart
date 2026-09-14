@@ -196,7 +196,11 @@ class BoostBands extends StatelessWidget {
                   key: ValueKey('match-boost-band-${b.id}'),
                   flame: b.id == 'crowd_roar',
                   glow: glow,
-                  wash: kit.textMuted,
+                  // A Bus is a grey wash; Sharp Shooting is gold, the colour
+                  // a chance converting already wears on the feed.
+                  wash: b.id == 'sharp_shooting'
+                      ? const Color(0xFFFFC542)
+                      : kit.textMuted,
                 ),
               ),
           ],
