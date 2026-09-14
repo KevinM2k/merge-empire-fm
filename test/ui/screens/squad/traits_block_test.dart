@@ -55,8 +55,6 @@ void main() {
       expect(find.byKey(const ValueKey('spend-confirm-matchslot')), findsOneWidget);
       await tester.tap(find.byKey(const ValueKey('spend-confirm-yes-matchslot')));
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const ValueKey('spend-receipt-ok-matchslot')));
-      await tester.pumpAndSettle();
 
       final state = container.read(gameProvider).state!;
       expect((state['resources'] as Map)['gems'], 2);
@@ -89,8 +87,7 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('spend-confirm-yes-matchslot')));
       await tester.pumpAndSettle();
-      // Short of gems the flow opens the gem shelf rather than a receipt.
-      expect(find.byKey(const ValueKey('spend-receipt-matchslot')), findsNothing);
+      // Short of gems the flow opens the gem shelf and buys nothing.
       final state = container.read(gameProvider).state!;
       expect((state['resources'] as Map)['gems'], 0);
       expect(_cell(state, _idOf(tester))['matchSlot'], isNull);

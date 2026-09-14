@@ -14,8 +14,9 @@
 ///    bought with real money should take a deliberate tap.
 /// 2. **Short?** The bottom sheet for the currency they are short of, so the
 ///    next thing on screen is the thing that fixes it.
-/// 3. **Paid?** A receipt, so a purchase is an event rather than a number
-///    quietly changing.
+/// 3. **Paid?** A toast, so a purchase is an event rather than a number
+///    quietly changing — and not a second card to dismiss. Asked for from
+///    the couch: one confirmation, the same as every other gem purchase.
 ///
 /// A refusal that is NOT about money — already owned, already active, nobody
 /// injured to heal — is a different thing and is still said on the tile: those
@@ -30,6 +31,7 @@ import 'package:merge_empire_fc/ui/screens/shop/currency_sheet.dart';
 import 'package:merge_empire_fc/ui/shell/shell_controller.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
+import 'package:merge_empire_fc/util/event_bus.dart';
 import 'package:merge_empire_fc/util/format.dart';
 import 'package:merge_empire_fc/ui/widgets/store_button.dart';
 
@@ -98,11 +100,10 @@ Future<void> offerToBuy(
   }
 
   final refused = offer.buy();
-  if (!context.mounted) return;
   if (refused != null) return;
-  await showDialog<void>(
-    context: context,
-    builder: (_) => _ReceiptCard(offer: offer),
+  emit(
+    'toast:success',
+    t('shop.toast.purchased', {'icon': '', 'name': offer.title}).trim(),
   );
 }
 
@@ -392,54 +393,4 @@ class _SpendDialog extends StatelessWidget {
       ),
     ),
   );
-}
-
-class _ReceiptCard extends StatelessWidget {
-  const _ReceiptCard({required this.offer});
-
-  final SpendOffer offer;
-
-  @override
-  Widget build(BuildContext context) {
-    final kit = Theme.of(context).extension<KitTheme>()!;
-    return AlertDialog(
-      key: ValueKey('spend-receipt-${offer.key}'),
-      backgroundColor: kit.surface,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-        side: BorderSide(color: kit.accent.withValues(alpha: 0.5)),
-      ),
-      contentPadding: const EdgeInsets.fromLTRB(24, 24, 24, 12),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          GameIcon(offer.glyph, size: 40, color: kit.accentBright),
-          const SizedBox(height: 10),
-          Text(
-            // The shipped line, which already names the thing and the glyph.
-            t('shop.toast.purchased', {'icon': '', 'name': offer.title}).trim(),
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w900,
-              color: kit.accentBright,
-            ),
-          ),
-        ],
-      ),
-      actions: [
-        SizedBox(
-          width: double.infinity,
-          // Not a price, so it takes the club's accent rather than borrowing a
-          // currency's colour.
-          child: StoreButton(
-            key: ValueKey('spend-receipt-ok-${offer.key}'),
-            tone: StoreTone.neutral,
-            label: t('common.got_it'),
-            onTap: () => Navigator.of(context).maybePop(),
-          ),
-        ),
-      ],
-    );
-  }
 }

@@ -54,14 +54,9 @@ void main() {
       await buyRow(tester, 'boost-crowd_roar');
       expect(container.read(gemsProvider), gems - 1);
       expect(boostCount(container.read(gameProvider).state, 'crowd_roar'), 1);
-      expect(find.byKey(const ValueKey('spend-receipt-boost-crowd_roar')), findsOneWidget);
-      await tester.tap(find.byKey(const ValueKey('spend-receipt-ok-boost-crowd_roar')));
-      await tester.pumpAndSettle();
       expect(find.text(t('boost.shop.count', {'n': '1'})), findsOneWidget);
       // And again: the badge follows the bag.
       await buyRow(tester, 'boost-crowd_roar');
-      await tester.tap(find.byKey(const ValueKey('spend-receipt-ok-boost-crowd_roar')));
-      await tester.pumpAndSettle();
       expect(boostCount(container.read(gameProvider).state, 'crowd_roar'), 2);
       expect(find.text(t('boost.shop.count', {'n': '2'})), findsOneWidget);
       await settleSave(tester);
@@ -114,16 +109,8 @@ void main() {
       await buyRow(tester, 'gem-${live.item.id}');
       expect(container.read(gemsProvider), lessThan(before));
 
-      // And a receipt, so a purchase is an event rather than a number quietly
-      // changing.
-      expect(
-        find.byKey(ValueKey('spend-receipt-gem-${live.item.id}')),
-        findsOneWidget,
-      );
-      await tester.tap(
-        find.byKey(ValueKey('spend-receipt-ok-gem-${live.item.id}')),
-      );
-      await tester.pumpAndSettle();
+      // And no receipt to dismiss: the purchase is toasted, not carded.
+      expect(find.byKey(ValueKey('spend-receipt-gem-${live.item.id}')), findsNothing);
       await settleSave(tester);
     });
 
@@ -293,10 +280,6 @@ void main() {
       final before = container.read(coinsProvider);
 
       await buyRow(tester, 'coin-kit_sponsor');
-      await tester.tap(
-        find.byKey(const ValueKey('spend-receipt-ok-coin-kit_sponsor')),
-      );
-      await tester.pumpAndSettle();
       await settleSave(tester);
 
       expect(container.read(coinsProvider), lessThan(before));
@@ -488,10 +471,6 @@ void main() {
       final before = container.read(gemsProvider);
 
       await buyRow(tester, 'voucher-${open.floor}');
-      await tester.tap(
-        find.byKey(ValueKey('spend-receipt-ok-voucher-${open.floor}')),
-      );
-      await tester.pumpAndSettle();
       await settleSave(tester);
 
       expect(container.read(gemsProvider), lessThan(before));
@@ -511,10 +490,6 @@ void main() {
           .firstWhere((t) => t.blocked == null);
 
       await buyRow(tester, 'voucher-${open.floor}');
-      await tester.tap(
-        find.byKey(ValueKey('spend-receipt-ok-voucher-${open.floor}')),
-      );
-      await tester.pumpAndSettle();
       await settleSave(tester);
 
       // Every rung this division can BUY is blocked by the armed one. The
