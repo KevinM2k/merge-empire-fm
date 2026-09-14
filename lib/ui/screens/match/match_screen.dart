@@ -681,6 +681,7 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
   int get subsUsed => _subsUsed;
   bool get paused => _paused;
   Map<String, dynamic> get liveRatings => _liveRatings;
+  int get resimCount => _resimCount;
 
   /// Held from initState: `ref` is not usable once the widget is disposed, and
   /// handing the gates back is exactly a teardown job.
@@ -772,6 +773,14 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
         : null;
     _standings = _standingsAtKickoff();
     _kickoffLineup = _lineupSnapshot();
+    // The minute-gated traits, queued once at kickoff. `_resimulate` is what
+    // costs, and an empty queue never reaches it.
+    if (_hasTraitWithCondition(MatchTraitCondition.firstTwenty)) {
+      scheduleResimAt(21, 'fast_starter');
+    }
+    if (_hasTraitWithCondition(MatchTraitCondition.lastFifteen)) {
+      scheduleResimAt(76, 'last_gasp');
+    }
     _startClock();
     // **THE MATCH HAS ITS OWN BED, and the whistle starts it.** The sounds here
     // belong to the CLOCK rather than to the simulation: the whole ninety
@@ -842,6 +851,9 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
       _minute++;
       _cutIfWorthWatching();
     });
+    // Before the minute's events are told, so what is told was rolled under
+    // the state the boundary put the side in.
+    if (_pendingResims.isNotEmpty) _drainResims(_minute);
     _soundFor(_minute);
     // A goal the pitch is retelling has not been TOLD yet — the cutaway's own
     // `onDone` cuts to him instead, so his reaction lands after the move
@@ -1545,6 +1557,9 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
   /// match run the same method with nothing left to do.
   void skipToEnd() {
     if (!mounted) return;
+    // A skipped match still has its windows close: every queued boundary
+    // fires at its own minute, in order, before the referee's catch-up.
+    if (_pendingResims.isNotEmpty) _drainResims(_end);
     _catchUpSendingsOff();
     // Nothing to watch on the way to full time — and nothing left to hear for
     // it either, so the clip's own cues go with it.
@@ -1923,6 +1938,55 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
       for (final raw in cells is List ? cells : const [])
         CardInstance.from(raw),
     ];
+  }
+
+  /// Does anyone in the eleven carry a trait with this condition? Cheap when
+  /// nobody does, which is the common case.
+  bool _hasTraitWithCondition(MatchTraitCondition condition) {
+    for (final card in _gridCells()) {
+      final ref = matchTraitOf(card);
+      if (ref == null) continue;
+      if (getMatchTrait(ref['id'] as String?)?.condition == condition) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /// Minutes at which the remainder must be re-decided with no manager input.
+  ///
+  /// **Boost windows and minute-gated traits are the same problem.** A Crowd
+  /// Roar that ends at 65 and a Fast Starter that stops paying at 21 both need
+  /// the remainder re-rolled at a minute nobody taps, so they share one queue
+  /// rather than growing two timers that can disagree about ordering.
+  ///
+  /// Drained in the per-minute tick rather than on a `Timer`, so it obeys the
+  /// speed toggle, the auto-slow and a paused match for free — a wall-clock
+  /// timer would fire during a bottom sheet.
+  final List<({int minute, String reason})> _pendingResims = [];
+
+  /// How many times the remainder has been re-decided. Test seam.
+  int _resimCount = 0;
+
+  /// Queue a re-simulation for [minute]. A minute already behind the clock, or
+  /// at or past the whistle, is dropped: there is nothing left to re-decide.
+  void scheduleResimAt(int minute, String reason) {
+    if (minute >= _end || minute <= _minute) return;
+    _pendingResims.add((minute: minute, reason: reason));
+    _pendingResims.sort((a, b) => a.minute.compareTo(b.minute));
+  }
+
+  /// Fire everything due at or before [minute], in order.
+  void _drainResims(int minute) {
+    while (_pendingResims.isNotEmpty && _pendingResims.first.minute <= minute) {
+      final due = _pendingResims.removeAt(0);
+      // Never re-rolls injuries: a window closing is not a change of approach,
+      // the same reasoning a substitution passes `rerollInjuries: false`.
+      _resimulate(due.minute, _strategy, rerollInjuries: false);
+    }
+    if (mounted) {
+      setState(() => _timeline = timelineOf(widget.result, bookings: _bookings));
+    }
   }
 
   /// **THE BOOKING MAP AND THE TRAIT MAP, COMPOSED ONCE.**
@@ -2465,6 +2529,7 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
   /// scoreboard tally. Passing the tally would drop a goal the feed has already
   /// promised, and the screen would end 2-1 with the engine calling it a draw.
   void _resimulate(int at, String strategyId, {bool rerollInjuries = true}) {
+    _resimCount++;
     final raw = widget.result['events'];
     final kept = [
       for (final e in raw is List ? raw : const [])
