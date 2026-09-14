@@ -40,6 +40,9 @@ import 'package:merge_empire_fc/ui/screens/match/cutaway/cutaway_game.dart'
     show CutawayOutcome;
 import 'package:merge_empire_fc/ui/screens/match/cutaway/cutaway_stage.dart';
 import 'package:merge_empire_fc/engine/booking_engine.dart';
+import 'package:merge_empire_fc/engine/match_trait_engine.dart';
+import 'package:merge_empire_fc/data/match_traits.dart'
+    show MatchTraitCondition, getMatchTrait;
 import 'package:merge_empire_fc/ui/screens/match/goal_replay.dart'
     show conceded;
 import 'package:merge_empire_fc/engine/match_orchestration.dart'
@@ -677,6 +680,7 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
   bool get tacticOnCooldown => _tacticCooldown;
   int get subsUsed => _subsUsed;
   bool get paused => _paused;
+  Map<String, dynamic> get liveRatings => _liveRatings;
 
   /// Held from initState: `ref` is not usable once the widget is disposed, and
   /// handing the gates back is exactly a teardown job.
@@ -1885,6 +1889,71 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
   /// something the manager was living with at half time.
   final Set<String> _cautioned = <String>{};
 
+  /// Everyone brought on with twenty or fewer to play — Super Sub's condition.
+  /// Screen-owned, like [_withdrawn]: the panel forgets and this must not.
+  final Set<String> _subbedOnLate = <String>{};
+
+  /// What is true about the match right now, for the second trait slot.
+  ///
+  /// The kickoff flags come off the result — `isHome`, `isCup`, the grudge
+  /// the sim stamped, the drop zone it read — and the rest is this screen's.
+  /// "Down to ten" is a vacated lineup row, which is exactly what the rating
+  /// engine scores as a man short.
+  MatchContext _matchContext() {
+    final ours = (widget.result['squadRating'] as num?)?.toDouble();
+    final theirs = (widget.result['opponentRating'] as num?)?.toDouble();
+    return (
+      isHome: widget.result['isHome'] == true,
+      isCup: widget.result['isCup'] == true,
+      isDerby: ((widget.result['grudgeBoost'] as num?) ?? 0) > 0,
+      inRelegationZone: widget.result['playerInRelegationZone'] == true,
+      oppStronger: ours != null && theirs != null && theirs > ours,
+      tenMen: _lineupSnapshot().any((r) => r['cardInstanceId'] == null),
+      minute: _minute,
+      fullTime: _end,
+      subbedOnLate: _subbedOnLate,
+      cautioned: _cautioned.where((id) => !_withdrawn.contains(id)).toSet(),
+    );
+  }
+
+  List<CardInstance?> _gridCells() {
+    final grid = ref.read(gameProvider).state?['grid'];
+    final cells = grid is Map<String, dynamic> ? grid['cells'] : null;
+    return [
+      for (final raw in cells is List ? cells : const [])
+        CardInstance.from(raw),
+    ];
+  }
+
+  /// **THE BOOKING MAP AND THE TRAIT MAP, COMPOSED ONCE.**
+  ///
+  /// Every re-simulation has to see both or a trait fires on a tactic switch
+  /// and not on a substitution — which is why [_resimulate] reads this rather
+  /// than being handed a map by whichever caller happens to know about cards.
+  /// Ice Veins is the reason this is a compose rather than an `addAll`: its
+  /// value REPLACES the caution multiplier, so it is written after the bookings
+  /// and deliberately wins.
+  Map<String, double> _liveMultipliers() {
+    final out = Map<String, double>.from(
+      bookedRatingMultipliers(
+        _cautioned.where((id) => !_withdrawn.contains(id)),
+      ),
+    );
+    final cells = _gridCells();
+    final traits = matchTraitMultipliers(cells, _lineupSnapshot(), _matchContext());
+    if (traits.isEmpty) return out;
+    final byId = {
+      for (final c in cells.whereType<CardInstance>()) c.instanceId: c,
+    };
+    for (final e in traits.entries) {
+      final ref = matchTraitOf(byId[e.key]);
+      final replaces = getMatchTrait(ref?['id'] as String?)?.condition ==
+          MatchTraitCondition.booked;
+      out[e.key] = replaces ? e.value : (out[e.key] ?? 1) * e.value;
+    }
+    return out;
+  }
+
   /// **THEIR referee, counted rather than named.** The port never names an
   /// opposition player — see the feed's own note on why their card reads about
   /// the club — so there is no id to hang a multiplier on and no lineup to take
@@ -2179,6 +2248,8 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
     // re-rolls against is the one with him on it.
     // **The injuries are LEFT ALONE.** A substitution changes who is on the
     // pitch, not how dangerously the side is playing — see the flag's own note.
+    // Super Sub's window: twenty or fewer to play, stoppage included.
+    if (_minute >= _end - 20) _subbedOnLate.add(sub.onId);
     _resimulate(_minute, _strategy, rerollInjuries: false);
 
     final state = ref.read(gameProvider).state;
@@ -2424,9 +2495,7 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
       // happens to know about it. A man already sent off is not in `_cautioned`
       // and is out of the lineup anyway; one already withdrawn is off the
       // pitch, so his caution stops costing.
-      bookedMultipliers: bookedRatingMultipliers(
-        _cautioned.where((id) => !_withdrawn.contains(id)),
-      ),
+      bookedMultipliers: _liveMultipliers(),
       oppRatingMult: oppTeamRatingMult(_oppYellows, _oppSendOffs),
       liveRatingsOut: _liveRatings,
     );
