@@ -4548,7 +4548,11 @@ class _Scoreboard extends StatelessWidget {
                       ),
                     ),
                     if (bands.isNotEmpty) BoostBands(windows: bands, glow: glow),
-                    if (roarLive(bands)) FlameOverlay(on: glow != null),
+                    if (roarLive(bands))
+                      FlameOverlay(
+                        on: glow != null,
+                        progress: (minute / 90).clamp(0.0, 1.0),
+                      ),
                   ],
                 ),
               ),

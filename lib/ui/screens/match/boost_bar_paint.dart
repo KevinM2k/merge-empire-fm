@@ -36,10 +36,15 @@ bool roarLive(List<LiveBoost> windows) => windows.any((b) => b.id == 'crowd_roar
 /// width until the window closes. The Bus keeps its grey band: it is the
 /// tactical opposite and should not look like the same thing.
 class FlameOverlay extends StatefulWidget {
-  const FlameOverlay({super.key, required this.on});
+  const FlameOverlay({super.key, required this.on, required this.progress});
 
   /// Animating, or a still frame for reduced motion and tests.
   final bool on;
+
+  /// How far the match is, 0–1: the fire is bright behind the clock and
+  /// embers ahead of it, so the bar's own edge is still there to watch.
+  /// Reported from the couch — the whole-bar fire hid where the match was.
+  final double progress;
 
   @override
   State<FlameOverlay> createState() => _FlameOverlayState();
@@ -75,7 +80,7 @@ class _FlameOverlayState extends State<FlameOverlay>
   Widget build(BuildContext context) => RepaintBoundary(
     child: CustomPaint(
       key: const ValueKey('match-boost-band-crowd_roar'),
-      painter: _FlamePainter(_t),
+      painter: _FlamePainter(_t, widget.progress),
       child: const SizedBox.expand(),
     ),
   );
@@ -87,20 +92,28 @@ class _FlameOverlayState extends State<FlameOverlay>
 /// sines scrolled by time, the bolt is a zigzag drawn for a fifth of each
 /// loop and gone the rest.
 class _FlamePainter extends CustomPainter {
-  _FlamePainter(this.t) : super(repaint: t);
+  _FlamePainter(this.t, this.progress) : super(repaint: t);
 
   final Animation<double> t;
+  final double progress;
 
   @override
   void paint(Canvas canvas, Size size) {
     final w = size.width;
     final h = size.height;
     final phase = t.value * 2 * math.pi;
+    final edge = w * progress.clamp(0.0, 1.0);
 
-    // A hot wash over everything, breathing.
+    // Ahead of the clock: embers, dim enough that the burnt half reads as
+    // the fill it is.
     canvas.drawRect(
-      Offset.zero & size,
-      Paint()..color = flameMid.withValues(alpha: 0.25 + 0.15 * math.sin(phase)),
+      Rect.fromLTWH(edge, 0, w - edge, h),
+      Paint()..color = flameDeep.withValues(alpha: 0.28),
+    );
+    // Behind it: a hot wash, breathing.
+    canvas.drawRect(
+      Rect.fromLTWH(0, 0, edge, h),
+      Paint()..color = flameMid.withValues(alpha: 0.35 + 0.15 * math.sin(phase)),
     );
 
     // Tongues: a ragged top edge, scrolling right to left.
@@ -117,6 +130,9 @@ class _FlamePainter extends CustomPainter {
     tongues
       ..lineTo(w, h)
       ..close();
+    // Full flame behind the clock, a third of it ahead.
+    canvas.save();
+    canvas.clipRect(Rect.fromLTWH(0, 0, edge, h));
     canvas.drawPath(
       tongues,
       Paint()
@@ -125,6 +141,19 @@ class _FlamePainter extends CustomPainter {
           end: Alignment.topCenter,
           colors: [flameDeep, flameMid, flameHot],
         ).createShader(Offset.zero & size),
+    );
+    canvas.restore();
+    canvas.save();
+    canvas.clipRect(Rect.fromLTWH(edge, 0, w - edge, h));
+    canvas.drawPath(
+      tongues,
+      Paint()..color = flameMid.withValues(alpha: 0.3),
+    );
+    canvas.restore();
+    // The clock's own edge, white-hot, so the minute is never lost in it.
+    canvas.drawRect(
+      Rect.fromLTWH(math.max(0, edge - 1.5), 0, 3, h),
+      Paint()..color = Colors.white.withValues(alpha: 0.9),
     );
 
     // The bolt: a fifth of the loop, sweeping the width, white-hot.
@@ -152,7 +181,7 @@ class _FlamePainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_FlamePainter old) => old.t != t;
+  bool shouldRepaint(_FlamePainter old) => old.t != t || old.progress != progress;
 }
 
 /// The windows laid over the bar, each across its own minute range.
