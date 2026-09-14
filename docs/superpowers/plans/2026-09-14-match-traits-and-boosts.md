@@ -1607,11 +1607,35 @@ repeating controller that never settles means no widget test in the suite can
 `pumpAndSettle` this screen again — the same trap `TraitBlockState._flash`
 documents.
 
-- [ ] **Step 5: Run and watch it pass**
+- [ ] **Step 5: Glow the board, and name the source**
+
+A temporary lift has to be attributable or it reads as noise — a player can own
+a Derby Devil for weeks and never notice it working. The rating, ATK and DEF
+figures glow in the kit accent while anything temporary is live, and a pill
+under them names it: `🔄 Super Sub`, `📣 Crowd Roar`. More than one live shows a
+count and the strongest.
+
+**It must not relayout.** A widget that changes SIZE every frame relayouts past
+any `RepaintBoundary` to the route and repaints the whole shell — the HUD coin
+count-up cost exactly this. Animate opacity and colour inside a fixed-size box;
+give the pill a reserved width rather than letting it grow. Reuse the strip's
+single `AnimationController` and stop it when nothing is live.
+
+Add to the test: with a lit trait, `match-live-source-pill` is present and reads
+the trait's name; with nothing live it is absent; and the pill's box does not
+change size between the two.
+
+- [ ] **Step 6: Glow the firing player's badge at the bench**
+
+`PitchToken` already wears `TraitBadge` off `CardView.trait`. Light that badge
+for a player whose match trait is currently firing — the "who" the board's pill
+cannot answer. This is the existing widget lit, not a second badge.
+
+- [ ] **Step 7: Run and watch it pass**
 
 Run: `flutter test test/ui/match/boost_strip_test.dart`
 
-- [ ] **Step 6: Analyze and commit**
+- [ ] **Step 8: Analyze and commit**
 
 ```bash
 flutter analyze

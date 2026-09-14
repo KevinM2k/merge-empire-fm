@@ -318,6 +318,40 @@ for Bus. That gives the player when it started *and* when it ends, in the one
 control that already means time. Plus a full-width flash across the pitch at the
 moment of the tap.
 
+### Saying what is lifting the side
+
+**The board already moves, and that is the honest signal.** `ourRating` reads
+`liveOr('liveSquadRating', 'effectiveSquadRating')` and the split reads the
+`live*` pair, so a trait firing or a boost landing changes the number the
+player is looking at. Nothing has to be invented to make the effect visible.
+
+What is missing is *attribution*. A conditional trait has a real
+discoverability problem: a player can own a Derby Devil for three weeks and
+never once notice it working, because a rating that moves for an unexplained
+reason reads as noise. So a temporary lift says so, at three levels:
+
+| | Where | Answers |
+|---|---|---|
+| **Glow** | the rating / ATK / DEF figures on the scoreboard | *something* is lifting you, right now |
+| **Pill** | a caption under them — `🔄 Super Sub` | *what* is doing it |
+| **Badge** | the firing player's `TraitBadge` on his pitch token, at the bench | *who* |
+
+The badge lives at the bench rather than on the match screen because **there
+are no player cards on the match screen to glow** — the pitch band is a 2D
+pitch on which "a player is about four points across". The subs panel uses
+`PitchBoard`/`PitchToken`, and those already wear `TraitBadge` off
+`CardView.trait`, so it is the existing widget lit rather than a new one.
+
+With more than one lift live, the pill shows a count and the strongest.
+
+**The glow must not relayout.** A widget that changes SIZE every frame
+relayouts past any `RepaintBoundary` to the route and repaints the whole shell
+— the HUD coin count-up has already cost this once. So the glow animates
+opacity and colour inside a fixed-size box, and the pill reserves its width
+rather than growing into it. One `AnimationController`, stopped when nothing is
+live: a controller that never settles means no widget test in the suite can
+`pumpAndSettle` this screen again.
+
 ### Sound
 
 `sound_defs.dart`'s header records a deferral:
