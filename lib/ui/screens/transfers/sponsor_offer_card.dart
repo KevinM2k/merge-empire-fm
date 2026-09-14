@@ -97,16 +97,9 @@ Future<bool> showSponsorOffer(
   required CardInstance player,
   required Company company,
 }) async {
-  // **His explainer is a paragraph INSIDE the offer, not a tip over it.** The
-  // JS makes that point twice: a coach tip stacked on top of the card it is
-  // about is Colin talking over Colin. `takeTipOnce` returns true once ever, so
-  // the first sponsor a player is offered comes with the lesson and no other
-  // does.
-  // Through `update`, because spending the id WRITES to the save — read the
-  // map and mutate it by hand and the ledger never reaches the disk.
-  final explain = ref
-      .read(gameProvider)
-      .update((s) => takeTipOnce(s, 'sponsor'));
+  // The once-ever `coachtip.sponsor` explainer is still spent here so the
+  // ledger matches the JS, but the card no longer prints it.
+  ref.read(gameProvider).update((s) => takeTipOnce(s, 'sponsor'));
   final read = sponsorRead(
     ref.read(gameProvider).state ?? const <String, dynamic>{},
     player,
@@ -122,7 +115,6 @@ Future<bool> showSponsorOffer(
     builder: (_) => _SponsorOfferCard(
       player: player,
       company: company,
-      explain: explain,
       read: read,
       onAnswer: (yes) => accepted = yes,
     ),
@@ -149,7 +141,6 @@ class _SponsorOfferCard extends StatelessWidget {
   const _SponsorOfferCard({
     required this.player,
     required this.company,
-    required this.explain,
     required this.read,
     required this.onAnswer,
   });
@@ -159,10 +150,6 @@ class _SponsorOfferCard extends StatelessWidget {
 
   /// His call, worked out before the card opened — see [sponsorRead].
   final CoachRead read;
-
-  /// Whether this is the first sponsor this save has ever been offered, and so
-  /// carries Colin's one-time explanation of what a sponsorship IS.
-  final bool explain;
 
   /// `CoachAction` closes the card itself, so the answer comes back this way
   /// rather than as the dialog's result.
@@ -183,11 +170,8 @@ class _SponsorOfferCard extends StatelessWidget {
       // before the terms are read: "they've been in touch, they want him" and
       // then the small print, then his call. Asked for from the couch — the
       // card should read as him telling us an offer has come in.
-      // What a sponsorship is, once ever. Under the offer rather than over it.
-      extraLines: [
-        if (explain)
-          (key: 'coachtip.sponsor.body', params: const {}, strong: false),
-      ],
+      // No explainer paragraph: the relay, the terms and his call are the
+      // whole of what he says. Reported as too much to read.
       // Red for no, green for yes — in a line and the same width, because they
       // are two answers to one question.
       actions: [
@@ -269,16 +253,6 @@ class _SponsorOfferCard extends StatelessWidget {
                   ),
               ],
             ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            // The one piece of copy on this card that is a Dart constant rather
-            // than a catalogue key, so it is the one that needs the dash rule
-            // asked for by hand — `sponsors.dart` is what the parity fixtures
-            // compare, and cannot be edited. See `withoutLongDash`.
-            withoutLongDash(drawback.msg),
-            textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 12, height: 1.5, color: kit.textMuted),
           ),
           const SizedBox(height: 10),
           CoachVerdictLine(
