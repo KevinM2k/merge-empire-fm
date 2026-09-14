@@ -1,0 +1,88 @@
+/// The four manager boosts — consumables spent during a live match.
+///
+/// **Proactive on the pitch, retrospective on the bench.** Two change how the
+/// side plays for a window and are tapped from the match screen while
+/// watching; two undo something the referee or the physio has already done and
+/// are taken at the bench, in front of the consequence, with the clock stopped.
+/// The kind is what decides where a boost is offered, and the window is what
+/// decides whether the progress bar has a band to burn for it.
+///
+/// **Priced against the gem catalogue's own anchors** — scout voucher 1, energy
+/// refill 5, trophy polish 5. A one-shot match boost at five would be the
+/// dearest thing on the shelf for the shortest effect; a pack of three at two
+/// is about a week of the day-7 daily, cheap enough to be SPENT rather than
+/// hoarded, which is how a consumable teaches its own value.
+///
+/// The catalogue's second law — "NEVER RAW RATING" — is why Crowd Roar is a
+/// window and not a permanent, and why Park the Bus is not a rating change at
+/// all: a transient lift is closer in kind to trophy polish's half hour than to
+/// an unlock, and the division bands are tuned against what a squad is worth
+/// normally.
+///
+/// The port's own, not the JS's. Deliberately Flutter-free.
+library;
+
+enum BoostKind {
+  /// Tapped from the match screen at any minute. Carries a window.
+  proactive,
+
+  /// Offered at the bench when the panel opens for the thing it undoes. The
+  /// match is paused while it is offered, so it has no window.
+  retrospective,
+}
+
+class Boost {
+  const Boost({
+    required this.id,
+    required this.icon,
+    required this.kind,
+    required this.gemCost,
+    required this.packSize,
+    this.windowMinutes = 0,
+  });
+
+  final String id;
+  final String icon;
+  final BoostKind kind;
+
+  /// The price of one PACK, in gems.
+  final int gemCost;
+
+  /// How many a pack delivers.
+  final int packSize;
+
+  /// How long the effect runs, in IN-GAME minutes. Zero for a retrospective
+  /// boost. In-game rather than wall-clock because the unit has to survive the
+  /// speed toggle and the auto-slow.
+  final int windowMinutes;
+}
+
+/// Twenty-five: about nine real seconds at the normal pace, and twenty-eight
+/// per cent of a match. Long enough to be seen as a window on the bar rather
+/// than a flash, short enough that WHEN to tap it is still a decision.
+const int _window = 25;
+
+const Map<String, Boost> boosts = {
+  'crowd_roar': Boost(
+    id: 'crowd_roar', icon: '📣',
+    kind: BoostKind.proactive, gemCost: 2, packSize: 3,
+    windowMinutes: _window,
+  ),
+  'park_the_bus': Boost(
+    id: 'park_the_bus', icon: '🚌',
+    kind: BoostKind.proactive, gemCost: 2, packSize: 3,
+    windowMinutes: _window,
+  ),
+  'var_review': Boost(
+    id: 'var_review', icon: '📺',
+    kind: BoostKind.retrospective, gemCost: 2, packSize: 3,
+  ),
+  'physio_sponge': Boost(
+    id: 'physio_sponge', icon: '🩹',
+    kind: BoostKind.retrospective, gemCost: 2, packSize: 3,
+  ),
+};
+
+final List<Boost> boostList = List.unmodifiable(boosts.values);
+
+Boost? getBoost(String? id) => id == null ? null : boosts[id];
