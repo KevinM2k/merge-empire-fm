@@ -18,7 +18,6 @@ import 'package:flutter/material.dart';
 import 'package:merge_empire_fc/data/boosts.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
-import 'package:merge_empire_fc/ui/widgets/store_button.dart' show storeGemFace;
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 
 /// One retrospective boost as the bench offers it right now.
@@ -103,33 +102,16 @@ class _OfferTile extends StatelessWidget {
                       ),
                     ),
                   ),
-                  if (offer.count > 0)
-                    Text(
-                      'x${offer.count}',
-                      key: ValueKey('bench-boost-count-${offer.id}'),
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w900,
-                        color: ink,
-                      ),
-                    )
-                  else
-                    Row(
-                      key: ValueKey('bench-boost-price-${offer.id}'),
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const GameIcon('gem', size: 11, color: storeGemFace),
-                        const SizedBox(width: 2),
-                        Text(
-                          '${boost?.gemCost ?? 0}',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w900,
-                            color: ink,
-                          ),
-                        ),
-                      ],
+                  // The count, even at nought: nothing is for sale here.
+                  Text(
+                    'x${offer.count}',
+                    key: ValueKey('bench-boost-count-${offer.id}'),
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w900,
+                      color: ink,
                     ),
+                  ),
                 ],
               ),
               const SizedBox(height: 3),

@@ -144,7 +144,7 @@ void main() {
       await _finish(tester, state);
     });
 
-    testWidgets('AN UNOWNED BOOST SHOWS ITS PRICE AND GOES TO THE SHOP', (
+    testWidgets('AN UNOWNED BOOST READS x0, GREYED, AND DOES NOTHING', (
       tester,
     ) async {
       final c = await pumpMatch(
@@ -153,13 +153,18 @@ void main() {
         save: _save(boosts: const {}),
         instance: 'unowned',
       );
-      expect(find.byKey(const ValueKey('match-boost-price-crowd_roar')), findsOneWidget);
+      expect(
+        tester.widget<Text>(find.byKey(const ValueKey('match-boost-count-crowd_roar'))).data,
+        'x0',
+      );
+      expect(find.byKey(const ValueKey('match-boost-price-crowd_roar')), findsNothing);
       final before = stateOf(tester).resimCount;
       await tester.tap(find.byKey(const ValueKey('match-boost-crowd_roar')));
       await tester.pump();
-      // Nothing was spent and nothing re-decided; the shop was asked for.
+      // Nothing was spent, nothing re-decided, and no shop was asked for —
+      // nothing is for sale on the pitch.
       expect(stateOf(tester).resimCount, before);
-      expect(c.read(shellControllerProvider).pendingShopSection, ShopSection.boosts);
+      expect(c.read(shellControllerProvider).pendingShopSection, isNull);
       await _finish(tester, stateOf(tester));
     });
 

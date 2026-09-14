@@ -597,7 +597,7 @@ const Map<String, String> esCopy = <String, String>{
   'boost.shop.count': "x{n}",
   'shop.section.match_boosts': "Mejoras en partido",
   'boost.bench.for': "para {player}",
-  'boost.bench.buy': "{gems} gema en la tienda",
+  'boost.bench.none': "Ninguno en la bolsa",
   'boost.locked.too_late': "Demasiado tarde. El juego se ha reanudado.",
   'boost.var_review.idle': "Ninguna expulsión que revisar",
   'boost.physio_sponge.idle': "Nadie está en el suelo",

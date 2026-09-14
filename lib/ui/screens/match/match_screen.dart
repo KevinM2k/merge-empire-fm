@@ -2153,10 +2153,9 @@ class MatchScreenState extends ConsumerState<MatchScreen>
       required void Function(String) apply,
     }) {
       final count = boostCount(state, id);
-      final cost = getBoost(id)?.gemCost ?? 0;
       final String? reason;
       if (count == 0) {
-        reason = t('boost.bench.buy', {'gems': '$cost'});
+        reason = t('boost.bench.none');
       } else if (target == null) {
         reason = t(passedOn ? 'boost.locked.too_late' : idleKey);
       } else {

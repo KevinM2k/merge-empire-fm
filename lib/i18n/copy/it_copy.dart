@@ -607,7 +607,7 @@ const Map<String, String> itCopy = <String, String>{
   'boost.shop.count': "x{n}",
   'shop.section.match_boosts': "Potenziamenti in partita",
   'boost.bench.for': "per {player}",
-  'boost.bench.buy': "{gems} gemma nel negozio",
+  'boost.bench.none': "Nessuno nella borsa",
   'boost.locked.too_late': "Troppo tardi. Il gioco è ripreso.",
   'boost.var_review.idle': "Nessuna espulsione da rivedere",
   'boost.physio_sponge.idle': "Nessuno è a terra",

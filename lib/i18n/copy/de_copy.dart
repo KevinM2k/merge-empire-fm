@@ -616,7 +616,7 @@ const Map<String, String> deCopy = <String, String>{
   'boost.shop.count': "x{n}",
   'shop.section.match_boosts': "Spiel-Boosts",
   'boost.bench.for': "für {player}",
-  'boost.bench.buy': "{gems} Edelstein im Shop",
+  'boost.bench.none': "Keiner im Gepäck",
   'boost.locked.too_late': "Zu spät. Das Spiel läuft wieder.",
   'boost.var_review.idle': "Kein Platzverweis zu prüfen",
   'boost.physio_sponge.idle': "Niemand liegt am Boden",

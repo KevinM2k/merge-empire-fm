@@ -353,7 +353,7 @@ const Map<String, String> enCopy = <String, String>{
   'boost.shop.count': 'x{n}',
   'shop.section.match_boosts': 'In-game boosts',
   'boost.bench.for': 'for {player}',
-  'boost.bench.buy': '{gems} gem in the shop',
+  'boost.bench.none': 'None in the bag',
   'boost.locked.too_late': 'Too late. Play has restarted.',
   'boost.var_review.idle': 'No sending-off to review',
   'boost.physio_sponge.idle': 'Nobody is down',

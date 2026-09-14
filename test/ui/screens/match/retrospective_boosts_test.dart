@@ -351,10 +351,13 @@ void main() {
       );
       expect(state.canVar('c3'), isFalse);
       // The bench still shows the tile — with the price on it, not a blank.
-      expect(find.byKey(const ValueKey('bench-boost-price-var_review')), findsOneWidget);
+      expect(
+        tester.widget<Text>(find.byKey(const ValueKey('bench-boost-count-var_review'))).data,
+        'x0',
+      );
       expect(
         tester.widget<Text>(find.byKey(const ValueKey('bench-boost-reason-var_review'))).data,
-        t('boost.bench.buy', {'gems': '1'}),
+        t('boost.bench.none'),
       );
       await _finish(tester, state);
     });

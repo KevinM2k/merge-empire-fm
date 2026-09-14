@@ -543,7 +543,7 @@ const Map<String, String> arCopy = <String, String>{
   'boost.shop.count': "x{n}",
   'shop.section.match_boosts': "تعزيزات داخل المباراة",
   'boost.bench.for': "لـ{player}",
-  'boost.bench.buy': "جوهرة {gems} في المتجر",
+  'boost.bench.none': "لا شيء في الحقيبة",
   'boost.locked.too_late': "تأخرت. استُؤنفت المباراة.",
   'boost.var_review.idle': "لا طرد لمراجعته",
   'boost.physio_sponge.idle': "لا أحد على الأرض",

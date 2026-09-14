@@ -440,7 +440,7 @@ const Map<String, String> zhCopy = <String, String>{
   'boost.shop.count': "×{n}",
   'shop.section.match_boosts': "比赛中增益",
   'boost.bench.for': "用于{player}",
-  'boost.bench.buy': "商店售价{gems}颗宝石",
+  'boost.bench.none': "没有库存",
   'boost.locked.too_late': "太迟了。比赛已经重新开始。",
   'boost.var_review.idle': "没有需要回看的红牌",
   'boost.physio_sponge.idle': "没有球员倒地",

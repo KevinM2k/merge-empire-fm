@@ -589,7 +589,7 @@ const Map<String, String> ptCopy = <String, String>{
   'boost.shop.count': "x{n}",
   'shop.section.match_boosts': "Boosts em jogo",
   'boost.bench.for': "para {player}",
-  'boost.bench.buy': "{gems} gema na loja",
+  'boost.bench.none': "Nenhum na mala",
   'boost.locked.too_late': "Tarde demais. O jogo recomeçou.",
   'boost.var_review.idle': "Nenhuma expulsão para revisar",
   'boost.physio_sponge.idle': "Ninguém está no chão",

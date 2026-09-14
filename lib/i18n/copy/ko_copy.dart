@@ -515,7 +515,7 @@ const Map<String, String> koCopy = <String, String>{
   'boost.shop.count': "x{n}",
   'shop.section.match_boosts': "경기 중 부스트",
   'boost.bench.for': "{player} 대상",
-  'boost.bench.buy': "상점에서 젬 {gems}개",
+  'boost.bench.none': "보유 없음",
   'boost.locked.too_late': "너무 늦었습니다. 경기가 재개됐습니다.",
   'boost.var_review.idle': "판독할 퇴장이 없습니다",
   'boost.physio_sponge.idle': "쓰러진 선수가 없습니다",

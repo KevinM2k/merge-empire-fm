@@ -6,10 +6,10 @@
 /// at the one moment it mattered. Two tiles instead of four is also half the
 /// height this screen has to give up — and it has none to spare.
 ///
-/// **The strip is the shelf.** An owned boost shows its count and is tapped
-/// here; one you have none of shows its gem price and takes you to the shop.
-/// A greyed tile with no explanation is what generates "is this broken?"
-/// reports, so a tile is never dead without a reason on it.
+/// **The strip is not the shelf.** An owned boost shows its count and is
+/// tapped here; one you have none of reads x0, greyed, and does nothing — no
+/// price, because nothing can be bought on the pitch. Asked for from the
+/// couch, reversing the earlier deep link to the shop.
 library;
 
 import 'package:flutter/material.dart';
@@ -18,10 +18,8 @@ import 'package:merge_empire_fc/data/boosts.dart';
 import 'package:merge_empire_fc/engine/boost_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
-import 'package:merge_empire_fc/ui/shell/shell_controller.dart';
 import 'package:merge_empire_fc/ui/theme/glass.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
-import 'package:merge_empire_fc/ui/widgets/store_button.dart' show storeGemFace;
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 
 /// Shorter than the tactic strip's 46 — this row is two tiles reading
@@ -76,9 +74,6 @@ class BoostStrip extends ConsumerWidget {
                     until: endOf(proactive[i].id),
                     last: i == proactive.length - 1,
                     onUse: () => onUse(proactive[i].id),
-                    onShop: () => ref
-                        .read(shellControllerProvider.notifier)
-                        .deepLinkShop(ShopSection.boosts),
                   ),
                 ),
             ],
@@ -96,7 +91,6 @@ class _BoostTile extends StatelessWidget {
     required this.until,
     required this.last,
     required this.onUse,
-    required this.onShop,
   });
 
   final Boost boost;
@@ -104,7 +98,6 @@ class _BoostTile extends StatelessWidget {
   final int? until;
   final bool last;
   final VoidCallback onUse;
-  final VoidCallback onShop;
 
   @override
   Widget build(BuildContext context) {
@@ -119,12 +112,14 @@ class _BoostTile extends StatelessWidget {
     return GestureDetector(
       key: ValueKey('match-boost-${boost.id}'),
       behavior: HitTestBehavior.opaque,
-      onTap: owned ? onUse : onShop,
+      onTap: owned ? onUse : null,
       child: DecoratedBox(
         decoration: BoxDecoration(
           color: live ? kit.accent.withValues(alpha: 0.18) : Colors.transparent,
           border: last ? null : Border(right: BorderSide(color: kit.border)),
         ),
+        child: Opacity(
+          opacity: owned || live ? 1 : 0.45,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8),
           child: FittedBox(
@@ -156,7 +151,7 @@ class _BoostTile extends StatelessWidget {
                       color: ink,
                     ),
                   )
-                else if (owned)
+                else
                   Text(
                     'x$count',
                     key: ValueKey('match-boost-count-${boost.id}'),
@@ -165,27 +160,11 @@ class _BoostTile extends StatelessWidget {
                       fontWeight: FontWeight.w900,
                       color: ink,
                     ),
-                  )
-                else
-                  Row(
-                    key: ValueKey('match-boost-price-${boost.id}'),
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const GameIcon('gem', size: 11, color: storeGemFace),
-                      const SizedBox(width: 2),
-                      Text(
-                        '${boost.gemCost}',
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w900,
-                          color: ink,
-                        ),
-                      ),
-                    ],
                   ),
               ],
             ),
           ),
+        ),
         ),
       ),
     );

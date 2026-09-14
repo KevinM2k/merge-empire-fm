@@ -614,7 +614,7 @@ const Map<String, String> frCopy = <String, String>{
   'boost.shop.count': "x{n}",
   'shop.section.match_boosts': "Boosts en match",
   'boost.bench.for': "pour {player}",
-  'boost.bench.buy': "{gems} gemme en boutique",
+  'boost.bench.none': "Aucun dans le sac",
   'boost.locked.too_late': "Trop tard. Le jeu a repris.",
   'boost.var_review.idle': "Aucune expulsion à revoir",
   'boost.physio_sponge.idle': "Personne n'est au sol",

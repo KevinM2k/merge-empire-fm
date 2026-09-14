@@ -487,7 +487,7 @@ const Map<String, String> jaCopy = <String, String>{
   'boost.shop.count': "×{n}",
   'shop.section.match_boosts': "試合中ブースト",
   'boost.bench.for': "{player}に",
-  'boost.bench.buy': "ショップでジェム{gems}個",
+  'boost.bench.none': "手持ちなし",
   'boost.locked.too_late': "手遅れです。試合は再開しました。",
   'boost.var_review.idle': "確認する退場はありません",
   'boost.physio_sponge.idle': "倒れている選手はいません",
