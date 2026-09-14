@@ -22,8 +22,12 @@ class SectionHeading extends StatelessWidget {
     required this.title,
     required this.icon,
     required this.ink,
+    this.trailing,
     super.key,
   });
+
+  /// After the rule, at the right edge — the shop's open/closed chevron.
+  final Widget? trailing;
 
   /// Rendered in caps. Pass it in the caller's own words — this does not
   /// translate.
@@ -73,6 +77,7 @@ class SectionHeading extends StatelessWidget {
           ),
         ),
       ),
+      if (trailing != null) ...[const SizedBox(width: 6), trailing!],
     ],
   );
 }

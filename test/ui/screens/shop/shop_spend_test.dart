@@ -10,6 +10,7 @@ import 'package:merge_empire_fc/data/card_theme.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_providers.dart';
+import 'package:merge_empire_fc/ui/screens/shop/shop_paid.dart' show GemPacksSection;
 import 'package:merge_empire_fc/ui/screens/shop/shop_spend.dart';
 
 import 'shop_helpers.dart';
@@ -550,5 +551,25 @@ void main() {
       find.byKey(const ValueKey('shop-tile-gem-scout_voucher_gem')),
       findsNothing,
     );
+  });
+
+  group('THE SHELVES FOLD', () {
+    testWidgets('a Boosts & Items shelf closes on its heading and opens again', (
+      tester,
+    ) async {
+      await pumpShopWidget(tester, (_) {}, MatchBoostsSection.new);
+      expect(find.byKey(const ValueKey('shop-buy-boost-crowd_roar')), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('shop-section-toggle-matchBoosts')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('shop-buy-boost-crowd_roar')), findsNothing);
+      await tester.tap(find.byKey(const ValueKey('shop-section-toggle-matchBoosts')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('shop-buy-boost-crowd_roar')), findsOneWidget);
+    });
+
+    testWidgets('and a shelf on another tab does not', (tester) async {
+      await pumpShopWidget(tester, (_) {}, GemPacksSection.new);
+      expect(find.byKey(const ValueKey('shop-section-toggle-gems')), findsNothing);
+    });
   });
 }

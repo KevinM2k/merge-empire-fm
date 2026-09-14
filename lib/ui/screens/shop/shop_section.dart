@@ -4,6 +4,7 @@ library;
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/entrance.dart';
@@ -158,7 +159,21 @@ bool sectionNeedsHeading(ShopSectionId id) {
   return shopTabs[index].sections.length > 1;
 }
 
-class ShopSectionFrame extends StatelessWidget {
+/// Which shelves are folded shut. Session-wide rather than per frame, so a
+/// shelf closed on one visit is still closed when the tab is reopened.
+final collapsedShopSectionsProvider =
+    StateProvider<Set<ShopSectionId>>((ref) => const {});
+
+/// Whether a shelf can be folded: the Boosts & Items tab's shelves, which
+/// are four deep and the voucher ladder alone is eight tiles. Asked for
+/// from the couch: an accordion, so a player can close what they are not
+/// shopping for.
+bool sectionCollapsible(ShopSectionId id) {
+  final index = shopTabOf(id);
+  return index >= 0 && shopTabs[index].titleKey == 'shop.section.boosts';
+}
+
+class ShopSectionFrame extends ConsumerWidget {
   const ShopSectionFrame({
     super.key,
     required this.id,
@@ -175,9 +190,38 @@ class ShopSectionFrame extends StatelessWidget {
   final String? note;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final kit = Theme.of(context).extension<KitTheme>()!;
     final headed = sectionNeedsHeading(id);
+    final folds = headed && sectionCollapsible(id);
+    final closed = folds && ref.watch(collapsedShopSectionsProvider).contains(id);
+    void toggle() {
+      final now = ref.read(collapsedShopSectionsProvider);
+      ref.read(collapsedShopSectionsProvider.notifier).state =
+          closed ? (now.toSet()..remove(id)) : (now.toSet()..add(id));
+    }
+
+    Widget heading = SectionHeading(
+      title: t(id.titleKey),
+      icon: id.icon,
+      ink: id.ink,
+      trailing: folds
+          ? AnimatedRotation(
+              turns: closed ? 0 : 0.5,
+              duration: const Duration(milliseconds: 180),
+              child: Icon(Icons.expand_more, size: 20, color: id.ink),
+            )
+          : null,
+    );
+    if (folds) {
+      heading = GestureDetector(
+        key: ValueKey('shop-section-toggle-${id.name}'),
+        behavior: HitTestBehavior.opaque,
+        onTap: toggle,
+        child: heading,
+      );
+    }
+
     return Padding(
       key: ValueKey('shop-section-${id.name}'),
       // A headed shelf needs air above it to sit under; a bare one is already
@@ -188,18 +232,31 @@ class ShopSectionFrame extends StatelessWidget {
         children: [
           // The shop's own heading, which the trophy room now wears too —
           // see [SectionHeading], where this row lives.
-          if (headed)
-            SectionHeading(title: t(id.titleKey), icon: id.icon, ink: id.ink),
-          if (note != null)
-            Padding(
-              padding: const EdgeInsets.only(top: 6),
-              child: Text(
-                note!,
-                style: TextStyle(color: kit.textMuted, fontSize: 12),
-              ),
-            ),
-          if (headed || note != null) const SizedBox(height: 8),
-          child,
+          if (headed) heading,
+          // Folded shut: the heading alone. Sized, so the shelves below slide
+          // up rather than jump.
+          AnimatedSize(
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeOut,
+            alignment: Alignment.topCenter,
+            child: closed
+                ? const SizedBox(width: double.infinity)
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (note != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 6),
+                          child: Text(
+                            note!,
+                            style: TextStyle(color: kit.textMuted, fontSize: 12),
+                          ),
+                        ),
+                      if (headed || note != null) const SizedBox(height: 8),
+                      child,
+                    ],
+                  ),
+          ),
         ],
       ),
     );
