@@ -43,7 +43,7 @@ import 'package:merge_empire_fc/engine/booking_engine.dart';
 import 'package:merge_empire_fc/ui/screens/match/goal_replay.dart'
     show conceded;
 import 'package:merge_empire_fc/engine/match_orchestration.dart'
-    show ourMatchSplit, reSimulateRemainder;
+    show ourMatchSplit, recordFixtureResult, reSimulateRemainder;
 import 'package:merge_empire_fc/ui/screens/home/coach_bubble.dart'
     show coachSuggestedTacticProvider;
 import 'package:merge_empire_fc/ui/screens/home/league_providers.dart'
@@ -2434,6 +2434,23 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
     // [_timeline] is a snapshot the board counts goals off: a re-roll that left
     // the old one standing put a different score on it from the summary's.
     _timeline = timelineOf(widget.result, bookings: _bookings);
+    // **AND THE FIXTURE ROW FOLLOWS THE RE-ROLL.**
+    //
+    // `simulateMatch` files the kick-off scoreline so the fixtures list has
+    // something to show while the match animates, and `_repairSeasonCounters`
+    // awards that row on the way back in — which is what stops a match being
+    // lost when the app is backgrounded over the full-time popup. Nothing wrote
+    // the re-simulated score back to it, so a match abandoned after a red card
+    // or a tactic switch was recorded as the one the KICK-OFF sim rolled, at a
+    // score nobody watched, and about half the time the wrong way round.
+    //
+    // `finalizeMatchOutcome` does exactly this at the whistle. Doing it here as
+    // well means the row is never further behind than the last thing that
+    // changed the scoreline, so an interrupted match is filed as the match that
+    // was actually being played.
+    ref.read(gameProvider).update((state) {
+      recordFixtureResult(state, widget.result);
+    });
   }
 
   void applyStrategy(String id) {

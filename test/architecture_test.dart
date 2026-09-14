@@ -306,4 +306,110 @@ void main() {
     expect(settle, greaterThan(-1));
     expect(fire, greaterThan(settle));
   });
+
+  // **THE BOARD AND THE RECORD ARE THE SAME MATCH, and two conventions are all
+  // that holds them together.**
+  //
+  // `won` is `homeGoals > awayGoals` on the result map, and the score the
+  // player watched is counted off the feed. Everything downstream — the
+  // summary, `fixtureResults`, the season counters, the W/D/L letter on the
+  // fixtures sheet — reads the first. So a match can be won on screen and filed
+  // as a defeat if, and only if, the feed and the result are allowed to drift
+  // apart. Both ways they have drifted so far were a convention nobody had
+  // written down, which is what these two check.
+
+  test('every rewrite of the feed refreshes the board it is counted off', () {
+    // `_timeline` is a SNAPSHOT — `frame` counts the goals it has shown off it
+    // rather than re-deriving one per tick. A re-simulation that rewrote the
+    // result's events and left the old snapshot standing put one score on the
+    // board and another on the summary; it took a 1-4 away win to 0-3.
+    final src = File(
+      'lib/ui/screens/match/match_screen.dart',
+    ).readAsStringSync();
+    final lines = src.split('\n');
+    final offenders = <String>[];
+
+    for (var i = 0; i < lines.length; i++) {
+      if (!RegExp(r"result\['events'\]\s*=").hasMatch(lines[i])) continue;
+      final window = lines
+          .sublist(i, (i + 7).clamp(0, lines.length))
+          .join('\n');
+      if (!window.contains('_timeline = timelineOf(')) {
+        offenders.add('match_screen.dart:${i + 1} — ${lines[i].trim()}');
+      }
+    }
+
+    expect(
+      offenders,
+      isEmpty,
+      reason:
+          'These rewrite the feed without rebuilding the snapshot the board '
+          'counts goals off, so the screen and the summary can end on '
+          'different scores:\n${offenders.join('\n')}',
+    );
+  });
+
+  test('and the board is still counted off that snapshot', () {
+    // Guards the test above from passing because `frame` stopped reading
+    // `_timeline`, which would make it true and pointless at the same time.
+    final src = File(
+      'lib/ui/screens/match/match_screen.dart',
+    ).readAsStringSync();
+    expect(src, contains('MatchFrame get frame'));
+    expect(src, contains('timeline: _timeline'));
+    expect(src, contains("result['events'] ="));
+  });
+
+  test('no full match leaves its stoppage time to the generator', () {
+    // `generateMatchEvents` rolls its OWN added time when it is not given any,
+    // and the clock on the screen stops at `90 + result['addedTime']`. Ask for
+    // one and store the other and the generator puts goals behind a whistle
+    // that has already blown — the cup tie that was watched to a 0-3 and filed
+    // as a 1-4.
+    //
+    // Two shapes are safe: pass the stoppage time IN, or read back what the
+    // generator chose off its own full-time event. A call site that does
+    // neither is the bug.
+    final call = RegExp(r'generateMatchEvents\(');
+    final offenders = <String>[];
+
+    for (final entity in Directory('lib').listSync(recursive: true)) {
+      if (entity is! File || !entity.path.endsWith('.dart')) continue;
+      // The generator's own file declares it; it cannot call itself.
+      if (entity.path.endsWith('match_events.dart')) continue;
+      final src = entity.readAsStringSync();
+      for (final m in call.allMatches(src)) {
+        var depth = 0;
+        var i = m.end - 1;
+        for (; i < src.length; i++) {
+          if (src[i] == '(') depth++;
+          if (src[i] == ')') {
+            depth--;
+            if (depth == 0) break;
+          }
+        }
+        final args = src.substring(m.end, i);
+        // A windowed call — one that stops before 90 — has no stoppage time to
+        // get wrong; the generator zeroes it.
+        if (RegExp(r'maxMin:\s*(?!90)').hasMatch(args)) continue;
+        if (args.contains('addedTime:')) continue;
+        // The read-back has to belong to THIS call, not merely live somewhere
+        // in the same file — `simulateMatch` and `reSimulateRemainder` share
+        // one, and a file-wide search would let either drop its own.
+        final after = src.substring(i, (i + 900).clamp(0, src.length));
+        if (after.contains("['type'] == 'fulltime'")) continue;
+        final line = src.substring(0, m.start).split('\n').length;
+        offenders.add('${entity.path}:$line');
+      }
+    }
+
+    expect(
+      offenders,
+      isEmpty,
+      reason:
+          'These ask for a full match without pinning its stoppage time and '
+          'without reading back the one the generator rolled, so goals can '
+          'land past the clock the screen stops at:\n${offenders.join('\n')}',
+    );
+  });
 }

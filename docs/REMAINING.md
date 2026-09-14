@@ -11,6 +11,75 @@ rough sense of size, not a target.
 **The live queue for this session is `docs/PLAYTHROUGH3.md`**, which is where
 the couch's reports are ticked off one at a time. What follows is the summary.
 
+## Audit, 13 Sep 2026 — can the result still disagree with the match?
+
+Asked after the store review that said "you win the match and then it's marked
+as a loss". The three known ways are fixed — the shootout printing `1–2` under a
+defeat (2.0.0), a skipped match applying its cards after the feed was drawn
+(2.0.2), and a sending-off taking its own earlier yellow back out of
+`_cautioned` so the whistle re-simulated a match that had already been watched
+(unreleased). This is the sweep for a fourth.
+
+**The surface is smaller than it looks.** `won` is written in exactly two places
+— `reSimulateRemainder` and `settleCupRound` — and the feed is rewritten in
+exactly one, `_resimulate`. Everything downstream (`fixtureResults`, the season
+counters, the fixtures sheet, the league table, the summary) reads what those
+three settled, and each was re-read against the board. The cup's folded shootout
+goal never reaches the feed and never double-counts through a re-simulation: the
+fold happens after the events are generated from the regulation remainder, and
+`regulationScore` and `settleCupRound` unfold it again on the way out.
+
+**Two conventions were holding it together and neither was written down**, so
+both are now checked in `architecture_test`: every rewrite of the feed has to
+rebuild the snapshot the board counts off, and no full match may leave its
+stoppage time to the generator (ask for one added time and store another and the
+goals land behind a whistle that has already blown — that was the cup tie).
+
+**And the chain was tested in two halves that never met.** The screen's
+invariant stops at the result map; the engine's tests start from a hand-written
+one. `WHAT WAS WATCHED IS WHAT GETS RECORDED` runs a real `beginMatch` result
+through the screen for every fixture of a season — the referee is rolled off the
+fixture key, so walking it is what varies the cards — settles it exactly as
+`play_button` does, and then reads the save back: the filed score, the filed
+outcome, the season counters and the sheet's own row, all against the board the
+player was looking at. With both halves of the 12 Sep fix reverted, three of the
+seventeen fail.
+
+### The one path left, and it was not a reversal of a match that FINISHED
+
+- [x] **An interrupted match was recorded from its kick-off scoreline.**
+      `simulateMatch` files a placeholder row so the fixtures list can show a
+      score during the animation, and `_repairSeasonCounters` awards that row on
+      the way back in — which is right, and is why backgrounding the app over a
+      full-time popup no longer drops the result. But a red card or a tactic
+      switch re-simulates the remainder on the SCREEN, and nothing wrote that
+      back to the placeholder. So a match abandoned after a re-simulation was
+      filed as the match the kick-off sim rolled, at a score nobody watched, and
+      about half the time that is the wrong way round.
+
+      Found by the audit rather than from the couch: it needs the app to be
+      killed between a re-simulation and the whistle, and the new group had to
+      be rewritten to stop forcing exactly that (load, then start — the order
+      the app runs in).
+
+      `_resimulate` now refreshes the row the same way `finalizeMatchOutcome`
+      refreshes it at the whistle, so it is never further behind than the last
+      thing that changed the scoreline. **And the row has ONE writer now**:
+      `recordFixtureResult`. There were two, spelled out by hand at kick-off and
+      again at full time, and they already disagreed by a field — the kick-off
+      copy carried no `playedAt`. A third at the re-simulation would have been
+      the usual ending. `create:` is the kick-off call and the only one allowed
+      to mint a row, because a fixture with no row is a match with no league
+      slot — a cup tie, an event-cup round — and giving it one would put it in
+      the table.
+
+      Pinned by `AND AN ABANDONED MATCH IS FILED AS THE ONE BEING PLAYED`, which
+      plays every fixture of a season to a tactic switch, abandons it there, and
+      reads back both the row and what reopening the save makes of it. Its last
+      assertion is that some re-simulation in that season actually moved a
+      scoreline — without it the whole test would pass for a reason that has
+      nothing to do with any of this.
+
 ## Reported from Italy, 12 Sep 2026 — the store, the language, two scorelines
 
 Four reports from a player on an Italian device. Three are fixed; the fourth was
