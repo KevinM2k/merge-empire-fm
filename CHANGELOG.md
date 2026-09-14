@@ -1,3 +1,7 @@
+## v2.0.9
+
+- Fixed rewarded videos staying unavailable for the rest of the session when the ad service failed to start.
+
 ## v2.0.8
 
 - Store and gem prices now show in your own currency instead of GBP.
