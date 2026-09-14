@@ -298,12 +298,30 @@ class AppShellState extends ConsumerState<AppShell> {
             // follows the player across every tab — the offer is about the
             // squad, and the squad is three tabs from wherever it was parked.
             // Under the coin flight, which is the layer nothing shares.
+            //
+            // **AND `bottom: 0` IS NOT ABOVE THE TAB BAR.** `extendBody` runs
+            // the body UNDER the bar and the Scaffold paints the bar after the
+            // body, so the one control standing between a player and an offer
+            // they parked sat BEHIND the five buttons — hidden on four tabs,
+            // and untappable on all five because the bar takes the hit first.
+            // Reported from the couch: minimise the review and it is gone.
+            //
+            // The `SafeArea` is the one the tabs themselves use (see the
+            // `extendBody` note above): with it on, the body's own MediaQuery
+            // carries the bar's height, so this clears the bar without being
+            // told how tall it is — and still clears the home indicator on the
+            // Play tab, where the bar is transparent but its buttons are not.
             const Positioned(
               key: ValueKey('transfer-pill-layer'),
               left: 0,
               right: 0,
               bottom: 0,
-              child: TransferPill(),
+              child: SafeArea(
+                top: false,
+                left: false,
+                right: false,
+                child: TransferPill(),
+              ),
             ),
             // **ABOVE THE GLASS.** A coin flying to the counter that passes
             // UNDER the HUD disappears a third of the way through the throw,

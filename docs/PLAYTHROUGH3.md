@@ -6,7 +6,7 @@ because that is the part worth keeping.
 
 ## Where this queue stands
 
-**119 done, 6 open, and one feature parked.** One open row is a report still
+**120 done, 6 open, and one feature parked.** One open row is a report still
 being narrowed (the trees' size, below); none of the rest is a fault.
 One is a feature that was built, tried and turned down; one is a balance
 question rather than work; one is a survey to run before building; and one is
@@ -1629,6 +1629,37 @@ Reported live on 8 Sep 2026.
       is exposed as a seam so a test can say so directly rather than by
       coincidence — the first version of the test passed with the rebuild
       disabled, because a LATER card happened to rebuild it anyway.
+
+## Fourteenth batch — a parked bid with no way back
+
+Reported live on 14 Sep 2026.
+
+- [x] **"The transfer review screen when minimised goes behind the bottom hud so
+      isn't clickable."** `TransferPill` is the whole answer to parking a bid —
+      minimise the review, or tap outside it, and the pill is the only thing on
+      screen saying an offer is still pending. It was mounted in the shell's
+      Stack at `bottom: 0`, and `bottom: 0` is not above the tab bar: the shell
+      sets `extendBody: true` so the body runs UNDER the bar, and the Scaffold
+      paints the bar after the body. So the pill sat behind the five buttons —
+      invisible on the four tabs where the bar wears its chrome, and untappable
+      on all five, because a hit test at the foot of the screen reaches the bar
+      first and stops there.
+
+      **The pill's own comment said "above the tab bar" the whole time**, which
+      is the part worth keeping: the intent was right and the geometry was never
+      asserted. The fix is the `SafeArea` the tabs themselves already use —
+      with `extendBody` on, the body's own `MediaQuery` carries the bar's height
+      (see `_BodyBuilder` in `scaffold.dart`), so the pill clears the bar
+      without anything in the shell being told how tall it is, and still clears
+      the home indicator on Play, where the bar is transparent but its buttons
+      are not.
+
+      **And the pill's own test could not have caught it.** It builds a bare
+      `Scaffold` with no bar at all, so the one question that matters there —
+      does this clear the chrome underneath it — cannot be asked. The regression
+      lives in `app_shell_test.dart` instead, walking all five tabs and checking
+      `hitTestable` as well as the rect: on screen but untappable is exactly the
+      shape of this bug, and a plain `findsOneWidget` passed throughout it.
 
 ## Open
 
