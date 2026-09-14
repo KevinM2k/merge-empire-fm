@@ -675,7 +675,15 @@ class PlayerCard extends StatelessWidget {
                                   semanticsLabel:
                                       '${t('squad.stat.age')} ${view.age}',
                                   style: TextStyle(
-                                    fontSize: 11,
+                                    // The floor, not a point under it: the
+                                    // form arrow beside it sits on the same
+                                    // one, and `architecture_test` is what
+                                    // found the 11 this shipped with. A tight
+                                    // line box for the same reason the arrow
+                                    // has one — the row is already as tall as
+                                    // the name.
+                                    fontSize: minFontSize,
+                                    height: 1,
                                     fontWeight: FontWeight.w800,
                                     color: ageInk(view.age, captionInk),
                                   ),
