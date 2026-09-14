@@ -68,6 +68,8 @@ class ShopScreenState extends ConsumerState<ShopScreen> {
     final id = switch (pending) {
       ShopSection.coins => ShopSectionId.coins,
       ShopSection.gems => ShopSectionId.gems,
+      // The match screen's boost strip, for a tile the player owns none of.
+      ShopSection.boosts => ShopSectionId.boosts,
     };
     final index = shopTabOf(id);
     if (index >= 0) {

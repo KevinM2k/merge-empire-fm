@@ -25,7 +25,7 @@ enum ShellSheet {
 }
 
 /// Where a shop deep link lands.
-enum ShopSection { coins, gems }
+enum ShopSection { coins, gems, boosts }
 
 class ShellState {
   const ShellState({

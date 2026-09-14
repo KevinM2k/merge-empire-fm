@@ -13,14 +13,18 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:merge_empire_fc/engine/match_tactics.dart' show strategies;
+import 'package:merge_empire_fc/util/random.dart' show setSeed;
 
 import 'match_screen_test.dart';
 
 /// A result with enough on it for `reSimulateRemainder` to work with. It
 /// rewrites the scoreline from the ratings, so a result with none of them
 /// re-decides the match as 0-0 and proves nothing.
-Map<String, dynamic> _playable({required bool isHome}) => {
+Map<String, dynamic> _playable({required bool isHome, num grudge = 0}) => {
   ...matchResult(isHome: isHome, addedTime: 0),
+  // A grudge the sim stamped — Derby Devil's condition, and the one the port
+  // reads off the result rather than the save.
+  'grudgeBoost': grudge,
   'strategyId': 'balanced',
   'strategiesUsed': ['balanced'],
   'strategyChanged': false,
@@ -66,11 +70,17 @@ Future<num> _liveSquadRating(
   WidgetTester tester, {
   required bool isHome,
   String? trait,
+  num grudge = 0,
   required String instance,
 }) async {
+  // **THE SAME STREAM FOR BOTH PUMPS.** A tactic switch re-rolls the injuries
+  // off the shared seeded stream, and a second pump continues that stream from
+  // wherever the first left it — so without this, one of the two sides could
+  // lose a man to a knock and the comparison was a coin toss.
+  setSeed(7);
   await pumpMatch(
     tester,
-    _playable(isHome: isHome),
+    _playable(isHome: isHome, grudge: grudge),
     save: _save(trait: trait),
     instance: instance,
   );
@@ -90,40 +100,67 @@ Future<num> _liveSquadRating(
 
 void main() {
   group('A MATCH TRAIT IN THE SAVE REACHES THE SIM', () {
-    testWidgets('a lit Fortress lifts the rating the remainder is rolled with', (
+    // Derby Devil rather than Fortress for the RATING check: a squad of
+    // tier-one cards rates about fourteen, and +11% rounds away on the board
+    // where +28% does not. The map tests below pin Fortress at its own number.
+    testWidgets('A LIT TRAIT LIFTS THE RATING THE REMAINDER IS ROLLED WITH', (
       tester,
     ) async {
       final plain = await _liveSquadRating(
         tester,
         isHome: true,
-        instance: 'plain-home',
+        grudge: 5,
+        instance: 'plain-derby',
       );
       final lit = await _liveSquadRating(
         tester,
         isHome: true,
-        trait: 'fortress',
-        instance: 'fortress-home',
+        grudge: 5,
+        trait: 'derby_devil',
+        instance: 'devil-derby',
       );
       expect(lit, greaterThan(plain));
     });
 
     // The condition is read off the RESULT, not assumed: the same trait away
-    // from home is dark, and dark is exactly the plain figure.
+    // from home is dark, and a dark trait hands the sim NOTHING — asserted on
+    // the map itself, which is what the re-simulation is given.
     testWidgets('and the same Fortress away from home does nothing', (
       tester,
     ) async {
-      final plain = await _liveSquadRating(
+      setSeed(7);
+      await pumpMatch(
         tester,
-        isHome: false,
-        instance: 'plain-away',
-      );
-      final dark = await _liveSquadRating(
-        tester,
-        isHome: false,
-        trait: 'fortress',
+        _playable(isHome: false),
+        save: _save(trait: 'fortress'),
         instance: 'fortress-away',
       );
-      expect(dark, plain);
+      final state = stateOf(tester);
+      await tester.pump(minuteDurationFor(20));
+      expect(state.liveMultipliersAt(state.frame.minute), isEmpty);
+      state.skipToEnd();
+      await settleSave(tester);
+    });
+
+    testWidgets('and at home the map carries every man at his level', (
+      tester,
+    ) async {
+      setSeed(7);
+      await pumpMatch(
+        tester,
+        _playable(isHome: true),
+        save: _save(trait: 'fortress'),
+        instance: 'fortress-map',
+      );
+      final state = stateOf(tester);
+      await tester.pump(minuteDurationFor(20));
+      final map = state.liveMultipliersAt(state.frame.minute);
+      expect(map.length, 11);
+      for (final v in map.values) {
+        expect(v, closeTo(1.11, 1e-9));
+      }
+      state.skipToEnd();
+      await settleSave(tester);
     });
   });
 }

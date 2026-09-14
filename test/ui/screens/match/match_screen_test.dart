@@ -4178,7 +4178,13 @@ void main() {
       final feed = tester.getRect(
         find.byKey(const ValueKey('match-commentary')),
       );
-      expect(strip.top - pitch.bottom, closeTo(feed.top - strip.bottom, 0.5));
+      // **AND THE BOOST STRIP SITS IN THE SAME AIR.** A second control band
+      // went in under the tactics; the invariant is that every band on the
+      // column is separated by the one gap, not that there are two bands.
+      final boosts = tester.getRect(find.byKey(const ValueKey('match-boosts')));
+      final gap = strip.top - pitch.bottom;
+      expect(boosts.top - strip.bottom, closeTo(gap, 0.5));
+      expect(feed.top - boosts.bottom, closeTo(gap, 0.5));
     });
 
     testWidgets('every band starts and ends on the same margin', (

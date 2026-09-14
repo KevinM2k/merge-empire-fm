@@ -303,6 +303,46 @@ const Map<String, String> enCopy = <String, String>{
   'squad.detail.matchslot.need_gem': 'You need a gem to open this slot.',
   'squad.detail.sell_burns_slot':
       'The second trait slot goes with the player. The gem is not refunded.',
+  // ── Manager boosts ───────────────────────────────────────────────────────
+  //
+  // The port's own. Two are tapped from the match screen while watching, two
+  // are taken at the bench in front of the consequence. The feed lines are
+  // POOLS: the feed rebuilds every tick and a repeat is read.
+  'boost.crowd_roar.name': 'Crowd Roar',
+  'boost.crowd_roar.desc':
+      'The ground erupts — the whole side lifts for twenty-five minutes',
+  'boost.park_the_bus.name': 'Park the Bus',
+  'boost.park_the_bus.desc':
+      'Everyone behind the ball — a dead game for twenty-five minutes',
+  'boost.var_review.name': 'VAR Review',
+  'boost.var_review.desc':
+      'Overturn a sending-off — the player stays on, on a yellow',
+  'boost.physio_sponge.name': 'Physio Sponge',
+  'boost.physio_sponge.desc':
+      'Patch up an injury — the player gets up and carries on',
+  'boost.feed.action': 'Boost',
+  'boost.roar.live':
+      'The manager turns to the crowd, and the ground erupts.|'
+      'A wall of noise comes down off the stands. Every challenge is a cheer.',
+  'boost.roar.over':
+      'The noise settles, and the game finds its rhythm again.|'
+      'The stands catch their breath. Back to football.',
+  'boost.bus.live':
+      'Everyone behind the ball. They are going to see this one out.|'
+      'Two banks of five and not an inch given. This is being shut down.',
+  'boost.bus.over':
+      'The shackles come off, and there is space again.|'
+      'The shape loosens. Both sides are allowed to play once more.',
+  'boost.var.overturned':
+      'VAR has overturned it. The card is withdrawn and {player} stays on.|'
+      'The referee goes to the monitor, and comes back shaking the head. '
+          '{player} is reprieved.',
+  'boost.physio.recovered':
+      '{player} is back up, waving the stretcher away, and carrying on.|'
+      'The physio works some magic. {player} is up, and staying on.',
+  'match.active.title': 'Active',
+  'match.active.until': "until {minute}'",
+
   'matchtrait.name.fortress': 'Fortress',
   'matchtrait.desc.fortress': 'Immovable at home — but only at home',
   'matchtrait.name.away_day': 'Away Day Hero',

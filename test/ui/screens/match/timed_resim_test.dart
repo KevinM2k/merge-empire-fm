@@ -110,26 +110,20 @@ void main() {
       tester,
     ) async {
       // The re-sim at 21 must roll with Fast Starter switched off — that is
-      // the whole point of scheduling it — so the live figure it writes is the
-      // plain one, not the lit one.
-      final lit = await _pumpTo(
+      // the whole point of scheduling it. Asserted on the map the sim is
+      // handed either side of the boundary, not on a rating that a re-rolled
+      // injury can move by a point.
+      final state = await _pumpTo(
         tester,
-        25,
+        20,
         trait: 'fast_starter',
         instance: 'fast-dark',
       );
-      final auto = lit.liveRatings['liveSquadRating'] as num;
-      await _finish(tester, lit);
-
-      final plain = await _pumpTo(tester, 25, instance: 'plain-25');
-      plain.applyStrategy(
-        strategies.keys.firstWhere((id) => id != plain.strategy),
-      );
-      await tester.pump();
-      final manual = plain.liveRatings['liveSquadRating'] as num;
-      await _finish(tester, plain);
-
-      expect(auto, manual);
+      expect(state.liveMultipliersAt(20).length, 11);
+      expect(state.liveMultipliersAt(21), isEmpty);
+      await tester.pump(minuteDurationFor(5));
+      expect(state.liveMultipliersAt(state.frame.minute), isEmpty);
+      await _finish(tester, state);
     });
 
     testWidgets('Last Gasp re-decides the rest at 76, and is LIT there', (

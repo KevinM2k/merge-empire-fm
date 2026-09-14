@@ -260,10 +260,25 @@ LiveStats liveStatsFor({
   );
 }
 
+/// One thing lifting the side right now — a boost window or a lit match
+/// trait. [until] is the minute a window closes, null for a trait.
+typedef ActiveLift = ({String id, String icon, String label, int? until});
+
 class MatchStatboard extends StatelessWidget {
-  const MatchStatboard({super.key, required this.stats, required this.isHome});
+  const MatchStatboard({
+    super.key,
+    required this.stats,
+    required this.isHome,
+    this.active = const [],
+  });
 
   final LiveStats stats;
+
+  /// **Everything running, which the one-at-a-time pill deliberately cannot
+  /// say.** Five lifts can hold at once; this is the only surface that lists
+  /// them all, and it costs the match screen no height because this sheet is
+  /// already the details door behind the board.
+  final List<ActiveLift> active;
 
   /// Which column is OURS. Fixed for the whole match, so the accent goes on once.
   final bool isHome;
@@ -347,6 +362,59 @@ class MatchStatboard extends StatelessWidget {
               home: '${row.home}',
               away: '${row.away}',
             ),
+          if (active.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Padding(
+              key: const ValueKey('match-active'),
+              padding: const EdgeInsets.only(top: 6),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    t('match.active.title').toUpperCase(),
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: 1,
+                      color: kit.textMuted,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  for (final lift in active)
+                    Padding(
+                      key: ValueKey('match-active-${lift.id}'),
+                      padding: const EdgeInsets.symmetric(vertical: 2),
+                      child: Row(
+                        children: [
+                          Text(lift.icon, style: const TextStyle(fontSize: 13)),
+                          const SizedBox(width: 6),
+                          Expanded(
+                            child: Text(
+                              lift.label,
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w800,
+                                color: kit.accentBright,
+                              ),
+                            ),
+                          ),
+                          if (lift.until != null)
+                            Text(
+                              t('match.active.until', {'minute': '${lift.until}'}),
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: kit.textMuted,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );
