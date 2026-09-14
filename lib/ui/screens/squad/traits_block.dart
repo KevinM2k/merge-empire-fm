@@ -40,8 +40,6 @@ import 'package:merge_empire_fc/ui/screens/shop/purchase_flow.dart';
 import 'package:merge_empire_fc/ui/screens/squad/detail_controls.dart';
 import 'package:merge_empire_fc/ui/screens/squad/trait_reel.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
-import 'package:merge_empire_fc/ui/hud/hud.dart' show hudGemInk;
-import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 import 'package:merge_empire_fc/ui/widgets/trait_copy.dart';
 import 'package:merge_empire_fc/util/format.dart';
 
@@ -347,9 +345,12 @@ class TraitBlockState extends ConsumerState<TraitBlock> {
                   tileKey: const ValueKey('detail-trait-slot-match'),
                   label: t('squad.trait.slot.match'),
                   selected: matchSelected,
-                  glyph: matchHeld?.icon ?? '?',
-                  // The gem it costs, IN the disc, for a slot not yet open.
-                  disc: open ? null : const GameIcon('gem', size: 16, color: hudGemInk),
+                  // A padlock until the gem is spent — and still a tile you
+                  // can pick, so the pane under it is where the gem is asked
+                  // for. Asked for from the couch: it should look locked, and
+                  // the price belongs on the button.
+                  glyph: open ? (matchHeld?.icon ?? '?') : '🔒',
+                  locked: !open,
                   lit: matchHeld != null,
                   level: open ? _roman(matchTrait) : null,
                   levelKey: const ValueKey('detail-matchtrait-level'),
@@ -358,14 +359,13 @@ class TraitBlockState extends ConsumerState<TraitBlock> {
                       : matchHeld == null
                           ? t('trait.name.none')
                           : matchTraitTitle(matchTrait!),
-                  price: open ? null : '$matchSlotGemCost',
-                  onTap: open ? () => _select(TraitSlot.match) : _unlock,
+                  onTap: () => _select(TraitSlot.match),
                 ),
               ),
             ],
             ),
           ),
-          if (open || !matchSelected) ...[
+          ...[
             const SizedBox(height: 6),
             // **THE PANE BELONGS TO THE LIT TILE.** A notch on its top edge
             // slides under whichever slot is selected, so the description and
@@ -392,7 +392,9 @@ class TraitBlockState extends ConsumerState<TraitBlock> {
               const SizedBox(height: 10),
             ],
             if (matchSelected)
-              TraitReel(
+              Opacity(
+                opacity: open ? 1 : 0.45,
+                child: TraitReel(
                 key: _matchReel,
                 keyPrefix: 'matchtrait-reel',
                 names: [
@@ -408,6 +410,7 @@ class TraitBlockState extends ConsumerState<TraitBlock> {
                 ],
                 initialName: matchInitial.name,
                 initialLevel: matchInitial.level,
+                ),
               )
             else
               TraitReel(
@@ -428,7 +431,20 @@ class TraitBlockState extends ConsumerState<TraitBlock> {
               ),
             const SizedBox(height: 10),
             // The cost rides on the button: this is the only gamble on the
-            // sheet, so the thing you press says what it takes.
+            // sheet, so the thing you press says what it takes. A locked
+            // slot's button is the gem that opens it, in the shop's blue.
+            if (matchSelected && !open)
+              HeroPill(
+                buttonKey: const ValueKey('matchslot-unlock'),
+                glyph: 'gem',
+                label: t('squad.detail.matchslot.unlock', {
+                  'gems': '$matchSlotGemCost',
+                }),
+                gold: false,
+                gem: true,
+                onTap: _spinning ? null : _unlock,
+              )
+            else
             HeroPill(
               buttonKey: const ValueKey('detail-trait-roll'),
               glyph: 'star',
@@ -436,7 +452,7 @@ class TraitBlockState extends ConsumerState<TraitBlock> {
               gold: true,
               onTap: _spinning || coins < cost ? null : () => _roll(pool),
             ),
-            if (coins < cost)
+            if (coins < cost && (open || !matchSelected))
               Padding(
                 padding: const EdgeInsets.only(top: 6),
                 child: Text(
@@ -475,24 +491,22 @@ class _SlotTile extends StatelessWidget {
     required this.levelKey,
     required this.caption,
     required this.onTap,
-    this.disc,
-    this.price,
+    this.locked = false,
   });
+
+  /// Not yet open: the medal and the label go quiet, whatever is lit.
+  final bool locked;
 
   final Key tileKey;
   final String label;
   final bool selected;
   final String glyph;
 
-  /// Something drawn in the disc instead of [glyph] — the gem on a locked slot.
-  final Widget? disc;
   final bool lit;
   final String? level;
   final Key levelKey;
   final String caption;
 
-  /// A gem price under the caption, for a slot not yet open.
-  final String? price;
   final VoidCallback onTap;
 
   @override
@@ -506,19 +520,8 @@ class _SlotTile extends StatelessWidget {
         key: tileKey,
         behavior: HitTestBehavior.opaque,
         onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 160),
-          padding: const EdgeInsets.fromLTRB(6, 4, 6, 5),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            color: selected
-                ? kit.accent.withValues(alpha: 0.14)
-                : kit.surface.withValues(alpha: 0.5),
-            border: Border.all(
-              color: selected ? kit.accent : kit.border,
-              width: selected ? 2 : 1,
-            ),
-          ),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(6, 2, 6, 4),
           child: Column(
             children: [
               Text(
@@ -533,13 +536,17 @@ class _SlotTile extends StatelessWidget {
               const SizedBox(height: 3),
               TraitDisc(
                 glyph: glyph,
-                colour: ink,
-                fill: lit ? kit.accent.withValues(alpha: 0.18) : kit.surface2,
+                colour: locked ? kit.textMuted.withValues(alpha: 0.7) : ink,
+                fill: locked
+                    ? kit.surface2.withValues(alpha: 0.6)
+                    : lit
+                        ? kit.accent.withValues(alpha: 0.18)
+                        : kit.surface2,
                 level: level,
                 levelInk: kit.accentInk,
                 levelKey: levelKey,
                 compact: true,
-                child: disc,
+                selected: selected,
               ),
               const SizedBox(height: 3),
               Text(
@@ -554,24 +561,6 @@ class _SlotTile extends StatelessWidget {
                   color: lit ? kit.accentBright : kit.textMuted,
                 ),
               ),
-              if (price != null) ...[
-                const SizedBox(height: 4),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const GameIcon('gem', size: 12, color: hudGemInk),
-                    const SizedBox(width: 3),
-                    Text(
-                      price!,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w900,
-                        color: kit.textMuted,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
             ],
           ),
         ),

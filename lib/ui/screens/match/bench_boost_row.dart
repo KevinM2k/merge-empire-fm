@@ -18,7 +18,7 @@ import 'package:flutter/material.dart';
 import 'package:merge_empire_fc/data/boosts.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
-import 'package:merge_empire_fc/ui/hud/hud.dart' show hudGemInk;
+import 'package:merge_empire_fc/ui/widgets/store_button.dart' show storeGemFace;
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 
 /// One retrospective boost as the bench offers it right now.
@@ -118,7 +118,7 @@ class _OfferTile extends StatelessWidget {
                       key: ValueKey('bench-boost-price-${offer.id}'),
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        const GameIcon('gem', size: 11, color: hudGemInk),
+                        const GameIcon('gem', size: 11, color: storeGemFace),
                         const SizedBox(width: 2),
                         Text(
                           '${boost?.gemCost ?? 0}',

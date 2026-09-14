@@ -37,12 +37,19 @@ void main() {
       await openDetailOfFirst(tester, container);
       await scrollSheetTo(tester, 'detail-trait');
 
-      // Locked: the tile says so, and the reel under the box is the PLAYER one.
+      // Locked: the reel under the box is the PLAYER one until MATCH is picked.
       expect(find.byKey(const ValueKey('detail-trait-slot-match')), findsOneWidget);
       expect(find.byKey(const ValueKey('matchtrait-reel-name')), findsNothing);
       expect(find.byKey(const ValueKey('trait-reel-name')), findsOneWidget);
+      expect(find.byKey(const ValueKey('matchslot-unlock')), findsNothing);
 
+      // Picked: the pane is the match slot's, and its button is the gem.
       await tester.tap(find.byKey(const ValueKey('detail-trait-slot-match')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('matchtrait-reel-name')), findsOneWidget);
+      expect(find.byKey(const ValueKey('detail-trait-roll')), findsNothing);
+      await scrollSheetTo(tester, 'matchslot-unlock');
+      await tester.tap(find.byKey(const ValueKey('matchslot-unlock')));
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('spend-confirm-matchslot')), findsOneWidget);
       await tester.tap(find.byKey(const ValueKey('spend-confirm-yes-matchslot')));
@@ -75,6 +82,9 @@ void main() {
       await scrollSheetTo(tester, 'detail-trait');
 
       await tester.tap(find.byKey(const ValueKey('detail-trait-slot-match')));
+      await tester.pumpAndSettle();
+      await scrollSheetTo(tester, 'matchslot-unlock');
+      await tester.tap(find.byKey(const ValueKey('matchslot-unlock')));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('spend-confirm-yes-matchslot')));
       await tester.pumpAndSettle();

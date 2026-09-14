@@ -10,7 +10,7 @@ import 'package:flutter/material.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 import 'package:merge_empire_fc/ui/widgets/store_button.dart'
-    show mouldedButtonStyle;
+    show mouldedButtonStyle, storeGemFace;
 
 /// I, II, III — the levels, in the one place they are written.
 const List<String> romanLevels = ['I', 'II', 'III'];
@@ -37,9 +37,14 @@ class HeroPill extends StatelessWidget {
     required this.label,
     required this.gold,
     required this.onTap,
+    this.gem = false,
   });
 
   final Key buttonKey;
+
+  /// The shop's gem button — blue face, white ink — for a control that
+  /// SPENDS A GEM. Wins over [gold].
+  final bool gem;
 
   /// A name from the app's own icon set — see `game_icon.dart`. It was a
   /// literal `⇄`, `↩`, `⇡`: three glyphs the font renders differently on every
@@ -73,7 +78,11 @@ class HeroPill extends StatelessWidget {
         // UNDERNEATH it and `side:` would draw a second outline clear of the
         // moulded one. Null for the other one on purpose: that IS the theme's
         // `ElevatedButton`, which is the whole point of the change.
-        style: gold ? goldMould(kit) : null,
+        style: gem
+            ? gemMould(kit)
+            : gold
+                ? goldMould(kit)
+                : null,
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           mainAxisSize: MainAxisSize.min,
@@ -116,6 +125,16 @@ ButtonStyle goldMould(KitTheme kit) => mouldedButtonStyle(
   border: kit.border,
 );
 
+/// The gem face, in the shop's own blue — see `StoreTone.gem`.
+ButtonStyle gemMould(KitTheme kit) => mouldedButtonStyle(
+  face: storeGemFace,
+  edge: const Color(0xFF12587F),
+  ink: Colors.white,
+  dead: kit.surface2,
+  deadInk: kit.textMuted,
+  border: kit.border,
+);
+
 const Color heroGoldFace = Color(0xFFE8C877);
 const Color heroGoldEdge = Color(0xFF8F681F);
 const Color heroGoldInk = Color(0xFF3A2A08);
@@ -139,7 +158,11 @@ class TraitDisc extends StatelessWidget {
     this.levelKey = const ValueKey('detail-trait-level'),
     this.child,
     this.compact = false,
+    this.selected = false,
   });
+
+  /// The lit slot: a heavier ring, since the tile round it has no box now.
+  final bool selected;
 
   /// A 40pt medal rather than 52, for the two slot tiles side by side.
   final bool compact;
@@ -160,8 +183,8 @@ class TraitDisc extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => SizedBox(
-    width: compact ? 38 : 56,
-    height: compact ? 38 : 56,
+    width: compact ? 58 : 56,
+    height: compact ? 58 : 56,
     child: Stack(
       clipBehavior: Clip.none,
       children: [
@@ -170,11 +193,13 @@ class TraitDisc extends StatelessWidget {
         // of it — reported as the circle not lining up under its label.
         Center(
         child: Container(
-          width: compact ? 34 : 52,
-          height: compact ? 34 : 52,
+          width: compact ? 54 : 52,
+          height: compact ? 54 : 52,
           alignment: Alignment.center,
           decoration: BoxDecoration(
-            shape: BoxShape.circle,
+            // A rounded square rather than a coin, so the two slot tiles read
+            // as cards in a row. Asked for from the couch.
+            borderRadius: BorderRadius.circular(12),
             // Lit from the top left, the way anything struck out of metal is.
             gradient: RadialGradient(
               center: const Alignment(-0.35, -0.45),
@@ -187,8 +212,8 @@ class TraitDisc extends StatelessWidget {
               stops: const [0, 0.55, 1],
             ),
             border: Border.all(
-              color: colour.withValues(alpha: 0.85),
-              width: 2.2,
+              color: colour.withValues(alpha: selected ? 1 : 0.85),
+              width: selected ? 2.6 : 2.2,
             ),
             boxShadow: [
               BoxShadow(
@@ -202,7 +227,7 @@ class TraitDisc extends StatelessWidget {
               Text(
                 glyph,
                 style: TextStyle(
-                  fontSize: compact ? 16 : 24,
+                  fontSize: compact ? 20 : 24,
                   fontWeight: FontWeight.w900,
                   color: colour,
                 ),

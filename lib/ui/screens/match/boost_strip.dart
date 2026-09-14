@@ -21,7 +21,7 @@ import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/ui/shell/shell_controller.dart';
 import 'package:merge_empire_fc/ui/theme/glass.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
-import 'package:merge_empire_fc/ui/hud/hud.dart' show hudGemInk;
+import 'package:merge_empire_fc/ui/widgets/store_button.dart' show storeGemFace;
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 
 /// Shorter than the tactic strip's 46 — this row is two tiles reading
@@ -171,7 +171,7 @@ class _BoostTile extends StatelessWidget {
                     key: ValueKey('match-boost-price-${boost.id}'),
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      const GameIcon('gem', size: 11, color: hudGemInk),
+                      const GameIcon('gem', size: 11, color: storeGemFace),
                       const SizedBox(width: 2),
                       Text(
                         '${boost.gemCost}',
