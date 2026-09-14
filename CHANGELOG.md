@@ -1,3 +1,12 @@
+## v2.0.8
+
+- Store and gem prices now show in your own currency instead of GBP.
+- Fixed cup ties settled by penalties sometimes showing the wrong result.
+- Fixed the match feed and full-time summary disagreeing about which match was played.
+- Fixed the transfer bid pill overlapping the tab bar.
+- The rewarded video button now shows when an ad is ready.
+- More match commentary variety, and translation fixes.
+
 ## v2.0.7
 
 - Fixed a crash when sound effects finished playing on some Android devices.
