@@ -45,24 +45,40 @@ outcome, the season counters and the sheet's own row, all against the board the
 player was looking at. With both halves of the 12 Sep fix reverted, three of the
 seventeen fail.
 
-### The one path left, and it is not a reversal of a match that FINISHED
+### The one path left, and it was not a reversal of a match that FINISHED
 
-- [ ] **An interrupted match is recorded from its kick-off scoreline.**
+- [x] **An interrupted match was recorded from its kick-off scoreline.**
       `simulateMatch` files a placeholder row so the fixtures list can show a
       score during the animation, and `_repairSeasonCounters` awards that row on
       the way back in — which is right, and is why backgrounding the app over a
       full-time popup no longer drops the result. But a red card or a tactic
-      switch re-simulates the remainder on the SCREEN, and nothing writes that
-      back to the placeholder. So a match abandoned after a re-simulation is
+      switch re-simulates the remainder on the SCREEN, and nothing wrote that
+      back to the placeholder. So a match abandoned after a re-simulation was
       filed as the match the kick-off sim rolled, at a score nobody watched, and
-      half the time that is the wrong way round.
+      about half the time that is the wrong way round.
+
       Found by the audit rather than from the couch: it needs the app to be
       killed between a re-simulation and the whistle, and the new group had to
       be rewritten to stop forcing exactly that (load, then start — the order
-      the app runs in). The fix is small — have `_resimulate` refresh the
-      placeholder the way `finalizeMatchOutcome` refreshes it at full time — and
-      it is a change to what the save holds mid-match, so it is written down
-      here rather than folded into a regression fix.
+      the app runs in).
+
+      `_resimulate` now refreshes the row the same way `finalizeMatchOutcome`
+      refreshes it at the whistle, so it is never further behind than the last
+      thing that changed the scoreline. **And the row has ONE writer now**:
+      `recordFixtureResult`. There were two, spelled out by hand at kick-off and
+      again at full time, and they already disagreed by a field — the kick-off
+      copy carried no `playedAt`. A third at the re-simulation would have been
+      the usual ending. `create:` is the kick-off call and the only one allowed
+      to mint a row, because a fixture with no row is a match with no league
+      slot — a cup tie, an event-cup round — and giving it one would put it in
+      the table.
+
+      Pinned by `AND AN ABANDONED MATCH IS FILED AS THE ONE BEING PLAYED`, which
+      plays every fixture of a season to a tactic switch, abandons it there, and
+      reads back both the row and what reopening the save makes of it. Its last
+      assertion is that some re-simulation in that season actually moved a
+      scoreline — without it the whole test would pass for a reason that has
+      nothing to do with any of this.
 
 ## Reported from Italy, 12 Sep 2026 — the store, the language, two scorelines
 

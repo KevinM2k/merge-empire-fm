@@ -2630,7 +2630,10 @@ void main() {
       expect(stateOf(tester).strategy, 'parkTheBus');
       expect(result['strategyChanged'], isTrue);
       stateOf(tester).skipToEnd();
-      await tester.pumpAndSettle();
+      // A tactic change re-decides the rest of the match, and the fixture
+      // row goes with it now — so this arms the debounced save like a
+      // substitution does.
+      await settleSave(tester);
     });
 
     testWidgets('A CHANGE RE-DECIDES THE REST, and keeps what has happened', (
@@ -2661,7 +2664,10 @@ void main() {
         reason: 'a goal the feed had already shown was un-scored',
       );
       state.skipToEnd();
-      await tester.pumpAndSettle();
+      // A tactic change re-decides the rest of the match, and the fixture
+      // row goes with it now — so this arms the debounced save like a
+      // substitution does.
+      await settleSave(tester);
     });
 
     testWidgets('AND THE QUESTS CAN SEE IT — four fields nothing could set', (
@@ -2681,7 +2687,10 @@ void main() {
       expect(result['strategiesUsed'], containsAll(['balanced', 'parkTheBus']));
       expect(result['strategyId'], 'parkTheBus');
       stateOf(tester).skipToEnd();
-      await tester.pumpAndSettle();
+      // A tactic change re-decides the rest of the match, and the fixture
+      // row goes with it now — so this arms the debounced save like a
+      // substitution does.
+      await settleSave(tester);
     });
 
     testWidgets('the change SAYS SO in the feed', (tester) async {
@@ -2699,7 +2708,10 @@ void main() {
         findsOneWidget,
       );
       stateOf(tester).skipToEnd();
-      await tester.pumpAndSettle();
+      // A tactic change re-decides the rest of the match, and the fixture
+      // row goes with it now — so this arms the debounced save like a
+      // substitution does.
+      await settleSave(tester);
     });
 
     testWidgets('A SECOND CHANGE HAS TO WAIT', (tester) async {
@@ -2722,7 +2734,10 @@ void main() {
       await tester.pump();
       expect(state.strategy, 'parkTheBus');
       state.skipToEnd();
-      await tester.pumpAndSettle();
+      // A tactic change re-decides the rest of the match, and the fixture
+      // row goes with it now — so this arms the debounced save like a
+      // substitution does.
+      await settleSave(tester);
     });
 
     testWidgets('and picking the ONE ALREADY ON does nothing at all', (
@@ -4727,5 +4742,112 @@ void main() {
         await playAndRecord(tester, matchNum: m, skip: true, switchTactic: true);
       });
     }
+
+    // **AND A MATCH THAT NEVER REACHED FULL TIME IS FILED AS THE ONE BEING
+    // PLAYED.**
+    //
+    // `simulateMatch` files the kick-off scoreline so the fixtures list has
+    // something to show while the match animates, and `_repairSeasonCounters`
+    // awards that row on the way back in — which is what stops a result being
+    // lost when the app is backgrounded over the full-time popup. But the
+    // screen re-simulates, and nothing wrote the new scoreline back to the row:
+    // a match abandoned after a red card or a tactic switch was recorded as the
+    // match the kick-off sim rolled, at a score nobody watched.
+    //
+    // One test rather than fourteen because the last line is the point: a run
+    // where no re-simulation actually moved a scoreline would pass every
+    // assertion below without checking anything.
+    testWidgets('AND AN ABANDONED MATCH IS FILED AS THE ONE BEING PLAYED', (
+      tester,
+    ) async {
+      var moved = 0;
+
+      for (var matchNum = 0; matchNum < matchesPerSeason; matchNum++) {
+        setMatchRandom(math.Random(matchNum + 1));
+        setSeed(4242 + matchNum);
+
+        final container = ProviderContainer(
+          overrides: [
+            saveStoreProvider.overrideWithValue(
+              MemorySaveStore({saveKeyPrimary: jsonEncode(playableSave())}),
+            ),
+          ],
+        );
+        addTearDown(container.dispose);
+        final game = container.read(gameProvider)..load();
+        final live = game.state!;
+        (live['progression'] as Map<String, dynamic>)['seasonMatchesPlayed'] =
+            matchNum;
+
+        final result = beginMatch(live)!;
+        final key = result['fixtureKey'] as String;
+        final kickoff = [result['homeGoals'], result['awayGoals']];
+
+        await pumpMatch(
+          tester,
+          result,
+          container: container,
+          instance: 'abandon-$matchNum',
+        );
+        final state = stateOf(tester);
+        await tester.pump(minuteDurationFor(10));
+        state.applyStrategy(
+          strategies.keys.firstWhere((id) => id != state.strategy),
+        );
+        await tester.pump();
+
+        // The match is now mid-play and will never finish: this is the phone
+        // going away in the seventieth minute.
+        final playing = [result['homeGoals'], result['awayGoals']];
+        if ('$playing' != '$kickoff') moved++;
+        final won = result['won'] == true;
+        final drawn = result['drawn'] == true;
+        final where = 'm$matchNum, kicked off $kickoff and was playing $playing';
+
+        final prog = game.state!['progression'] as Map<String, dynamic>;
+        final row =
+            (prog['fixtureResults'] as Map<String, dynamic>)[key]
+                as Map<String, dynamic>;
+        expect(
+          [row['homeGoals'], row['awayGoals'], row['won'], row['drawn']],
+          [playing[0], playing[1], won, drawn],
+          reason: 'the fixture row is still the kick-off match: $where',
+        );
+
+        // And the interruption itself — written out where it stands, and read
+        // back, which is where `_repairSeasonCounters` awards the row.
+        final reopened = ProviderContainer(
+          overrides: [
+            saveStoreProvider.overrideWithValue(
+              MemorySaveStore({saveKeyPrimary: jsonEncode(game.state)}),
+            ),
+          ],
+        );
+        addTearDown(reopened.dispose);
+        final reloaded =
+            (reopened.read(gameProvider)..load()).state!['progression']
+                as Map<String, dynamic>;
+        expect(
+          [
+            reloaded['seasonWins'],
+            reloaded['seasonDraws'],
+            reloaded['seasonLosses'],
+          ],
+          [won ? 1 : 0, drawn ? 1 : 0, (!won && !drawn) ? 1 : 0],
+          reason: 'reopening awarded the kick-off outcome: $where',
+        );
+
+        await settleSave(tester);
+      }
+
+      expect(
+        moved,
+        greaterThan(0),
+        reason:
+            'no re-simulation moved a scoreline in a whole season, so every '
+            'assertion above held for a reason that has nothing to do with '
+            'the fix',
+      );
+    });
   });
 }

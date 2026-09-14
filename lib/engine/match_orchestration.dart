@@ -1143,18 +1143,9 @@ MatchResult simulateMatch(
   if (matchNum + 1 >= matchesPerSeason) prog['seasonComplete'] = true;
 
   // A placeholder so the fixtures list can show a score during the animation.
-  // [finalizeMatchOutcome] overwrites it, because a tactic change rewrites the
-  // scoreline on the result object.
-  final fixtureResults = _map(prog['fixtureResults']) ??
-      (prog['fixtureResults'] = <String, dynamic>{});
-  fixtureResults[resultKey] = {
-    'homeGoals': homeGoals,
-    'awayGoals': awayGoals,
-    'won': won,
-    'drawn': drawn,
-    'isHome': isHome,
-    'opponentName': opponentName,
-  };
+  // The screen keeps it current as it re-simulates and [finalizeMatchOutcome]
+  // settles it, because a tactic change rewrites the scoreline on the result.
+  recordFixtureResult(state, result, create: true);
 
   // **`match_played`, the JS's own event, at the JS's own moment.** It is
   // logged at KICK-OFF rather than at full time, which looks like the wrong
@@ -1223,6 +1214,56 @@ Map<String, dynamic> _drawContextOf(MatchResult? result) {
 }
 
 bool _finite(num? v) => v != null && v.isFinite;
+
+/// Write [result] into the season's fixture record.
+///
+/// **ONE WRITER for a row that three call sites used to spell out.** The
+/// fixtures list, the league table, the season counters and their repair on
+/// load all read this row, and it was being composed by hand at kick-off and
+/// again at full time — two copies that already disagreed by a field.
+///
+/// [create] is the kick-off call, which is the one that may MINT a row: a
+/// placeholder so the fixtures list can show a score while the match animates.
+/// Every later call refuses to invent one, because a fixture that has no row
+/// is a match with no league slot — a cup tie, an event-cup round — and giving
+/// it one would put it in the table.
+///
+/// **And it is the one that writes no `playedAt`, which is the JS's own shape
+/// rather than an oversight.** `match_orchestration_reference.json` pins both:
+/// the kick-off row is six keys in every case it covers, and only the `settle`
+/// and `rewardsOnly` cases — the ones that have been through
+/// [finalizeMatchOutcome] — carry a seventh. The harness compares the row field
+/// for field, so it is what found this: unifying the two writers onto the
+/// richer shape failed forty-three parity cases at once. Read one before
+/// working around it.
+void recordFixtureResult(
+  Map<String, dynamic> state,
+  Map<String, dynamic> result, {
+  bool create = false,
+}) {
+  final key = result['fixtureKey'];
+  if (key is! String) return;
+  final prog = _map(state['progression']);
+  if (prog == null) return;
+
+  var rows = _map(prog['fixtureResults']);
+  if (rows == null) {
+    if (!create) return;
+    rows = <String, dynamic>{};
+    prog['fixtureResults'] = rows;
+  }
+  if (!create && rows[key] == null) return;
+
+  rows[key] = {
+    'homeGoals': result['homeGoals'],
+    'awayGoals': result['awayGoals'],
+    'won': result['won'],
+    'drawn': result['drawn'],
+    'isHome': result['isHome'],
+    'opponentName': result['opponentName'],
+    if (!create) 'playedAt': result['playedAt'],
+  };
+}
 
 /// Settles everything about a match except crediting coins and trophies.
 ///
@@ -1326,19 +1367,7 @@ void finalizeMatchOutcome(Map<String, dynamic> state, MatchResult? result) {
   // Overwrite the fixture entry with the final result. simulateMatch wrote a
   // placeholder so the list showed a score during the animation, but a tactic
   // change rewrites the scoreline, so the stored fixture has to be corrected.
-  final fixtureKey = result['fixtureKey'] as String?;
-  final fixtureResults = _map(prog['fixtureResults']);
-  if (fixtureKey != null && fixtureResults?[fixtureKey] != null) {
-    fixtureResults![fixtureKey] = {
-      'homeGoals': result['homeGoals'],
-      'awayGoals': result['awayGoals'],
-      'won': result['won'],
-      'drawn': result['drawn'],
-      'isHome': result['isHome'],
-      'opponentName': result['opponentName'],
-      'playedAt': result['playedAt'],
-    };
-  }
+  recordFixtureResult(state, result);
 
   // Per-player form, updated here and not in simulateMatch so a mid-match tactic
   // change that flips the outcome is reflected correctly — and so the rating
