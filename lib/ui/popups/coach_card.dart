@@ -1368,119 +1368,107 @@ class CoachCardFrame extends StatelessWidget {
       // answers you have to go looking for is worse than one that
       // overflows — so the buttons sit outside the scroll region and the
       // reading moves under them.
+      // **THE BOX IS ONE SIZE, AND WHAT HE SAYS TURNS PAGES.** The reading
+      // matter used to scroll under the answers, and a card was as tall as
+      // its longest translation. Asked for from the couch: the box stays the
+      // same size; if he has more to say, a tap empties the text and the
+      // rest comes, and a › says there is more. See [CoachPages].
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Flexible(
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  // His name is on the SCENE now, above the box and off to the
-                  // right — see [CoachStage]. The box opens with the subject.
-                  Text(
-                    withoutEmoji(title),
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 17,
-                      height: 1.2,
-                      fontWeight: FontWeight.w900,
-                    ),
-                  ),
-                  if (child != null) ...[
-                    const SizedBox(height: 10),
-                    child!,
-                  ],
-                  if (body != null) ...[
-                    const SizedBox(height: 8),
-                    // What he says, typed — see the note at the top, and
-                    // [CoachTypewriter] for what "typed" does and does not mean
-                    // for the layout and the semantics.
-                    CoachTypewriter(
-                      text: body!,
-                      textKey: const ValueKey('coach-card-body'),
-                      speaks: speaks,
-                      speaksKey: speaksKey,
-                      style: TextStyle(
-                        color: kit.textMuted,
-                        fontSize: 13.5,
-                        height: 1.5,
-                      ),
-                    ),
-                  ],
-                  if (coins != null) ...[
-                    const SizedBox(height: 6),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        // One currency in the pair: the disc takes the
-                        // figure's ink — see `coinFigureInk`.
-                        CoinIcon(
-                          size: 18,
-                          solid: true,
-                          color: coinFigureInk(context),
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          formatCoins(coins!),
-                          key: const ValueKey('coach-card-coins'),
-                          style: TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.w900,
-                            color: coinFigureInk(context),
-                            shadows: coinFigureShadows(context),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                  for (final text in extraTexts)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8),
-                      child: Text(
-                        text,
-                        // **LEFT, not centred.** Colin's cards are two or
-                        // three lines of him TALKING, and centred prose gives
-                        // every line a different left edge — the eye has to
-                        // find where the next one starts. Centring is for a
-                        // heading or a single line; this is neither. Asked for
-                        // from the couch.
-                        textAlign: TextAlign.start,
-                        // The card's body, at the 13 his bubble already uses.
-                        style: TextStyle(
-                          color: kit.textMuted,
-                          fontSize: 13,
-                        ),
-                      ),
-                    ),
-                  for (final line in extraLines)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 8),
-                      child: Text(
-                        t(line.key, line.params),
-                        key: ValueKey('coach-line-${line.key}'),
-                        // Left, with the body above it — see the note there.
-                        textAlign: TextAlign.start,
-                        style: TextStyle(
-                          color: line.strong
-                              ? kit.accentBright
-                              : kit.textMuted,
-                          fontSize: line.strong ? 15 : 13,
-                          // The quiet half of the pair is still at the app's
-                          // floor — it was `w400`, which is the one weight the
-                          // bundled face does not have.
-                          fontWeight: line.strong
-                              ? FontWeight.w900
-                              : uiBaseWeight,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
+          // His name is on the SCENE now, above the box and off to the
+          // right — see [CoachStage]. The box opens with the subject.
+          Text(
+            withoutEmoji(title),
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 17,
+              height: 1.2,
+              fontWeight: FontWeight.w900,
             ),
           ),
+          // Anything more than words still scrolls when it has to: a portrait
+          // and a set of terms is taller than the box's page, and the answers
+          // must stay put under it.
+          if (child != null)
+            Flexible(
+              child: SingleChildScrollView(
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 10),
+                  child: child,
+                ),
+              ),
+            ),
+          if (coins != null) ...[
+            const SizedBox(height: 6),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // One currency in the pair: the disc takes the
+                // figure's ink — see `coinFigureInk`.
+                CoinIcon(
+                  size: 18,
+                  solid: true,
+                  color: coinFigureInk(context),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  formatCoins(coins!),
+                  key: const ValueKey('coach-card-coins'),
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w900,
+                    color: coinFigureInk(context),
+                    shadows: coinFigureShadows(context),
+                  ),
+                ),
+              ],
+            ),
+          ],
+          if (body != null || extraTexts.isNotEmpty || extraLines.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Flexible(
+              child: CoachPages(
+              paragraphs: [
+                if (body != null)
+                  CoachParagraph(
+                    text: body!,
+                    key: const ValueKey('coach-card-body'),
+                    typed: true,
+                    speaks: speaks,
+                    speaksKey: speaksKey,
+                    style: TextStyle(
+                      color: kit.textMuted,
+                      fontSize: 13.5,
+                      height: 1.5,
+                    ),
+                  ),
+                // **LEFT, not centred.** Colin's cards are two or three lines
+                // of him TALKING, and centred prose gives every line a
+                // different left edge. Asked for from the couch.
+                for (final text in extraTexts)
+                  CoachParagraph(
+                    text: text,
+                    style: TextStyle(color: kit.textMuted, fontSize: 13),
+                  ),
+                for (final line in extraLines)
+                  CoachParagraph(
+                    text: t(line.key, line.params),
+                    key: ValueKey('coach-line-${line.key}'),
+                    style: TextStyle(
+                      color: line.strong ? kit.accentBright : kit.textMuted,
+                      fontSize: line.strong ? 15 : 13,
+                      // The quiet half of the pair is still at the app's
+                      // floor — it was `w400`, which is the one weight the
+                      // bundled face does not have.
+                      fontWeight: line.strong ? FontWeight.w900 : uiBaseWeight,
+                    ),
+                  ),
+              ],
+              ),
+            ),
+          ],
           // A card with a footer and no answers is still a card with
           // something to press — the tutorial's spotlight steps are
           // exactly that: perform the thing, or leave.
@@ -1759,6 +1747,261 @@ class _CoachAlertBadgeState extends State<CoachAlertBadge> with SingleTickerProv
                 ),
               ),
       ),
+    );
+  }
+}
+
+/// One run of text on a coach card, with the style it is set in.
+class CoachParagraph {
+  const CoachParagraph({
+    required this.text,
+    required this.style,
+    this.key,
+    this.typed = false,
+    this.speaks = false,
+    this.speaksKey = '',
+  });
+
+  final String text;
+  final TextStyle style;
+  final Key? key;
+
+  /// Arrives a character at a time — the body. Everything else is printed.
+  final bool typed;
+  final bool speaks;
+  final String speaksKey;
+
+  /// A piece of this line for one page. The key rides on every piece — one
+  /// page shows at a time, and what he is saying is still the body.
+  CoachParagraph slice(String part, {bool first = true}) => CoachParagraph(
+    text: part,
+    style: style,
+    key: key,
+    typed: typed,
+    speaks: first && speaks,
+    speaksKey: first ? speaksKey : '',
+  );
+}
+
+/// The lines the box holds at once: six of his, which is what most cards
+/// say — a confirm's body and its warning line fit. A card that says more
+/// turns pages rather than growing.
+const int coachPageLines = 6;
+
+/// The box's height, from the body's own line height.
+const double coachPageHeight = 13.5 * 1.5 * coachPageLines;
+
+/// The gap between paragraphs on a page.
+const double _paraGap = 8;
+
+/// A fixed box that shows what fits, and turns a page on a tap.
+///
+/// **Paginated by MEASURING, in the box's own width**, because German is the
+/// worst case and the split has to land on a line the reader can see. Whole
+/// paragraphs go first; one taller than the space left is cut at a line
+/// boundary and continued on the next page. The body types on every page it
+/// spans; its voice goes out with the first. Tapping the box turns the page
+/// while there is one to turn — on the last page the tap falls through to the
+/// stage, where it still finishes his line. A › in the corner is the only
+/// other sign there is more.
+class CoachPages extends StatefulWidget {
+  const CoachPages({super.key, required this.paragraphs});
+
+  final List<CoachParagraph> paragraphs;
+
+  @override
+  State<CoachPages> createState() => CoachPagesState();
+}
+
+class CoachPagesState extends State<CoachPages> {
+  int _page = 0;
+
+  /// Test seams.
+  int get page => _page;
+  int pageCount = 1;
+
+  void next() {
+    if (_page + 1 < pageCount) setState(() => _page++);
+  }
+
+  @override
+  void didUpdateWidget(CoachPages oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.paragraphs.length != widget.paragraphs.length ||
+        oldWidget.paragraphs.first.text != widget.paragraphs.first.text) {
+      _page = 0;
+    }
+  }
+
+  /// Cut [text] so the first piece is at most [lines] laid-out lines.
+  static (String, String) _cutAt(
+    String text,
+    TextStyle style,
+    double width,
+    TextScaler scaler,
+    int lines,
+  ) {
+    final painter = TextPainter(
+      text: TextSpan(text: text, style: style),
+      textDirection: TextDirection.ltr,
+      textScaler: scaler,
+    )..layout(maxWidth: width);
+    final metrics = painter.computeLineMetrics();
+    if (lines <= 0 || lines >= metrics.length) return (text, '');
+    final endY = metrics.take(lines).fold<double>(0, (y, m) => y + m.height);
+    final at = painter.getPositionForOffset(Offset(width, endY - 0.5)).offset;
+    painter.dispose();
+    var cut = at.clamp(0, text.length);
+    // At a word, and never zero: a page with nothing on it is a stuck card.
+    final space = text.lastIndexOf(' ', cut);
+    if (space > 0) cut = space;
+    if (cut == 0) cut = at.clamp(1, text.length);
+    return (text.substring(0, cut).trimRight(), text.substring(cut).trimLeft());
+  }
+
+  static double _heightOf(String text, TextStyle style, double width, TextScaler scaler) {
+    final painter = TextPainter(
+      text: TextSpan(text: text, style: style),
+      textDirection: TextDirection.ltr,
+      textScaler: scaler,
+    )..layout(maxWidth: width);
+    final h = painter.height;
+    painter.dispose();
+    return h;
+  }
+
+  static int _linesOf(String text, TextStyle style, double width, TextScaler scaler) {
+    final painter = TextPainter(
+      text: TextSpan(text: text, style: style),
+      textDirection: TextDirection.ltr,
+      textScaler: scaler,
+    )..layout(maxWidth: width);
+    final n = painter.computeLineMetrics().length;
+    painter.dispose();
+    return n;
+  }
+
+  List<List<CoachParagraph>> _paginate(BuildContext context, double width, double height) {
+    final base = DefaultTextStyle.of(context).style;
+    final scaler = MediaQuery.textScalerOf(context);
+    final pages = <List<CoachParagraph>>[];
+    var page = <CoachParagraph>[];
+    var used = 0.0;
+
+    void flush() {
+      if (page.isNotEmpty) pages.add(page);
+      page = <CoachParagraph>[];
+      used = 0;
+    }
+
+    for (final para in widget.paragraphs) {
+      var rest = para;
+      var first = true;
+      // An empty line still goes on: a card with a `child:` and no sentence
+      // keeps its body key, at no height.
+      if (rest.text.isEmpty) {
+        page.add(rest);
+        continue;
+      }
+      while (rest.text.isNotEmpty) {
+        final style = base.merge(rest.style);
+        final gap = page.isEmpty ? 0.0 : _paraGap;
+        final h = _heightOf(rest.text, style, width, scaler);
+        if (used + gap + h <= height) {
+          page.add(rest);
+          used += gap + h;
+          break;
+        }
+        final room = height - used - gap;
+        final total = _linesOf(rest.text, style, width, scaler);
+        final lineH = total == 0 ? h : h / total;
+        final fit = (room / lineH).floor();
+        if (fit < 1) {
+          // Nothing of it fits here: onto a fresh page, where at least a
+          // full box of it does.
+          if (page.isEmpty) {
+            page.add(rest);
+            break;
+          }
+          flush();
+          continue;
+        }
+        final (head, tail) = _cutAt(rest.text, style, width, scaler, fit);
+        if (tail.isEmpty) {
+          page.add(rest);
+          break;
+        }
+        page.add(rest.slice(head, first: first));
+        flush();
+        rest = rest.slice(tail, first: false);
+        first = false;
+      }
+    }
+    flush();
+    return pages.isEmpty ? [[]] : pages;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final kit = Theme.of(context).extension<KitTheme>()!;
+    return LayoutBuilder(
+      builder: (context, box) {
+        // The stage can be shorter than the page — a keyboard, a spotlight
+        // step keeping off a control — and then the box gives up height and
+        // pages more often rather than painting past the bottom edge.
+        final height = math.min(coachPageHeight, box.maxHeight);
+        final pages = _paginate(context, box.maxWidth, height);
+        pageCount = pages.length;
+        final at = _page.clamp(0, pages.length - 1);
+        final more = at + 1 < pages.length;
+        return GestureDetector(
+          key: const ValueKey('coach-pages'),
+          behavior: more ? HitTestBehavior.opaque : HitTestBehavior.deferToChild,
+          onTap: more ? next : null,
+          child: SizedBox(
+            height: height,
+            child: Stack(
+              children: [
+                Column(
+                  key: ValueKey('coach-page-$at'),
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    for (var i = 0; i < pages[at].length; i++) ...[
+                      if (i > 0) const SizedBox(height: _paraGap),
+                      if (pages[at][i].typed)
+                        CoachTypewriter(
+                          text: pages[at][i].text,
+                          textKey: pages[at][i].key,
+                          speaks: pages[at][i].speaks,
+                          speaksKey: pages[at][i].speaksKey,
+                          style: pages[at][i].style,
+                        )
+                      else
+                        Text(
+                          pages[at][i].text,
+                          key: pages[at][i].key,
+                          textAlign: TextAlign.start,
+                          style: pages[at][i].style,
+                        ),
+                    ],
+                  ],
+                ),
+                if (more)
+                  Positioned(
+                    right: 0,
+                    bottom: 0,
+                    child: Icon(
+                      Icons.chevron_right,
+                      key: const ValueKey('coach-pages-more'),
+                      size: 22,
+                      color: kit.accentBright,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

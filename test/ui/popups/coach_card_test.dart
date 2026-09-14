@@ -315,6 +315,45 @@ void main() {
     expect(find.byKey(const ValueKey('coach-card')), findsNothing);
   });
 
+  group('THE BOX IS ONE SIZE, AND MORE TO SAY TURNS A PAGE', () {
+    /// Long enough to need three boxes at the harness's width.
+    final essay = List.filled(6, longBody).join(' ');
+
+    testWidgets('a line that fits has no page to turn', (tester) async {
+      await openCard(tester, disableAnimations: true);
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('coach-pages-more')), findsNothing);
+      final pager = tester.state<CoachPagesState>(find.byType(CoachPages));
+      expect(pager.pageCount, 1);
+      expect(wholeLine(tester, 'coach-card-body'), longBody);
+    });
+
+    testWidgets('AND A LONGER ONE SHOWS A › AND EMPTIES ON A TAP', (tester) async {
+      await openCard(tester, body: essay, disableAnimations: true);
+      await tester.pumpAndSettle();
+      final pager = tester.state<CoachPagesState>(find.byType(CoachPages));
+      expect(pager.pageCount, greaterThan(1));
+      expect(find.byKey(const ValueKey('coach-pages-more')), findsOneWidget);
+      // The box is the same height whatever it holds.
+      final box = tester.getSize(find.byKey(const ValueKey('coach-pages')));
+      expect(box.height, coachPageHeight);
+      final first = wholeLine(tester, 'coach-card-body');
+      expect(first.length, lessThan(essay.length));
+      expect(essay, startsWith(first));
+
+      // Every word once: the pages joined back up are the whole line.
+      final seen = <String>[first];
+      while (pager.page + 1 < pager.pageCount) {
+        await tester.tap(find.byKey(const ValueKey('coach-pages')));
+        await tester.pumpAndSettle();
+        seen.add(wholeLine(tester, 'coach-card-body'));
+      }
+      expect(find.byKey(const ValueKey('coach-pages-more')), findsNothing);
+      expect(seen.join(' ').replaceAll(RegExp(r'\s+'), ' '), essay);
+      expect(tester.getSize(find.byKey(const ValueKey('coach-pages'))).height, coachPageHeight);
+    });
+  });
+
   testWidgets('an empty body types nothing and throws nothing', (tester) async {
     // `_msPerGlyph * 0` is a zero-length controller, which is a real state a
     // card with a `child:` and no sentence gets into.

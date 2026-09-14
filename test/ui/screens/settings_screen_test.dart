@@ -12,6 +12,8 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import '../../helpers/coach_pages.dart';
 import 'package:merge_empire_fc/data/config.dart';
 import 'package:merge_empire_fc/i18n/detect.dart';
 import 'package:merge_empire_fc/engine/auth_policy.dart';
@@ -785,7 +787,7 @@ void main() {
         expect(find.text(t('difficulty.switch.title')), findsOne);
         // The body is the target mode's own explanation, not the one you are
         // leaving.
-        expect(find.text(t('difficulty.switch.toHard')), findsOne);
+        expect(await readCoachPages(tester), contains(t('difficulty.switch.toHard')));
         // And nothing has happened yet.
         expect(container.read(gameProvider).state!['clubName'], 'Ember Rovers');
         expect(

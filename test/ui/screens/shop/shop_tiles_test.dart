@@ -37,6 +37,8 @@ void main() {
       ShopSectionId.offers,
       ShopSectionId.gems,
       ShopSectionId.coins,
+      // The port's own: the four match boosts, above the season ones.
+      ShopSectionId.matchBoosts,
       ShopSectionId.boosts,
       ShopSectionId.income,
       ShopSectionId.vouchers,

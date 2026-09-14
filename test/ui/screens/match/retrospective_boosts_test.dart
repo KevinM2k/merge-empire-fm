@@ -15,6 +15,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+
+import '../../../helpers/coach_pages.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/data/players.dart';
 import 'package:merge_empire_fc/engine/boost_engine.dart';
@@ -497,7 +499,7 @@ void main() {
         boosts: const {'var_review': 1, 'physio_sponge': 2},
       );
       // The card names the door; the bench IS the door.
-      expect(find.text(t('coach.injury.physio_hint')), findsOneWidget);
+      expect(await readCoachPages(tester), contains(t('coach.injury.physio_hint')));
       await tester.tap(find.byKey(const ValueKey('coach-action-match.subs')));
       await tester.pumpAndSettle();
       // The panel arrives with the bench list already open on the hole —
