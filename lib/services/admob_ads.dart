@@ -273,27 +273,69 @@ Future<RewardedAds> startAds({
     await initAdConsent();
     if (!adsPermitted) {
       logAppEvent('ad_stack_blocked', {'reason': 'consent'});
-      return const NoRewardedAds();
+      // Not a dead end — the first placement that wants an ad asks again.
+      return DeferredConsentAds(() => _bringUpSdk(ageFlags));
     }
-    // **ATT AFTER UMP AND BEFORE THE FIRST REQUEST**, which is Google's own
-    // order and is not a preference either: the SDK reads the tracking status
-    // when it initialises, so a prompt answered after `initialize` does not
-    // apply until the next launch. Without this the IDFA is never available and
-    // every iOS impression is contextual. See `services/app_tracking.dart`.
-    await requestTrackingIfNeeded();
-    // **THE AGE FLAGS GO ON BEFORE THE FIRST REQUEST, not after.** They are a
-    // property of the SDK's request configuration rather than of an ad, so a
-    // request made before they are set is served untagged — and for a player
-    // Google Play has identified as a child that is the one request that must
-    // not happen. See `engine/age_verification.dart`; on every device with no
-    // signal both flags are false and this is the default configuration.
-    if (ageFlags != null) await applyAgeFlagsToAds(ageFlags);
-    await MobileAds.instance.initialize();
-    return AdMobRewardedAds();
+    return await _bringUpSdk(ageFlags);
   } catch (_) {
     // No SDK on this platform. Every placement answers `unavailable`, honestly.
     logAppEvent('ad_stack_blocked', {'reason': 'unavailable'});
     return const NoRewardedAds();
+  }
+}
+
+/// Everything after the consent gate: tracking, age flags, then the SDK.
+Future<RewardedAds> _bringUpSdk(
+  ({bool tagForChildDirectedTreatment, bool tagForUnderAgeOfConsent})? ageFlags,
+) async {
+  // **ATT AFTER UMP AND BEFORE THE FIRST REQUEST**, which is Google's own
+  // order and is not a preference either: the SDK reads the tracking status
+  // when it initialises, so a prompt answered after `initialize` does not
+  // apply until the next launch. Without this the IDFA is never available and
+  // every iOS impression is contextual. See `services/app_tracking.dart`.
+  await requestTrackingIfNeeded();
+  // **THE AGE FLAGS GO ON BEFORE THE FIRST REQUEST, not after.** They are a
+  // property of the SDK's request configuration rather than of an ad, so a
+  // request made before they are set is served untagged — and for a player
+  // Google Play has identified as a child that is the one request that must
+  // not happen. See `engine/age_verification.dart`; on every device with no
+  // signal both flags are false and this is the default configuration.
+  if (ageFlags != null) await applyAgeFlagsToAds(ageFlags);
+  await MobileAds.instance.initialize();
+  return AdMobRewardedAds();
+}
+
+/// The adapter handed over when consent could not be resolved at boot.
+///
+/// **A consent gate that never answered is not a refusal**, and `startAds` runs
+/// exactly once per launch — so one bad moment on the network used to switch
+/// ads off for the whole session. The first placement that actually wants an ad
+/// re-reads the answer: by then the player has been in the game a while and the
+/// network is usually back. It never re-shows the form, so nobody who declined
+/// is asked twice.
+class DeferredConsentAds implements RewardedAds {
+  DeferredConsentAds(this._bringUp, {Future<bool> Function()? refresh})
+    : _refresh = refresh ?? refreshAdConsent;
+
+  final Future<RewardedAds> Function() _bringUp;
+  final Future<bool> Function() _refresh;
+
+  /// **One attempt for the session.** A player tapping a dead button six times
+  /// is not six consent round-trips; the second answer is the answer.
+  bool _tried = false;
+  RewardedAds _live = const NoRewardedAds();
+
+  @override
+  Future<AdOutcome> show(String placement, {void Function()? onShown}) async {
+    if (!_tried) {
+      _tried = true;
+      try {
+        if (await _refresh()) _live = await _bringUp();
+      } catch (_) {
+        // Still nothing. `_live` stays the honest `unavailable`.
+      }
+    }
+    return _live.show(placement, onShown: onShown);
   }
 }
 

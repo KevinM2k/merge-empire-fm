@@ -36,22 +36,56 @@ bool _canRequestAds = false;
 
 bool get adsPermitted => _canRequestAds;
 
+/// Putting the consent form on screen. A seam because `ConsentForm`'s own entry
+/// point is a STATIC, so a test cannot reach past it to the channel underneath.
+typedef ConsentFormPresenter = Future<void> Function();
+
+Future<void> _showFormIfRequired() =>
+    ConsentForm.loadAndShowConsentFormIfRequired((_) {});
+
 /// Ask once, at boot, and show the form if the region requires one.
-Future<void> initAdConsent({ConsentInformation? info}) async {
+Future<void> initAdConsent({
+  ConsentInformation? info,
+  ConsentFormPresenter? presentForm,
+}) async {
   final consent = info ?? ConsentInformation.instance;
+  final showForm = presentForm ?? _showFormIfRequired;
+  // **FOUR STEPS, FOUR CATCHES.** Sharing one `try` meant a throw in the form
+  // skipped the permission read below it and left the gate at its `false`
+  // default — ads off for the session, in regions that needed no consent.
   try {
     await _requestUpdate(consent);
-    // **REQUIRED means show it now.** `loadAndShowConsentFormIfRequired` is a
-    // no-op when it is not, so there is no status check to get wrong.
-    await ConsentForm.loadAndShowConsentFormIfRequired((_) {});
+  } catch (_) {}
+  // REQUIRED means show it now; it is a no-op when it is not.
+  try {
+    await showForm();
+  } catch (_) {}
+  try {
     _privacyOptionsRequired =
         await consent.getPrivacyOptionsRequirementStatus() ==
         PrivacyOptionsRequirementStatus.required;
+  } catch (_) {}
+  // The only authority on whether an ad may be requested, so it is asked last
+  // and asked unconditionally. Still false when consent was genuinely refused.
+  try {
     _canRequestAds = await consent.canRequestAds();
-  } catch (_) {
-    // Not on a platform with the SDK, or the update failed. The game plays; the
-    // ads do not serve, which is the correct failure for a consent gate.
-  }
+  } catch (_) {}
+}
+
+/// Re-read the consent state after a failed boot, WITHOUT re-showing the form.
+///
+/// `startAds` runs once per launch, so one bad moment on the network used to
+/// cost the whole session. Re-prompting someone who already declined would be a
+/// policy problem, so this re-reads the answer rather than asking again.
+Future<bool> refreshAdConsent({ConsentInformation? info}) async {
+  final consent = info ?? ConsentInformation.instance;
+  try {
+    await _requestUpdate(consent);
+  } catch (_) {}
+  try {
+    _canRequestAds = await consent.canRequestAds();
+  } catch (_) {}
+  return _canRequestAds;
 }
 
 Future<void> _requestUpdate(ConsentInformation consent) {
