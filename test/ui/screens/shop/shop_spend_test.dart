@@ -325,6 +325,20 @@ void main() {
   });
 
   group('the voucher ladder', () {
+    testWidgets('THE ARMED RUNG WEARS THE GREEN CHIP, and the others say nothing', (
+      tester,
+    ) async {
+      await pumpShopWidget(
+        tester,
+        (s) => (s['shop'] as Map<String, dynamic>)['freeScoutReady'] = true,
+        VouchersSection.new,
+      );
+      expect(find.byKey(const ValueKey('shop-active-voucher-random')), findsOneWidget);
+      expect(find.text(t('shop.already_active')), findsOneWidget);
+      // The rule once, in the section's note — not again under each rung.
+      expect(find.text(t('shop.voucher.one_at_a_time')), findsOneWidget);
+    });
+
     testWidgets('the one-at-a-time rule is stated once, not per rung', (
       tester,
     ) async {
