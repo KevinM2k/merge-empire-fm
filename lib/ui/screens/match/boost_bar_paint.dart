@@ -172,7 +172,7 @@ class LiveSourcePill extends StatelessWidget {
   /// Null when nothing has just changed.
   final String? text;
 
-  static const double height = 16;
+  static const double height = 18;
 
   @override
   Widget build(BuildContext context) {
@@ -198,7 +198,7 @@ class LiveSourcePill extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      fontSize: 10,
+                      fontSize: 12,
                       height: 1.4,
                       fontWeight: FontWeight.w900,
                       letterSpacing: 0.4,

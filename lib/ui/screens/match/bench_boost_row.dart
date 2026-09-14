@@ -107,7 +107,7 @@ class _OfferTile extends StatelessWidget {
                       'x${offer.count}',
                       key: ValueKey('bench-boost-count-${offer.id}'),
                       style: TextStyle(
-                        fontSize: 11,
+                        fontSize: 12,
                         fontWeight: FontWeight.w900,
                         color: ink,
                       ),
@@ -122,7 +122,7 @@ class _OfferTile extends StatelessWidget {
                         Text(
                           '${boost?.gemCost ?? 0}',
                           style: TextStyle(
-                            fontSize: 11,
+                            fontSize: 12,
                             fontWeight: FontWeight.w900,
                             color: ink,
                           ),
@@ -141,9 +141,9 @@ class _OfferTile extends StatelessWidget {
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  fontSize: 11,
+                  fontSize: 12,
                   height: 1.25,
-                  fontWeight: live ? FontWeight.w700 : FontWeight.w500,
+                  fontWeight: FontWeight.w700,
                   color: live ? kit.accentBright : kit.textMuted,
                 ),
               ),

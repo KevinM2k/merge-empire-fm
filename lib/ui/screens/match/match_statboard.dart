@@ -374,7 +374,7 @@ class MatchStatboard extends StatelessWidget {
                     t('match.active.title').toUpperCase(),
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      fontSize: 11,
+                      fontSize: 12,
                       fontWeight: FontWeight.w900,
                       letterSpacing: 1,
                       color: kit.textMuted,
@@ -403,7 +403,7 @@ class MatchStatboard extends StatelessWidget {
                             Text(
                               t('match.active.until', {'minute': '${lift.until}'}),
                               style: TextStyle(
-                                fontSize: 11,
+                                fontSize: 12,
                                 fontWeight: FontWeight.w700,
                                 color: kit.textMuted,
                               ),

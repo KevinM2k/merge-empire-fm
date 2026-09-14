@@ -150,7 +150,7 @@ class _BoostTile extends StatelessWidget {
                     "→ $until'",
                     key: ValueKey('match-boost-until-${boost.id}'),
                     style: TextStyle(
-                      fontSize: 11,
+                      fontSize: 12,
                       fontWeight: FontWeight.w900,
                       color: ink,
                     ),
@@ -160,7 +160,7 @@ class _BoostTile extends StatelessWidget {
                     'x$count',
                     key: ValueKey('match-boost-count-${boost.id}'),
                     style: TextStyle(
-                      fontSize: 11,
+                      fontSize: 12,
                       fontWeight: FontWeight.w900,
                       color: ink,
                     ),
@@ -175,7 +175,7 @@ class _BoostTile extends StatelessWidget {
                       Text(
                         '${boost.gemCost}',
                         style: TextStyle(
-                          fontSize: 11,
+                          fontSize: 12,
                           fontWeight: FontWeight.w900,
                           color: ink,
                         ),
