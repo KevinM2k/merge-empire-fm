@@ -33,6 +33,7 @@ import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/state/card_instance.dart';
 import 'package:merge_empire_fc/ui/popups/bottom_sheet_popup.dart';
+import 'package:merge_empire_fc/ui/screens/match/bench_boost_row.dart';
 import 'package:merge_empire_fc/ui/popups/coach_card.dart';
 import 'package:merge_empire_fc/ui/popups/sheet_header.dart';
 import 'package:merge_empire_fc/ui/screens/grid/grid_providers.dart';
@@ -61,6 +62,7 @@ Future<void> showSubsPanel(
   Set<String> sentOff = const {},
   Map<String, PitchSlot> sentOffSlots = const {},
   Set<String> cautioned = const {},
+  List<BenchBoostOffer> Function()? boostOffers,
 }) => showBottomSheetPopup<void>(
   context,
   heightFraction: 0.92,
@@ -72,6 +74,7 @@ Future<void> showSubsPanel(
     sentOff: sentOff,
     sentOffSlots: sentOffSlots,
     cautioned: cautioned,
+    boostOffers: boostOffers,
   ),
 );
 
@@ -85,6 +88,7 @@ class SubsPanel extends ConsumerStatefulWidget {
     this.sentOff = const {},
     this.sentOffSlots = const {},
     this.cautioned = const {},
+    this.boostOffers,
   });
 
   /// How many changes have already been made this match.
@@ -126,6 +130,12 @@ class SubsPanel extends ConsumerStatefulWidget {
   /// result. It is what the MANAGER is looking at when they decide whether a
   /// booked defender sees out the half, which is the decision this panel is for.
   final Set<String> cautioned;
+
+  /// **VAR and the Physio Sponge, as the screen offers them RIGHT NOW.** A
+  /// function rather than a list, because taking one changes what is on offer
+  /// and the row is rebuilt from it. Null on a bench opened outside a match —
+  /// there is nothing to undo, so there is no row.
+  final List<BenchBoostOffer> Function()? boostOffers;
 
   /// A slot to arrive with the bench already open on.
   ///
@@ -321,6 +331,26 @@ class SubsPanelState extends ConsumerState<SubsPanel> {
           title: t('match.subs'),
           subtitle: none ? t('match.subs.none_left') : t('match.subs.pick_off'),
         ),
+        // The retrospective boosts, in front of the consequence they undo.
+        if (widget.boostOffers case final offers?)
+          BenchBoostRow(
+            offers: [
+              for (final o in offers())
+                (
+                  id: o.id,
+                  count: o.count,
+                  targetName: o.targetName,
+                  reason: o.reason,
+                  onUse: o.onUse == null
+                      ? null
+                      : () {
+                          o.onUse!();
+                          // What is on offer has changed — he is back on.
+                          if (mounted) setState(() {});
+                        },
+                ),
+            ],
+          ),
         Expanded(
           child: PitchBoard(
             slots: slots,

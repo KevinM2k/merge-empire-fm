@@ -15,6 +15,7 @@ library;
 
 import 'dart:math' as math;
 
+import 'package:merge_empire_fc/engine/boost_engine.dart';
 import 'package:merge_empire_fc/engine/gem_engine.dart';
 import 'package:merge_empire_fc/engine/lineup_engine.dart';
 import 'package:merge_empire_fc/engine/mini_games_engine.dart';
@@ -46,6 +47,10 @@ typedef DailyReward = ({
   int gems,
   bool freeScout,
   bool healOne,
+
+  /// A manager boost, by id, or null. The port's own field — the JS calendar
+  /// has no boosts — so the parity fixture never sees it.
+  String? boost,
 });
 
 DailyReward _day({
@@ -54,12 +59,14 @@ DailyReward _day({
   int gems = 0,
   bool freeScout = false,
   bool healOne = false,
+  String? boost,
 }) => (
   coinsMult: coinsMult,
   energy: energy,
   gems: gems,
   freeScout: freeScout,
   healOne: healOne,
+  boost: boost,
 );
 
 /// The calendar.
@@ -81,7 +88,10 @@ final Map<int, DailyReward> dailyRewards = {
   1: _day(coinsMult: 2),
   2: _day(coinsMult: 1, energy: 2),
   3: _day(coinsMult: 4),
-  4: _day(coinsMult: 3),
+  // Day 4 lost the Scout Voucher and has read flat since. It gets a Crowd
+  // Roar beside its coins — a taste of a gem product, the same theory the
+  // voucher was there on.
+  4: _day(coinsMult: 3, boost: 'crowd_roar'),
   5: _day(coinsMult: 2, energy: 3),
   6: _day(coinsMult: 6),
   7: _day(coinsMult: 10, energy: 4, gems: 2),
@@ -176,6 +186,7 @@ typedef DailyRewardPreview = ({
   bool freeScout,
   bool healOne,
   int gems,
+  String? boost,
 });
 
 DailyRewardPreview? getDailyRewardPreview(Map<String, dynamic> state, int day) {
@@ -188,6 +199,7 @@ DailyRewardPreview? getDailyRewardPreview(Map<String, dynamic> state, int day) {
     freeScout: def.freeScout,
     healOne: def.healOne,
     gems: def.gems,
+    boost: def.boost,
   );
 }
 
@@ -288,6 +300,7 @@ typedef DailyClaim = ({
   int healedCount,
   bool doubled,
   bool trainedBonus,
+  String? boost,
 });
 
 const DailyClaim _alreadyClaimed = (
@@ -304,6 +317,7 @@ const DailyClaim _alreadyClaimed = (
   healedCount: 0,
   doubled: false,
   trainedBonus: false,
+  boost: null,
 );
 
 /// Claim today's reward and apply it.
@@ -360,6 +374,10 @@ DailyClaim claimDailyReward(
   // notes rule out.
   if (def.gems > 0) addGems(state, def.gems, 'daily_streak');
 
+  // A boost is one whatever the double: like gems, it is a gem product, and
+  // a video that mints two is a shelf the gem engine's notes rule out.
+  if (def.boost != null) grantBoost(state, def.boost!, 1);
+
   // The Quick Sponge heals one injured player, two if doubled — distinct from
   // the shop's Magic Sponge, which heals every injured player at once.
   var healedCount = 0;
@@ -413,6 +431,7 @@ DailyClaim claimDailyReward(
     healedCount: healedCount,
     doubled: doubled,
     trainedBonus: status.trainedBonus,
+    boost: def.boost,
   );
   emit('dailyreward:claimed', result);
 

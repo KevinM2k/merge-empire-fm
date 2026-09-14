@@ -45,6 +45,7 @@ import 'package:merge_empire_fc/engine/boost_engine.dart';
 import 'package:merge_empire_fc/data/boosts.dart' show BoostKind, getBoost;
 import 'package:merge_empire_fc/engine/match_boost_state.dart';
 import 'package:merge_empire_fc/ui/screens/match/boost_strip.dart';
+import 'package:merge_empire_fc/ui/screens/match/bench_boost_row.dart';
 import 'package:merge_empire_fc/ui/screens/match/boost_bar_paint.dart';
 import 'package:merge_empire_fc/ui/widgets/trait_copy.dart' show matchTraitName;
 import 'package:merge_empire_fc/data/match_traits.dart'
@@ -1798,6 +1799,7 @@ class MatchScreenState extends ConsumerState<MatchScreen>
       sentOff: _sentOff,
       sentOffSlots: _sentOffSlots,
       cautioned: _cautioned,
+      boostOffers: _benchOffers,
     );
     // **CLOSING THE BENCH IS THE DECISION.** Whoever was on offer for a review
     // or a sponge and was not taken is not coming back — you cannot undo a
@@ -1908,6 +1910,8 @@ class MatchScreenState extends ConsumerState<MatchScreen>
           t('match.subs.injury_tip_none')
         else if (cover != null)
           t('match.subs.injury_tip', {'name': cover.card.name}),
+        // Signposted here, taken at the bench — see [_benchOffers].
+        if (physioTarget != null) t('coach.injury.physio_hint'),
       ],
       actions: [
         CoachAction(
@@ -2108,6 +2112,63 @@ class MatchScreenState extends ConsumerState<MatchScreen>
   String? get physioTarget =>
       _physioCandidates().where(canPhysio).lastOrNull;
   String? get varTarget => _sentOff.where(canVar).lastOrNull;
+
+  /// The two retrospective boosts as the bench should show them now.
+  ///
+  /// A tile is never blank: it is FOR somebody, or it says why not — the man
+  /// was passed on when the bench last closed, nobody is down, or none is
+  /// owned and here is what one costs.
+  List<BenchBoostOffer> _benchOffers() {
+    final state = ref.read(gameProvider).state;
+    String? nameOf(String? id) =>
+        id == null ? null : cardById(state, id)?.name();
+    BenchBoostOffer offer({
+      required String id,
+      required String? target,
+      required bool passedOn,
+      required String idleKey,
+      required void Function(String) apply,
+    }) {
+      final count = boostCount(state, id);
+      final cost = getBoost(id)?.gemCost ?? 0;
+      final String? reason;
+      if (count == 0) {
+        reason = t('boost.bench.buy', {'gems': '$cost'});
+      } else if (target == null) {
+        reason = t(passedOn ? 'boost.locked.too_late' : idleKey);
+      } else {
+        reason = null;
+      }
+      return (
+        id: id,
+        count: count,
+        targetName: nameOf(target),
+        reason: reason,
+        onUse: target == null || count == 0 ? null : () => apply(target),
+      );
+    }
+
+    return [
+      offer(
+        id: 'var_review',
+        target: varTarget,
+        passedOn: _sentOff.any(_varSpent.contains),
+        idleKey: 'boost.var_review.idle',
+        apply: applyVar,
+      ),
+      offer(
+        id: 'physio_sponge',
+        target: physioTarget,
+        // Passed on means still down: a man the sponge HEALED is also in the
+        // spent set, and he is not a missed chance.
+        passedOn: _physioSpent.any(
+          (id) => cardById(state, id)?.injured ?? false,
+        ),
+        idleKey: 'boost.physio_sponge.idle',
+        apply: applyPhysio,
+      ),
+    ];
+  }
 
   /// Put a man back in the square [slots] banked for him.
   void _restoreToSlot(String instanceId, Map<String, PitchSlot> slots) {
@@ -2471,6 +2532,12 @@ class MatchScreenState extends ConsumerState<MatchScreen>
         titleKey: 'coach.red_card.title',
         bodyKey: 'coach.red_card.body',
         bodyParams: {'player': player},
+        // Signposted here, taken at the bench: this card shows once ever, so
+        // it can introduce the door but must never be the only one.
+        extraTexts: [
+          if (boostCount(game.state, 'var_review') > 0)
+            t('coach.red_card.var_hint'),
+        ],
         actions: [
           CoachAction(labelKey: 'coachtip.tap_dismiss', onTap: () {}),
         ],

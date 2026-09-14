@@ -21,6 +21,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/ui/popups/sheet_header.dart';
+import 'package:merge_empire_fc/data/boosts.dart' show getBoost;
 import 'package:merge_empire_fc/engine/daily_reward_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
@@ -94,6 +95,14 @@ List<DayReward> dayRewardParts(DailyRewardPreview reward) => [
       label: null,
     ),
   if (reward.healOne) (text: '➕', icon: null, ink: null, label: null),
+  // A boost is not a wallet either: its own glyph and its own name.
+  if (reward.boost case final boost?)
+    (
+      text: '${getBoost(boost)?.icon ?? ''} ${t('boost.$boost.name')}',
+      icon: null,
+      ink: null,
+      label: null,
+    ),
 ];
 
 /// The same day as ONE LINE, for a screen reader.

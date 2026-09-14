@@ -19,6 +19,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:merge_empire_fc/engine/boost_engine.dart';
 import 'package:merge_empire_fc/engine/daily_reward_engine.dart';
 import 'package:merge_empire_fc/util/event_bus.dart';
 import 'package:merge_empire_fc/util/time.dart';
@@ -249,6 +250,61 @@ void main() {
     clearBus();
   });
 
+  // ── The day-4 boost, the port's own ─────────────────────────────────────
+  //
+  // The JS calendar has no boosts, and the parity checks above and below read
+  // the five fields it does have — so this rides beside them, never in them.
+  group('the day-4 boost', () {
+    test('DAY 4 PAYS A CROWD ROAR AS WELL AS ITS COINS', () {
+      // The engine's own comment called day 4 flat since the Scout Voucher
+      // left it. Its coins are untouched.
+      expect(dailyRewards[4]!.boost, 'crowd_roar');
+      expect(dailyRewards[4]!.coinsMult, 3);
+      for (final d in [1, 2, 3, 5, 6, 7]) {
+        expect(dailyRewards[d]!.boost, isNull, reason: 'day $d');
+      }
+    });
+
+    test('the preview carries it, and the other days carry nothing', () {
+      expect(getDailyRewardPreview(_state(), 4)!.boost, 'crowd_roar');
+      expect(getDailyRewardPreview(_state(), 3)!.boost, isNull);
+    });
+
+    test('CLAIMING DAY 4 PUTS ONE IN THE BAG, doubled or not', () {
+      final at = _at();
+      // Three claims in, yesterday's the last: today is day four.
+      final s = _state(
+        dailyReward: _dr(
+          cycleDay: 3,
+          lastClaimDayKey: _key(at - _day),
+          streak: 3,
+        ),
+      );
+      expect(boostCount(s, 'crowd_roar'), 0);
+      final claim = claimDailyReward(s, ts: at, doubled: true);
+      expect(claim.ok, isTrue);
+      expect(claim.day, 4);
+      expect(claim.boost, 'crowd_roar');
+      // ONE, whatever the double: a video that mints two is a gem faucet.
+      expect(boostCount(s, 'crowd_roar'), 1);
+    });
+
+    test('a day with no boost grants none and reports none', () {
+      final at = _at();
+      final s = _state(
+        dailyReward: _dr(
+          cycleDay: 2,
+          lastClaimDayKey: _key(at - _day),
+          streak: 2,
+        ),
+      );
+      final claim = claimDailyReward(s, ts: at);
+      expect(claim.day, 3);
+      expect(claim.boost, isNull);
+      expect(s.containsKey('matchBoosts'), isFalse);
+    });
+  });
+
   test('the calendar matches the JS', () {
     expect(cycleDays, _ref['cycleDays']);
     expect(trainedBonusMult, _ref['trainedBonusMult']);
@@ -436,6 +492,7 @@ void main() {
         gems: 0,
         freeScout: true,
         healOne: true,
+      boost: null,
       );
     });
     tearDown(() => dailyRewards[4] = original);

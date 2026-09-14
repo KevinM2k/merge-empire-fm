@@ -10,13 +10,17 @@
 /// Harness borrowed from `match_screen_test.dart`.
 library;
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/data/players.dart';
 import 'package:merge_empire_fc/engine/boost_engine.dart';
 import 'package:merge_empire_fc/engine/booking_engine.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
+import 'package:merge_empire_fc/state/card_instance.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
 import 'package:merge_empire_fc/ui/screens/match/cutaway/cutaway_game.dart'
     show CutawayOutcome;
@@ -316,6 +320,61 @@ void main() {
         boosts: const {},
       );
       expect(state.canVar('c3'), isFalse);
+      // The bench still shows the tile — with the price on it, not a blank.
+      expect(find.byKey(const ValueKey('bench-boost-price-var_review')), findsOneWidget);
+      expect(
+        tester.widget<Text>(find.byKey(const ValueKey('bench-boost-reason-var_review'))).data,
+        t('boost.bench.buy', {'gems': '2'}),
+      );
+      await _finish(tester, state);
+    });
+
+    // ── The row on the bench ──────────────────────────────────────────────
+    testWidgets('THE BENCH OFFERS IT FOR HIM, AND A TAP PUTS HIM BACK', (
+      tester,
+    ) async {
+      // Two in the bag, so that after one is taken the tile's reason is
+      // about the MATCH (nothing left to review) rather than the wallet.
+      final (c, state) = await atTheRed(
+        tester,
+        instance: 'bench-var',
+        boosts: const {'var_review': 2, 'physio_sponge': 1},
+      );
+      final reason = find.byKey(const ValueKey('bench-boost-reason-var_review'));
+      expect(find.byKey(const ValueKey('bench-boost-var_review')), findsOneWidget);
+      // FOR him, by name — a tile that is live says who it is for.
+      final him = CardInstance.from(_cell(c, 'c3'))!.name();
+      expect(
+        tester.widget<Text>(reason).data,
+        t('boost.bench.for', {'player': him}),
+      );
+      await tester.tap(find.byKey(const ValueKey('bench-boost-var_review')));
+      await tester.pumpAndSettle();
+      expect(_slotOf(c, 's3'), 'c3');
+      expect(state.sentOffIds, isNot(contains('c3')));
+      // Taken: the tile now says there is nothing left to review.
+      expect(tester.widget<Text>(reason).data, t('boost.var_review.idle'));
+      await _finish(tester, state);
+    });
+
+    testWidgets('CLOSED WITHOUT USING IT, THE TILE SAYS WHY WHEN THE BENCH REOPENS', (
+      tester,
+    ) async {
+      final (c, state) = await atTheRed(tester, instance: 'bench-var-late');
+      await tester.tapAt(const Offset(5, 5));
+      await tester.pumpAndSettle();
+      expect(find.byType(SubsPanel), findsNothing);
+
+      unawaited(state.openSubs());
+      await tester.pumpAndSettle();
+      expect(find.byType(SubsPanel), findsOneWidget);
+      expect(
+        tester.widget<Text>(find.byKey(const ValueKey('bench-boost-reason-var_review'))).data,
+        t('boost.locked.too_late'),
+      );
+      await tester.tap(find.byKey(const ValueKey('bench-boost-var_review')));
+      await tester.pumpAndSettle();
+      expect(_slotOf(c, 's3'), isNull, reason: 'a locked tile still acted');
       await _finish(tester, state);
     });
   });
@@ -423,6 +482,43 @@ void main() {
       expect(state.canPhysio('c3'), isFalse);
       expect(state.canPhysio('c5'), isFalse);
       expect(boostCount(c.read(gameProvider).state, 'physio_sponge'), 1);
+      await _finish(tester, state);
+    });
+
+    // ── The row on the bench ──────────────────────────────────────────────
+    testWidgets('COLIN SIGNPOSTS IT, AND THE BENCH TILE HEALS HIM', (
+      tester,
+    ) async {
+      // Two in the bag, so that after one is used the tile's reason is about
+      // the match (nobody down) rather than the wallet.
+      final (c, state) = await atTheInjury(
+        tester,
+        instance: 'bench-physio',
+        boosts: const {'var_review': 1, 'physio_sponge': 2},
+      );
+      // The card names the door; the bench IS the door.
+      expect(find.text(t('coach.injury.physio_hint')), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('coach-action-match.subs')));
+      await tester.pumpAndSettle();
+      // The panel arrives with the bench list already open on the hole —
+      // `openOn` — which sits over the row. Close the list; the panel stays.
+      await tester.tapAt(const Offset(5, 5));
+      await tester.pumpAndSettle();
+      expect(find.byType(SubsPanel), findsOneWidget);
+
+      final tile = find.byKey(const ValueKey('bench-boost-physio_sponge'));
+      expect(tile, findsOneWidget);
+      expect(find.byKey(const ValueKey('bench-boost-count-physio_sponge')), findsOneWidget);
+      await tester.tap(tile);
+      await tester.pumpAndSettle();
+
+      expect(_cell(c, 'c3')['injured'], isFalse);
+      expect(_slotOf(c, 's3'), 'c3');
+      expect(boostCount(c.read(gameProvider).state, 'physio_sponge'), 1);
+      expect(
+        tester.widget<Text>(find.byKey(const ValueKey('bench-boost-reason-physio_sponge'))).data,
+        t('boost.physio_sponge.idle'),
+      );
       await _finish(tester, state);
     });
   });

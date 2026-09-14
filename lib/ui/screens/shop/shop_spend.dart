@@ -15,6 +15,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/data/card_theme.dart';
 import 'package:merge_empire_fc/engine/gem_engine.dart';
 import 'package:merge_empire_fc/engine/scout_voucher_engine.dart';
+import 'package:merge_empire_fc/data/boosts.dart';
+import 'package:merge_empire_fc/engine/boost_engine.dart';
 import 'package:merge_empire_fc/engine/shop_consumables_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
@@ -177,6 +179,38 @@ class _SpendShelf extends ConsumerWidget {
                           game.update((s) => buyConsumable(s, row.id)).reason,
                     )),
             ),
+          // **THE FOUR MANAGER BOOSTS, three to a pack.** Priced against the
+          // gem anchors beside them — a pack at two is about a week of the
+          // day-7 daily, cheap enough to be SPENT rather than hoarded, which is
+          // how a consumable teaches its own value. See `data/boosts.dart`.
+          if (!income)
+            for (final boost in boostList)
+              ShopTile(
+                tileKey: 'boost-${boost.id}',
+                title: t('boost.${boost.id}.name'),
+                subtitle: boostCount(game.state, boost.id) > 0
+                    ? '${t('boost.${boost.id}.desc')}\n'
+                        '${t('boost.shop.owned', {'n': '${boostCount(game.state, boost.id)}'})}'
+                    : t('boost.${boost.id}.desc'),
+                glyph: Text(boost.icon, style: const TextStyle(fontSize: 30)),
+                badge: t('boost.shop.pack', {'n': '${boost.packSize}'}),
+                price: formatCoins(boost.gemCost),
+                tone: StoreTone.gem,
+                disabledReason: blockedCopy(boostPackBlocked(game.state, boost.id)),
+                onBuy: blockedCopy(boostPackBlocked(game.state, boost.id)) != null
+                    ? null
+                    : () => offerToBuy(context, ref, (
+                        key: 'boost-${boost.id}',
+                        title: t('boost.${boost.id}.name'),
+                        subtitle: t('boost.${boost.id}.desc'),
+                        body: null,
+                        glyph: 'gem',
+                        currency: SpendCurrency.gems,
+                        cost: boost.gemCost,
+                        buy: () =>
+                            game.update((s) => buyBoostPack(s, boost.id)).reason,
+                      )),
+              ),
           // **NOT THE PLAIN SCOUT VOUCHER.** It is the bottom rung of the
           // voucher LADDER below and it was being drawn twice — once as a loose
           // gem item beside the TV broadcast deal, once in the section a player

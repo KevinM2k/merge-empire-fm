@@ -340,6 +340,17 @@ const Map<String, String> enCopy = <String, String>{
   'boost.physio.recovered':
       '{player} is back up, waving the stretcher away, and carrying on.|'
       'The physio works some magic. {player} is up, and staying on.',
+  'boost.shop.pack': 'x{n}',
+  'boost.shop.owned': 'You have {n}',
+  'boost.bench.for': 'for {player}',
+  'boost.bench.buy': '{gems} gems in the shop',
+  'boost.locked.too_late': 'Too late. Play has restarted.',
+  'boost.var_review.idle': 'No sending-off to review',
+  'boost.physio_sponge.idle': 'Nobody is down',
+  'coach.red_card.var_hint':
+      'You have a VAR Review. Send it from the bench before play restarts.',
+  'coach.injury.physio_hint':
+      'You have a Physio Sponge. Use it from the bench before play restarts.',
   'match.active.title': 'Active',
   'match.active.until': "until {minute}'",
 

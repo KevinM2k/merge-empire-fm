@@ -3,6 +3,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:merge_empire_fc/engine/boost_engine.dart';
 import 'package:merge_empire_fc/engine/scout_voucher_engine.dart';
 import 'package:merge_empire_fc/engine/shop_consumables_engine.dart';
 import 'package:merge_empire_fc/data/card_theme.dart';
@@ -29,6 +30,53 @@ Future<void> buyRow(WidgetTester tester, String tileKey) async {
 
 void main() {
   tearDown(resetLocale);
+
+  group('THE FOUR MANAGER BOOSTS', () {
+    const ids = ['crowd_roar', 'park_the_bus', 'var_review', 'physio_sponge'];
+
+    testWidgets('ARE ON THE BOOSTS SHELF, three to a pack for two gems', (
+      tester,
+    ) async {
+      final container = await pumpShopWidget(
+        tester,
+        (s) => (s['resources'] as Map<String, dynamic>)['gems'] = 500,
+        BoostsSection.new,
+      );
+      for (final id in ids) {
+        expect(find.byKey(ValueKey('shop-buy-boost-$id')), findsOneWidget, reason: id);
+      }
+      final gems = container.read(gemsProvider);
+      await buyRow(tester, 'boost-crowd_roar');
+      expect(container.read(gemsProvider), gems - 2);
+      expect(boostCount(container.read(gameProvider).state, 'crowd_roar'), 3);
+      expect(find.byKey(const ValueKey('spend-receipt-boost-crowd_roar')), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('spend-receipt-ok-boost-crowd_roar')));
+      await tester.pumpAndSettle();
+      await settleSave(tester);
+    });
+
+    testWidgets('and not on the Income shelf', (tester) async {
+      await pumpShopWidget(tester, (_) {}, IncomeSection.new);
+      for (final id in ids) {
+        expect(find.byKey(ValueKey('shop-buy-boost-$id')), findsNothing, reason: id);
+      }
+    });
+
+    testWidgets('a pack nobody can afford is still LIVE, like every gem row', (
+      tester,
+    ) async {
+      final container = await pumpShopWidget(tester, (_) {}, BoostsSection.new);
+      expect(
+        tester.widget<StoreButton>(find.byKey(const ValueKey('shop-buy-boost-var_review'))).onTap,
+        isNotNull,
+      );
+      final gems = container.read(gemsProvider);
+      await buyRow(tester, 'boost-var_review');
+      expect(find.byKey(const ValueKey('currency-sheet-gems')), findsOneWidget);
+      expect(container.read(gemsProvider), gems);
+      expect(boostCount(container.read(gameProvider).state, 'var_review'), 0);
+    });
+  });
 
   group('boosts and consumables', () {
     testWidgets('buying a gem item debits the gems', (tester) async {
