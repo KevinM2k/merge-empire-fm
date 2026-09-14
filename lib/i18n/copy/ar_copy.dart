@@ -510,6 +510,10 @@ const Map<String, String> arCopy = <String, String>{
   // keep two variants; `{player}`, `{gems}`, `{n}` and `{minute}` are the
   // English placeholders exactly.
   'squad.matchtrait': "سمة المباراة",
+  'squad.traits': "السمات",
+  'squad.trait.slot.player': "اللاعب",
+  'squad.trait.slot.match': "المباراة",
+  'squad.trait.slot.locked': "مقفل",
   'matchtrait.none': "لا سمة مباراة بعد",
   'squad.detail.matchslot.locked': "سمة ثانية تعمل في المباراة فقط. تُفتح بجوهرة واحدة.",
   'squad.detail.matchslot.unlock': "افتح الخانة بـ{gems} جوهرة",
@@ -532,8 +536,10 @@ const Map<String, String> arCopy = <String, String>{
   'boost.physio.recovered': "ينهض {player}، يبعد النقالة ويواصل اللعب.|يصنع المعالج المعجزة. {player} واقف وباقٍ في الملعب.",
   'boost.shop.pack': "عبوة من {n}",
   'boost.shop.owned': "لديك {n}",
+  'boost.shop.count': "x{n}",
+  'shop.section.match_boosts': "تعزيزات داخل المباراة",
   'boost.bench.for': "لـ{player}",
-  'boost.bench.buy': "{gems} جواهر في المتجر",
+  'boost.bench.buy': "جوهرة {gems} في المتجر",
   'boost.locked.too_late': "تأخرت. استُؤنفت المباراة.",
   'boost.var_review.idle': "لا طرد لمراجعته",
   'boost.physio_sponge.idle': "لا أحد على الأرض",

@@ -583,6 +583,10 @@ const Map<String, String> deCopy = <String, String>{
   // keep two variants; `{player}`, `{gems}`, `{n}` and `{minute}` are the
   // English placeholders exactly.
   'squad.matchtrait': "Spielmerkmal",
+  'squad.traits': "Merkmale",
+  'squad.trait.slot.player': "Spieler",
+  'squad.trait.slot.match': "Spiel",
+  'squad.trait.slot.locked': "Gesperrt",
   'matchtrait.none': "Noch kein Spielmerkmal",
   'squad.detail.matchslot.locked': "Ein zweites Merkmal, nur für das Spiel selbst. Öffnet sich für einen Edelstein.",
   'squad.detail.matchslot.unlock': "Platz für {gems} Edelstein öffnen",
@@ -605,8 +609,10 @@ const Map<String, String> deCopy = <String, String>{
   'boost.physio.recovered': "{player} steht wieder, winkt die Trage weg und macht weiter.|Der Physio zaubert. {player} ist oben und bleibt drauf.",
   'boost.shop.pack': "{n}er-Pack",
   'boost.shop.owned': "Du hast {n}",
+  'boost.shop.count': "x{n}",
+  'shop.section.match_boosts': "Spiel-Boosts",
   'boost.bench.for': "für {player}",
-  'boost.bench.buy': "{gems} Edelsteine im Shop",
+  'boost.bench.buy': "{gems} Edelstein im Shop",
   'boost.locked.too_late': "Zu spät. Das Spiel läuft wieder.",
   'boost.var_review.idle': "Kein Platzverweis zu prüfen",
   'boost.physio_sponge.idle': "Niemand liegt am Boden",

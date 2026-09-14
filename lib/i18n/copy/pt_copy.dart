@@ -556,6 +556,10 @@ const Map<String, String> ptCopy = <String, String>{
   // keep two variants; `{player}`, `{gems}`, `{n}` and `{minute}` are the
   // English placeholders exactly.
   'squad.matchtrait': "Traço de jogo",
+  'squad.traits': "Traços",
+  'squad.trait.slot.player': "Jogador",
+  'squad.trait.slot.match': "Jogo",
+  'squad.trait.slot.locked': "Bloqueado",
   'matchtrait.none': "Ainda sem traço de jogo",
   'squad.detail.matchslot.locked': "Um segundo traço, para o jogo em si. Abre por uma gema.",
   'squad.detail.matchslot.unlock': "Abrir vaga por {gems} gema",
@@ -578,8 +582,10 @@ const Map<String, String> ptCopy = <String, String>{
   'boost.physio.recovered': "{player} se levanta, dispensa a maca e segue jogando.|O fisio faz mágica. {player} está de pé e fica.",
   'boost.shop.pack': "Pacote de {n}",
   'boost.shop.owned': "Você tem {n}",
+  'boost.shop.count': "x{n}",
+  'shop.section.match_boosts': "Boosts em jogo",
   'boost.bench.for': "para {player}",
-  'boost.bench.buy': "{gems} gemas na loja",
+  'boost.bench.buy': "{gems} gema na loja",
   'boost.locked.too_late': "Tarde demais. O jogo recomeçou.",
   'boost.var_review.idle': "Nenhuma expulsão para revisar",
   'boost.physio_sponge.idle': "Ninguém está no chão",

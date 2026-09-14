@@ -574,6 +574,10 @@ const Map<String, String> itCopy = <String, String>{
   // keep two variants; `{player}`, `{gems}`, `{n}` and `{minute}` are the
   // English placeholders exactly.
   'squad.matchtrait': "Tratto da partita",
+  'squad.traits': "Tratti",
+  'squad.trait.slot.player': "Giocatore",
+  'squad.trait.slot.match': "Partita",
+  'squad.trait.slot.locked': "Bloccato",
   'matchtrait.none': "Ancora nessun tratto da partita",
   'squad.detail.matchslot.locked': "Un secondo tratto, per la partita stessa. Si apre con una gemma.",
   'squad.detail.matchslot.unlock': "Apri lo slot per {gems} gemma",
@@ -596,8 +600,10 @@ const Map<String, String> itCopy = <String, String>{
   'boost.physio.recovered': "{player} si rialza, rifiuta la barella e continua.|Il fisioterapista fa la magia. {player} è in piedi e resta in campo.",
   'boost.shop.pack': "Pacchetto da {n}",
   'boost.shop.owned': "Ne hai {n}",
+  'boost.shop.count': "x{n}",
+  'shop.section.match_boosts': "Potenziamenti in partita",
   'boost.bench.for': "per {player}",
-  'boost.bench.buy': "{gems} gemme nel negozio",
+  'boost.bench.buy': "{gems} gemma nel negozio",
   'boost.locked.too_late': "Troppo tardi. Il gioco è ripreso.",
   'boost.var_review.idle': "Nessuna espulsione da rivedere",
   'boost.physio_sponge.idle': "Nessuno è a terra",

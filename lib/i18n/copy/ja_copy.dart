@@ -454,6 +454,10 @@ const Map<String, String> jaCopy = <String, String>{
   // keep two variants; `{player}`, `{gems}`, `{n}` and `{minute}` are the
   // English placeholders exactly.
   'squad.matchtrait': "試合特性",
+  'squad.traits': "特性",
+  'squad.trait.slot.player': "選手",
+  'squad.trait.slot.match': "試合",
+  'squad.trait.slot.locked': "ロック中",
   'matchtrait.none': "試合特性はまだありません",
   'squad.detail.matchslot.locked': "試合中だけ働く二つ目の特性。ジェム1個で開放。",
   'squad.detail.matchslot.unlock': "ジェム{gems}個でスロットを開放",
@@ -476,6 +480,8 @@ const Map<String, String> jaCopy = <String, String>{
   'boost.physio.recovered': "{player}が立ち上がり、担架を追い払ってプレーを続ける。|フィジオの魔法だ。{player}は立ち上がり、ピッチに残る。",
   'boost.shop.pack': "{n}個セット",
   'boost.shop.owned': "所持：{n}",
+  'boost.shop.count': "×{n}",
+  'shop.section.match_boosts': "試合中ブースト",
   'boost.bench.for': "{player}に",
   'boost.bench.buy': "ショップでジェム{gems}個",
   'boost.locked.too_late': "手遅れです。試合は再開しました。",

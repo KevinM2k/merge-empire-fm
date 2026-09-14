@@ -137,9 +137,17 @@ class TraitDisc extends StatelessWidget {
     this.level,
     this.levelInk,
     this.levelKey = const ValueKey('detail-trait-level'),
+    this.child,
+    this.compact = false,
   });
 
+  /// A 40pt medal rather than 52, for the two slot tiles side by side.
+  final bool compact;
+
   final String glyph;
+
+  /// Drawn in place of [glyph] — the gem on a slot not yet open.
+  final Widget? child;
   final Color colour;
   final Color fill;
 
@@ -152,14 +160,18 @@ class TraitDisc extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => SizedBox(
-    width: 56,
-    height: 56,
+    width: compact ? 38 : 56,
+    height: compact ? 38 : 56,
     child: Stack(
       clipBehavior: Clip.none,
       children: [
-        Container(
-          width: 52,
-          height: 52,
+        // Centred in its box: the box is 4pt bigger than the medal to give
+        // the level chip somewhere to hang, and the medal sat in the top-left
+        // of it — reported as the circle not lining up under its label.
+        Center(
+        child: Container(
+          width: compact ? 34 : 52,
+          height: compact ? 34 : 52,
           alignment: Alignment.center,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
@@ -186,14 +198,16 @@ class TraitDisc extends StatelessWidget {
               ),
             ],
           ),
-          child: Text(
-            glyph,
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.w900,
-              color: colour,
-            ),
-          ),
+          child: child ??
+              Text(
+                glyph,
+                style: TextStyle(
+                  fontSize: compact ? 16 : 24,
+                  fontWeight: FontWeight.w900,
+                  color: colour,
+                ),
+              ),
+        ),
         ),
         if (level != null)
           Positioned(

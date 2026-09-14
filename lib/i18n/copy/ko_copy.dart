@@ -482,6 +482,10 @@ const Map<String, String> koCopy = <String, String>{
   // keep two variants; `{player}`, `{gems}`, `{n}` and `{minute}` are the
   // English placeholders exactly.
   'squad.matchtrait': "경기 특성",
+  'squad.traits': "특성",
+  'squad.trait.slot.player': "선수",
+  'squad.trait.slot.match': "경기",
+  'squad.trait.slot.locked': "잠김",
   'matchtrait.none': "아직 경기 특성이 없습니다",
   'squad.detail.matchslot.locked': "경기 중에만 작동하는 두 번째 특성. 젬 1개로 개방.",
   'squad.detail.matchslot.unlock': "젬 {gems}개로 슬롯 개방",
@@ -504,6 +508,8 @@ const Map<String, String> koCopy = <String, String>{
   'boost.physio.recovered': "{player}이(가) 일어나 들것을 물리고 경기를 이어갑니다.|물리치료사의 마법입니다. {player}이(가) 일어나 경기장에 남습니다.",
   'boost.shop.pack': "{n}개 묶음",
   'boost.shop.owned': "보유: {n}",
+  'boost.shop.count': "x{n}",
+  'shop.section.match_boosts': "경기 중 부스트",
   'boost.bench.for': "{player} 대상",
   'boost.bench.buy': "상점에서 젬 {gems}개",
   'boost.locked.too_late': "너무 늦었습니다. 경기가 재개됐습니다.",

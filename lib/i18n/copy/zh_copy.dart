@@ -407,6 +407,10 @@ const Map<String, String> zhCopy = <String, String>{
   // keep two variants; `{player}`, `{gems}`, `{n}` and `{minute}` are the
   // English placeholders exactly.
   'squad.matchtrait': "比赛特性",
+  'squad.traits': "特性",
+  'squad.trait.slot.player': "球员",
+  'squad.trait.slot.match': "比赛",
+  'squad.trait.slot.locked': "已锁定",
   'matchtrait.none': "尚无比赛特性",
   'squad.detail.matchslot.locked': "第二个特性，只在比赛中生效。花1颗宝石开启。",
   'squad.detail.matchslot.unlock': "花{gems}颗宝石开启栏位",
@@ -429,6 +433,8 @@ const Map<String, String> zhCopy = <String, String>{
   'boost.physio.recovered': "{player}站了起来，挥退担架，继续比赛。|队医施展魔法。{player}起身，留在场上。",
   'boost.shop.pack': "{n}件装",
   'boost.shop.owned': "已拥有{n}个",
+  'boost.shop.count': "×{n}",
+  'shop.section.match_boosts': "比赛中增益",
   'boost.bench.for': "用于{player}",
   'boost.bench.buy': "商店售价{gems}颗宝石",
   'boost.locked.too_late': "太迟了。比赛已经重新开始。",

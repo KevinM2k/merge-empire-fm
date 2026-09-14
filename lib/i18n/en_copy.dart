@@ -296,6 +296,10 @@ const Map<String, String> enCopy = <String, String>{
   // CONDITIONAL — see `data/match_traits.dart` for why that is the licence for
   // a gem-gated slot at all — so each description says when it fires.
   'squad.matchtrait': 'Match trait',
+  'squad.traits': 'Traits',
+  'squad.trait.slot.player': 'Player',
+  'squad.trait.slot.match': 'Match',
+  'squad.trait.slot.locked': 'Locked',
   'matchtrait.none': 'No match trait yet',
   'squad.detail.matchslot.locked':
       'A second trait, for the match itself. Opens for one gem.',
@@ -342,8 +346,10 @@ const Map<String, String> enCopy = <String, String>{
       'The physio works some magic. {player} is up, and staying on.',
   'boost.shop.pack': 'x{n}',
   'boost.shop.owned': 'You have {n}',
+  'boost.shop.count': 'x{n}',
+  'shop.section.match_boosts': 'In-game boosts',
   'boost.bench.for': 'for {player}',
-  'boost.bench.buy': '{gems} gems in the shop',
+  'boost.bench.buy': '{gems} gem in the shop',
   'boost.locked.too_late': 'Too late. Play has restarted.',
   'boost.var_review.idle': 'No sending-off to review',
   'boost.physio_sponge.idle': 'Nobody is down',

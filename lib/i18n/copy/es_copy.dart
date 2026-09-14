@@ -564,6 +564,10 @@ const Map<String, String> esCopy = <String, String>{
   // keep two variants; `{player}`, `{gems}`, `{n}` and `{minute}` are the
   // English placeholders exactly.
   'squad.matchtrait': "Rasgo de partido",
+  'squad.traits': "Rasgos",
+  'squad.trait.slot.player': "Jugador",
+  'squad.trait.slot.match': "Partido",
+  'squad.trait.slot.locked': "Bloqueado",
   'matchtrait.none': "Aún sin rasgo de partido",
   'squad.detail.matchslot.locked': "Un segundo rasgo, para el partido en sí. Se abre por una gema.",
   'squad.detail.matchslot.unlock': "Abrir hueco por {gems} gema",
@@ -586,8 +590,10 @@ const Map<String, String> esCopy = <String, String>{
   'boost.physio.recovered': "{player} se levanta, rechaza la camilla y sigue jugando.|El fisio hace su magia. {player} está en pie y se queda.",
   'boost.shop.pack': "Pack de {n}",
   'boost.shop.owned': "Tienes {n}",
+  'boost.shop.count': "x{n}",
+  'shop.section.match_boosts': "Mejoras en partido",
   'boost.bench.for': "para {player}",
-  'boost.bench.buy': "{gems} gemas en la tienda",
+  'boost.bench.buy': "{gems} gema en la tienda",
   'boost.locked.too_late': "Demasiado tarde. El juego se ha reanudado.",
   'boost.var_review.idle': "Ninguna expulsión que revisar",
   'boost.physio_sponge.idle': "Nadie está en el suelo",

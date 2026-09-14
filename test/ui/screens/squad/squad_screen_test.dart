@@ -23,6 +23,7 @@ import 'package:merge_empire_fc/state/save_slots.dart';
 import 'package:merge_empire_fc/state/save_store.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
 import 'package:merge_empire_fc/ui/screens/squad/player_detail_sheet.dart';
+import 'package:merge_empire_fc/ui/screens/squad/traits_block.dart';
 import 'package:merge_empire_fc/engine/trait_engine.dart';
 import 'package:merge_empire_fc/data/traits.dart';
 import 'package:merge_empire_fc/data/players.dart';
@@ -682,7 +683,9 @@ void main() {
       await scrollSheetTo(tester, 'detail-trait');
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('detail-trait-roll')), findsOneWidget);
-      expect(find.byKey(const ValueKey('detail-trait-label')), findsOneWidget);
+      // The two slots, side by side; the PLAYER one is lit by default.
+      expect(find.byKey(const ValueKey('detail-trait-slot-player')), findsOneWidget);
+      expect(find.byKey(const ValueKey('detail-trait-slot-match')), findsOneWidget);
       expect(find.byKey(const ValueKey('trait-reel-name')), findsOneWidget);
       expect(find.byKey(const ValueKey('trait-reel-level')), findsOneWidget);
     });
@@ -1048,6 +1051,7 @@ void main() {
       // Land on the pool's first entry — his own position's headline trait,
       // which is directional and so shares no axis with Crowd Pleaser.
       setTraitRandom(_AlwaysPicks(0));
+      await scrollSheetTo(tester, 'detail-trait-roll');
       await tester.tap(find.byKey(const ValueKey('detail-trait-roll')));
       await tester.pump();
       expect(
@@ -1121,6 +1125,9 @@ void main() {
       Future<({double name, double level})> roll() async {
         final nameFrom = offsetOf('trait-reel-name');
         final levelFrom = offsetOf('trait-reel-level');
+        // A won trait writes its description above the reel, so the button
+        // moves down the sheet between rolls.
+        await scrollSheetTo(tester, 'detail-trait-roll');
         await tester.tap(find.byKey(const ValueKey('detail-trait-roll')));
         await tester.pump();
         await tester.pump(
