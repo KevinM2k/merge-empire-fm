@@ -163,7 +163,12 @@ class _SpendShelf extends ConsumerWidget {
               glyph: _icon(consumableIcons[row.id] ?? 'coin', hudCoinInk),
               price: formatCoins(row.cost),
               tone: StoreTone.coin,
-              disabledReason: blockedCopy(row.blocked),
+              disabledReason: row.blocked == 'already_active'
+                  ? null
+                  : blockedCopy(row.blocked),
+              activeLabel: row.blocked == 'already_active'
+                  ? t('shop.already_active')
+                  : null,
               warnReason: isPreconditionBlock(row.blocked),
               onBuy: blockedCopy(row.blocked) != null
                   ? null
@@ -198,7 +203,12 @@ class _SpendShelf extends ConsumerWidget {
               glyph: _icon(gemItemIcons[tile.item.id] ?? 'gem', hudGemInk),
               price: formatCoins(tile.item.cost),
               tone: StoreTone.gem,
-              disabledReason: blockedCopy(tile.blocked),
+              disabledReason: tile.blocked == 'already_active'
+                  ? null
+                  : blockedCopy(tile.blocked),
+              activeLabel: tile.blocked == 'already_active'
+                  ? t('shop.already_active')
+                  : null,
               onBuy: blockedCopy(tile.blocked) != null
                   ? null
                   : () => offerToBuy(context, ref, (
@@ -317,13 +327,15 @@ class VouchersSection extends ConsumerWidget {
               // the division. `blockedCopy` has no line for it, and its
               // fallthrough printed the settings screen's "Coming soon" under
               // a tile whose own subtitle said when it unlocks.
-              final reason = tile.holding
-                  ? t('shop.already_active')
-                  : tile.blocked == VoucherBlock.alreadyHeld
-                  ? t('shop.voucher.one_at_a_time')
+              // The held rung wears the green chip; the rungs it blocks say
+              // nothing — the rule is the section's note, once, above them.
+              final held = tile.holding;
+              final reason = held || tile.blocked == VoucherBlock.alreadyHeld
+                  ? null
                   : tile.blocked == VoucherBlock.notOffered
                   ? null
                   : blockedCopy(tile.blocked?.name);
+              final dead = held || tile.blocked != null;
               return ShopTile(
                 tileKey: 'voucher-${tile.floor}',
                 title: name,
@@ -346,7 +358,8 @@ class VouchersSection extends ConsumerWidget {
                 tone: StoreTone.gem,
                 locked: !tile.offered,
                 disabledReason: reason,
-                onBuy: reason != null
+                activeLabel: held ? t('shop.already_active') : null,
+                onBuy: dead
                     ? null
                     : () => offerToBuy(context, ref, (
                         key: 'voucher-${tile.floor}',

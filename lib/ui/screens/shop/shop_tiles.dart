@@ -27,6 +27,9 @@ import 'package:merge_empire_fc/ui/theme/app_theme.dart' show minFontSize;
 /// half the kits are a shade of green the chrome is already made of.
 const Color _featureInk = Color(0xFFFFC542);
 
+/// The "already active" chip: the cash button's green, the same on both themes.
+const Color activeChipFace = Color(0xFF43A047);
+
 class ShopTile extends StatelessWidget {
   const ShopTile({
     super.key,
@@ -37,6 +40,7 @@ class ShopTile extends StatelessWidget {
     this.subtitle,
     this.onBuy,
     this.disabledReason,
+    this.activeLabel,
     this.warnReason = false,
     this.badge,
     this.glyph,
@@ -63,6 +67,11 @@ class ShopTile extends StatelessWidget {
 
   /// Why the button is dead. Rendered under it, never instead of the price.
   final String? disabledReason;
+
+  /// "Already active", as a GREEN CHIP rather than a grey line: the one dead
+  /// state that is good news, and in muted grey it read like every other
+  /// refusal. Asked for from the couch.
+  final String? activeLabel;
 
   /// Whether [disabledReason] is a precondition the player can act on rather
   /// than a state they are already in. Owned and Active are good news and stay
@@ -205,6 +214,28 @@ class ShopTile extends StatelessWidget {
             color: warnReason ? dangerInk : kit.textMuted,
             fontSize: 12,
             fontWeight: warnReason ? FontWeight.w700 : null,
+          ),
+        ),
+      if (activeLabel != null)
+        Align(
+          alignment: Alignment.center,
+          child: Container(
+            key: ValueKey('shop-active-$tileKey'),
+            margin: const EdgeInsets.only(top: 2),
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            decoration: BoxDecoration(
+              color: activeChipFace,
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Text(
+              activeLabel!,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 0.3,
+              ),
+            ),
           ),
         ),
     ];
