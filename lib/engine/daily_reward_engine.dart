@@ -95,10 +95,11 @@ final Map<int, DailyReward> dailyRewards = {
   // that the boosts carry the calendar's weight. Asked for from the couch.
   2: _day(coinsMult: 1, energy: 1),
   3: _day(coinsMult: 4, boosts: ['park_the_bus']),
-  4: _day(coinsMult: 3, boosts: ['crowd_roar']),
+  // The Roar is the week's prize, so it rides day 7; the word is day 4's.
+  4: _day(coinsMult: 3, boosts: ['quiet_word']),
   5: _day(coinsMult: 2, energy: 2),
   6: _day(coinsMult: 6, boosts: ['sharp_shooting']),
-  7: _day(coinsMult: 10, energy: 3, gems: 2, boosts: ['var_review', 'quiet_word']),
+  7: _day(coinsMult: 10, energy: 3, gems: 2, boosts: ['var_review', 'crowd_roar']),
 };
 
 const int cycleDays = 7;

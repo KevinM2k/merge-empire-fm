@@ -259,9 +259,9 @@ void main() {
     test('A WEEK PAYS ONE OF EACH BOOST, two of them on day 7', () {
       expect(dailyRewards[1]!.boosts, ['physio_sponge']);
       expect(dailyRewards[3]!.boosts, ['park_the_bus']);
-      expect(dailyRewards[4]!.boosts, ['crowd_roar']);
+      expect(dailyRewards[4]!.boosts, ['quiet_word']);
       expect(dailyRewards[6]!.boosts, ['sharp_shooting']);
-      expect(dailyRewards[7]!.boosts, ['var_review', 'quiet_word']);
+      expect(dailyRewards[7]!.boosts, ['var_review', 'crowd_roar']);
       // The coins are untouched by any of them.
       expect(dailyRewards[4]!.coinsMult, 3);
       for (final d in [2, 5]) {
@@ -274,7 +274,7 @@ void main() {
     });
 
     test('the preview carries them, and the other days carry nothing', () {
-      expect(getDailyRewardPreview(_state(), 4)!.boosts, ['crowd_roar']);
+      expect(getDailyRewardPreview(_state(), 4)!.boosts, ['quiet_word']);
       expect(getDailyRewardPreview(_state(), 5)!.boosts, isEmpty);
     });
 
@@ -288,13 +288,13 @@ void main() {
           streak: 3,
         ),
       );
-      expect(boostCount(s, 'crowd_roar'), 0);
+      expect(boostCount(s, 'quiet_word'), 0);
       final claim = claimDailyReward(s, ts: at, doubled: true);
       expect(claim.ok, isTrue);
       expect(claim.day, 4);
-      expect(claim.boosts, ['crowd_roar']);
+      expect(claim.boosts, ['quiet_word']);
       // ONE, whatever the double: a video that mints two is a gem faucet.
-      expect(boostCount(s, 'crowd_roar'), 1);
+      expect(boostCount(s, 'quiet_word'), 1);
     });
 
     test('a day with no boost grants none and reports none', () {
