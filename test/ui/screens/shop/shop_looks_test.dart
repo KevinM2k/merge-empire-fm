@@ -80,6 +80,14 @@ void main() {
         findsOneWidget,
         reason: 'the pack was bought without asking',
       );
+      // The card wears the tile's own emoji, not a generic shirt.
+      expect(
+        find.descendant(
+          of: find.byKey(ValueKey('spend-confirm-pack-${lookPacks.first.id}')),
+          matching: find.text(lookPacks.first.icon),
+        ),
+        findsOneWidget,
+      );
 
       await tester.tap(
         find.byKey(ValueKey('spend-confirm-yes-pack-${lookPacks.first.id}')),

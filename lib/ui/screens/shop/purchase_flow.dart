@@ -55,7 +55,8 @@ typedef SpendOffer = ({
   String title,
   String? subtitle,
 
-  /// An icon NAME from `game_icon.dart` — the app's own line art, not an emoji.
+  /// An icon NAME from `game_icon.dart`, or the emoji a tile draws itself
+  /// with — the card shows whatever the tile did, so the two match.
   String glyph,
   SpendCurrency currency,
 
@@ -267,7 +268,14 @@ class _ConfirmCard extends StatelessWidget {
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          GameIcon(offer.glyph, size: 40, color: offer.glyphColor ?? kit.accentBright),
+          if (gameIcons.containsKey(offer.glyph))
+            GameIcon(offer.glyph, size: 40, color: offer.glyphColor ?? kit.accentBright)
+          else
+            Text(
+              offer.glyph,
+              key: const ValueKey('spend-confirm-emoji'),
+              style: const TextStyle(fontSize: 36, height: 1.2),
+            ),
           const SizedBox(height: 8),
           Text(
             offer.title,

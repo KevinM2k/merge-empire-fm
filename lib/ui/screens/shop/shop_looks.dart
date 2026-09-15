@@ -174,7 +174,8 @@ class LooksSection extends ConsumerWidget {
                           // see, and the tile with the picture on it is
                           // behind this card. Asked for directly.
                           body: PackContents(packId: tile.packId),
-                          glyph: 'shirt',
+                          // The tile's own emoji, so the card matches it.
+                          glyph: getLookPack(tile.packId)?.icon ?? 'shirt',
                           currency: SpendCurrency.gems,
                           glyphColor: null,
                           cost: tile.tile.cost,
