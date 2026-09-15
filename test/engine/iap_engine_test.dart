@@ -239,6 +239,31 @@ void main() {
       purchaseProduct(state, 'style_vault', logPurchase: false);
       expect(events.map((e) => e.$1), isNot(contains('iap_purchase')));
     });
+
+    test('THE PRICE REPORTED IS WHAT THE STORE CHARGED, not the catalogue', () {
+      // The catalogue carries one hardcoded GBP figure per SKU and Play prices
+      // regionally — `style_vault` is £4.49 in `products` and £5.49 on a real
+      // UK device. Reported from a phone. The store's own `rawPrice` is
+      // threaded in by `services/iap_purchase.dart`.
+      final events = <(String, Map<String, Object?>)>[];
+      setAnalyticsSink((name, params) => events.add((name, params)));
+      final state = _state();
+      purchaseProduct(state, 'style_vault', paidAmount: 5.49, paidCurrency: 'EUR');
+
+      final logged = events.firstWhere((e) => e.$1 == 'iap_purchase');
+      expect(logged.$2['price_value'], 5.49);
+      expect(logged.$2['currency'], 'EUR');
+      // And lifetime spend counts the same figure, not the list price.
+      expect((state['shop'] as Map)['totalSpent'], 5.49);
+    });
+
+    test('and with no store to ask, the catalogue is still the fallback', () {
+      // The simulate path and any build with no billing behind it: better the
+      // list price than nothing, and it is what shipped until now.
+      final state = _state();
+      purchaseProduct(state, 'style_vault');
+      expect((state['shop'] as Map)['totalSpent'], 4.49);
+    });
   });
 
   group('energy', () {

@@ -2,7 +2,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:merge_empire_fc/engine/iap_billing_policy.dart';
 
 StoreProduct product(String sku, {bool offer = true, String? price}) =>
-    (sku: sku, hasOffer: offer, localisedPrice: price);
+    (
+      sku: sku,
+      hasOffer: offer,
+      localisedPrice: price,
+      rawPrice: null,
+      currencyCode: null,
+    );
 
 void main() {
   group('what the shop may offer', () {

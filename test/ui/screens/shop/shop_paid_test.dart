@@ -112,7 +112,13 @@ void main() {
     final gem = getShopProducts().firstWhere((p) => p.category == 'gems');
     const storePrice = '4,99 €';
     iapBillingSource = () async => {
-      gem.sku: (sku: gem.sku, hasOffer: true, localisedPrice: storePrice),
+      gem.sku: (
+        sku: gem.sku,
+        hasOffer: true,
+        localisedPrice: storePrice,
+        rawPrice: null,
+        currencyCode: null,
+      ),
     };
     await pumpPaid(tester);
     final tileFinder = find.byKey(ValueKey('shop-tile-${gem.id}'));

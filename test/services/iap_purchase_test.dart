@@ -28,6 +28,8 @@ void storeKnowsEverything({bool hasOffer = true}) {
         sku: product.sku,
         hasOffer: hasOffer,
         localisedPrice: '¥500',
+        rawPrice: 500,
+        currencyCode: 'JPY',
       ),
   };
 }
@@ -124,6 +126,40 @@ void main() {
       (await initiatePurchase(state, 'vip_pass', mutatorFor(state))).ok,
       isTrue,
     );
+  });
+
+  group("GA4's own purchase event", () {
+    // Reported from the console: no IAP registering in Google Analytics at all.
+    // `iap_purchase` is a CUSTOM event name — GA takes it and puts it on none
+    // of the money reports. Revenue comes off the RESERVED `purchase` event,
+    // which reads `value` and `currency`.
+    tearDown(() => setAnalyticsSink(null));
+
+    test('A REAL SALE REPORTS WHAT THE STORE CHARGED', () async {
+      final events = <(String, Map<String, Object?>)>[];
+      setAnalyticsSink((name, params) => events.add((name, params)));
+      storeKnowsEverything();
+      final state = createDefaultState();
+      await initiatePurchase(state, 'style_vault', mutatorFor(state));
+
+      final purchase = events.firstWhere((e) => e.$1 == 'purchase');
+      // The store's figures, NOT the catalogue's £4.49 — `storeKnowsEverything`
+      // sells at ¥500, which is the point: Play prices regionally and the
+      // catalogue is one hardcoded GBP number per SKU.
+      expect(purchase.$2['value'], 500);
+      expect(purchase.$2['currency'], 'JPY');
+      expect(purchase.$2['item_id'], 'style_vault');
+    });
+
+    test('and a refusal reports no money', () async {
+      final events = <(String, Map<String, Object?>)>[];
+      setAnalyticsSink((name, params) => events.add((name, params)));
+      storeKnowsEverything();
+      storeSays(purchaseFailed(PurchaseFailure.cancelled));
+      final state = createDefaultState();
+      await initiatePurchase(state, 'coins_small', mutatorFor(state));
+      expect(events.map((e) => e.$1), isNot(contains('purchase')));
+    });
   });
 
   group('the store itself', () {

@@ -41,6 +41,8 @@ Map<String, StoreProduct> _italianStore() => {
       sku: product.sku,
       hasOffer: true,
       localisedPrice: '€${product.priceValue.toStringAsFixed(2)}',
+      rawPrice: null,
+      currencyCode: null,
     ),
 };
 

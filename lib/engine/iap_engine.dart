@@ -465,6 +465,8 @@ PurchaseResult purchaseProduct(
   Map<String, dynamic> state,
   String? productId, {
   bool logPurchase = true,
+  double? paidAmount,
+  String? paidCurrency,
 }) {
   final product = getProduct(productId);
   if (product == null) {
@@ -567,8 +569,16 @@ PurchaseResult purchaseProduct(
 
   // A restore is not a new payment — see [logPurchase] — so it must not
   // inflate lifetime spend for an entitlement the player already paid for.
+  // **WHAT THE STORE ACTUALLY CHARGED, when the store said.** The catalogue's
+  // `priceValue` is one hardcoded GBP figure per SKU and Play prices regionally
+  // — `style_vault` reads £4.49 here and £5.49 on a real device — so lifetime
+  // spend was the UK list price times the number of things bought, for every
+  // player in the world. [paidAmount] is the store's own `rawPrice`, threaded
+  // in by `services/iap_purchase.dart`, and the catalogue stays as the fallback
+  // for the simulate path and any build with no store behind it.
+  final charged = paidAmount ?? product.priceValue;
   if (logPurchase) {
-    shop['totalSpent'] = (_num(shop['totalSpent']) ?? 0) + product.priceValue;
+    shop['totalSpent'] = (_num(shop['totalSpent']) ?? 0) + charged;
   }
 
   emit('coins:updated', resources['fanCoins']);
@@ -580,8 +590,8 @@ PurchaseResult purchaseProduct(
   if (logPurchase) {
     logAppEvent('iap_purchase', {
       'product_id': productId,
-      'price_value': product.priceValue,
-      'currency': 'GBP',
+      'price_value': charged,
+      'currency': paidCurrency ?? 'GBP',
       'one_time': product.oneTime,
       'division':
           _map(state['progression'])?['currentDivision'] ?? 'unknown',

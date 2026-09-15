@@ -31,6 +31,7 @@ import 'package:flutter/foundation.dart';
 import 'package:merge_empire_fc/engine/age_verification.dart';
 import 'package:merge_empire_fc/engine/iap_billing_policy.dart';
 import 'package:merge_empire_fc/engine/iap_engine.dart';
+import 'package:merge_empire_fc/util/analytics.dart';
 import 'package:merge_empire_fc/services/iap_billing.dart';
 import 'package:merge_empire_fc/util/time.dart';
 
@@ -121,7 +122,53 @@ Future<InitiateResult> initiatePurchase(
     return _refused('billing_unavailable');
   }
 
-  return mutate((s) => purchaseProduct(s, productId));
+  // **WHAT THE STORE CHARGED, from the store.** `known` is the catalogue it
+  // answered with; a simulate-path build has none and falls back to the
+  // catalogue's GBP list price inside `purchaseProduct`.
+  final sold = known?[product.sku];
+  final paid = sold?.rawPrice;
+  final currency = sold?.currencyCode;
+
+  final result = mutate(
+    (s) => purchaseProduct(
+      s,
+      productId,
+      paidAmount: paid,
+      paidCurrency: currency,
+    ),
+  );
+
+  // **THE ONE EVENT GOOGLE ANALYTICS COUNTS AS MONEY**, and it is fired from
+  // HERE rather than from the engine.
+  //
+  // `iap_purchase` is a custom name: GA takes it, shows it in DebugView and the
+  // events list, and puts it on none of the money reports. GA4 reads revenue
+  // off the RESERVED `purchase` event and takes the amount from `value` with
+  // `currency` beside it — which is why a real sale registered nowhere.
+  //
+  // The engine cannot be the one to send it. `value` has to be what the store
+  // actually charged, and only the store knows that: the catalogue's figure is
+  // one hardcoded GBP price per SKU, so `style_vault` is £4.49 in the code and
+  // £5.49 on a real phone. `lib/engine/` stays Flutter-free and never sees a
+  // `ProductDetails`, so the reserved event lives in the services layer where
+  // the real pair is in hand.
+  //
+  // Only on a real sale that went through: a refusal returns above, and
+  // `restorePurchases` has its own call with `logPurchase: false` and does not
+  // come through here at all.
+  //
+  // `transaction_id` is missing and should not stay missing — it is what GA
+  // dedupes a redelivered purchase on. It lives on `PurchaseDetails` inside
+  // `iap_billing.dart`'s `_onPurchases`, which settles a Completer rather than
+  // returning the object, so carrying it out to here is its own change.
+  if (result.ok) {
+    logAppEvent('purchase', {
+      'currency': currency ?? 'GBP',
+      'value': paid ?? product.priceValue,
+      'item_id': productId,
+    });
+  }
+  return result;
 }
 
 /// What a restore came to.

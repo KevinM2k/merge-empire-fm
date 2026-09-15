@@ -86,6 +86,16 @@ typedef StoreProduct = ({
   /// The store's own localised price, which beats the catalogue's every time —
   /// the catalogue's is a fallback in one currency.
   String? localisedPrice,
+
+  /// The same price as a NUMBER, and the ISO code it is in.
+  ///
+  /// [localisedPrice] is for showing a player — "£5.49", "€6,99" — and cannot
+  /// be added up or reported on. These two are what analytics and lifetime
+  /// spend need: `rawPrice` is the store's own `ProductDetails.rawPrice` and
+  /// `currencyCode` its `ProductDetails.currencyCode`. Null when no store
+  /// answered, which is the simulate path's case.
+  double? rawPrice,
+  String? currencyCode,
 });
 
 /// Can this SKU actually be bought right now?

@@ -100,6 +100,8 @@ void main() {
         sku: 'com.mergeempirefc.vip_pass',
         hasOffer: false,
         localisedPrice: null,
+        rawPrice: null,
+        currencyCode: null,
       ),
     };
     await pump();

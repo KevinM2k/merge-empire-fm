@@ -294,6 +294,8 @@ class _LiveStore {
           sku: product.id,
           hasOffer: true,
           localisedPrice: product.price,
+          rawPrice: product.rawPrice,
+          currencyCode: product.currencyCode,
         ),
     };
   }
