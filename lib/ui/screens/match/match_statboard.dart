@@ -26,6 +26,7 @@ import 'package:flutter/material.dart';
 import 'package:merge_empire_fc/ui/screens/match/boost_bar_paint.dart' show liveBoostColour;
 import 'package:merge_empire_fc/ui/screens/match/subs_panel.dart' show benchCardAspect;
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
+import 'package:merge_empire_fc/ui/widgets/match_stat_rows.dart' show vsGreenOn, vsRedOn;
 import 'package:merge_empire_fc/ui/widgets/player_card.dart';
 import 'package:merge_empire_fc/engine/match_tactics.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
@@ -586,8 +587,10 @@ class _StatRow extends StatelessWidget {
     // in the quiet ink: nothing to compare is not the same as home ahead.
     final h = total == 0 ? 1 : homeShare;
     final a = total == 0 ? 1 : awayShare;
-    final ours = kit.accentBright;
-    final theirs = kit.textMuted.withValues(alpha: 0.45);
+    // Ours green, theirs red — the pair the full-time pitch draws, so the
+    // sheet and the grass read the same way. Asked for from the couch.
+    final ours = vsGreenOn(context);
+    final theirs = vsRedOn(context);
     Widget figure(String v, TextAlign align) => Expanded(
       child: _Pulsing(value: v, align: align),
     );
@@ -862,10 +865,10 @@ const Color pitchStatPlate = Color(0x733A4A42);
 /// **THE SHEET'S SHAPE, NOT A ROW OF ITS OWN.** It was `home · bar · STAT ·
 /// bar · away` on one line, two bars growing away from a label; the stats
 /// sheet draws a figure each side of a centred label with ONE two-tone bar
-/// under them, and that is the shape asked for from the couch. What stays is
-/// the colour: OUR half of the bar is green where we came out ahead, red
-/// where we did not, and blue where the pair is level; theirs is a quiet
-/// white. Fixed members rather than `vsGreenOn`/`vsRedOn`, because this is
+/// under them, and that is the shape asked for from the couch. OUR half of
+/// the bar is always green and THEIRS always red — it was won/lost/level by
+/// row for a round, and a fixed pair per side was asked for as the easier
+/// read. Fixed members rather than `vsGreenOn`/`vsRedOn`, because this is
 /// laid over grass, which is a mid green in both themes.
 class _PitchStatRow extends StatelessWidget {
   const _PitchStatRow({
@@ -882,17 +885,12 @@ class _PitchStatRow extends StatelessWidget {
   final String? suffix;
   final bool isHome;
 
-  static const Color won = Color(0xFF4ADE80);
-  static const Color lost = Color(0xFFF87171);
-  static const Color level = Color(0xFF60A5FA);
-  static const Color theirs = Color(0x66FFFFFF);
+  static const Color ours = Color(0xFF4ADE80);
+  static const Color theirs = Color(0xFFF87171);
 
   @override
   Widget build(BuildContext context) {
     const ink = Color(0xFFF2F5F3);
-    final us = isHome ? home : away;
-    final them = isHome ? away : home;
-    final mine = us == them ? level : (us > them ? won : lost);
     // An empty pair is a bar at rest, half each: nothing to compare is not
     // the same as one side ahead.
     final total = home + away;
@@ -956,7 +954,7 @@ class _PitchStatRow extends StatelessWidget {
                     flex: h,
                     child: ColoredBox(
                       key: ValueKey('pitch-stat-bar-home-$label'),
-                      color: isHome ? mine : theirs,
+                      color: isHome ? ours : theirs,
                     ),
                   ),
                   const SizedBox(width: 2),
@@ -964,7 +962,7 @@ class _PitchStatRow extends StatelessWidget {
                     flex: a,
                     child: ColoredBox(
                       key: ValueKey('pitch-stat-bar-away-$label'),
-                      color: isHome ? theirs : mine,
+                      color: isHome ? theirs : ours,
                     ),
                   ),
                 ],
