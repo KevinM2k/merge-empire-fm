@@ -166,14 +166,13 @@ num _bidPrice(
   CardInstance? card, [
   int gap = 0,
 ]) {
-  final tierMult = transferTierMultiplier[def.tier] ?? 4;
+  // Priced as what he is WEARING, tapered — see `marketValueBasis`.
   var price =
-      def.sellValue * tierMult * _divMult(state) * bidPremium * divGapMult(gap);
+      marketValueBasis(def, card?.age ?? peakAgeEnd) *
+      _divMult(state) *
+      bidPremium *
+      divGapMult(gap);
   if (_num(_map(card?.sponsor)?['multiplier']) != null) price *= 1.5;
-  final aging = agingPenalty(card?.seasonsPlayed ?? 0);
-  if (aging > 0 && def.rating > 0) {
-    price *= math.max(0.2, (def.rating - aging) / def.rating);
-  }
   return math.max(1, roundCoins(price));
 }
 

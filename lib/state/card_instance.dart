@@ -12,6 +12,7 @@ library;
 
 import 'package:merge_empire_fc/data/player_art.dart';
 import 'package:merge_empire_fc/data/players.dart';
+import 'package:merge_empire_fc/data/players.dart' as players show wearYears;
 
 class CardInstance {
   CardInstance(this.raw);
@@ -42,7 +43,38 @@ class CardInstance {
   String get discoveryKey =>
       '$definitionId:${isVariantFemale(variant) ? 'f' : 'm'}';
 
+  /// Seasons of SERVICE at this club — not how old he is.
+  ///
+  /// The two used to be the same number and are not any more: [age] is what
+  /// declines and retires a player, this is what loyalty, the injury curve,
+  /// achievements and quests are measured in. A merge resets it; a merge does
+  /// not reset an age.
   int get seasonsPlayed => (_get<num>('seasonsPlayed') ?? 0).toInt();
+
+  /// **How old he is, in years.** See the age block in `data/players.dart`.
+  ///
+  /// Absent on a card written before ages existed, which reads as the age his
+  /// tier and his service imply — the same value `migration.dart` backfills
+  /// with, stated once in `derivedAge` so the getter and the migration cannot
+  /// drift.
+  int get age {
+    final stored = _get<num>('age');
+    if (stored != null) return stored.toInt();
+    return derivedAge(getPlayerDef(definitionId)?.tier ?? 1, seasonsPlayed);
+  }
+
+  /// Years of wear — see `wearYears`. Equal to [seasonsPlayed] on a card
+  /// nobody merged, and larger on one that carries a parent's years.
+  int get wearYears =>
+      players.wearYears(getPlayerDef(definitionId)?.tier ?? 1, age);
+
+  /// **The tier this card PRESENTS as**, which is its definition's tier until
+  /// age has taken enough off it to drop a band — see `effectiveTierFor`.
+  ///
+  /// Display only. `definitionId` is untouched, so he merges, sells and scouts
+  /// as whatever he actually is; only the border, the gradient and the tier
+  /// chip come down.
+  int get displayTier => effectiveTierFor(getPlayerDef(definitionId), age);
 
   /// An injured player is OURS and here, just unfit.
   bool get injured => raw['injured'] == true;

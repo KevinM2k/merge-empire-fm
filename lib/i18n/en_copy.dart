@@ -290,6 +290,70 @@ const Map<String, String> enCopy = <String, String>{
   // The cigar it replaced is retired: a lit one in a game aimed at children.
   'customise.item.face.bubblegum': 'Bubblegum',
 
+  // ── A player has an AGE now ──────────────────────────────────────────────
+  //
+  // The generated lines all describe the model this build replaced — "rating
+  // drops start at season 10, retirement at 15", "−20 rating", "1 season left"
+  // — and every one of those numbers is now wrong. They are also the kind of
+  // wrong that reads as a bug rather than as stale copy: a coach who names a
+  // season number about a player whose card shows an age is a coach the player
+  // stops believing.
+  //
+  // Rewritten around the age instead, with the same placeholders the call
+  // sites pass. `squad.stat.age` is a key the catalogues never had: the
+  // detail sheet's career plate used to count seasons of service and now leads
+  // with how old he is.
+  'coach.squad.veteran':
+      '{name} is {age} now — the years start to tell from here. '
+      'Retires at {retire}.',
+  'coach.squad.declining':
+      '{name} is {age} and past their peak — {pen} rating points gone '
+      'already. {left} seasons until retirement.',
+  'coach.squad.sell_now':
+      '{name} is {age} and falling fast — {pen} rating points down. Only '
+      '{left} seasons left, so this is the moment to cash out.',
+  'squad.badge.sell_now': '⚠️ Sell Now — Falling Fast',
+  'squad.stat.age': 'Age',
+
+  // ── The shootout, played out ─────────────────────────────────────────────
+  //
+  // A level cup tie always went to penalties and the kicks were always on the
+  // result; what there was no copy for was the MOMENT. The tie was decided
+  // between the whistle and the summary with nothing on screen to watch, and
+  // the marks that explained it sat under the fold of the report.
+  //
+  // `{club}` is the side taking it, so the line reads for either of them.
+  // A merge whose older half has declined too far hands back a worse player
+  // than the better of the two going in.
+  //
+  // **ONE LINE, because that is what a toast is.** It names the reason rather
+  // than the rule — a player does not need to know about tier steps, only which
+  // of the two they would be losing — and it sits at the length its neighbours
+  // do: `grid.tier_unlock_higher` is 45 characters and this is 44. The first
+  // draft ran to 84 and wrapped onto a second line, which is a notice rather
+  // than a toast.
+  'merge.refused_ageing': 'The younger one is already the better player.',
+
+  'cup.shootout.title': 'PENALTIES',
+  'cup.shootout.steps_up': '{club} step up…',
+  'cup.shootout.scored': 'GOAL!',
+  'cup.shootout.missed': 'MISSED!',
+  'cup.shootout.sudden_death': 'SUDDEN DEATH',
+  // What the years are costing him, as a figure. The badge below it already
+  // says "Declining" and the card has dropped a colour by then; neither says
+  // how much, and this is the sheet a player opens to find out what a mark on
+  // a card means.
+  'squad.detail.age_decline': 'Lost to age',
+  'offseason.retired': 'Retired at 40',
+  // The generated line opens on "{seasons} seasons at the club" and then
+  // blames the rating loss on ageing — two different facts about a player now
+  // that a merged card carries its parents' years and starts service at zero.
+  // A one-season veteran losing eighteen points reads as a bug; his age does
+  // not.
+  'manager.transfer.long_decline':
+      '{age} years old and losing {penalty} rating pts to age. Only '
+      '{seasonsLeft} seasons before they retire. Sell window closing.',
+
   // ── The interface's own audio channel ────────────────────────────────────
   //
   // A third row beside Sound and Music. The press cue rides the theme's splash

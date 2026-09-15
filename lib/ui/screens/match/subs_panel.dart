@@ -394,7 +394,7 @@ PitchSlot _zeroed(PitchSlot slot) => (
   outOfPosition: slot.outOfPosition,
   effRating: 0,
   penalty: slot.penalty,
-  seasons: slot.seasons,
+  age: slot.age,
 );
 
 class _SubSlot extends ConsumerWidget {
@@ -427,7 +427,7 @@ class _SubSlot extends ConsumerWidget {
           outOfPosition: slot.outOfPosition,
           effRating: (slot.effRating * yellowCardRatingMult).round(),
           penalty: slot.penalty,
-          seasons: slot.seasons,
+          age: slot.age,
         )
       : slot;
 
@@ -468,7 +468,7 @@ class _SubSlot extends ConsumerWidget {
                         outOfPosition: false,
                         effRating: 0,
                         penalty: 0,
-                        seasons: 0,
+                        age: 0,
                       ),
                       proMode: ref.watch(proModeProvider),
                     ))

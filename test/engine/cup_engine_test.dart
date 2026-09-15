@@ -73,6 +73,36 @@ Object? _stripTimes(Object? v) {
   return v;
 }
 
+/// The reference's history with the shootout's winning goal taken back OUT of
+/// every round that went to penalties.
+///
+/// The bracket used to store the folded scoreline — a 0-0 settled 4-3 went into
+/// the history as a 1-0 — and it stores the ninety minutes now. Which rounds
+/// those were is on the run's own `rounds`, so the expectation is corrected
+/// from the file rather than the file being re-baselined: every row that never
+/// went to penalties is still compared exactly as it was dumped.
+Object? _unfoldPens(Map<String, dynamic> run) {
+  final wonOnPens = <int, bool>{};
+  for (final entry in run['rounds'] as List) {
+    final p = (entry as Map)['prepared'] as Map<String, dynamic>;
+    if (p['penaltyShootout'] == null) continue;
+    wonOnPens[(p['round'] as num).toInt()] = p['won'] == true;
+  }
+  if (wonOnPens.isEmpty) return run['history'];
+
+  final history = jsonDecode(jsonEncode(run['history'])) as List;
+  for (final cupRun in history) {
+    for (final row in (cupRun as Map)['results'] as List) {
+      final result = row as Map<String, dynamic>;
+      final won = wonOnPens[(result['round'] as num).toInt()];
+      if (won == null) continue;
+      final key = won ? 'homeGoals' : 'awayGoals';
+      result[key] = (result[key] as num).toInt() - 1;
+    }
+  }
+  return history;
+}
+
 Map<String, dynamic> _cupsOf(Map<String, dynamic> state) =>
     (state['progression'] as Map<String, dynamic>)['cups']
         as Map<String, dynamic>;
@@ -163,8 +193,31 @@ void main() {
           expect(prepared.roundName, p['roundName'], reason: where);
           expect(prepared.opponentName, p['opponentName'], reason: where);
           expect(prepared.won, p['won'], reason: where);
-          expect(prepared.homeGoals, p['homeGoals'], reason: where);
-          expect(prepared.awayGoals, p['awayGoals'], reason: where);
+
+          // **THE REFERENCE FOLDED THE WINNING PENALTY INTO THE SCORELINE and
+          // this game does not**, so it comes back out of the EXPECTATION
+          // rather than out of the file. Every other figure in the row is still
+          // the reference's, and a row that never went to penalties is
+          // untouched — which is what keeps this harness worth running.
+          final shootoutRow = p['penaltyShootout'] as Map<String, dynamic>?;
+          final foldedHome =
+              shootoutRow != null && p['won'] == true ? 1 : 0;
+          final foldedAway =
+              shootoutRow != null && p['won'] != true ? 1 : 0;
+          expect(
+            prepared.homeGoals,
+            (p['homeGoals'] as num).toInt() - foldedHome,
+            reason: where,
+          );
+          expect(
+            prepared.awayGoals,
+            (p['awayGoals'] as num).toInt() - foldedAway,
+            reason: where,
+          );
+          // And a tie that went to penalties is LEVEL, every time.
+          if (shootoutRow != null) {
+            expect(prepared.homeGoals, prepared.awayGoals, reason: where);
+          }
           expect(prepared.earned, p['earned'], reason: where);
           expect(prepared.squadRating, p['squadRating'], reason: where);
           expect(prepared.opponentRating, p['opponentRating'], reason: where);
@@ -174,7 +227,7 @@ void main() {
           expect(prepared.effOppDefenceRating, p['effOppDefenceRating'], reason: where);
           expect(prepared.isFinal, p['isFinal'], reason: where);
 
-          final wantShootout = p['penaltyShootout'] as Map<String, dynamic>?;
+          final wantShootout = shootoutRow;
           expect(prepared.penaltyShootout?.playerWins, wantShootout?['playerWins'],
               reason: where);
           expect(prepared.penaltyShootout?.homeScore, wantShootout?['homeScore'],
@@ -208,7 +261,7 @@ void main() {
           if (activeCup(state) == null) break;
         }
 
-        expect(_stripTimes(_cupsOf(state)['history']), want['history'],
+        expect(_stripTimes(_cupsOf(state)['history']), _unfoldPens(want),
             reason: label);
         expect(state['resources']['gems'], want['gems'], reason: label);
         expect(state['careerStats'], want['careerStats'], reason: label);
@@ -462,10 +515,33 @@ void main() {
         final prepared = prepareCupRound(state)!;
         if (prepared.penaltyShootout == null) continue;
         seen++;
-        expect(prepared.homeGoals, isNot(prepared.awayGoals));
+        // **THE TIE STAYS LEVEL, and that is the change.** The winning penalty
+        // used to be added to the scoreline so that `won` and the score agreed,
+        // which stored a 0-0 settled 4-3 as a 1-0 and printed it as one. The
+        // score is the ninety minutes; `won` travels beside it.
+        expect(prepared.homeGoals, prepared.awayGoals, reason: 'seed $seed');
         expect(
           prepared.won,
           prepared.penaltyShootout!.playerWins,
+          reason: 'seed $seed',
+        );
+      }
+      expect(seen, greaterThan(0));
+    });
+
+    test('and a tie that was NOT level never takes any', () {
+      var seen = 0;
+      for (var seed = 0; seed < 120 && seen < 3; seed++) {
+        seeded.setSeed(seed);
+        final state = _state();
+        startCup(state);
+        final prepared = prepareCupRound(state)!;
+        if (prepared.penaltyShootout != null) continue;
+        seen++;
+        expect(prepared.homeGoals, isNot(prepared.awayGoals), reason: '$seed');
+        expect(
+          prepared.won,
+          prepared.homeGoals > prepared.awayGoals,
           reason: 'seed $seed',
         );
       }

@@ -28,7 +28,7 @@ import 'package:merge_empire_fc/ui/widgets/art_image.dart';
 export 'package:merge_empire_fc/ui/widgets/injury_cross.dart' show InjuryCross;
 import 'package:merge_empire_fc/ui/widgets/injury_cross.dart';
 import 'package:merge_empire_fc/ui/widgets/player_card.dart'
-    show TraitBadge, formGlyph, formInk;
+    show TraitBadge, ageInk, formGlyph, formInk;
 import 'package:merge_empire_fc/ui/widgets/player_portrait.dart';
 
 /// The wrapper's width. The token fills it; the empty slot is inset inside it.
@@ -193,7 +193,7 @@ class PitchToken extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final card = slot.card!;
-    final theme = tierThemes[card.tier] ?? tierThemes[1]!;
+    final theme = tierThemes[card.displayTier] ?? tierThemes[1]!;
     final accent = cssColor(theme.accent);
     final accentLight = cssColor(theme.accentLight);
     // The ring sits on the page, not on the token's own dark plate, so it
@@ -265,7 +265,7 @@ class PitchToken extends StatelessWidget {
                   offset: Offset(0, 3),
                 ),
                 // A legend glows, unless he is hurt.
-                if (card.tier >= 7 && !card.injured)
+                if (card.displayTier >= 7 && !card.injured)
                   BoxShadow(
                     color: accent.withValues(alpha: 0.67),
                     blurRadius: 12,
@@ -441,19 +441,32 @@ class PitchToken extends StatelessWidget {
                               ),
                             ),
                           ),
-                        if (slot.seasons > 0)
+                        // **HIS AGE, on every token.**
+                        //
+                        // It used to be `S14` — seasons of service — shown only
+                        // from season seven. Service no longer decides anything
+                        // about how good he is; age does, and it is the one
+                        // figure that says which way a player in your eleven is
+                        // about to go. A team sheet you are picking from is
+                        // exactly where that belongs, so it is not rationed to
+                        // the old ones: the colour is what marks those out.
+                        //
+                        // Bare digits rather than `A34`, because a letter
+                        // prefix is English and this ships in ten languages;
+                        // the localised word goes to the screen reader instead.
+                        // Same three steps as the card, the badge and Colin —
+                        // see `ageInk`.
+                        if (slot.age > 0)
                           Positioned(
                             top: 2,
                             right: 2,
                             child: _Chip(
-                              label: 'S${slot.seasons}',
+                              label: '${slot.age}',
+                              semanticsLabel:
+                                  '${t('squad.stat.age')} ${slot.age}',
                               fill: const Color(0xB8000000),
                               edge: Colors.transparent,
-                              ink: slot.seasons >= 14
-                                  ? const Color(0xFFF87171)
-                                  : slot.seasons >= 10
-                                  ? const Color(0xFFFBBF24)
-                                  : const Color(0xD9FFFFFF),
+                              ink: ageInk(slot.age, const Color(0xD9FFFFFF)),
                               size: 7,
                             ),
                           ),
@@ -532,6 +545,7 @@ class _Chip extends StatelessWidget {
     required this.edge,
     required this.ink,
     required this.size,
+    this.semanticsLabel,
     this.spacing = 0,
     this.padding = const EdgeInsets.symmetric(horizontal: 3),
   });
@@ -541,6 +555,11 @@ class _Chip extends StatelessWidget {
   final Color edge;
   final Color ink;
   final double size;
+
+  /// What a screen reader is read instead of the label — for a chip whose text
+  /// is a bare figure that needs naming, like the age.
+  final String? semanticsLabel;
+
   final double spacing;
   final EdgeInsets padding;
 
@@ -555,6 +574,7 @@ class _Chip extends StatelessWidget {
       ),
       child: Text(
         label,
+        semanticsLabel: semanticsLabel,
         style: TextStyle(
           fontSize: size,
           height: 1.5,

@@ -8,6 +8,7 @@ import 'package:merge_empire_fc/state/card_instance.dart';
 CardInstance _card({
   String definitionId = 'player_t5_fwd',
   int seasonsPlayed = 0,
+  int? age,
   num ratingBonus = 0,
   num form = 0,
   String? traitId,
@@ -18,6 +19,7 @@ CardInstance _card({
   'instanceId': 'c1',
   'definitionId': definitionId,
   'seasonsPlayed': seasonsPlayed,
+  'age': ?age,
   'ratingBonus': ratingBonus,
   'form': form,
   if (traitId != null) 'trait': {'id': traitId, 'level': traitLevel},
@@ -42,7 +44,7 @@ void main() {
     });
 
     test('never drops below 1', () {
-      expect(getEffectiveRating(_card(seasonsPlayed: 40)), 1);
+      expect(getEffectiveRating(_card(age: 60)), 1);
     });
 
     test('applies form directionally', () {
@@ -50,32 +52,47 @@ void main() {
       expect(getEffectiveRating(_card(form: -1)), 55);
     });
 
-    test('is free of aging for the first ten seasons', () {
-      expect(getEffectiveRating(_card(seasonsPlayed: 10)), 56);
+    test('is free of aging right through the prime', () {
+      // **AND SERVICE NO LONGER COMES INTO IT.** A card with ten seasons at the
+      // club used to be one point off the cliff; what decides this now is the
+      // birthday, and a thirty-year-old is still at his peak however long he
+      // has been here.
+      expect(getEffectiveRating(_card(seasonsPlayed: 10, age: peakAgeEnd)), 56);
+      expect(getEffectiveRating(_card(seasonsPlayed: 20, age: peakAgeEnd)), 56);
     });
 
-    test('ages ten points a season past ten', () {
-      expect(getEffectiveRating(_card(seasonsPlayed: 11)), 46);
-      expect(getEffectiveRating(_card(seasonsPlayed: 12)), 36);
+    test('and declines on a curve past it', () {
+      // 1 at 31, 4 at 33, 12 at 35 — see `ageDeclinePenalty`. Slow enough at
+      // first that a veteran is worth keeping, fast enough by the end that he
+      // is not.
+      expect(getEffectiveRating(_card(age: declineStartAge)), 55);
+      expect(getEffectiveRating(_card(age: 33)), 52);
+      expect(getEffectiveRating(_card(age: 35)), 44);
+      expect(getEffectiveRating(_card(age: retirementAge - 1)), 16);
     });
 
     test('a veteran trait claws back aging', () {
-      // An 11-season card carries a penalty of 10. Veteran III takes 6 of it
-      // back — SOME of it, not all: Rock is the trait whose description claims
-      // to be the strongest defence against decline, and Veteran is the one
-      // that covers aging AND recovery on any position instead of owning
-      // either axis.
+      // A 35-year-old carries a penalty of 12. Veteran III takes 6 of it back —
+      // SOME of it, not all: Rock is the trait whose description claims to be
+      // the strongest defence against decline, and Veteran is the one that
+      // covers aging AND recovery on any position instead of owning either
+      // axis.
       expect(
-        getEffectiveRating(_card(seasonsPlayed: 11, traitId: 'veteran', traitLevel: 3)),
-        56 - 4,
+        getEffectiveRating(_card(age: 35, traitId: 'veteran', traitLevel: 3)),
+        56 - 12 + 6,
       );
     });
 
     test('aging reduction cannot become a bonus', () {
-      // Rock III reduces by 14 against an 11-season penalty of 10 — the excess
-      // must not turn into a rating gain.
+      // Rock III reduces by 14 against a 31-year-old's penalty of 1 — the
+      // excess must not turn into a rating gain.
       final aged = getEffectiveRating(
-        _card(definitionId: 'player_t5_def', seasonsPlayed: 11, traitId: 'rock', traitLevel: 3),
+        _card(
+          definitionId: 'player_t5_def',
+          age: declineStartAge,
+          traitId: 'rock',
+          traitLevel: 3,
+        ),
       );
       final fresh = getEffectiveRating(
         _card(definitionId: 'player_t5_def', traitId: 'rock', traitLevel: 3),
@@ -103,10 +120,10 @@ void main() {
 
     test('penalties stack: sponsor, aging and form together', () {
       final rated = getEffectiveRating(
-        _card(seasonsPlayed: 11, form: -1, sponsor: {'ratingPenalty': 20}),
+        _card(age: 35, form: -1, sponsor: {'ratingPenalty': 20}),
       );
-      // 56 - 11 (sponsor) - 10 (aging) - 1 (form) = 34.
-      expect(rated, 34);
+      // 56 - 11 (sponsor) - 12 (aging at 35) - 1 (form) = 32.
+      expect(rated, 32);
     });
 
     test('T9 is always 100 before penalties', () {

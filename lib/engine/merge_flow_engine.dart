@@ -154,6 +154,13 @@ MergeFlow performMerge(
         'tier': result.requiredTier,
       });
     }
+    // **AND THE OTHER ONE WORTH EXPLAINING.** A pairing whose older half has
+    // declined further than a tier step is worth hands back a worse player than
+    // the better of the two going in — see `attemptMerge`. Silently leaving the
+    // cards where they are would read as a dead grid.
+    if (result.reason == 'ageing_loss') {
+      emit('merge:refused', {'reason': 'ageing_loss'});
+    }
     return _flow(result);
   }
   if (result.action != MergeAction.merge) return _flow(result);

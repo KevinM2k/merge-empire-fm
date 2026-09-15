@@ -16,6 +16,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:merge_empire_fc/data/players.dart' show retirementAge;
 import 'package:merge_empire_fc/engine/match_tactics.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
@@ -64,8 +65,10 @@ Map<String, dynamic> finishedSeason({
     cells[slot] = <String, dynamic>{
       'definitionId': 'player_t1_mid',
       'instanceId': 'vet$i',
-      // One short of the retirement sweep, so ending the season trips it.
+      // One short of the retirement sweep, so ending the season trips it. A
+      // birthday is what the sweep reads now, not a service count.
       'seasonsPlayed': 14,
+      'age': retirementAge - 1,
     };
   }
   return s;

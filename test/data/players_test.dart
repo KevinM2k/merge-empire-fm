@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:merge_empire_fc/data/players.dart';
+import 'package:merge_empire_fc/data/transfer_market.dart';
 import 'package:merge_empire_fc/util/random.dart';
 
 /// The full generated table, captured from the JS
@@ -255,17 +256,227 @@ void main() {
     });
   });
 
-  group('agingPenalty', () {
-    test('is free for the first ten seasons', () {
-      for (var s = 0; s <= 10; s++) {
-        expect(agingPenalty(s), 0, reason: 'season $s');
+  group('the age model', () {
+    test('a scouted card arrives at its tier\'s own age', () {
+      // A world-class player got there by playing, so he is not eighteen.
+      expect(scoutAgeForTier(1), 18);
+      expect(scoutAgeForTier(8), 25);
+      // It climbs one a tier, with no gaps and no repeats.
+      for (var tier = 2; tier <= 9; tier++) {
+        expect(
+          scoutAgeForTier(tier),
+          scoutAgeForTier(tier - 1) + 1,
+          reason: 'tier $tier',
+        );
       }
     });
 
-    test('costs 10 rating points per season beyond ten', () {
-      expect(agingPenalty(11), 10);
-      expect(agingPenalty(13), 30);
-      expect(agingPenalty(20), 100);
+    test('the prime costs nothing', () {
+      for (var age = 16; age <= peakAgeEnd; age++) {
+        expect(ageDeclinePenalty(age), 0, reason: 'age $age');
+      }
+      // The top tier is scouted straight into it, so a World Legend you buy is
+      // a World Legend from his first match rather than one who has to grow.
+      expect(scoutAgeForTier(8), peakAgeStart);
+      expect(peakAgeStart, lessThan(peakAgeEnd));
+    });
+
+    test('and the fall accelerates from 31 to retirement', () {
+      expect(ageDeclinePenalty(declineStartAge), 1);
+      expect(ageDeclinePenalty(33), 4);
+      expect(ageDeclinePenalty(35), 12);
+      expect(ageDeclinePenalty(37), 24);
+      expect(ageDeclinePenalty(retirementAge - 1), 40);
+      expect(ageDeclinePenalty(retirementAge), 50);
+
+      // **FORTY IN THE LAST PLAYABLE SEASON, exactly**, because that is what
+      // the JS takes off its own fourteen-season veteran and
+      // `match_orchestration_parity_test` dresses a whole squad with one. The
+      // curve truncates rather than rounding for this reason alone; rounding
+      // half up lands on 41 and flips a goal twenty-five events into a match.
+      expect(ageDeclinePenalty(retirementAge - 1), 40);
+
+      // ACCELERATING, not linear. A flat drop makes the decision to sell the
+      // same decision every season; this one gets harder to ignore.
+      //
+      // The year-on-year step comes in PAIRS — 1, 1, 3, 3, 5, 5 — because the
+      // curve is halved before it is rounded, so it never falls and it is
+      // strictly bigger every two years rather than every one. Asserting a
+      // strict rise per year would be asserting a curve this deliberately is
+      // not.
+      for (var age = declineStartAge + 1; age <= retirementAge; age++) {
+        final step = ageDeclinePenalty(age) - ageDeclinePenalty(age - 1);
+        final prevStep =
+            ageDeclinePenalty(age - 1) - ageDeclinePenalty(age - 2);
+        expect(step, greaterThanOrEqualTo(prevStep), reason: 'age $age');
+        if (age >= declineStartAge + 2) {
+          final twoBack =
+              ageDeclinePenalty(age - 2) - ageDeclinePenalty(age - 3);
+          expect(step, greaterThan(twoBack), reason: 'age $age vs ${age - 2}');
+        }
+      }
+    });
+
+    test('a merge keeps the older parent and floors at the new tier', () {
+      // Two eighteen-year-old Bronze Rookies make a nineteen-year-old Bronze
+      // Pro — the bump falls out of the tier floor rather than a separate rule.
+      expect(mergedAge(18, 18, 2), 19);
+      // The older man is in there, and a merge is not a way to launder a
+      // veteran into a youngster.
+      expect(mergedAge(22, 18, 2), 22);
+      expect(mergedAge(18, 22, 2), 22);
+      // A tier floor never drags an older player DOWN.
+      expect(mergedAge(34, 34, 8), 34);
+    });
+
+    test('a save from before ages existed gets a plausible birthday', () {
+      expect(derivedAge(1, 0), 18);
+      expect(derivedAge(8, 10), 35);
+      // Never younger than the tier's own start, whatever the service says.
+      expect(derivedAge(3, -4), 20);
+    });
+
+    test('a card keeps its tier until age has taken a band off it', () {
+      final legend = getPlayerDef('player_t8_fwd')!;
+      // The prime costs nothing, and neither do the first years past it: a
+      // colour change for one rating point would read as a bug.
+      for (var age = 16; age <= 34; age++) {
+        expect(effectiveTierFor(legend, age), 8, reason: 'age $age');
+      }
+      // Then a rung at a time, and by his last season a World Legend is
+      // wearing silver — the whole point of the demotion is that the border is
+      // the warning.
+      expect(effectiveTierFor(legend, 35), 7);
+      expect(effectiveTierFor(legend, 37), 6);
+      expect(effectiveTierFor(legend, 38), 5);
+      expect(effectiveTierFor(legend, retirementAge - 1), 4);
+      // It never climbs back.
+      var last = 9;
+      for (var age = 16; age <= 60; age++) {
+        final tier = effectiveTierFor(legend, age);
+        expect(tier, lessThanOrEqualTo(last), reason: 'age $age');
+        last = tier;
+      }
+      expect(last, greaterThanOrEqualTo(1));
+    });
+
+    test('and EVERY POSITION falls on the same rungs', () {
+      // The trap this rule exists to avoid. A fresh card sits exactly on its
+      // tier's band floor for three positions out of four — a T7 midfielder is
+      // a 76 and the band starts at 76 — so asking which band the declined
+      // rating lands in would demote a keeper, a defender and a midfielder the
+      // first year they lose a single point, and leave forwards alone.
+      for (final pos in ['fwd', 'mid', 'def', 'gk']) {
+        final def = getPlayerDef('player_t8_$pos')!;
+        expect(effectiveTierFor(def, 34), 8, reason: pos);
+        expect(effectiveTierFor(def, 35), 7, reason: pos);
+        expect(effectiveTierFor(def, retirementAge - 1), 4, reason: pos);
+      }
+    });
+
+    test('and a tier-one card has nowhere left to fall', () {
+      final rookie = getPlayerDef('player_t1_gk')!;
+      expect(effectiveTierFor(rookie, retirementAge), 1);
+    });
+
+    test('A DECLINED CARD IS PRICED AS THE TIER HE WEARS', () {
+      // The whole rule: a World Legend who has fallen to Gold Elite is a Gold
+      // Elite as far as the market is concerned. Priced off his definition
+      // instead, a thirty-nine-year-old rating 48 and drawn in silver fetched a
+      // hundred and forty-five times what silver fetches, and holding a veteran
+      // for ever cost nothing.
+      final legend = getPlayerDef('player_t8_fwd')!;
+      double basisOf(int tier) =>
+          tierSellValue(tier) * (transferTierMultiplier[tier] ?? 4).toDouble();
+
+      // In his prime he is worth his own tier, to the penny.
+      expect(marketValueBasis(legend, peakAgeEnd), basisOf(8));
+      // The year he arrives at a tier he is worth exactly that tier: the walk
+      // has spent the whole rung and there is nothing left to taper with.
+      expect(tierFall(legend, 36).progress, 0);
+      expect(marketValueBasis(legend, 36), basisOf(6));
+    });
+
+    test('and it TAPERS across the rung rather than stepping off it', () {
+      // Without this the curve is a fourfold cliff on the day the border
+      // changes colour — 3.83M at 34 and 932k at 35.
+      final legend = getPlayerDef('player_t8_fwd')!;
+      double basisOf(int tier) =>
+          tierSellValue(tier) * (transferTierMultiplier[tier] ?? 4).toDouble();
+
+      // Mid-rung: between the tier he wears and the one he is falling toward.
+      final fall = tierFall(legend, 35);
+      expect(fall.tier, 7);
+      expect(fall.progress, greaterThan(0));
+      expect(fall.progress, lessThan(1));
+      expect(marketValueBasis(legend, 35), lessThan(basisOf(7)));
+      expect(marketValueBasis(legend, 35), greaterThan(basisOf(6)));
+    });
+
+    test('and NEVER rises, at any age, from any tier', () {
+      // The multiplier table has no T9 entry and falls back to a four, which
+      // makes the unique Icon nominally cheaper than a World Legend — so a
+      // declining Icon would have GAINED value on the way down. Clamped.
+      for (final id in [
+        'player_t9_fwd',
+        'player_t8_fwd',
+        'player_t8_gk',
+        'player_t5_mid',
+        'player_t1_def',
+      ]) {
+        final def = getPlayerDef(id)!;
+        var prev = double.infinity;
+        for (var age = 16; age <= 60; age++) {
+          final v = marketValueBasis(def, age);
+          expect(v, lessThanOrEqualTo(prev), reason: '$id at $age');
+          prev = v;
+        }
+      }
+    });
+
+    test('and the slide is CONTINUOUS across a demotion', () {
+      // A card a hair short of dropping is a hair short of the tier below's
+      // value, and one that has just dropped is exactly at it — so there is no
+      // step left anywhere on the curve. Measured as: no single year costs more
+      // than the whole rung it is standing on.
+      final legend = getPlayerDef('player_t8_fwd')!;
+      for (var age = declineStartAge; age <= retirementAge; age++) {
+        final before = marketValueBasis(legend, age - 1);
+        final after = marketValueBasis(legend, age);
+        final rung =
+            tierSellValue(tierFall(legend, age - 1).tier) *
+            (transferTierMultiplier[tierFall(legend, age - 1).tier] ?? 4);
+        expect(before - after, lessThanOrEqualTo(rung.toDouble()),
+            reason: 'age $age drops more than a whole rung');
+      }
+    });
+
+    test('AND AN ICON IS AN ICON THE DAY HE IS SCOUTED', () {
+      // T9 is a flat 100 — floor and ceiling the same number — so its band has
+      // no height at all, and a walk that only asks "is what is left smaller
+      // than this band" took the free rung and drew every Football Icon as a
+      // World Legend from the first minute.
+      final icon = getPlayerDef('player_t9_fwd')!;
+      expect(tierDropCost(9), 100 - 95);
+      for (var age = 16; age <= peakAgeEnd; age++) {
+        expect(effectiveTierFor(icon, age), 9, reason: 'age $age');
+      }
+      // And he still declines like everybody else once the years start.
+      expect(effectiveTierFor(icon, 35), lessThan(9));
+    });
+
+    test('and the bands it walks are the ladder\'s own', () {
+      // Not a constant ten: a tier is eight, nine or ten points tall and the
+      // walk subtracts each one as it passes it.
+      expect(tierDropCost(1), 26 - 18);
+      expect(tierDropCost(8), 95 - 86);
+      for (var tier = 1; tier <= 8; tier++) {
+        expect(tierDropCost(tier), inInclusiveRange(8, 11), reason: '$tier');
+      }
+      // Every step costs something, so the walk always terminates.
+      for (var tier = 1; tier <= 9; tier++) {
+        expect(tierDropCost(tier), greaterThan(0), reason: '$tier');
+      }
     });
   });
 

@@ -784,6 +784,7 @@ PreparedCupRound? prepareCupRound(Map<String, dynamic> state) {
     awayGoals = simulateGoals(oppSplit.attack, adjDefence, cupVariance);
   }
 
+  // **A CUP TIE CANNOT END LEVEL, so a level one goes to penalties.**
   Shootout? penaltyShootout;
   if (homeGoals == awayGoals) {
     penaltyShootout = simulatePenaltyShootout(
@@ -792,14 +793,20 @@ PreparedCupRound? prepareCupRound(Map<String, dynamic> state) {
       oppSplit.attack,
       oppSplit.defence,
     );
-    if (penaltyShootout.playerWins) {
-      homeGoals += 1;
-    } else {
-      awayGoals += 1;
-    }
   }
 
-  final won = homeGoals > awayGoals;
+  // **AND THE SHOOTOUT'S WINNING GOAL IS NOT A GOAL.**
+  //
+  // It used to be added to the scoreline so that `won` and the score agreed,
+  // and then taken back out again in three separate places — the feed, the
+  // bracket, and the summary — each with a comment about why the number it had
+  // been handed was a lie. A 0-0 settled 4-3 on penalties was stored as 1-0 and
+  // printed as 1-0, which is not what happened in the tie.
+  //
+  // The score is the ninety minutes, full stop. `won` travels beside it and the
+  // shootout carries its own pair, which is what lets a scoreline read
+  // `0 (3) - (4) 0` and mean it. Nothing folds and nothing unfolds.
+  final won = penaltyShootout?.playerWins ?? homeGoals > awayGoals;
   final earned = _roundPrize(state, cup, round, won);
 
   return (
@@ -862,7 +869,7 @@ List<CupInjury> _rollCupInjuries(
   ).teamInjuryReduction;
 
   bool injuryRoll(CardInstance candidate, double mult) {
-    var chance = getInjuryChance(candidate.seasonsPlayed, _divisionIdx(state));
+    var chance = getInjuryChance(candidate.wearYears, _divisionIdx(state));
     chance += sponsorDrawback(_map(candidate.raw['sponsor'])).injuryPenalty;
     chance -= getTraitBonus(
       candidate,
@@ -899,7 +906,7 @@ void _applyInjury(Map<String, dynamic> state, CupInjury entry) {
   entry.name = getCardName(card.raw, 'A player');
   card.raw['injured'] = true;
   card.raw['injuredAt'] = now();
-  card.raw['injuryDurationMs'] = getInjuryDuration(card.seasonsPlayed);
+  card.raw['injuryDurationMs'] = getInjuryDuration(card.wearYears);
   // The same as a league game in both modes: vacate the slot, no automatic
   // replacement.
   entry.slot = removeInjuredFromLineup(state, card.instanceId);

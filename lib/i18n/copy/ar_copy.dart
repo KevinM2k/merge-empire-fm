@@ -13,6 +13,27 @@ library;
 
 /// Replaces the generated entry, or adds a key Arabic did not have.
 const Map<String, String> arCopy = <String, String>{
+
+  // ── صار للاعب عُمر ───────────────────────────────────────────────────────
+  //
+  // النصوص المولَّدة تصف النموذج الذي حلّ هذا محلّه — «تراجع التقييم يبدأ في
+  // الموسم 10، الاعتزال في 15» — وكل تلك الأرقام صارت خاطئة. أُعيدت الصياغة
+  // حول العمر، بالمتغيّرات نفسها التي يمرّرها موضع الاستدعاء.
+  'coach.squad.veteran': '{name} صار عمره {age} — من هنا تبدأ السنوات تظهر. يعتزل في {retire}.',
+  'coach.squad.declining': '{name} عمره {age} وتجاوز ذروته — فقد {pen} نقطة تقييم بالفعل. {left} مواسم حتى الاعتزال.',
+  'coach.squad.sell_now': '{name} عمره {age} ويتراجع بسرعة — {pen} نقطة تقييم أقل. لم يتبقَّ سوى {left} مواسم، وهذا وقت البيع.',
+  'squad.badge.sell_now': '⚠️ بِعه الآن — تراجع سريع',
+  'squad.stat.age': 'العمر',
+  'merge.refused_ageing': 'الأصغر سنًا هو الأفضل بالفعل.',
+  'cup.shootout.title': 'ركلات الترجيح',
+  'cup.shootout.steps_up': '{club} يستعد للتسديد…',
+  'cup.shootout.scored': 'هدف!',
+  'cup.shootout.missed': 'أهدرها!',
+  'cup.shootout.sudden_death': 'الموت المفاجئ',
+  'squad.detail.age_decline': 'فقد بسبب السن',
+  'offseason.retired': 'اعتزل في سن الأربعين',
+  'manager.transfer.long_decline': 'عمره {age} سنة وفقد {penalty} نقطة تقييم بسبب السن. لم يتبقَّ سوى {seasonsLeft} مواسم حتى الاعتزال. نافذة البيع تُغلق.',
+
   'customise.item.face.bubblegum': 'علكة',
 
   // صف ثالث إلى جانب الصوت والموسيقى: نقرة كل زر.

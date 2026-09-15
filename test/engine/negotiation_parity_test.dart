@@ -103,10 +103,20 @@ Map<String, dynamic> _squadFor(String label) => switch (label) {
 /// A card map, minus the instance id — that embeds a module counter reflecting
 /// how many cards each runtime happened to have built already, which says
 /// nothing about the deal. Its shape is asserted separately.
+///
+/// **And minus `age`, which the JS has no answer for.** This port gives every
+/// card a birthday; the reference runtime counts seasons of service and has no
+/// such field, so a rolled card carries one key more than the dump could. The
+/// age RULES are pinned in `players_test` and `merge_engine_test`; what a rolled
+/// card is scouted at is `scoutAgeForTier`, asserted below.
 Map<String, dynamic> _withoutId(CardInstance card) {
-  final out = Map<String, dynamic>.of(card.raw)..remove('instanceId');
+  final out = Map<String, dynamic>.of(card.raw)
+    ..remove('instanceId')
+    ..remove('age');
   return jsonDecode(jsonEncode(out)) as Map<String, dynamic>;
 }
+
+
 
 /// Seeds both streams the way the dump did, and returns the shared unseeded one.
 void _seedBoth(int seed, int mathSeed) {
@@ -149,24 +159,83 @@ void main() {
   });
 
   group('playerValue', () {
-    test('matches the JS across tier, age, sponsor and division', () {
+    // **THE FRESH ROWS ARE STILL PINNED TO THE DIGIT; the aged ones are pinned
+    // to the rule that replaced them.**
+    //
+    // The reference discounted a veteran by a percentage of his rating, per
+    // season of service. A card is priced off the tier it has FALLEN TO now —
+    // see `marketValueBasis` — so those rows encode a rule the game no longer
+    // has.
+    // What has not changed is the arithmetic the fixture was really guarding:
+    // the fractional-power division multiplier, which drifts silently and would
+    // put every sale in the game a percent or two out.
+    CardInstance card(Map<String, dynamic> row) => CardInstance({
+      'instanceId': 'x',
+      'definitionId': 'player_t${row['tier']}_mid',
+      'seasonsPlayed': row['seasons'],
+      if (row['sponsored'] == true) 'sponsor': {'multiplier': 1.5},
+    });
+
+    test('matches the reference on a card that has not declined', () {
       final rows = _rows('playerValue');
       expect(rows, hasLength(90));
+      var checked = 0;
       for (final row in rows) {
+        // **BOTH RULES HAVE TO SAY NOTHING.** The reference discounted from
+        // the eleventh season of service; this game discounts from the first
+        // year past the prime, and the two do not agree about which cards those
+        // are. A row holds to the digit only where neither has bitten.
+        if ((row['seasons'] as num) > 10) continue;
+        if (ageDeclinePenalty(card(row).age) > 0) continue;
         final s = _baseState();
         (s['progression'] as Map)['currentDivision'] = row['division'];
-        final card = CardInstance({
-          'instanceId': 'x',
-          'definitionId': 'player_t${row['tier']}_mid',
-          'seasonsPlayed': row['seasons'],
-          if (row['sponsored'] == true) 'sponsor': {'multiplier': 1.5},
-        });
         expect(
-          playerValue(s, card),
+          playerValue(s, card(row)),
           row['value'],
           reason: 't${row['tier']} / ${row['seasons']}s / ${row['division']}',
         );
+        checked++;
       }
+      expect(checked, greaterThan(0), reason: 'the scan matched nothing');
+    });
+
+    test('AND VALUES EVERY ROW ON THE RUNG IT HAS FALLEN TO', () {
+      // Bracketed rather than equal, because the slide tapers across the rung:
+      // never worth more than the tier he wears, never less than the one he is
+      // falling toward.
+      var declined = 0;
+      for (final row in _rows('playerValue')) {
+        final s = _baseState();
+        (s['progression'] as Map)['currentDivision'] = row['division'];
+        final c = card(row);
+        final def = getPlayerDef(c.definitionId)!;
+        final fall = tierFall(def, c.age);
+
+        CardInstance freshAt(int tier) => CardInstance({
+          'instanceId': 'y',
+          'definitionId': 'player_t${tier}_mid',
+          'seasonsPlayed': 0,
+          if (row['sponsored'] == true) 'sponsor': {'multiplier': 1.5},
+        });
+
+        final why = 't${row['tier']} / ${row['seasons']}s wears T${fall.tier}';
+        expect(
+          playerValue(s, c),
+          lessThanOrEqualTo(playerValue(s, freshAt(fall.tier))),
+          reason: why,
+        );
+        if (fall.progress == 0) {
+          expect(playerValue(s, c), playerValue(s, freshAt(fall.tier)), reason: why);
+        } else if (fall.tier > 1) {
+          expect(
+            playerValue(s, c),
+            greaterThanOrEqualTo(playerValue(s, freshAt(fall.tier - 1))),
+            reason: why,
+          );
+        }
+        if (fall.tier != def.tier) declined++;
+      }
+      expect(declined, greaterThan(0), reason: 'no row declines');
     });
   });
 
@@ -316,6 +385,9 @@ void main() {
         );
         // The id is dropped from the comparison, so its shape is checked here.
         expect(card.instanceId, startsWith('${def.id}_'));
+        // And so is the age, which the reference has no column for: a card a
+        // rival rolls arrives at its tier's own scout age, like any other.
+        expect(card.age, scoutAgeForTier(def.tier), reason: 'tier ${def.tier}');
       }
     });
 
@@ -347,7 +419,9 @@ void main() {
         expect(
           [
             for (final c in (offer['incoming'] as List).cast<Map<String, dynamic>>())
-              (Map<String, dynamic>.of(c)..remove('instanceId')),
+              (Map<String, dynamic>.of(c)
+                ..remove('instanceId')
+                ..remove('age')),
           ],
           row['incoming'],
           reason: why,

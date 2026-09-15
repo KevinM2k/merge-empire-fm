@@ -59,6 +59,7 @@ import 'package:merge_empire_fc/ui/widgets/card_glyph.dart';
 import 'package:merge_empire_fc/ui/screens/match/match_report_card.dart';
 import 'package:merge_empire_fc/ui/screens/match/shootout_row.dart'
     show shootoutFrom;
+import 'package:merge_empire_fc/ui/screens/match/shootout_sequence.dart';
 import 'package:merge_empire_fc/ui/screens/match/subs_panel.dart';
 export 'package:merge_empire_fc/ui/widgets/card_glyph.dart'
     show CardGlyph, cardYellowInk, cardRedInk, cardInk;
@@ -700,6 +701,30 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
       if (mounted) play();
     });
     _cues.add(timer);
+  }
+
+  /// **THE SHOOTOUT IS STILL BEING TAKEN.**
+  ///
+  /// A level cup tie plays its penalties out on the pitch at the whistle — see
+  /// [ShootoutSequence] — and CONTINUE does not appear until they are done. A
+  /// shootout the player can press past is a shootout they did not watch.
+  bool _shootoutPlaying = false;
+
+  /// Test seam: the penalties are on screen right now.
+  bool get shootoutPlaying => _shootoutPlaying;
+
+  /// The sting and Colin's word, held back until the last penalty has been
+  /// taken. Null for every tie that did not go to one.
+  VoidCallback? _pendingFullTime;
+
+  /// The last kick has been taken and held. Hand the screen back: the verdict
+  /// can be announced now without having announced it in advance.
+  void _shootoutFinished() {
+    if (!mounted) return;
+    setState(() => _shootoutPlaying = false);
+    final pending = _pendingFullTime;
+    _pendingFullTime = null;
+    pending?.call();
   }
 
   /// Test seam: a passage is on the pitch right now.
@@ -1629,25 +1654,41 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
     // knows, so it is what is asked.
     final penalties = shootoutFrom(widget.result);
     final wonOnPens = penalties?.won;
-    _cue(
-      const Duration(milliseconds: 450),
-      () => unawaited(
-        sound.play(
-          ours > theirs
+    // **AND THE PENALTIES ARE TAKEN ON THE PITCH, not reported on the report.**
+    // The kicks were rolled before this screen opened; what was missing was
+    // anywhere to watch them. Started before the sting so the whistle leads
+    // into the walk-up rather than into a verdict.
+    if (shootoutKicksOf(widget.result).isNotEmpty) {
+      setState(() => _shootoutPlaying = true);
+    }
+    final sting = ours > theirs
+        ? 'victory'
+        : ours == theirs
+        ? (wonOnPens == null
+              ? 'draw'
+              : wonOnPens
               ? 'victory'
-              : ours == theirs
-              ? (wonOnPens == null
-                    ? 'draw'
-                    : wonOnPens
-                    ? 'victory'
-                    : 'defeat')
-              : 'defeat',
-        ),
-      ),
-    );
+              : 'defeat')
+        : 'defeat';
+
+    // **THE STING WAITS FOR THE SHOOTOUT, because it is the answer to it.**
+    // Played at the whistle it announces who went through before the first
+    // penalty has been struck, which is the one thing a shootout must not do.
+    // Colin's word waits with it for the same reason.
+    if (_shootoutPlaying) {
+      _pendingFullTime = () {
+        unawaited(sound.play(sting));
+        _cue(const Duration(milliseconds: 650), _sayFullTimeWord);
+      };
+    } else {
+      _cue(
+        const Duration(milliseconds: 450),
+        () => unawaited(sound.play(sting)),
+      );
+      // And Colin's word on the afternoon, after the sting rather than under it.
+      _cue(const Duration(milliseconds: 1100), _sayFullTimeWord);
+    }
     widget.onFinished?.call(widget.result);
-    // And Colin's word on the afternoon, after the sting rather than under it.
-    _cue(const Duration(milliseconds: 1100), _sayFullTimeWord);
     // **AND THEN IT WAITS.** It used to leave on a 1,400ms timer, on the
     // reasoning that full time here is a screen with nothing left to say: the
     // tactic strip has gone, the clock has stopped and the payoff is on the
@@ -2808,8 +2849,24 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
                               // tap away. Asked for from the couch. Only once
                               // the clock has stopped and only while no clip is
                               // running — a replay still owns the grass.
-                              if (f.finished && _clip == null)
+                              if (f.finished && _clip == null && !_shootoutPlaying)
                                 PitchStatOverlay(stats: stats, isHome: home),
+                              // **OVER THE PITCH, where the tie is being
+                              // decided.** It owns the grass while it runs —
+                              // the stat overlay above waits, because a board
+                              // of possession figures is not what anybody is
+                              // looking at during a shootout.
+                              if (_shootoutPlaying)
+                                Positioned.fill(
+                                  child: ShootoutSequence(
+                                    kicks: shootoutKicksOf(widget.result),
+                                    ourName:
+                                        '${widget.result['clubName'] ?? t('common.your_club')}',
+                                    theirName:
+                                        '${widget.result['opponentName'] ?? ''}',
+                                    onDone: _shootoutFinished,
+                                  ),
+                                ),
                           ],
                         ),
                       ),
@@ -3008,7 +3065,17 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
                     // there is no clock to speed up, no substitution to make and
                     // nothing left to skip.
                     child: f.finished
-                        ? SizedBox(
+                        // **NOTHING TO PRESS WHILE THE PENALTIES ARE BEING
+                        // TAKEN.** Not the dead tactic row either — the clock
+                        // has stopped, so those controls are as meaningless
+                        // here as they are at any other full time. An empty
+                        // footer, and CONTINUE arrives with the result.
+                        ? _shootoutPlaying
+                              ? const SizedBox(
+                                  key: ValueKey('match-shootout-wait'),
+                                  width: double.infinity,
+                                )
+                              : SizedBox(
                             width: double.infinity,
                             child: OutlinedButton(
                               key: const ValueKey('match-continue'),

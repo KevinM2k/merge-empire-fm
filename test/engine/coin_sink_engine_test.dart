@@ -11,10 +11,16 @@ import 'package:merge_empire_fc/util/event_bus.dart';
 import 'package:merge_empire_fc/util/random.dart' as seeded;
 import 'package:merge_empire_fc/util/time.dart';
 
-Map<String, dynamic> _card(String id, {int seasonsPlayed = 0, String? defId}) => {
+Map<String, dynamic> _card(
+  String id, {
+  int seasonsPlayed = 0,
+  String? defId,
+  int? age,
+}) => {
   'instanceId': id,
   'definitionId': defId ?? 'player_t3_mid',
   'seasonsPlayed': seasonsPlayed,
+  'age': ?age,
 };
 
 Map<String, dynamic> _state({
@@ -280,37 +286,45 @@ void main() {
       expect(state['club']['kitPrimaryColor'], '#ff0000');
     });
 
-    test('the loyalty bonus takes two seasons off a card', () {
-      final state = _state(cells: [_card('vet', seasonsPlayed: 9)]);
+    test('the loyalty bonus takes two YEARS off a card', () {
+      // Two seasons off the service count used to be what delayed a decline.
+      // Decline is measured in birthdays now, so the same deduction on the same
+      // field would have bought nothing at all.
+      final state = _state(cells: [_card('vet', age: 33)]);
       final result = purchaseCoinSink(
         state,
         'loyalty_bonus',
         cardInstanceId: 'vet',
       );
       expect(result.ok, isTrue);
-      expect(result.seasonsReduced, 2);
-      expect((state['grid']['cells'] as List)[0]['seasonsPlayed'], 7);
+      expect(result.yearsReduced, 2);
+      expect((state['grid']['cells'] as List)[0]['age'], 31);
     });
 
-    test('and never below zero', () {
-      final state = _state(cells: [_card('rookie', seasonsPlayed: 1)]);
+    test('and never below what his tier is scouted at', () {
+      // He feels younger; he does not become younger than anybody of his
+      // standing has ever been. A Silver Rising starts at twenty.
+      final state = _state(cells: [_card('rookie', age: 21)]);
       final result = purchaseCoinSink(
         state,
         'loyalty_bonus',
         cardInstanceId: 'rookie',
       );
-      expect(result.seasonsReduced, 1);
-      expect((state['grid']['cells'] as List)[0]['seasonsPlayed'], 0);
+      expect(result.yearsReduced, 1);
+      expect((state['grid']['cells'] as List)[0]['age'], 20);
     });
 
-    test('with no card named it takes the oldest', () {
+    test('with no card named it takes the OLDEST, not the longest-serving', () {
+      // Those used to be the same card. They are not any more: a merge carries
+      // its parents' years forward and starts service again at zero, so the man
+      // the bonus is for is the one the years are catching up with.
       final state = _state(cells: [
-        _card('young', seasonsPlayed: 1),
-        _card('old', seasonsPlayed: 8),
+        _card('servant', seasonsPlayed: 12, age: 27),
+        _card('veteran', seasonsPlayed: 1, age: 35),
       ]);
       purchaseCoinSink(state, 'loyalty_bonus');
-      expect((state['grid']['cells'] as List)[1]['seasonsPlayed'], 6);
-      expect((state['grid']['cells'] as List)[0]['seasonsPlayed'], 1);
+      expect((state['grid']['cells'] as List)[1]['age'], 33);
+      expect((state['grid']['cells'] as List)[0]['age'], 27);
     });
 
     test('with nobody at the club it refuses', () {

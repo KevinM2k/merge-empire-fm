@@ -9,6 +9,27 @@ library;
 
 /// Replaces the generated entry, or adds a key French did not have.
 const Map<String, String> frCopy = <String, String>{
+
+  // ── Le joueur a un ÂGE désormais ─────────────────────────────────────────
+  //
+  // Les textes générés décrivent le modèle remplacé — « la baisse commence à
+  // la saison 10, retraite à 15 » — et chacun de ces nombres est faux à
+  // présent. Réécrits autour de l'âge, avec les mêmes variables.
+  'coach.squad.veteran': '{name} a {age} ans — les années vont commencer à peser. Retraite à {retire}.',
+  'coach.squad.declining': '{name} a {age} ans et a passé son apogée — {pen} pts de note déjà perdus. {left} saisons avant la retraite.',
+  'coach.squad.sell_now': '{name} a {age} ans et décline vite — {pen} pts de note en moins. Plus que {left} saisons : c\'est le moment de vendre.',
+  'squad.badge.sell_now': '⚠️ Vendez maintenant — en chute libre',
+  'squad.stat.age': 'Âge',
+  'merge.refused_ageing': 'Le plus jeune est déjà le meilleur joueur.',
+  'cup.shootout.title': 'TIRS AU BUT',
+  'cup.shootout.steps_up': '{club} s\'avance…',
+  'cup.shootout.scored': 'BUT !',
+  'cup.shootout.missed': 'RATÉ !',
+  'cup.shootout.sudden_death': 'MORT SUBITE',
+  'squad.detail.age_decline': 'Usure de l\'âge',
+  'offseason.retired': 'Retraité à 40 ans',
+  'manager.transfer.long_decline': '{age} ans et {penalty} pts de note perdus à cause de l\'âge. Plus que {seasonsLeft} saisons avant la retraite. La fenêtre de vente se referme.',
+
   'customise.item.face.bubblegum': 'Chewing-gum',
 
   // Une troisième ligne à côté de Son et Musique : le clic de chaque bouton.

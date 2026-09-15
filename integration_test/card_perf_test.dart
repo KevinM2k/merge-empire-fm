@@ -26,6 +26,8 @@ void main() {
               view: (
                 name: 'Player $i',
                 tier: 1 + (i % 9),
+                displayTier: 1 + (i % 9),
+                age: 24,
                 rating: 40 + (i % 60),
                 position: ['FWD', 'MID', 'DEF', 'GK'][i % 4],
                 injured: i % 11 == 0,

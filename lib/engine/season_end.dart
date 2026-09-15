@@ -32,6 +32,7 @@ import 'package:merge_empire_fc/engine/quest_engine.dart';
 import 'package:merge_empire_fc/engine/season_fixtures.dart';
 import 'package:merge_empire_fc/engine/match_tactics.dart' show matchesPerSeason;
 import 'package:merge_empire_fc/engine/transfer_engine.dart';
+import 'package:merge_empire_fc/state/card_instance.dart';
 import 'package:merge_empire_fc/util/event_bus.dart';
 import 'package:merge_empire_fc/util/format.dart';
 import 'package:merge_empire_fc/util/random.dart' as seeded;
@@ -483,7 +484,29 @@ void _applyStagnation(Map<String, dynamic> prog, String divId, String outcome) {
   buffs['champions_cup'] = 0;
 }
 
-/// Age every player by a season, and emit the milestones the coach warns on.
+/// Where a birthday puts a player on the curve, as the milestone the coach
+/// warns on — or null for anybody still in or short of his prime.
+///
+/// **The rungs are the decline curve read in plain English, not four invented
+/// numbers.** Nothing comes off a rating before 31, so nothing is said before
+/// 31; by 33 the penalty is compounding fast enough to be worth a sentence; 37
+/// is the last point at which selling still fetches something; 39 is the final
+/// season, because the sweep takes him at 40.
+String? ageMilestone(int age) {
+  if (age >= retirementAge - 1) return 'final-season';
+  if (age >= retirementAge - 3) return 'sell-now';
+  if (age >= declineStartAge + 2) return 'declining';
+  if (age >= declineStartAge) return 'at-risk';
+  return null;
+}
+
+/// Give every player a birthday, and emit the milestones the coach warns on.
+///
+/// **Two counters, and they mean different things.** `seasonsPlayed` is service
+/// at this club — loyalty, achievements, quests. `age` is how old he is, and it
+/// is the one that declines, wears out and retires him. A merged card carries
+/// its parents' age forward and starts service again at zero, so from here on
+/// the two genuinely disagree.
 List<Map<String, dynamic>> _ageTheSquad(Map<String, dynamic> state) {
   for (final raw in _cells(state)) {
     final card = _map(raw);
@@ -493,27 +516,30 @@ List<Map<String, dynamic>> _ageTheSquad(Map<String, dynamic> state) {
     // would also let a loan drift toward the retirement sweep.
     if (card['loanMatchesLeft'] != null) continue;
 
-    final s = (_num(card['seasonsPlayed'])?.toInt() ?? 0) + 1;
-    card['seasonsPlayed'] = s;
+    // **AGE IS READ FIRST, and the order is load-bearing.** A card written
+    // before ages existed has no `age` field, so the getter derives one from
+    // its tier and its SERVICE — and bumping the service count first would feed
+    // that derivation a season it has not lived yet, ageing an un-migrated card
+    // two years at its first boundary. `migration.dart` backfills the field, so
+    // this only bites a map that never went through it; a test is exactly such
+    // a map, which is how it was caught.
+    final age = CardInstance(card).age + 1;
+    card['seasonsPlayed'] = (_num(card['seasonsPlayed'])?.toInt() ?? 0) + 1;
+    card['age'] = age;
 
-    const milestones = {
-      10: ('at-risk', 0, 5),
-      11: ('declining', 10, 4),
-      12: ('declining', 20, 3),
-      13: ('sell-now', 30, 2),
-      14: ('final-season', 40, 1),
-    };
-    final milestone = milestones[s];
+    final milestone = ageMilestone(age);
     if (milestone == null) continue;
+    final penalty = ageDeclinePenalty(age);
     emit('player:ageing', {
       'card': card,
-      'milestone': milestone.$1,
-      if (milestone.$2 > 0) 'penalty': milestone.$2,
-      'seasonsLeft': milestone.$3,
+      'milestone': milestone,
+      'age': age,
+      if (penalty > 0) 'penalty': penalty,
+      'seasonsLeft': retirementAge - age,
     });
   }
 
-  // After ageing, the veterans who have run out of seasons leave.
+  // After ageing, the veterans who have reached forty leave.
   return processAgeRegression(state);
 }
 
@@ -597,24 +623,36 @@ _resetSeasonCounters(Map<String, dynamic> state, int oldSeason) {
   );
 }
 
-/// Retire anyone who has reached fifteen seasons.
+/// Retire anyone who has reached forty.
 ///
-/// Players decline gradually through the ageing penalty — a stat deduction, not
-/// a tier change — and then leave the squad entirely. Returns a report so the
-/// UI can summarise the year's departures.
+/// **A tier change AND a departure now, in that order.** Players decline
+/// through [ageDeclinePenalty] — a stat deduction — and a card whose rating has
+/// fallen out of its tier's band drops a colour while it is still yours, which
+/// is `effectiveTierFor`'s job and happens on screen without anything here. By
+/// forty he has usually been through several of those, and this is where he
+/// leaves the squad for good. Returns a report so the UI can summarise the
+/// year's departures.
+///
+/// **The report's shape is the JS's and stays the JS's**, `ageingPenalty: 0` and
+/// all — `season_end_parity_test` compares it field for field, and a value the
+/// harness compares is the reference's rather than a figure to print. What
+/// changed is only WHEN a card reaches this sweep. The tier named is the
+/// definition's, which is who he actually was; the demoted colours he wore on
+/// his way out are a display concept and live on the card, not in a farewell.
 List<Map<String, dynamic>> processAgeRegression(Map<String, dynamic> state) {
   final report = <Map<String, dynamic>>[];
   final cells = _cells(state);
 
   for (var i = 0; i < cells.length; i++) {
-    final card = _map(cells[i]);
-    if (card == null) continue;
-    if ((_num(card['seasonsPlayed'])?.toInt() ?? 0) < 15) continue;
+    final raw = _map(cells[i]);
+    if (raw == null) continue;
+    final card = CardInstance(raw);
+    if (card.age < retirementAge) continue;
 
-    final oldDef = getPlayerDef(card['definitionId'] as String?);
+    final oldDef = getPlayerDef(raw['definitionId'] as String?);
     cells[i] = null;
     report.add(<String, dynamic>{
-      'playerName': getCardName(card, 'Veteran'),
+      'playerName': getCardName(raw, 'Veteran'),
       'fromTier': oldDef?.tier ?? 1,
       'fromTierName': oldDef?.tierName ?? 'Veteran',
       'toTier': 0,

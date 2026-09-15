@@ -10,6 +10,27 @@ library;
 
 /// Replaces the generated entry, or adds a key German did not have.
 const Map<String, String> deCopy = <String, String>{
+
+  // ── Ein Spieler hat jetzt ein ALTER ──────────────────────────────────────
+  //
+  // Die generierten Zeilen beschreiben das abgelöste Modell — „Wertungsverlust
+  // ab Saison 10, Rücktritt mit 15" — und jede dieser Zahlen ist nun falsch.
+  // Neu geschrieben rund um das Alter, mit denselben Platzhaltern.
+  'coach.squad.veteran': '{name} ist jetzt {age} — ab hier machen sich die Jahre bemerkbar. Tritt mit {retire} zurück.',
+  'coach.squad.declining': '{name} ist {age} und hat den Zenit überschritten — {pen} Wertungspunkte sind schon weg. Noch {left} Saisons bis zum Rücktritt.',
+  'coach.squad.sell_now': '{name} ist {age} und fällt schnell ab — {pen} Wertungspunkte weniger. Nur noch {left} Saisons: jetzt verkaufen.',
+  'squad.badge.sell_now': '⚠️ Jetzt verkaufen — starker Abfall',
+  'squad.stat.age': 'Alter',
+  'merge.refused_ageing': 'Der Jüngere ist schon der bessere Spieler.',
+  'cup.shootout.title': 'ELFMETERSCHIESSEN',
+  'cup.shootout.steps_up': '{club} tritt an…',
+  'cup.shootout.scored': 'TOR!',
+  'cup.shootout.missed': 'DANEBEN!',
+  'cup.shootout.sudden_death': 'SUDDEN DEATH',
+  'squad.detail.age_decline': 'Altersverlust',
+  'offseason.retired': 'Mit 40 zurückgetreten',
+  'manager.transfer.long_decline': '{age} Jahre alt und {penalty} Wertungspunkte durchs Alter verloren. Nur noch {seasonsLeft} Saisons bis zum Rücktritt. Das Verkaufsfenster schließt sich.',
+
   'customise.item.face.bubblegum': 'Kaugummi',
 
   // Eine dritte Zeile neben Sound und Musik: der Klick jeder Schaltfläche.

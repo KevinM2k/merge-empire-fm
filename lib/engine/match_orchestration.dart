@@ -732,7 +732,7 @@ MatchResult simulateMatch(
       // The tactic's multiplier prices risky tactics at kickoff, and
       // [reSimulateRemainder] applies it the same way.
       var chance =
-          getInjuryChance(candidate.seasonsPlayed, divIdx) * preMatchStrat.injMod;
+          getInjuryChance(candidate.wearYears, divIdx) * preMatchStrat.injMod;
       chance += sponsorDrawback(_map(candidate.sponsor)).injuryPenalty;
       chance -= getTraitBonus(
         candidate,
@@ -800,7 +800,7 @@ MatchResult simulateMatch(
     entry.name = card.name('A player');
     card.raw['injured'] = true;
     card.raw['injuredAt'] = now();
-    card.raw['injuryDurationMs'] = getInjuryDuration(card.seasonsPlayed);
+    card.raw['injuryDurationMs'] = getInjuryDuration(card.wearYears);
     // Remember the slot the victim occupied so a mid-match tactic change can
     // cancel a not-yet-shown injury and restore the lineup.
     final prevSlot = _findSlot(state, (s) => s['cardInstanceId'] == card.instanceId);
@@ -1870,13 +1870,9 @@ List<Map<String, dynamic>> reSimulateRemainder(
       'homeScore': shootout.homeScore,
       'awayScore': shootout.awayScore,
     };
-    if (shootout.playerWins) {
-      result['homeGoals'] = (result['homeGoals'] as int) + 1;
-      result['won'] = true;
-    } else {
-      result['awayGoals'] = (result['awayGoals'] as int) + 1;
-      result['won'] = false;
-    }
+    // **THE WINNING PENALTY IS NOT A GOAL** — see `prepareCupRound`. The score
+    // stays as the ninety minutes were played; only `won` moves.
+    result['won'] = shootout.playerWins;
     result['drawn'] = false;
   }
 
@@ -1983,7 +1979,7 @@ List<Map<String, dynamic>> reSimulateRemainder(
       healthyCards.isNotEmpty &&
       fraction > 0.15) {
     final candidate = healthyCards[seeded.randomInt(0, healthyCards.length - 1)];
-    var chance = getInjuryChance(candidate.seasonsPlayed, divIdx) *
+    var chance = getInjuryChance(candidate.wearYears, divIdx) *
         (strat?.injMod ?? 1) *
         fraction;
     chance += sponsorDrawback(_map(candidate.sponsor)).injuryPenalty;
@@ -2002,7 +1998,7 @@ List<Map<String, dynamic>> reSimulateRemainder(
       candidate.raw['injured'] = true;
       candidate.raw['injuredAt'] = now();
       candidate.raw['injuryDurationMs'] =
-          getInjuryDuration(candidate.seasonsPlayed);
+          getInjuryDuration(candidate.wearYears);
       injuredName = candidate.name('A player');
       injuredInstanceId = candidate.instanceId;
       final prevSlot =

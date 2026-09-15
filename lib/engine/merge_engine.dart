@@ -47,7 +47,14 @@ int _jsRound(num v) => (v + 0.5).floor();
 ///
 /// [preferredFemale] pins the gender — merges pass the parents' gender through;
 /// a scout passes null and the variant is rolled freely.
-CardInstance createInstance(String definitionId, {bool? preferredFemale}) {
+/// [age] overrides the tier's scout age — a merge passes what [mergedAge]
+/// worked out for the pair, so the older parent's years carry into the card
+/// they became. A scout passes null and the card arrives at its tier's own age.
+CardInstance createInstance(
+  String definitionId, {
+  bool? preferredFemale,
+  int? age,
+}) {
   final variant = preferredFemale == null
       ? _rng.nextInt(playerVariants)
       : _pickVariantForGender(preferredFemale);
@@ -89,6 +96,10 @@ CardInstance createInstance(String definitionId, {bool? preferredFemale}) {
     'definitionId': definitionId,
     'instanceId': instanceId,
     'seasonsPlayed': 0,
+    // **Age is written; service is counted.** They start apart and stay apart
+    // — a card scouted as a World Legend is twenty-five on day one with no
+    // seasons behind him. Club assets have no definition and no age.
+    if (def != null) 'age': age ?? scoutAgeForTier(def.tier),
     'form': 0,
     'variant': variant,
     'ratingBonus': ratingBonus,
@@ -240,34 +251,75 @@ MergeResult attemptMerge(
     }
   }
 
+  // **A MERGE THAT WOULD HAND BACK A WORSE PLAYER IS REFUSED.**
+  //
+  // The merged card takes the OLDER parent's age — see `mergedAge` — and a tier
+  // step is worth about ten rating points, so the pairing loses value exactly
+  // when the older card has declined by more than the step. Feeding a
+  // thirty-eight-year-old Legendary Icon and a twenty-nine-year-old one
+  // together produced a World Legend rating 56 out of a 78 you already had: a
+  // twenty-two point loss, for destroying the better of the two, with nothing
+  // on screen to say so before the drag finished.
+  //
+  // **It is the GAP that does the damage, not the age**, which is why this is
+  // not "declining cards cannot merge". Two thirty-eight-year-olds are +10 and
+  // a thirty-one with a twenty-nine is +9; blocking those would turn every card
+  // past its prime into dead weight and take away consolidating a squad of
+  // veterans, which is a real thing to do with them.
+  //
+  // Judged on the DEFINITIONS rather than the instances: both parents share a
+  // definition, so the only thing between them is the birthday, and leaving the
+  // per-instance spread out of it keeps the answer the same every time rather
+  // than turning on a roll the player cannot see.
+  final into = getDefinition(def.mergesInto);
+  if (into != null) {
+    int declined(PlayerDef d, int age) => d.rating - ageDeclinePenalty(age);
+    final best = math.max(
+      declined(def, sourceCard.age),
+      declined(def, targetCard.age),
+    );
+    final merged = mergedAge(sourceCard.age, targetCard.age, into.tier);
+    if (declined(into, merged) < best) {
+      return const MergeResult(ok: false, reason: 'ageing_loss');
+    }
+  }
+
   // The merged card inherits its parents' gender — they are required to match,
   // so either parent's variant names the right pool.
+  //
+  // **And it inherits the OLDER parent's age**, floored at the new tier's own
+  // scout age — see `mergedAge`. Merging is no longer the way to keep a squad
+  // young: two thirty-four-year-olds make a thirty-four-year-old, and the
+  // Bronze Rookies you started with are the reason a home-grown Legendary Icon
+  // has years in front of him that a scouted one does not.
+  final intoDef = into;
   final newCard = createInstance(
     def.mergesInto!,
     preferredFemale: isVariantFemale(sourceVariant),
+    age: intoDef == null
+        ? null
+        : mergedAge(sourceCard.age, targetCard.age, intoDef.tier),
   );
   cells[targetIdx] = newCard.raw;
   cells[sourceIdx] = null;
 
   if (stats != null) {
     stats['totalMerges'] = ((stats['totalMerges'] as num?)?.toInt() ?? 0) + 1;
-    final newDef = getDefinition(def.mergesInto);
     final highest = (stats['highestTier'] as num?)?.toInt() ?? 1;
-    if (newDef != null && newDef.tier > highest) {
-      stats['highestTier'] = newDef.tier;
+    if (intoDef != null && intoDef.tier > highest) {
+      stats['highestTier'] = intoDef.tier;
     }
   }
 
   if (announce) {
-    final into = getDefinition(def.mergesInto);
     emit('merge:complete', {
       'newCard': newCard,
-      'newDef': into,
+      'newDef': intoDef,
       // The tier the card BECAME, for the `merge` analytics event. A plain
       // count cannot tell the tutorial's first merge from the one that makes a
       // Football Icon, and the definition is already in hand here — a listener
       // re-deriving it would be a second lookup of the same fact.
-      'tier': into?.tier ?? 0,
+      'tier': intoDef?.tier ?? 0,
     });
   }
   return MergeResult(ok: true, action: MergeAction.merge, result: newCard);

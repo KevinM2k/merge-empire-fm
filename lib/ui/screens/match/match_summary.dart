@@ -136,28 +136,21 @@ Route<void> matchSummaryRoute(Map<String, dynamic> result) => MaterialPageRoute(
   _num(result['awayGoals'] ?? result['theirGoals']).toInt(),
 );
 
-/// The score to PRINT, which is the ninety minutes.
+/// The score to PRINT, which is the ninety minutes — and which is now simply
+/// the engine's, because nothing folds a penalty into it any more.
 ///
-/// **A shootout's winning goal is folded into the engine's scoreline** so `won`
-/// and the recorded score agree — `cup_launcher` and `match_orchestration` both
-/// do it, and a parity fixture reads those fields. On the SCREEN that number is
-/// a lie: a tie drawn 1–1 and lost on penalties printed `1–2`, with the pens
-/// reported further down the page under the fold. Read from the couch as "it
-/// should have gone to pens, instead it came up defeat and said they won 1–2" —
-/// which is the JS's own warning about this field, word for word. So the
-/// divergence lives on the screen and the field is left to the harness.
+/// **It used to have work to do.** The engine added the shootout's winning goal
+/// to the scoreline so that `won` and the score agreed, and this took it back
+/// out, because on the SCREEN that number is a lie: a tie drawn 1-1 and lost on
+/// penalties printed `1-2`, with the pens reported further down the page under
+/// the fold. Read from the couch as "it should have gone to pens, instead it
+/// came up defeat and said they won 1-2".
 ///
-/// [_score] is unchanged and still the engine's: the manager's reaction is
-/// about who went through, and a shootout win is not a draw to him.
-(int, int) regulationScore(Map<String, dynamic> result) {
-  final (ours, theirs) = _score(result);
-  if (shootoutFrom(result) case final penalties?) {
-    final ourReg = penalties.won ? ours - 1 : ours;
-    final theirReg = penalties.won ? theirs : theirs - 1;
-    return (ourReg < 0 ? 0 : ourReg, theirReg < 0 ? 0 : theirReg);
-  }
-  return (ours, theirs);
-}
+/// The fold is gone at the source — see `prepareCupRound` — so a level tie is
+/// level everywhere and the shootout carries its own pair beside it. Kept as a
+/// named reader rather than inlined: three screens ask this question and the
+/// name is what says which of the two scorelines they are asking for.
+(int, int) regulationScore(Map<String, dynamic> result) => _score(result);
 
 class MatchSummaryScreen extends ConsumerStatefulWidget {
   const MatchSummaryScreen({required this.result, super.key});
@@ -696,6 +689,17 @@ class _ResultCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // **IN THE SAME ORDER THE GOALS ARE.** `leftGoals` is already flipped for
+    // an away tie by the caller, so the brackets have to travel with the club
+    // they belong to or a shootout reads back to front on exactly the half of
+    // fixtures nobody checks.
+    final penalties = shootoutFrom(result);
+    final (int, int)? pens = penalties == null
+        ? null
+        : result['isHome'] == true
+        ? (penalties.ours.score, penalties.theirs.score)
+        : (penalties.theirs.score, penalties.ours.score);
+
     return GlassPanel(
             density: GlassDensity.deep,
       // **TIGHTER TOP AND BOTTOM, and the dugout cam is what it buys.** This
@@ -713,6 +717,7 @@ class _ResultCard extends StatelessWidget {
             right: right,
             leftGoals: leftGoals,
             rightGoals: rightGoals,
+            pens: pens,
           ),
           // **WHO SCORED IS INSIDE THIS CARD, in a well of its own.** It was
           // its own panel twelve points below, which is two cards telling one
@@ -833,12 +838,23 @@ class _Score extends StatelessWidget {
     required this.right,
     required this.leftGoals,
     required this.rightGoals,
+    this.pens,
   });
 
   final String left;
   final String right;
   final int leftGoals;
   final int rightGoals;
+
+  /// The shootout, as `(left, right)` in the same order the goals are in — or
+  /// null for a tie nobody had to take penalties in, which is nearly all of
+  /// them.
+  final (int, int)? pens;
+
+  TextStyle _pensStyle(BuildContext context) => TextStyle(
+    fontSize: 22,
+    color: Theme.of(context).extension<KitTheme>()!.accentBright,
+  );
 
   @override
   Widget build(BuildContext context) => Row(
@@ -848,8 +864,28 @@ class _Score extends StatelessWidget {
       ),
       Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12),
-        child: Text(
-          '$leftGoals-$rightGoals',
+        child: Text.rich(
+          TextSpan(
+            children: [
+              TextSpan(text: '$leftGoals'),
+              // **THE SHOOTOUT IN BRACKETS, INSIDE THE SCORELINE.**
+              //
+              // A cup tie settled on penalties is one result, not a score and a
+              // footnote — and it was being read as a draw, because a 0-0 that
+              // went to 4-3 printed `0-0` with the pens somewhere below. The
+              // way a scoreline says this is `0 (3) - (4) 0`, so that is what
+              // it says. Smaller and on the accent so the ninety minutes stay
+              // the headline figure and the brackets read as the tiebreak they
+              // are.
+              if (pens != null) ...[
+                TextSpan(text: ' (${pens!.$1})', style: _pensStyle(context)),
+                const TextSpan(text: '-'),
+                TextSpan(text: '(${pens!.$2}) ', style: _pensStyle(context)),
+              ] else
+                const TextSpan(text: '-'),
+              TextSpan(text: '$rightGoals'),
+            ],
+          ),
           key: const ValueKey('summary-score'),
           // The other display run on this screen: two digits, read before any
           // word on the page. Tabular still, so 1-1 and 0-11 sit on the same

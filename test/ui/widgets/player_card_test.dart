@@ -16,6 +16,8 @@ import 'package:merge_empire_fc/ui/widgets/player_card.dart';
 const CardView _view = (
   name: 'Bobby Charlton',
   tier: 5,
+  displayTier: 5,
+  age: 24,
   rating: 72,
   position: 'FWD',
   injured: false,
@@ -35,6 +37,8 @@ const CardView _view = (
 CardView withSuspension({bool injured = false}) => (
   name: _view.name,
   tier: _view.tier,
+  displayTier: _view.displayTier,
+  age: _view.age,
   rating: _view.rating,
   position: _view.position,
   injured: injured,
@@ -52,6 +56,8 @@ CardView withSuspension({bool injured = false}) => (
 CardView withForm(int form) => (
   name: _view.name,
   tier: _view.tier,
+  displayTier: _view.displayTier,
+  age: _view.age,
   rating: _view.rating,
   position: _view.position,
   injured: _view.injured,
@@ -211,6 +217,8 @@ void main() {
         await pumpCard(tester, (
           name: 'X',
           tier: tier,
+          displayTier: tier,
+          age: 24,
           rating: 50,
           position: 'MID',
           injured: false,
@@ -238,6 +246,8 @@ void main() {
       await pumpCard(tester, (
         name: 'X',
         tier: tier,
+        displayTier: tier,
+        age: 24,
         rating: 50,
         position: 'MID',
         injured: false,
@@ -268,6 +278,8 @@ void main() {
     await pumpCard(tester, (
       name: 'X',
       tier: 99,
+      displayTier: 99,
+      age: 24,
       rating: 50,
       position: 'MID',
       injured: false,
@@ -297,6 +309,8 @@ void main() {
     await pumpCard(tester, (
       name: 'X',
       tier: 3,
+      displayTier: 3,
+      age: 24,
       rating: 40,
       position: 'DEF',
       injured: true,
@@ -339,6 +353,8 @@ void main() {
     await pumpCard(tester, (
       name: 'Wojciech Szczesny-Lewandowski III',
       tier: 5,
+      displayTier: 5,
+      age: 24,
       rating: 72,
       position: 'GK',
       injured: false,
@@ -371,6 +387,8 @@ void main() {
       await pumpCard(tester, (
         name: 'X',
         tier: 5,
+        displayTier: 5,
+        age: 24,
         rating: 70,
         position: 'MID',
         injured: false,
@@ -394,6 +412,8 @@ void main() {
       await pumpCard(tester, (
         name: 'X',
         tier: 5,
+        displayTier: 5,
+        age: 24,
         rating: 70,
         position: 'MID',
         injured: false,
@@ -420,6 +440,8 @@ void main() {
         await pumpCard(tester, (
           name: 'X',
           tier: 5,
+          displayTier: 5,
+          age: 24,
           rating: 70,
           position: 'MID',
           injured: false,
@@ -490,6 +512,8 @@ void main() {
       await pumpCard(tester, (
         name: 'Bobby Charlton',
         tier: 5,
+        displayTier: 5,
+        age: 24,
         rating: 72,
         position: 'FWD',
         injured: false,
@@ -544,6 +568,60 @@ void main() {
     testWidgets('and a card with none draws none', (tester) async {
       await pumpCard(tester, _view);
       expect(find.byKey(const ValueKey('card-trait')), findsNothing);
+    });
+  });
+
+  group('HIS AGE IS ON THE CARD', () {
+    // The one number that says which way a player is about to go. A 31-year-old
+    // Gold Superstar and a 24-year-old Gold Superstar are the same card by
+    // every other figure on it and they are not the same buy, and until this
+    // was drawn the only way to tell was to open the sheet on each in turn.
+    CardView withAge(int age) => (
+      name: _view.name,
+      tier: _view.tier,
+      displayTier: _view.displayTier,
+      age: age,
+      rating: _view.rating,
+      position: _view.position,
+      injured: _view.injured,
+      onLoan: _view.onLoan,
+      variant: _view.variant,
+      fitness: _view.fitness,
+      incomePerSec: _view.incomePerSec,
+      maxed: _view.maxed,
+      atCap: _view.atCap,
+      trait: _view.trait,
+      form: _view.form,
+      suspended: _view.suspended,
+    );
+
+    testWidgets('every card carries it, prime or not', (tester) async {
+      await pumpCard(tester, withAge(24));
+      final age = tester.widget<Text>(find.byKey(const ValueKey('card-age')));
+      expect(age.data, '24');
+      // Bare digits on the card; the localised word goes to the reader.
+      expect(age.semanticsLabel, contains(t('squad.stat.age')));
+      expect(age.semanticsLabel, contains('24'));
+    });
+
+    testWidgets('and it turns amber, then red, as the years bite', (
+      tester,
+    ) async {
+      Color inkAt(WidgetTester t) =>
+          t.widget<Text>(find.byKey(const ValueKey('card-age'))).style!.color!;
+
+      await pumpCard(tester, withAge(24));
+      final prime = inkAt(tester);
+      await pumpCard(tester, withAge(declineStartAge + 2));
+      final declining = inkAt(tester);
+      await pumpCard(tester, withAge(retirementAge - 1));
+      final last = inkAt(tester);
+
+      expect(declining, isNot(prime));
+      expect(last, isNot(declining));
+      // The same three steps the badge, the token and Colin all run on.
+      expect(declining, ageInk(declineStartAge + 2, prime));
+      expect(last, ageInk(retirementAge - 1, prime));
     });
   });
 

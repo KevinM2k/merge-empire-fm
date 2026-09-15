@@ -168,7 +168,7 @@ class PlayerEnergy {
     'highPress': 1.6,
   };
 
-  /// Older players tire faster: +4% drain per season played.
+  /// Older players tire faster: +4% drain per season played for this club.
   static const double ageDrainPerSeason = 0.04;
 }
 

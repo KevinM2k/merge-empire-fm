@@ -8,6 +8,27 @@ library;
 
 /// Replaces the generated entry, or adds a key Korean did not have.
 const Map<String, String> koCopy = <String, String>{
+
+  // ── 선수에게 '나이'가 생겼다 ────────────────────────────────────────────
+  //
+  // 생성된 문구는 교체된 모델(「평점 하락은 10시즌부터, 은퇴는 15」)을 설명하며
+  // 그 숫자들은 모두 낡았다. 나이를 축으로 다시 썼고, 자리표시자는 호출 측이
+  // 넘기는 것에 맞췄다.
+  'coach.squad.veteran': '{name} 이제 {age}세 — 여기서부터 나이가 드러난다. {retire}세에 은퇴.',
+  'coach.squad.declining': '{name} {age}세, 전성기 지남 — 이미 평점 {pen}점 하락. 은퇴까지 {left}시즌.',
+  'coach.squad.sell_now': '{name} {age}세, 빠르게 추락 — 평점 {pen}점 하락. {left}시즌밖에 안 남았으니 지금이 매각 적기.',
+  'squad.badge.sell_now': '⚠️ 지금 판매 — 급락 중',
+  'squad.stat.age': '나이',
+  'merge.refused_ageing': '더 젊은 쪽이 이미 더 나은 선수다.',
+  'cup.shootout.title': '승부차기',
+  'cup.shootout.steps_up': '{club} 키커가 나선다…',
+  'cup.shootout.scored': '골!',
+  'cup.shootout.missed': '실축!',
+  'cup.shootout.sudden_death': '서든데스',
+  'squad.detail.age_decline': '노화 감소',
+  'offseason.retired': '40세에 은퇴',
+  'manager.transfer.long_decline': '{age}세, 나이로 평점 {penalty}점 하락. 은퇴까지 {seasonsLeft}시즌뿐. 매각 시기가 닫히고 있다.',
+
   'customise.item.face.bubblegum': '풍선껌',
 
   // 사운드·음악 옆의 세 번째 줄. 모든 버튼의 탭 소리.

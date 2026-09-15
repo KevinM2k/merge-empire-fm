@@ -221,6 +221,14 @@ void _migrateGridCards(Map<String, dynamic> data) {
     // Clamp seasonsPlayed inflated by the old multi-click season-end bug.
     if (card.seasonsPlayed > maxSeasons) raw['seasonsPlayed'] = maxSeasons;
 
+    // **A save from before ages existed gets a birthday.** The tier says where
+    // the player started and the (now clamped) service says how long ago, which
+    // is the closest thing to one the old save holds — see `derivedAge`. Done
+    // AFTER the clamp so a card the bug inflated is not retired on sight.
+    if (def != null && raw['age'] is! num) {
+      raw['age'] = derivedAge(def.tier, card.seasonsPlayed);
+    }
+
     // Pro-mode fatigue: back-fill a full bar. Harmless for Casual saves, and
     // gives a correct full-energy start if they later switch via New Team.
     if (def != null && raw['energy'] == null) {

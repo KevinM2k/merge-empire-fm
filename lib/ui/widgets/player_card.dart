@@ -18,6 +18,8 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:merge_empire_fc/data/art_paths.dart';
 import 'package:merge_empire_fc/data/card_theme.dart';
+import 'package:merge_empire_fc/data/players.dart'
+    show declineStartAge, retirementAge;
 import 'package:merge_empire_fc/engine/idle_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
@@ -198,7 +200,37 @@ const Color loanBadge = Color(0xFF26A69A);
 /// card is stored, and a screen already has the engines to hand to answer these.
 typedef CardView = ({
   String name,
+
+  /// What he IS — the definition's tier. Drives the ARTWORK and nothing else
+  /// that age can move: a declining World Legend is still drawn as the World
+  /// Legend whose portrait the player scouted.
   int tier,
+
+  /// **What he LOOKS like, which is not always what he is.**
+  ///
+  /// Age eats into a rating (see `ageDeclinePenalty`) and a card whose rating
+  /// has fallen out of its tier's band stops wearing that tier's colours: the
+  /// border, the body gradient and the tier chip come down a rung — blue to
+  /// purple to gold — while the portrait, the name and the `definitionId` stay
+  /// exactly as they were. That is the warning that a veteran is fading, and it
+  /// is deliberately the ONLY thing that changes, because he still merges,
+  /// sells and scouts as the card he really is.
+  ///
+  /// Equal to [tier] for anybody under 31, which is most of a squad.
+  int displayTier,
+
+  /// **HOW OLD HE IS, and it is on the face of the card.**
+  ///
+  /// The one number that says which way a player is about to go. A 31-year-old
+  /// Gold Superstar and a 24-year-old Gold Superstar are the same card by every
+  /// other figure on it and they are not the same buy, and until this was drawn
+  /// the only way to tell was to open the sheet on each of them in turn.
+  ///
+  /// `Card.js` has always had a number here — it draws the seasons count in the
+  /// footer row beside the form arrow, and this port shipped the arrow without
+  /// it. This is that slot, carrying the figure that actually decides a
+  /// player's future now that service no longer does.
+  int age,
   int rating,
   String position,
   bool injured,
@@ -271,6 +303,19 @@ Color formInk(int form) =>
 
 String formGlyph(int form) => form > 0 ? '▲' : '▼';
 
+/// The colour an age is written in — the decline ladder as a traffic light.
+///
+/// The same three steps `ageBadgeKeyFor`, `season_end.ageMilestone` and Colin's
+/// squad line all run on, so a card, a badge and a sentence cannot disagree
+/// about the same player. [ink] is the caption's own colour, which is what a
+/// player still in his prime is written in: most of a squad is, and colouring
+/// every card would say nothing about any of them.
+Color ageInk(int age, Color ink) => age >= retirementAge - 1
+    ? const Color(0xFFF87171)
+    : age >= declineStartAge + 2
+    ? const Color(0xFFFBBF24)
+    : ink;
+
 class PlayerCard extends StatelessWidget {
   const PlayerCard({
     super.key,
@@ -324,7 +369,7 @@ class PlayerCard extends StatelessWidget {
   /// accent, which is what a card outside a squad context should wear.
   final Color? kitColor;
 
-  TierTheme get _theme => tierThemes[view.tier] ?? tierThemes[1]!;
+  TierTheme get _theme => tierThemes[view.displayTier] ?? tierThemes[1]!;
 
   @override
   Widget build(BuildContext context) {
@@ -532,9 +577,12 @@ class PlayerCard extends StatelessWidget {
                                 // another way. See the cross over the art.
                                 Flexible(
                                   child: _Chip(
-                                    key: ValueKey('card-tier-${view.tier}'),
-                                    label: tierLabel[view.tier] ??
-                                        'T${view.tier}',
+                                    key: ValueKey(
+                                      'card-tier-${view.displayTier}',
+                                    ),
+                                    label:
+                                        tierLabel[view.displayTier] ??
+                                        'T${view.displayTier}',
                                     background: chipBg,
                                     foreground: view.injured
                                         ? chipRed
@@ -604,6 +652,40 @@ class PlayerCard extends StatelessWidget {
                                       fontWeight: FontWeight.w700,
                                       color: captionInk,
                                     ),
+                                  ),
+                                ),
+                                // **THE AGE, at the end of the name row.** It
+                                // is the slot `Card.js` fills with a seasons
+                                // count, and it is the only line on the card
+                                // with room for one — the top row is rating,
+                                // ribbon and position, and the tier row above
+                                // carries the status chips.
+                                //
+                                // Bare digits, because a prefix letter is
+                                // English and this ships in ten languages, and
+                                // the screen reader is handed the localised
+                                // word instead. Coloured on the same ladder the
+                                // badge and the coach run on: plain while he is
+                                // in his prime, amber once the decline is
+                                // compounding, red in his final season.
+                                const SizedBox(width: 3),
+                                Text(
+                                  '${view.age}',
+                                  key: const ValueKey('card-age'),
+                                  semanticsLabel:
+                                      '${t('squad.stat.age')} ${view.age}',
+                                  style: TextStyle(
+                                    // The floor, not a point under it: the
+                                    // form arrow beside it sits on the same
+                                    // one, and `architecture_test` is what
+                                    // found the 11 this shipped with. A tight
+                                    // line box for the same reason the arrow
+                                    // has one — the row is already as tall as
+                                    // the name.
+                                    fontSize: minFontSize,
+                                    height: 1,
+                                    fontWeight: FontWeight.w800,
+                                    color: ageInk(view.age, captionInk),
                                   ),
                                 ),
                                 if (view.form != 0) ...[

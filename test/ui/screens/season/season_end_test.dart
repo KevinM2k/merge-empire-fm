@@ -232,30 +232,58 @@ void main() {
 
     await tester.tap(find.byKey(const ValueKey('play-match')));
     await tester.pumpAndSettle();
+
+    // **COLIN HAS TO BE CLEARED BEFORE ANYTHING ELSE IS PRESSED, and that is
+    // not politeness — his bubble eats the tap.**
+    //
+    // `CoachCorner` lays a full-screen `GestureDetector` with
+    // `HitTestBehavior.opaque` and `onTap: _dismiss` over the page while he is
+    // speaking, so the FIRST tap anywhere clears him and presses nothing. That
+    // is the design — a tap anywhere is how you are done with him — and it is
+    // exactly what a player does. It only bites a test, because `tap()` merely
+    // WARNS when it lands on something else.
+    //
+    // He reacts mid-match as well as at full time ("the match does not stop
+    // while he says so"), and whether a given afternoon earns a line is a
+    // simulated scoreline's business. So this is a loop rather than a guard:
+    // clear whatever is up, however many times he speaks.
+    Future<void> clearColin() async {
+      final colin = find.byKey(const ValueKey('match-coach-line'));
+      for (var i = 0; i < 4 && colin.evaluate().isNotEmpty; i++) {
+        await tester.tapAt(const Offset(20, 20));
+        await tester.pumpAndSettle();
+      }
+      expect(colin, findsNothing, reason: 'his bubble would eat the next tap');
+    }
+
+    await clearColin();
+
+    // **AND A GUARDED STEP ASSERTS THAT IT HAPPENED.** `if (isNotEmpty) tap`
+    // was the whole flake: a swallowed skip left the match running, and the
+    // failure surfaced twenty-three lines later as "full time offered no way
+    // out" — a missed control turning into an assertion about something else.
     final skip = find.byKey(const ValueKey('match-skip'));
-    if (skip.evaluate().isNotEmpty) await tester.tap(skip);
-    await tester.pumpAndSettle();
-    await tester.pump(const Duration(milliseconds: 1500));
-    await tester.pumpAndSettle();
+    if (skip.evaluate().isNotEmpty) {
+      await tester.tap(skip);
+      await tester.pumpAndSettle();
+      expect(skip, findsNothing, reason: 'the skip was swallowed');
+    }
+
     // **FULL TIME WAITS TO BE DISMISSED.** The commentary page used to leave on
     // its own 1.4s after the sting; it holds now so the ninety minutes can be
     // read back, and the row of controls becomes one CONTINUE.
-    // **AND COLIN HAS THE FLOOR FIRST.** He reacts at the whistle to a result
-    // worth a sentence — `fullTimeReactionKey` — and his bubble is the shape
-    // every coach line takes: the page dimmed behind it and a tap anywhere done
-    // with it. So the tap that would have pressed CONTINUE clears him instead,
-    // and the one after it leaves.
     //
-    // **Guarded, and this is the one place a guard is honest**: nine results
-    // earn a line and most afternoons do not, and the scoreline here is
-    // simulated. The assertion inside is what keeps it from going silent.
-    final colin = find.byKey(const ValueKey('match-coach-line'));
-    if (colin.evaluate().isNotEmpty) {
-      await tester.tapAt(const Offset(20, 20));
-      await tester.pumpAndSettle();
-      expect(colin, findsNothing, reason: 'his bubble would eat CONTINUE');
-    }
+    // **Waited for, not timed.** A fixed 1,500ms pump is a guess about how long
+    // the whistle takes, and a guess is a flake with a longer fuse.
     final go = find.byKey(const ValueKey('match-continue'));
+    for (var i = 0; i < 40 && go.evaluate().isEmpty; i++) {
+      await tester.pump(const Duration(milliseconds: 200));
+    }
+    await tester.pumpAndSettle();
+
+    // He reacts at the whistle too — `fullTimeReactionKey` — and the tap that
+    // would have pressed CONTINUE clears him instead.
+    await clearColin();
     expect(go, findsOneWidget, reason: 'full time offered no way out');
     await tester.tap(go);
     await tester.pumpAndSettle();

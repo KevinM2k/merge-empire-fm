@@ -55,6 +55,7 @@ ProviderContainer shopStyleContainer(Map<String, dynamic> state) {
 Map<String, dynamic> _saveWithOffer({
   int price = 5000,
   int seasonsPlayed = 0,
+  int? age,
   bool injured = false,
   int coins = 0,
 }) {
@@ -66,6 +67,7 @@ Map<String, dynamic> _saveWithOffer({
     'instanceId': _instanceId,
     'variant': 0,
     'seasonsPlayed': seasonsPlayed,
+    'age': ?age,
     'injured': injured,
   };
   final def = players.firstWhere((p) => p.id == _defId);
@@ -567,11 +569,12 @@ void main() {
 
     test('a player in their final season is a sell, at a fair price', () {
       // Priced AT market: a 200% premium outranks everything, so a fat offer
-      // would prove the wrong branch.
+      // would prove the wrong branch. A final season is an AGE now — the
+      // season before the retirement sweep — not a service count.
       final sellValue = players.firstWhere((p) => p.id == _defId).sellValue;
       final state = _saveWithOffer(
         price: sellValue,
-        seasonsPlayed: 14,
+        age: retirementAge - 1,
         coins: 999999,
       );
       final offer =

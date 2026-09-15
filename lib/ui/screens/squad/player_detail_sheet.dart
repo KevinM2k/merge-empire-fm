@@ -54,7 +54,7 @@ import 'package:merge_empire_fc/engine/trait_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 import 'package:merge_empire_fc/ui/widgets/player_card.dart'
-    show formGlyph, formInk;
+    show ageInk, formGlyph, formInk;
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/state/card_instance.dart';
 import 'package:merge_empire_fc/ui/popups/bottom_sheet_popup.dart';
@@ -460,12 +460,17 @@ class _Header extends StatelessWidget {
   Widget build(BuildContext context) {
     final kit = Theme.of(context).extension<KitTheme>()!;
     final rating = stats.rating;
-    final seasons = card.seasonsPlayed;
+    // **HIS AGE, not his service.** The career plate used to count seasons at
+    // the club; age is what decides whether he is getting better or worse, so
+    // age is what leads. A loanee still shows the matches left on his spell —
+    // that is what you are deciding about him.
+    final age = card.age;
+    final agePenalty = ageDeclinePenalty(age);
     // The league's own physicality, less whatever the card's trait takes back
     // off it — see the note on the `INJ` row.
-    final ageBadge = ageBadgeKeyFor(card.seasonsPlayed);
+    final ageBadge = ageBadgeKeyFor(card.age);
     final injuryPct =
-        (getInjuryChance(card.seasonsPlayed, divisionIndex) *
+        (getInjuryChance(card.wearYears, divisionIndex) *
                 (1 - getTraitBonus(card, def.position).injuryReduction).clamp(
                   0.0,
                   1.0,
@@ -587,14 +592,23 @@ class _Header extends StatelessWidget {
             right: 12,
             child: _HeaderPlate(
               key: const ValueKey('detail-career'),
-              // A loanee arrives fresh, so their seasons count is always zero —
-              // a stat with one possible value is a dead slot. What actually
+              // A loanee is here for a fixed number of matches and then gone,
+              // so his age is not the number you are deciding on. What actually
               // runs down on a loan is the GAMES, so that takes its place.
-              value: '${onLoanToUs ? gamesLeft : seasons}',
-              valueKey: const ValueKey('detail-seasons'),
-              valueColour: onLoanToUs ? const Color(0xFF7FE3D9) : null,
+              value: '${onLoanToUs ? gamesLeft : age}',
+              valueKey: const ValueKey('detail-age'),
+              // **The age is written in the same three colours the card
+              // writes it in**, so the figure a player taps through from is
+              // the figure they land on. A man still in his prime gets null —
+              // the plate's own ink — because most of a squad is, and
+              // colouring every one of them would say nothing about any.
+              valueColour: onLoanToUs
+                  ? const Color(0xFF7FE3D9)
+                  : agePenalty > 0
+                  ? ageInk(age, const Color(0xFFFBBF24))
+                  : null,
               label: t(
-                onLoanToUs ? 'squad.stat.games_left' : 'squad.stat.seasons',
+                onLoanToUs ? 'squad.stat.games_left' : 'squad.stat.age',
               ),
               rows: [
                 (
@@ -611,6 +625,22 @@ class _Header extends StatelessWidget {
                 //
                 // Absent for a player in neither, which is most of them: a row
                 // reading "Form 0" is a slot spent saying nothing.
+                // **WHAT THE YEARS ARE COSTING HIM, as a number.**
+                //
+                // The badge below already says "Declining" and the card has
+                // dropped a colour by now; neither says how much. This is the
+                // sheet a player opens to find out what a mark means — the
+                // form row exists for exactly that reason — and the age
+                // penalty is the one figure behind every other change on the
+                // card: the rating, the sell price, the border.
+                //
+                // Absent for anybody in his prime, which is most of a squad.
+                if (agePenalty > 0)
+                  (
+                    label: t('squad.detail.age_decline'),
+                    value: '−$agePenalty',
+                    tint: ageInk(age, const Color(0xFFFBBF24)),
+                  ),
                 if (card.form != 0)
                   (
                     label: t(
@@ -790,7 +820,11 @@ class _Header extends StatelessWidget {
                     ],
                   ),
                   Text(
-                    '${tName('player.tier', '${def.tier}')} · '
+                    // **The tier he PRESENTS as**, which is what his card is
+                    // drawn in and so what this line has to agree with — see
+                    // `CardInstance.displayTier`. The portrait above is still
+                    // the definition's; only the rung he is worth comes down.
+                    '${tName('player.tier', '${card.displayTier}')} · '
                     '${t('pos.${def.position}')}',
                     style: const TextStyle(
                       fontSize: 12,

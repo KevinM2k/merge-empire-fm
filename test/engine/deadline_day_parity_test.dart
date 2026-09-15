@@ -57,6 +57,24 @@ Map<String, dynamic> _scenario(String name) =>
 /// shape asserted separately.
 const _idKeys = {'instanceId', 'signedInstanceId'};
 
+/// **`age` is the port's, and the JS has no answer to compare it against.**
+///
+/// The JS counts seasons of service and drops ten rating points a season past
+/// the tenth; this port gives every card a birthday instead — scouted at an age
+/// that rises with its tier, declining on a curve from 31, retired at 40 (see
+/// the age block in `data/players.dart`). A card instance therefore carries one
+/// field more than the dump's does, and it is a field the reference could not
+/// hold a value for.
+///
+/// Stripped rather than asserted, for the reason the module's own header gives:
+/// a value the harness compares is the JS's. The age rules are covered in
+/// `players_test`, `merge_engine_test` and `season_end_test` instead, where
+/// they can be checked against what they are actually supposed to do. Nothing
+/// else about the deal moves — the price a veteran fetches is the same
+/// expression it always was, only reading an age rather than a service count,
+/// and every card in this fixture is young enough that both read zero.
+const _portOnlyCardKeys = {'age'};
+
 /// **`displayName` is compared by its FIRST NAME only, and that is a deliberate
 /// divergence rather than a hole.**
 ///
@@ -83,7 +101,7 @@ Object? _stripIds(Object? v) {
   if (v is Map) {
     return {
       for (final e in v.entries)
-        if (!_idKeys.contains(e.key))
+        if (!_idKeys.contains(e.key) && !_portOnlyCardKeys.contains(e.key))
           '${e.key}': _divergedNameKeys.contains(e.key) && e.value is String
               ? _firstNameOf(e.value as String)
               : _stripIds(e.value),

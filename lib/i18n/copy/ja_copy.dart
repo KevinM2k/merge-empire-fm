@@ -8,6 +8,27 @@ library;
 
 /// Replaces the generated entry, or adds a key Japanese did not have.
 const Map<String, String> jaCopy = <String, String>{
+
+  // ── 選手に「年齢」がついた ───────────────────────────────────────────────
+  //
+  // 生成された文は置き換え前のモデル（「評価低下は10シーズン目から、引退は15」）
+  // を説明しており、その数字はすべて古い。年齢を軸に書き直し、プレースホルダは
+  // 呼び出し側が渡すものに合わせてある。
+  'coach.squad.veteran': '{name}は{age}歳 — ここから年齢が響いてくる。{retire}歳で引退。',
+  'coach.squad.declining': '{name}は{age}歳でピークを過ぎた — すでに評価{pen}ポイント減。引退まで{left}シーズン。',
+  'coach.squad.sell_now': '{name}は{age}歳で急降下中 — 評価{pen}ポイント減。残り{left}シーズン、売るなら今。',
+  'squad.badge.sell_now': '⚠️ 売却推奨 — 急降下中',
+  'squad.stat.age': '年齢',
+  'merge.refused_ageing': '若い方がすでに上の選手だ。',
+  'cup.shootout.title': 'PK戦',
+  'cup.shootout.steps_up': '{club}のキッカーが構える…',
+  'cup.shootout.scored': 'ゴール！',
+  'cup.shootout.missed': '外した！',
+  'cup.shootout.sudden_death': 'サドンデス',
+  'squad.detail.age_decline': '年齢による低下',
+  'offseason.retired': '40歳で引退',
+  'manager.transfer.long_decline': '{age}歳、年齢で評価{penalty}ポイント減。引退まで残り{seasonsLeft}シーズン。売り時は今しかない。',
+
   'customise.item.face.bubblegum': 'ガム',
 
   // サウンド・音楽に並ぶ3つ目の行。すべてのボタンのタップ音。
