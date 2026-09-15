@@ -1,4 +1,5 @@
-Bug fixes.
+Penalty shootouts, taken on screen.
 
-• Tapping a boost that is already running — a Crowd Roar, say — now restarts it at full length and refills its ring, instead of hiding a second one behind the first. Different boosts still run together.
-• The scoreboard's Stats control is a proper button in the board's corner now.
+• A cup tie level at full time now goes to penalties in front of you, one kick at a time — the taker walks up, a pause, then the kick, with the shootout score in brackets on the board.
+• Every kick is a card with the taker's face on it. Eleven different men take one before anybody takes a second.
+• Fixed the write-up after a shootout calling the tie a draw and naming a next round for both clubs.

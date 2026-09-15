@@ -1,3 +1,10 @@
+## v2.1.5
+
+- A cup tie level at full time is now settled in front of you, one kick at a time: the taker walks up, there is a pause, and then the kick, with the shootout score kept in brackets on the board and the board reading PENALTIES until it is over. Before this the tie ended on a level scoreline under the word FULL TIME, and a card a moment later said whether you were through.
+- Every kick that is taken is drawn as a card with the taker's face and name on it — green for one in their net, red for one in ours, and a miss neither. Eleven different men take one before anybody takes a second, and the goalkeeper is last in the order.
+- The tactic strip, the boost strip and the Subs button now close at the whistle rather than staying live over the shootout, and the pitch carries the final statistics through the kicks. Speed and skip stay, so the kicks can be taken as quickly as you like.
+- Fixed the write-up after a tie settled on penalties calling it a draw, and naming a fixture in the next round for both clubs — including the one that had just gone out.
+
 ## v2.1.4
 
 - Tapping a boost that is already running — a Crowd Roar, say — now restarts it at full length and refills its ring on the pitch, instead of layering a second one behind the first where you could not see it. Different boosts still run together: a Roar and a Sharp Shooting are two lifts, as before.
