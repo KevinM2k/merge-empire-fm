@@ -1,3 +1,9 @@
+## v2.1.1
+
+- Fixed a cup tie won on penalties being called a draw at full time, moments before the card saying you were through.
+- Player traits and match traits now have a tab each in the sheet that lists them all, so the match half is no longer below the fold.
+- Fixed the tutorial's end-of-match screen offering to double coins when it deliberately shows no video to watch.
+
 ## v2.1.0
 
 - Every player has a second, match trait slot, open on every card. Twelve traits that only pay when the situation calls for them — a derby, a cup tie, a relegation fight, the last fifteen minutes.
