@@ -28,12 +28,10 @@ import 'package:merge_empire_fc/data/match_traits.dart';
 import 'package:merge_empire_fc/data/players.dart';
 import 'package:merge_empire_fc/data/traits.dart';
 import 'package:merge_empire_fc/engine/match_trait_engine.dart';
-import 'package:merge_empire_fc/engine/squad_rating.dart';
 import 'package:merge_empire_fc/engine/negotiation_engine.dart' show findOurCard;
 import 'package:merge_empire_fc/engine/trait_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
-import 'package:merge_empire_fc/state/card_instance.dart';
 import 'package:merge_empire_fc/ui/popups/feature_unlock.dart';
 import 'package:merge_empire_fc/ui/screens/grid/grid_providers.dart' show proModeProvider;
 import 'package:merge_empire_fc/ui/screens/shop/purchase_flow.dart';
@@ -106,45 +104,6 @@ class TraitBlockState extends ConsumerState<TraitBlock> {
           ? noneRow
           : (((trait?['level'] as num?)?.toInt() ?? 1) - 1).clamp(0, 2),
     );
-  }
-
-  /// What this trait is worth on THIS card — by DIFFERENCE, because
-  /// `getCardStats` is the single source of truth and recomposing the bonus
-  /// fields here is how the sheet and the sim come to disagree. The other
-  /// seven axes are the shipped `feature.effect.*` labels.
-  List<String> _effectsOf(
-    CardInstance? card,
-    Map<String, dynamic>? trait,
-    Map<String, dynamic> ratios,
-  ) {
-    if (card == null || trait == null) return const [];
-    final def = getTrait(trait['id'] as String?);
-    final level = (trait['level'] as num?)?.toInt();
-    final lvl = level == null ? null : getTraitLevel(def, level);
-    if (lvl == null) return const [];
-
-    final bare = CardInstance(<String, dynamic>{...card.raw}..remove('trait'));
-    final shown = CardInstance(<String, dynamic>{...card.raw, 'trait': trait});
-    final with_ = getCardStats(shown, definitionRatios: ratios);
-    final without = getCardStats(bare, definitionRatios: ratios);
-
-    int pct(double v) => (v * 100).round();
-    final rows = <String>[];
-    void add(String key, int n) {
-      if (n <= 0) return;
-      rows.add(t('feature.effect.$key', {'n': '$n'}));
-    }
-
-    add('atk', with_.attack - without.attack);
-    add('def', with_.defence - without.defence);
-    add('income', pct(lvl.incomeBonus));
-    add('matchrev', pct(lvl.matchRevBonus));
-    add('injury', pct(lvl.injuryReduction));
-    add('teaminjury', pct(lvl.teamInjuryReduction));
-    add('recovery', pct(lvl.recoveryBonus));
-    add('aging', lvl.agingReduction);
-    add('stamina', pct(1 - (lvl.staminaMult ?? 1)));
-    return rows;
   }
 
   void _select(TraitSlot slot) {
@@ -332,6 +291,8 @@ class TraitBlockState extends ConsumerState<TraitBlock> {
                   context,
                   position: widget.def.position,
                   hardMode: ref.read(proModeProvider),
+                  card: card,
+                  ratios: ratios,
                   heldPlayer: playerHeld?.id,
                   heldMatch: matchHeld?.id,
                 ),
@@ -427,7 +388,7 @@ class TraitBlockState extends ConsumerState<TraitBlock> {
               _Description(
                 title: traitTitle(playerTrait!),
                 desc: traitDesc(playerHeld),
-                effects: _effectsOf(card, playerTrait, ratios),
+                effects: traitEffectsOn(card, playerTrait, ratios),
               ),
               const SizedBox(height: 10),
             ],
@@ -719,44 +680,55 @@ class _Description extends StatelessWidget {
           key: const ValueKey('detail-trait-desc'),
           style: TextStyle(fontSize: 12, height: 1.35, color: kit.textMuted),
         ),
-        if (when case final w?) ...[
-          const SizedBox(height: 4),
-          Text(
-            '${t('matchtrait.when').toUpperCase()} · $w',
-            key: const ValueKey('detail-trait-when'),
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.3,
-              color: kit.accentBright,
-            ),
-          ),
-        ],
-        if (effects.isNotEmpty) ...[
+        // **WHEN on the left, WHAT on the right.** The room to the right of
+        // the description was empty and the chips sat under it in a third
+        // row; one row now, the circumstance leading and the figures
+        // trailing. A first-slot trait has no WHEN and its chips lead.
+        if (when != null || effects.isNotEmpty) ...[
           const SizedBox(height: 6),
-          Wrap(
-            key: const ValueKey('detail-trait-effects'),
-            spacing: 6,
-            runSpacing: 4,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              for (final row in effects)
-                DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: kit.accent.withValues(alpha: 0.16),
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    child: Text(
-                      row,
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w900,
-                        letterSpacing: 0.4,
-                        color: kit.accentBright,
-                      ),
+              if (when case final w?)
+                Expanded(
+                  child: Text(
+                    '${t('matchtrait.when').toUpperCase()} · $w',
+                    key: const ValueKey('detail-trait-when'),
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.3,
+                      color: kit.accentBright,
                     ),
                   ),
+                ),
+              if (effects.isNotEmpty)
+                Wrap(
+                  key: const ValueKey('detail-trait-effects'),
+                  spacing: 6,
+                  runSpacing: 4,
+                  alignment: WrapAlignment.end,
+                  children: [
+                    for (final row in effects)
+                      DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: kit.accent.withValues(alpha: 0.16),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          child: Text(
+                            row,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: 0.4,
+                              color: kit.accentBright,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
             ],
           ),

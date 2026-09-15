@@ -17,6 +17,8 @@ library;
 import 'package:merge_empire_fc/data/match_traits.dart';
 import 'package:merge_empire_fc/data/players.dart';
 import 'package:merge_empire_fc/data/traits.dart';
+import 'package:merge_empire_fc/engine/squad_rating.dart';
+import 'package:merge_empire_fc/state/card_instance.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 
 /// A catalogue hit, or null when the key is missing — `t` hands back the key
@@ -62,6 +64,57 @@ String matchTraitName(MatchTrait trait) =>
 
 String matchTraitDesc(MatchTrait trait) =>
     _catalogue('matchtrait.desc.${trait.id}') ?? trait.desc;
+
+/// What a first-slot trait is worth on THIS card, at [trait]'s level — by
+/// DIFFERENCE, because `getCardStats` is the single source of truth and
+/// recomposing the bonus fields here is how the sheet and the sim come to
+/// disagree. ATK and DEF in points; the other seven axes are the shipped
+/// `feature.effect.*` labels.
+List<String> traitEffectsOn(
+  CardInstance? card,
+  Map<String, dynamic>? trait,
+  Map<String, dynamic> ratios,
+) {
+  if (card == null || trait == null) return const [];
+  final def = getTrait(trait['id'] as String?);
+  final level = (trait['level'] as num?)?.toInt();
+  final lvl = level == null ? null : getTraitLevel(def, level);
+  if (lvl == null) return const [];
+
+  final bare = CardInstance(<String, dynamic>{...card.raw}..remove('trait'));
+  final shown = CardInstance(<String, dynamic>{...card.raw, 'trait': trait});
+  final with_ = getCardStats(shown, definitionRatios: ratios);
+  final without = getCardStats(bare, definitionRatios: ratios);
+
+  int pct(double v) => (v * 100).round();
+  final rows = <String>[];
+  void add(String key, int n) {
+    if (n <= 0) return;
+    rows.add(t('feature.effect.$key', {'n': '$n'}));
+  }
+
+  add('atk', with_.attack - without.attack);
+  add('def', with_.defence - without.defence);
+  add('income', pct(lvl.incomeBonus));
+  add('matchrev', pct(lvl.matchRevBonus));
+  add('injury', pct(lvl.injuryReduction));
+  add('teaminjury', pct(lvl.teamInjuryReduction));
+  add('recovery', pct(lvl.recoveryBonus));
+  add('aging', lvl.agingReduction);
+  add('stamina', pct(1 - (lvl.staminaMult ?? 1)));
+  return rows;
+}
+
+/// The three levels' worth on THIS card, `I +2 ATK` style, for a first-slot
+/// trait nobody holds yet — the catalogue's answer to "what does it do".
+List<String> traitLadderOn(
+  CardInstance? card,
+  Trait trait,
+  Map<String, dynamic> ratios,
+) => [
+  for (final level in trait.levels)
+    '${level.label} ${traitEffectsOn(card, {'id': trait.id, 'level': level.level}, ratios).join(' ')}',
+];
 
 /// When it fires — the condition, in words. A description says what the
 /// trait is; this says the circumstance, which is the thing to plan round.

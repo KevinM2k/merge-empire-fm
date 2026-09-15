@@ -15,6 +15,7 @@ import 'package:flutter/material.dart';
 import 'package:merge_empire_fc/data/match_traits.dart';
 import 'package:merge_empire_fc/data/traits.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
+import 'package:merge_empire_fc/state/card_instance.dart';
 import 'package:merge_empire_fc/ui/popups/bottom_sheet_popup.dart';
 import 'package:merge_empire_fc/ui/popups/sheet_header.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
@@ -24,6 +25,8 @@ Future<void> showTraitCatalogue(
   BuildContext context, {
   required String position,
   required bool hardMode,
+  required CardInstance? card,
+  required Map<String, dynamic> ratios,
   String? heldPlayer,
   String? heldMatch,
 }) => showBottomSheetPopup<void>(
@@ -31,6 +34,8 @@ Future<void> showTraitCatalogue(
   child: TraitCatalogueSheet(
     position: position,
     hardMode: hardMode,
+    card: card,
+    ratios: ratios,
     heldPlayer: heldPlayer,
     heldMatch: heldMatch,
   ),
@@ -41,12 +46,19 @@ class TraitCatalogueSheet extends StatelessWidget {
     super.key,
     required this.position,
     required this.hardMode,
+    required this.card,
+    required this.ratios,
     this.heldPlayer,
     this.heldMatch,
   });
 
   final String position;
   final bool hardMode;
+
+  /// The card the sheet was opened from: a first-slot trait's worth is a
+  /// figure on HIM, so the ladder is computed on his card.
+  final CardInstance? card;
+  final Map<String, dynamic> ratios;
 
   /// The ids he already carries, one per slot, or null.
   final String? heldPlayer;
@@ -76,6 +88,7 @@ class TraitCatalogueSheet extends StatelessWidget {
                   icon: trait.icon,
                   name: traitName(trait),
                   desc: traitDesc(trait),
+                  chips: traitLadderOn(card, trait, ratios),
                   held: trait.id == heldPlayer,
                 ),
               const SizedBox(height: 14),
