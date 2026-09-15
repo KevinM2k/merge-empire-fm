@@ -1991,6 +1991,46 @@ void main() {
       await pumpSquad(tester);
       expect(find.byKey(const ValueKey('card-trait')), findsNothing);
     });
+
+    // The eleven showed the first slot and not the second. Asked for from the
+    // couch: the match trait bottom-right, and the form arrow it displaces at
+    // the top right.
+    testWidgets('THE MATCH TRAIT IS BOTTOM-RIGHT AND THE FORM ARROW TOP-RIGHT', (
+      tester,
+    ) async {
+      await pumpSquad(
+        tester,
+        mutate: (state) {
+          final cells =
+              (state['grid'] as Map<String, dynamic>)['cells'] as List<dynamic>;
+          for (final cell in cells) {
+            if (cell is Map<String, dynamic>) {
+              cell['trait'] = {'id': 'finisher', 'level': 3};
+              cell['matchTrait'] = {'id': 'away_day', 'level': 2};
+              cell['form'] = 1;
+            }
+          }
+        },
+      );
+      final token = find.byType(PitchToken).first;
+      final box = tester.getRect(token);
+      final player = tester.getRect(
+        find.descendant(of: token, matching: find.byKey(const ValueKey('card-trait'))),
+      );
+      final match = tester.getRect(
+        find.descendant(of: token, matching: find.byKey(const ValueKey('card-match-trait'))),
+      );
+      final form = tester.getRect(
+        find.descendant(of: token, matching: find.byKey(const ValueKey('token-form'))),
+      );
+      // Anchored to the two bottom corners. (Not "no overlap": the test font
+      // draws every glyph a full em wide, so `III` is twice its real width.)
+      expect(match.bottom, closeTo(player.bottom, 0.5), reason: 'same row');
+      expect(player.left, closeTo(box.left + 2, 2.5), reason: 'player badge bottom-left');
+      expect(match.right, closeTo(box.right + 2, 6), reason: 'match badge bottom-right');
+      expect(form.top, lessThan(box.center.dy), reason: 'the arrow is at the top');
+      expect(form.center.dx, greaterThan(box.center.dx));
+    });
   });
   group('WHAT THE DETAIL SHEET SAYS ABOUT A CARD', () {
     testWidgets('THE INJURY RISK IS BACK, under ATK and DEF', (tester) async {

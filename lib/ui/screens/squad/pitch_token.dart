@@ -406,6 +406,22 @@ class PitchToken extends StatelessWidget {
                               size: 8,
                             ),
                           ),
+                        // The match trait BOTTOM-RIGHT, the same badge: the
+                        // eleven showed one slot and not the other. Asked for
+                        // from the couch, in that corner — the form arrow it
+                        // displaces goes to the top right.
+                        if (card.matchTrait case final trait?)
+                          Positioned(
+                            bottom: 2,
+                            right: 2,
+                            child: TraitBadge(
+                              badgeKey: const ValueKey('card-match-trait'),
+                              icon: trait.icon,
+                              level: trait.level,
+                              title: trait.title,
+                              size: 8,
+                            ),
+                          ),
                         // **AND HIS FORM, which the bench has had all along.**
                         // A card in bad form is genuinely a point worse — the
                         // rating chip above already includes it — so the eleven
@@ -413,13 +429,12 @@ class PitchToken extends StatelessWidget {
                         // same player. Reported from the couch: form should
                         // show on the squad page too.
                         //
-                        // Bottom-RIGHT: the trait badge owns bottom-left and
-                        // the two chips own the top corners, so this is the one
-                        // corner free on every token.
+                        // TOP-RIGHT, beside the seasons chip when there is one:
+                        // the two trait badges own the bottom corners now.
                         if (card.form != 0)
                           Positioned(
-                            bottom: 2,
-                            right: 2,
+                            top: 3,
+                            right: slot.seasons > 0 ? 26 : 3,
                             child: Text(
                               formGlyph(card.form),
                               key: const ValueKey('token-form'),
