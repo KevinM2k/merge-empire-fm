@@ -78,6 +78,35 @@ void main() {
       await settleSave(tester);
     });
 
+    /// **THE COUNT IS A CORNER PILL, not a line in the column.** It was one of
+    /// the tile's centred text lines, which on a three-across shelf spent a
+    /// whole line of a cramped tile saying "x0". Asked for from the couch: a
+    /// floating number in a corner.
+    testWidgets('COUNT THE BAG IN A CORNER PILL, not a line of the tile', (
+      tester,
+    ) async {
+      await pumpShopWidget(
+        tester,
+        (s) => (s['resources'] as Map<String, dynamic>)['gems'] = 500,
+        MatchBoostsSection.new,
+      );
+      for (final id in ids) {
+        final pill = find.byKey(ValueKey('shop-count-boost-$id'));
+        expect(pill, findsOneWidget, reason: id);
+        // The number lives INSIDE the pill — that is what makes it a badge on
+        // the box rather than another line to skim.
+        expect(
+          find.descendant(
+            of: pill,
+            matching: find.text(t('boost.shop.count', {'n': '0'})),
+          ),
+          findsOneWidget,
+          reason: id,
+        );
+      }
+      await settleSave(tester);
+    });
+
     testWidgets('and not on the Boosts or Income shelves', (tester) async {
       await pumpShopWidget(tester, (_) {}, IncomeSection.new);
       for (final id in ids) {

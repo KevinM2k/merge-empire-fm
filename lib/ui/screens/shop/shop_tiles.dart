@@ -43,6 +43,7 @@ class ShopTile extends StatelessWidget {
     this.activeLabel,
     this.warnReason = false,
     this.badge,
+    this.count,
     this.glyph,
     this.featured = false,
     this.ribbon,
@@ -86,6 +87,23 @@ class ShopTile extends StatelessWidget {
 
   /// "Most popular", "Owned", a tier name.
   final String? badge;
+
+  /// **HOW MANY ARE IN THE BAG, as a pill on the tile's top-LEFT corner.**
+  ///
+  /// [badge] draws its text as one more centred line in the column, which is
+  /// what this used to be: on a three-across shelf that spent a whole line of a
+  /// cramped tile saying "x3", and a stock count read as another thing to skim
+  /// rather than as a number ON the box. Asked for from the couch — a floating
+  /// number in a corner.
+  ///
+  /// **Top left, because [corner] owns the other one.** The two never collide
+  /// today — the flash is a featured-tile device and this is a grid one — but
+  /// a diagonal banner and a pill in the same corner is a collision waiting for
+  /// whoever puts "MOST POPULAR" on a shelf tile, and the left corner is free
+  /// by construction: the glyph above is centred and the words below it are.
+  ///
+  /// Null on everything with nothing to count, which is most of the shop.
+  final String? count;
 
   /// The art on top, and the first thing scanned.
   ///
@@ -273,6 +291,36 @@ class ShopTile extends StatelessWidget {
                 top: 0,
                 right: 0,
                 child: CornerBanner(text: flash, ink: ink),
+              ),
+            if (count case final n?)
+              Positioned(
+                top: 5,
+                left: 5,
+                child: Container(
+                  key: ValueKey('shop-count-$tileKey'),
+                  // **THE SHELF'S OWN PILL, to the digit.** Same size, weight
+                  // and horizontal padding as the Active chip six lines up — a
+                  // second set of numbers for the same shape on the same screen
+                  // is how two pills end up disagreeing. No `height` override
+                  // either: one inflates the line box the glyph sits in, so the
+                  // pill grows taller while the number floats in it.
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: kit.accentBright,
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    n,
+                    style: TextStyle(
+                      color: kit.accentBrightInk,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
               ),
           ],
         ),

@@ -422,8 +422,8 @@ class VouchersSection extends ConsumerWidget {
 }
 
 /// The four manager boosts, three across, on a shelf of their own — see
-/// `ShopSectionId.matchBoosts`. One gem buys one; the badge is how many are
-/// in the bag, so a second buy reads x2 where the first read x1.
+/// `ShopSectionId.matchBoosts`. One gem buys one; the corner pill is how many
+/// are in the bag, so a second buy reads x2 where the first read x1.
 class MatchBoostsSection extends ConsumerWidget {
   const MatchBoostsSection({super.key});
 
@@ -448,7 +448,7 @@ class MatchBoostsSection extends ConsumerWidget {
               title: t('boost.${boost.id}.name'),
               // The Roar's red, the same the daily calendar draws them in.
               glyph: _icon(boost.icon, flameDeep),
-              badge: t('boost.shop.count', {
+              count: t('boost.shop.count', {
                 'n': '${boostCount(game.state, boost.id)}',
               }),
               price: formatCoins(boost.gemCost),
