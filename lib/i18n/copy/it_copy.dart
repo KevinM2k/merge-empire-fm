@@ -370,6 +370,8 @@ const Map<String, String> itCopy = <String, String>{
 
   // Colin relays an offer and calls it; then his tour after the tutorial.
   'coach.bid.relay': 'Ha chiamato il {club}, mister. Vogliono {player} e mettono {price} sul tavolo.',
+  'coach.sponsor.catch': "Il rovescio: {terms}.",
+  'coach.sponsor.clean': "Nessuna fregatura in questo.",
   'coach.sponsor.relay': 'Si è fatta sentire {company}, mister. Vogliono {player} come volto del marchio: {n}% di entrate in più da quel giocatore finché dura l\'accordo.',
   'coach.verdict.accept': 'Il mio consiglio: accetta',
   'coach.verdict.decline': 'Il mio consiglio: rifiuta',

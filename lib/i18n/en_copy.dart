@@ -950,6 +950,8 @@ const Map<String, String> enCopy = <String, String>{
   'coach.bid.relay':
       '{club} have been on the phone, gaffer. They want {player}, and they\'re '
       'putting {price} on the table.',
+  'coach.sponsor.catch': 'The catch: {terms}.',
+  'coach.sponsor.clean': 'No catch on this one.',
   'coach.sponsor.relay':
       '{company} have been in touch, gaffer. They want {player} as the face of '
       'their brand — {n}% more income from that player while the deal runs.',

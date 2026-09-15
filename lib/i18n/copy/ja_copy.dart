@@ -290,6 +290,8 @@ const Map<String, String> jaCopy = <String, String>{
 
   // Colin relays an offer and calls it; then his tour after the tutorial.
   'coach.bid.relay': '{club}から電話があった、ボス。{player}が欲しいそうで、{price}を提示している。',
+  'coach.sponsor.catch': "条件は {terms}。",
+  'coach.sponsor.clean': "こちらに落とし穴はなし。",
   'coach.sponsor.relay': '{company}から連絡があった、ボス。{player}をブランドの顔にしたいそうだ。契約中はその選手からの収入が{n}%増える。',
   'coach.verdict.accept': '私の判断：受けよう',
   'coach.verdict.decline': '私の判断：断ろう',

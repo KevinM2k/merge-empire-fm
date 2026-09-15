@@ -17,7 +17,6 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:merge_empire_fc/data/art_paths.dart';
 import 'package:merge_empire_fc/data/players.dart';
 import 'package:merge_empire_fc/data/sponsors.dart';
 import 'package:merge_empire_fc/engine/coach_tip_engine.dart';
@@ -29,8 +28,6 @@ import 'package:merge_empire_fc/state/card_instance.dart';
 import 'package:merge_empire_fc/ui/popups/coach_card.dart';
 import 'package:merge_empire_fc/ui/screens/transfers/coach_verdict.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
-import 'package:merge_empire_fc/ui/widgets/art_image.dart';
-import 'package:merge_empire_fc/ui/widgets/player_portrait.dart';
 import 'package:merge_empire_fc/util/event_bus.dart';
 
 Map<String, dynamic>? _map(Object? v) => v is Map<String, dynamic> ? v : null;
@@ -186,73 +183,39 @@ class _SponsorOfferCard extends StatelessWidget {
           onTap: () => onAnswer(true),
         ),
       ],
+      // **WHAT HE SAYS, LEFT ALIGNED, AND NOTHING ELSE.** The portrait, the
+      // company's emoji and the row of chips went — reported as too much —
+      // and the terms are in his sentence now: "+55% income … The catch: -4
+      // rating, +3% injury risk, -1 form." Then his call.
       child: Column(
         mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           CoachTypewriter(
-            text: t('coach.sponsor.relay', {
-              'company': company.name,
-              'player': player.name(def?.name ?? ''),
-              'n': boostPct,
-            }),
-            textKey: const ValueKey('sponsor-relay'),
-            textAlign: TextAlign.center,
-            style: TextStyle(color: kit.textMuted, fontSize: 13.5, height: 1.5),
-          ),
-          const SizedBox(height: 10),
-          if (def != null)
-            SizedBox(
-              height: 96,
-              child: ArtImage(
-                path: playerImagePath(def.position, def.tier, player.variant),
-                fit: BoxFit.contain,
-                fallback: PlayerPortrait(
-                  variantIndex: player.variant,
-                  kitColor: kit.accent,
-                ),
-              ),
-            ),
-          // **THE COMPANY'S NAME IS ALREADY THE HEADING.** `sponsor.title` is
-          // "{company} Offer" at the top of the card, and this row said it
-          // again under the portrait — the same word twice on a card three
-          // sentences long. Reported from the couch. The LOGO stays: it is the
-          // thing the name row was really carrying, and it is not a repeat of
-          // anything.
-          const SizedBox(height: 4),
-          Text(company.icon, style: const TextStyle(fontSize: 22)),
-          const SizedBox(height: 10),
-          // **TWO PER ROW.** The terms were a column of full-width strips, so a
-          // sponsor with three drawbacks pushed the buttons off a short phone
-          // for the sake of four short phrases. Asked for from the couch: two
-          // per row saves the space. `Wrap` rather than a `Row`, so a long
-          // localised term takes a line of its own instead of being squeezed.
-          _Terms(
-            terms: [
-              (label: t('sponsor.income_boost', {'n': boostPct}), good: true),
+            text: [
+              t('coach.sponsor.relay', {
+                'company': company.name,
+                'player': player.name(def?.name ?? ''),
+                'n': boostPct,
+              }),
               if (drawback.isClean)
-                (label: t('sponsor.no_catch'), good: true)
-              else ...[
-                if (drawback.ratingPenalty > 0)
-                  (
-                    label: t('sponsor.cost_rating', {
-                      'n': drawback.ratingPenalty,
-                    }),
-                    good: false,
-                  ),
-                if (drawback.injuryPenalty > 0)
-                  (
-                    label: t('sponsor.cost_injury', {
-                      'n': (drawback.injuryPenalty * 100).round(),
-                    }),
-                    good: false,
-                  ),
-                if (drawback.formPenalty > 0)
-                  (
-                    label: t('sponsor.cost_form', {'n': drawback.formPenalty}),
-                    good: false,
-                  ),
-              ],
-            ],
+                t('coach.sponsor.clean')
+              else
+                t('coach.sponsor.catch', {
+                  'terms': [
+                    if (drawback.ratingPenalty > 0)
+                      t('sponsor.cost_rating', {'n': drawback.ratingPenalty}),
+                    if (drawback.injuryPenalty > 0)
+                      t('sponsor.cost_injury', {
+                        'n': (drawback.injuryPenalty * 100).round(),
+                      }),
+                    if (drawback.formPenalty > 0)
+                      t('sponsor.cost_form', {'n': drawback.formPenalty}),
+                  ].join(', '),
+                }),
+            ].join(' '),
+            textKey: const ValueKey('sponsor-relay'),
+            style: TextStyle(color: kit.textMuted, fontSize: 13.5, height: 1.5),
           ),
           const SizedBox(height: 10),
           CoachVerdictLine(
@@ -263,44 +226,4 @@ class _SponsorOfferCard extends StatelessWidget {
       ),
     );
   }
-}
-
-/// What a sponsorship pays and what it costs, two to a row.
-///
-/// **A `Wrap` rather than a `Row` of two.** Two per row is what the space
-/// wants; a fixed pair is what breaks in German. A term that will not fit
-/// beside its neighbour takes the next line on its own, which is the same
-/// answer at any width and in any language.
-class _Terms extends StatelessWidget {
-  const _Terms({required this.terms});
-
-  final List<({String label, bool good})> terms;
-
-  @override
-  Widget build(BuildContext context) => Wrap(
-    alignment: WrapAlignment.center,
-    spacing: 14,
-    runSpacing: 2,
-    children: [for (final term in terms) _Term(label: term.label, good: term.good)],
-  );
-}
-
-class _Term extends StatelessWidget {
-  const _Term({required this.label, required this.good});
-
-  final String label;
-  final bool good;
-
-  @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 2),
-    child: Text(
-      label,
-      style: TextStyle(
-        fontSize: 12.5,
-        fontWeight: FontWeight.w800,
-        color: good ? const Color(0xFF66BB6A) : const Color(0xFFEF5350),
-      ),
-    ),
-  );
 }

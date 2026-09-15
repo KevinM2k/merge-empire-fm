@@ -373,6 +373,8 @@ const Map<String, String> deCopy = <String, String>{
 
   // Colin relays an offer and calls it; then his tour after the tutorial.
   'coach.bid.relay': '{club} haben angerufen, Chef. Sie wollen {player} und legen {price} auf den Tisch.',
+  'coach.sponsor.catch': "Der Haken: {terms}.",
+  'coach.sponsor.clean': "Kein Haken dabei.",
   'coach.sponsor.relay': '{company} haben sich gemeldet, Chef. Sie wollen {player} als Gesicht ihrer Marke: {n}% mehr Einnahmen durch diesen Spieler, solange der Deal läuft.',
   'coach.verdict.accept': 'Mein Rat: annehmen',
   'coach.verdict.decline': 'Mein Rat: ablehnen',

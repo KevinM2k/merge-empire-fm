@@ -361,6 +361,8 @@ const Map<String, String> esCopy = <String, String>{
 
   // Colin relays an offer and calls it; then his tour after the tutorial.
   'coach.bid.relay': '{club} han llamado, míster. Quieren a {player} y ponen {price} sobre la mesa.',
+  'coach.sponsor.catch': "La pega: {terms}.",
+  'coach.sponsor.clean': "Este no tiene pega.",
   'coach.sponsor.relay': '{company} se han puesto en contacto, míster. Quieren a {player} como imagen de su marca: un {n}% más de ingresos por ese jugador mientras dure el acuerdo.',
   'coach.verdict.accept': 'Mi consejo: acéptalo',
   'coach.verdict.decline': 'Mi consejo: recházalo',
