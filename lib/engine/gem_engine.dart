@@ -366,10 +366,12 @@ const List<GemItem> gemItems = [
     cost: 1,
     permanent: false,
     live: true,
-    // ONE voucher armed at a time, across the whole ladder — an armed FLOOR
-    // blocks this one too. The scout voucher engine can't be imported here
-    // (that would be a cycle), so the scalar read is inlined and a test pins
-    // the two halves together instead.
+    // **Still wired, and it no longer blocks anything.** This used to be the
+    // gem catalogue's half of "one voucher at a time"; vouchers are collectable
+    // now, so `_scoutVoucherHeld` is false on every live save and the rung can
+    // be bought again and again. It stays because the parity test asserts this
+    // guard and `anyVoucherArmed` agree on the same shop maps, and those two
+    // live in files that cannot import each other.
     heldWhen: _scoutVoucherHeld,
   ),
   GemItem(id: 'energy_refill', cost: 5, permanent: false, live: true),
@@ -387,6 +389,18 @@ const List<GemItem> gemItems = [
   ),
 ];
 
+/// **Always false now, and kept because it is half of a pinned rule.**
+///
+/// The 🎲 rung used to be blocked while any voucher was armed — one at a time
+/// across the whole family. Vouchers are collectable now, so the rung is
+/// repeatably buyable and this returns false on every live save: `migrate`
+/// drains both keys into `shop.scoutVouchers` and nothing writes them again.
+///
+/// It is not deleted because `scout_voucher_engine_test`'s `parity — what counts
+/// as armed` asserts this and `anyVoucherArmed` give the SAME answer on the same
+/// hand-made shop maps — the two live in files that cannot import each other, so
+/// that assertion is the only thing holding them together. Deleting this would
+/// take the check with it.
 bool _scoutVoucherHeld(Map<String, dynamic>? state) {
   final shop = _map(state?['shop']);
   if (shop?['freeScoutReady'] == true) return true;
@@ -448,7 +462,16 @@ GemPurchase buyGemItem(Map<String, dynamic> state, String itemId) {
 
   switch (itemId) {
     case 'scout_voucher_gem':
-      _branch(state, 'shop')['freeScoutReady'] = true;
+      // Into the inventory as the `1` token, NOT as a tier-1 floor: a floor of
+      // any value strips tier 9 from the draw pool, and drawing an Icon is the
+      // whole of what this rung sells. `grantVoucher` cannot be called from here
+      // — importing `scout_voucher_engine` would close a cycle — so the push is
+      // inlined, exactly as `_scoutVoucherHeld` inlines the read above.
+      final shop = _branch(state, 'shop');
+      final held = shop['scoutVouchers'];
+      final list = held is List ? held : <dynamic>[];
+      if (held is! List) shop['scoutVouchers'] = list;
+      list.add(1);
     case 'energy_refill':
       _applyEnergyRefill(state);
     case 'trophy_polish_gem':

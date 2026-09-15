@@ -12,6 +12,7 @@ import 'dart:math' as math;
 import 'package:merge_empire_fc/data/config.dart';
 import 'package:merge_empire_fc/data/divisions.dart';
 import 'package:merge_empire_fc/data/events.dart';
+import 'package:merge_empire_fc/engine/scout_voucher_engine.dart';
 import 'package:merge_empire_fc/util/event_bus.dart';
 import 'package:merge_empire_fc/util/format.dart';
 import 'package:merge_empire_fc/util/time.dart';
@@ -390,7 +391,11 @@ TierClaimResult claimRewardTier(
       Energy.maxUpgraded,
     );
   }
-  if (r.freeScout) _branch(state, 'shop')['freeScoutReady'] = true;
+  // Into the inventory as the "any card" token, so a reward tier paying a free
+  // scout is worth claiming even while the player already holds vouchers — as a
+  // bool it silently paid nothing. No live event sets `freeScout` yet; this is
+  // the path being made fit to use rather than a behaviour change today.
+  if (r.freeScout) grantVoucher(state, anyCardVoucher);
 
   claimed.add(tierIdx);
   emit('event:reward-claimed', {

@@ -303,4 +303,139 @@ void main() {
       expect(voucherTiersFor(divisionId), isNot(contains(1)));
     }
   });
+
+  // ── The inventory, which is the port's own and has no JS to check against ──
+  //
+  // Everything above compares against `../merge-empire-fc`. Nothing below can:
+  // vouchers being COLLECTABLE is a divergence this port made deliberately, so
+  // these are ordinary tests of ordinary behaviour.
+
+  group('the inventory', () {
+    Map<String, dynamic> inv(List<int> held) =>
+        _state(division: 'champions_cup', shop: {'scoutVouchers': [...held]});
+
+    test('a save with no key at all holds nothing', () {
+      // `createDefaultState` cannot declare `scoutVouchers` without failing the
+      // JS shape parity, so this is what every fresh save actually looks like.
+      expect(voucherInventory(_state()), isEmpty);
+      expect(voucherInventory(null), isEmpty);
+      expect(hasVouchers(_state()), isFalse);
+    });
+
+    test('reads back dearest first, duplicates kept', () {
+      expect(voucherInventory(inv([3, 8, 3, 1])), [8, 3, 3, 1]);
+      expect(voucherCount(inv([3, 8, 3, 1]), 3), 2);
+      expect(voucherCount(inv([3, 8, 3, 1]), 5), 0);
+    });
+
+    test('junk in the list is dropped rather than thrown', () {
+      // Same exposure as the scalar: a hand-edited or cloud-synced save.
+      final state = _state(
+        shop: {
+          'scoutVouchers': [5, 0, 9, 'four', null, 2.7, double.infinity],
+        },
+      );
+      // 9 is above `maxVoucherTier` and 0 below the token, so both go; 2.7
+      // floors to 2, which is a real rung.
+      expect(voucherInventory(state), [5, 2]);
+    });
+
+    test('granting builds the list a fresh save has not got', () {
+      final state = _state();
+      grantVoucher(state, 6);
+      grantVoucher(state, 6);
+      expect((state['shop'] as Map)['scoutVouchers'], [6, 6]);
+    });
+
+    test('granting builds the shop branch too', () {
+      final state = <String, dynamic>{};
+      grantVoucher(state, anyCardVoucher);
+      expect((state['shop'] as Map)['scoutVouchers'], [1]);
+    });
+
+    test('an out-of-range grant is refused, not clamped', () {
+      final state = _state();
+      grantVoucher(state, 0);
+      grantVoucher(state, 9);
+      expect(voucherInventory(state), isEmpty);
+    });
+
+    test('taking removes ONE of that floor and reports it', () {
+      final state = inv([5, 5, 8]);
+      expect(takeVoucher(state, 5), 5);
+      expect(voucherInventory(state), [8, 5]);
+      expect(takeVoucher(state, 5), 5);
+      expect(takeVoucher(state, 5), isNull);
+      expect(voucherInventory(state), [8]);
+    });
+
+    test('taking from a save with no inventory is null, not a crash', () {
+      expect(takeVoucher(_state(), 5), isNull);
+    });
+
+    test('THE TOKEN REACHES THE DRAW AS NO FLOOR AT ALL', () {
+      // The one failure nothing else would catch. `buildScoutDrawPool` filters
+      // `tier >= minTier && tier <= 8`, so ANY non-null floor — 1 included —
+      // cuts tier 9 out of the pool. The 🎲 rung is the only voucher that can
+      // hand over a Football Icon, and passing 1 through as a floor would
+      // delete that silently: no test fails, no screen changes, and the
+      // cheapest thing on the shelf quietly stops selling what it advertises.
+      expect(drawFloorFor(anyCardVoucher), isNull);
+      for (final floor in voucherTiers) {
+        expect(drawFloorFor(floor), floor, reason: 't$floor');
+      }
+    });
+  });
+
+  group('buying into the inventory', () {
+    test('debits the gems and banks the floor', () {
+      final state = _state(division: 'champions_cup', gems: 20);
+      final result = purchaseScoutVoucher(state, 6);
+      expect(result.ok, isTrue);
+      expect(result.cost, 6);
+      expect(getGems(state), 14);
+      expect(voucherInventory(state), [6]);
+    });
+
+    test('AND AGAIN, which the one-at-a-time rule used to forbid', () {
+      // The whole point. `voucherBlocked` still answers `alreadyHeld` for the
+      // JS's scalar shape — that is asserted above — but nothing in the game
+      // writes that scalar any more, so the shelf never sees it.
+      final state = _state(division: 'champions_cup', gems: 20);
+      expect(purchaseScoutVoucher(state, 6).ok, isTrue);
+      expect(purchaseScoutVoucher(state, 6).ok, isTrue);
+      expect(purchaseScoutVoucher(state, 3).ok, isTrue);
+      expect(voucherInventory(state), [6, 6, 3]);
+      expect(getGems(state), 5);
+    });
+
+    test('still refuses a rung this division cannot scout', () {
+      final state = _state(division: 'sunday_league', gems: 20);
+      final result = purchaseScoutVoucher(state, 8);
+      expect(result.reason, VoucherBlock.notOffered);
+      expect(voucherInventory(state), isEmpty);
+      expect(getGems(state), 20);
+    });
+
+    test('still refuses when the gems are not there', () {
+      final state = _state(division: 'champions_cup', gems: 1);
+      expect(
+        purchaseScoutVoucher(state, 8).reason,
+        VoucherBlock.insufficientGems,
+      );
+      expect(voucherInventory(state), isEmpty);
+    });
+
+    test('holding a stack never blocks a purchase', () {
+      final state = _state(
+        division: 'champions_cup',
+        gems: 20,
+        shop: {
+          'scoutVouchers': [8, 8, 8],
+        },
+      );
+      expect(voucherPurchaseBlocked(state, 8), isNull);
+      expect(purchaseScoutVoucher(state, 8).ok, isTrue);
+    });
+  });
 }

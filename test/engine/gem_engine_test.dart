@@ -488,11 +488,23 @@ void main() {
       expect(getGems(state), 1);
     });
 
-    test('the scout voucher arms a free scout', () {
+    test('the scout voucher banks an any-card token', () {
       final state = _state(gems: 5);
       expect(buyGemItem(state, 'scout_voucher_gem').ok, isTrue);
-      expect(state['shop']['freeScoutReady'], isTrue);
+      // `1`, not a tier-1 floor: this rung is the only one that can hand over a
+      // Football Icon, and any non-null floor cuts tier 9 out of the draw pool.
+      expect(state['shop']['scoutVouchers'], [1]);
       expect(getGems(state), 4);
+    });
+
+    test('and it can be bought AGAIN, which is the point of an inventory', () {
+      // The rung used to block itself: `freeScoutReady` was a bool, so a second
+      // purchase either refused or paid nothing. Both are now stacked.
+      final state = _state(gems: 5);
+      expect(buyGemItem(state, 'scout_voucher_gem').ok, isTrue);
+      expect(buyGemItem(state, 'scout_voucher_gem').ok, isTrue);
+      expect(state['shop']['scoutVouchers'], [1, 1]);
+      expect(getGems(state), 3);
     });
 
     test('the energy refill banks a whole tank, over the cap', () {
@@ -571,7 +583,7 @@ void main() {
     test('buying builds the branches a bare save is missing', () {
       final state = <String, dynamic>{'resources': {'gems': 20}};
       expect(buyGemItem(state, 'scout_voucher_gem').ok, isTrue);
-      expect(state['shop']['freeScoutReady'], isTrue);
+      expect(state['shop']['scoutVouchers'], [1]);
     });
   });
 

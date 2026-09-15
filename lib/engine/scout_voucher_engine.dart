@@ -150,6 +150,12 @@ int? heldVoucherTier(Map<String, dynamic>? state) {
 
 /// Is ANY scout voucher armed — a floor, or the plain one's free scout?
 ///
+/// **HISTORICAL, and kept for the JS fixture.** Both keys it reads are drained
+/// into the inventory by `migrate` and never written again, so on a live save
+/// this is always false and the one-at-a-time rule it enforces cannot fire. The
+/// rest of this comment is why that rule existed, which is worth keeping because
+/// it explains what the inventory had to solve:
+///
 /// ONE voucher at a time, across the whole ladder. Two different reasons meet
 /// here and both matter:
 ///
@@ -167,6 +173,14 @@ int? heldVoucherTier(Map<String, dynamic>? state) {
 /// Boot set, so an unspent free scout blocks a voucher sale too. Deliberate: it
 /// is one tap on the Players tab to clear, and the alternative is a shop that
 /// contradicts itself.
+///
+/// **That last paragraph is the JS's, and neither half of it is true in this
+/// port** — noted rather than deleted, because it is the kind of claim a reader
+/// checks a design against. There is no rewarded-video scout path here at all,
+/// and the Lucky Boot writes its own `shop.luckyBootReady`
+/// (`match_orchestration.dart`), not this. In the port `freeScoutReady` was set
+/// only by the 🎲 gem rung, the daily calendar and a live event reward — all
+/// three of which now grant into the inventory instead.
 bool anyVoucherArmed(Map<String, dynamic>? state) =>
     heldVoucherTier(state) != null ||
     _map(state?['shop'])?['freeScoutReady'] == true;
@@ -213,6 +227,161 @@ VoucherBlock? voucherBlocked(Map<String, dynamic>? state, int floor) {
         return fresh;
       })();
   shop['scoutVoucherTier'] = floor;
+  return (ok: true, floor: floor, cost: cost, reason: null);
+}
+
+// ── The inventory, and why it sits BESIDE the parity surface ────────────────
+//
+// **Everything above this line is frozen against the JS**, and the reason is
+// mechanical rather than a preference. `scout_voucher_reference.json` is dumped
+// from `../merge-empire-fc` by `tool/dump_scout_voucher_reference.mjs`, that
+// repo is not cloned in a cloud container, and the fixture compares whole
+// objects: `parity — buying one` asserts `state['shop']` field for field after
+// [buyScoutVoucher], so a version that pushed onto a list would fail on the
+// extra key, and the fixture cannot be regenerated to say otherwise.
+//
+// So the port's own mechanic — vouchers are COLLECTABLE, held many at a time,
+// of mixed tiers, and assigned to individual cards of a batch — is built here as
+// a second layer rather than by rewriting the first. CLAUDE.md's rule for a
+// deliberate divergence is that it belongs on the screen, and this is that rule
+// applied one level down: the JS's answer stays callable and asserted, and the
+// game calls these.
+//
+// **The one-at-a-time rule dissolves rather than being switched off.**
+// [anyVoucherArmed] reads `scoutVoucherTier` and `freeScoutReady`; `migrate`
+// drains both into the inventory on load and nothing in the game writes them
+// again, so on a live save they are permanently empty and
+// [VoucherBlock.alreadyHeld] simply never occurs. No flag, no gate, no branch —
+// and the fixture's hand-made shop maps, which DO set those keys, still get the
+// JS's answer.
+//
+// The cost, stated plainly: [buyScoutVoucher] and [consumeScoutVoucher] now have
+// only their own test as a caller, which `tool/unreached.sh` reports and which
+// CLAUDE.md normally calls the module's real status. Here it is the intended
+// state of a frozen parity surface, and the sweep's header carries it as a fifth
+// expected kind of hit so nobody deletes them.
+
+/// **`1` IS THE "ANY CARD" TOKEN, NOT A TIER-1 FLOOR**, and the difference is
+/// the Football Icon.
+///
+/// `buildScoutDrawPool` filters `def.tier >= minTier && def.tier <= 8`, so ANY
+/// non-null `minTier` strips tier 9 — including a floor of 1, which otherwise
+/// looks like a harmless "every card in the game". The 🎲 RANDOM rung is the one
+/// voucher that can hand over an Icon (`shop.voucher.random_sub` is "Any tier —
+/// Icons included", and it is the cheapest thing on the shelf precisely because
+/// that is what it sells), so it has to reach the draw as `minTier: null`.
+///
+/// [drawFloorFor] is that translation and is the only place it is made.
+const int anyCardVoucher = 1;
+
+/// What to pass as `minTier` for a held voucher: the floor itself, or null for
+/// the token. Never inline this — see [anyCardVoucher].
+int? drawFloorFor(int voucher) => voucher == anyCardVoucher ? null : voucher;
+
+/// Every voucher this save holds, descending, so the dearest reads first.
+///
+/// A missing key is an empty inventory rather than an error: `createDefaultState`
+/// cannot declare `scoutVouchers` without breaking the JS shape parity, so a
+/// fresh save genuinely has no such key until the first grant.
+List<int> voucherInventory(Map<String, dynamic>? state) {
+  final raw = _map(state?['shop'])?['scoutVouchers'];
+  if (raw is! List) return const [];
+  final out = <int>[
+    for (final v in raw)
+      if (v is num && v.isFinite && v >= anyCardVoucher && v <= maxVoucherTier)
+        v.floor(),
+  ];
+  out.sort((a, b) => b.compareTo(a));
+  return out;
+}
+
+/// Is there anything to spend? What decides whether the assignment sheet opens
+/// at all — with nothing held, scouting is exactly what it was before.
+bool hasVouchers(Map<String, dynamic>? state) =>
+    voucherInventory(state).isNotEmpty;
+
+/// How many of this exact floor are held. The Shop's owned-count badge.
+int voucherCount(Map<String, dynamic>? state, int floor) =>
+    voucherInventory(state).where((v) => v == floor).length;
+
+/// Add one to the inventory. The single write path — the Shop ladder, the 🎲 gem
+/// item, the daily reward and a live event all come through here.
+///
+/// Creates the list lazily, the same way [buyScoutVoucher] creates a missing
+/// `shop` branch, because a fresh save has no key to write into.
+void grantVoucher(Map<String, dynamic> state, int floor) {
+  if (floor < anyCardVoucher || floor > maxVoucherTier) return;
+  final shop =
+      _map(state['shop']) ??
+      (() {
+        final fresh = <String, dynamic>{};
+        state['shop'] = fresh;
+        return fresh;
+      })();
+  final existing = shop['scoutVouchers'];
+  final list = existing is List ? existing : <dynamic>[];
+  if (existing is! List) shop['scoutVouchers'] = list;
+  list.add(floor);
+}
+
+/// Remove one of [floor] and report it, or null when none is held.
+///
+/// Mutating and single-use, and called AFTER the card has landed for the same
+/// reason [signPlayer] reads its floor before the draw and spends it after:
+/// burning a voucher somebody paid gems for on a signing that never happened is
+/// the one bug this must not have.
+int? takeVoucher(Map<String, dynamic> state, int floor) {
+  final raw = _map(state['shop'])?['scoutVouchers'];
+  if (raw is! List) return null;
+  for (var i = 0; i < raw.length; i++) {
+    final v = raw[i];
+    if (v is num && v.isFinite && v.floor() == floor) {
+      raw.removeAt(i);
+      return floor;
+    }
+  }
+  return null;
+}
+
+/// Why this voucher cannot be BOUGHT, for a shop that sells them by the
+/// handful — [voucherBlocked] without the one-at-a-time clause.
+///
+/// Split from it rather than replacing it because that function is pinned to the
+/// JS; this is the question the live shelf actually asks, and it can never
+/// answer [VoucherBlock.alreadyHeld].
+VoucherBlock? voucherPurchaseBlocked(Map<String, dynamic>? state, int floor) {
+  final divisionId = _map(state?['progression'])?['currentDivision'] as String?;
+  if (!voucherOffered(divisionId, floor)) return VoucherBlock.notOffered;
+  final cost = voucherCost(floor);
+  if (cost == null) return VoucherBlock.noPrice;
+  if (getGems(state) < cost) return VoucherBlock.insufficientGems;
+  return null;
+}
+
+/// Buy one into the inventory: debits the gems and adds the floor.
+///
+/// The live counterpart to [buyScoutVoucher], which arms the legacy scalar and
+/// exists now only to answer the frozen fixture.
+({bool ok, int? floor, int? cost, VoucherBlock? reason}) purchaseScoutVoucher(
+  Map<String, dynamic> state,
+  int floor,
+) {
+  final blocked = voucherPurchaseBlocked(state, floor);
+  if (blocked != null) {
+    return (ok: false, floor: null, cost: null, reason: blocked);
+  }
+
+  final cost = voucherCost(floor)!;
+  if (!spendGems(state, cost, 'scout_voucher_t$floor')) {
+    return (
+      ok: false,
+      floor: null,
+      cost: null,
+      reason: VoucherBlock.insufficientGems,
+    );
+  }
+
+  grantVoucher(state, floor);
   return (ok: true, floor: floor, cost: cost, reason: null);
 }
 

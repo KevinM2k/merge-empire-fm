@@ -189,10 +189,27 @@ Map<String, dynamic> createDefaultState() {
     },
 
     'shop': <String, dynamic>{
+      // **THE VOUCHER INVENTORY IS NOT DECLARED HERE, AND THAT IS DELIBERATE.**
+      //
+      // Scout vouchers are a collectable now — `shop.scoutVouchers`, a list of
+      // tier floors — but this map is byte-compared against the JS default save
+      // (`default_save_v7.json`) for its keys, its key ORDER and every leaf, and
+      // that fixture cannot be regenerated without the spec repo. Declaring the
+      // list here adds a key the JS does not have and fails both shape tests.
+      //
+      // So the list is created on first grant instead, by `grantVoucher` — the
+      // same lazy shape `buyScoutVoucher` already uses for a missing `shop`
+      // branch — and `voucherInventory` reads a missing key as empty. A fresh
+      // save holds no vouchers, so there is nothing to declare.
+      //
+      // The two keys below are what the inventory REPLACED. `scoutVoucherTier`
+      // is a scalar and `freeScoutReady` a bool, which is why vouchers used to
+      // be one at a time: a second floor overwrote the first and took the gems
+      // for nothing. `migrate` drains both into the list on load and nothing
+      // writes them again, so on a live save they stay empty forever — they are
+      // kept because the JS parity fixtures are built on shop maps shaped like
+      // this. Old saves have no key at all and read as null/false.
       'freeScoutReady': false,
-      // Guaranteed Scout: the floor tier armed for the next scout, or null. A
-      // scalar rather than a queue on purpose — one at a time. Old saves have
-      // no key at all and read as null.
       'scoutVoucherTier': null,
       'luckyBootReady': false,
       'luckyBootUses': 0,

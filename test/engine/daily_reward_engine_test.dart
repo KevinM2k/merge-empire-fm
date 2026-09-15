@@ -108,6 +108,29 @@ Map<String, dynamic> _state({
 }
 
 /// Only what a claim actually writes.
+/// The shop branch as the JS would have left it.
+///
+/// **The fixture is right and so is the port; only the storage moved.** A
+/// calendar day paying `freeScout` set `shop.freeScoutReady = true` in the JS,
+/// and the reference dump records exactly that. The port banks an any-card
+/// voucher (`shop.scoutVouchers: [1]`) instead, because a bool could hold only
+/// one — a free scout granted while another was unspent paid nothing at all,
+/// which is why day 4 dropped its voucher in the first place.
+///
+/// So this translates the port's shape back to the JS's for the comparison
+/// rather than editing `daily_reward_reference.json`, which is dumped from
+/// `../merge-empire-fc` and cannot be regenerated here. What the fixture pins —
+/// that this day pays a free scout, and nothing else in the shop moves — is
+/// still pinned; `scout_voucher_engine_test` owns the shape itself.
+Object? _shopAsJs(Object? shop) {
+  if (shop is! Map<String, dynamic>) return shop;
+  final vouchers = shop['scoutVouchers'];
+  if (vouchers is! List) return shop;
+  final out = <String, dynamic>{...shop}..remove('scoutVouchers');
+  if (vouchers.contains(1)) out['freeScoutReady'] = true;
+  return out;
+}
+
 Map<String, dynamic> _digest(Map<String, dynamic> s) {
   final cells = (s['grid'] as Map)['cells'] as List;
   return {
@@ -115,7 +138,7 @@ Map<String, dynamic> _digest(Map<String, dynamic> s) {
     'fanCoins': (s['resources'] as Map)['fanCoins'],
     'gems': (s['resources'] as Map)['gems'],
     'energy': s['energy'],
-    'shop': s['shop'],
+    'shop': _shopAsJs(s['shop']),
     'cellEnergies': [
       for (final c in cells) c == null ? null : (c as Map)['energy'],
     ],

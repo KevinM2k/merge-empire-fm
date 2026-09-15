@@ -20,6 +20,7 @@ import 'package:merge_empire_fc/engine/gem_engine.dart';
 import 'package:merge_empire_fc/engine/lineup_engine.dart';
 import 'package:merge_empire_fc/engine/mini_games_engine.dart';
 import 'package:merge_empire_fc/engine/player_energy_engine.dart';
+import 'package:merge_empire_fc/engine/scout_voucher_engine.dart';
 import 'package:merge_empire_fc/util/analytics.dart';
 import 'package:merge_empire_fc/util/event_bus.dart';
 import 'package:merge_empire_fc/util/format.dart';
@@ -369,8 +370,12 @@ DailyClaim claimDailyReward(
     }
   }
 
+  // **This can pay out now.** It sets an inventory entry rather than a bool, so
+  // a free scout granted on a day the player already holds one no longer
+  // evaporates — which is why the calendar's day 4 dropped its voucher in the
+  // first place. `1` is the "any card" token; see [anyCardVoucher].
   if (def.freeScout) {
-    _branch(state, 'shop')['freeScoutReady'] = true;
+    grantVoucher(state, anyCardVoucher);
   }
 
   // Gems are deliberately NOT multiplied by [doubled]. Everything else here

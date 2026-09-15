@@ -574,7 +574,9 @@ void main() {
       expect(result.ok, isTrue);
       expect(state['resources']['trophies'], 2);
       expect(state['energy']['current'], 6);
-      expect(state['shop']['freeScoutReady'], isTrue);
+      // Banked as an any-card token rather than set as a bool, so a tier paying
+      // a free scout is worth claiming even while vouchers are already held.
+      expect(state['shop']['scoutVouchers'], [1]);
     });
 
     test('energy is capped at the UPGRADED maximum', () {

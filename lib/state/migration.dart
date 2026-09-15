@@ -509,6 +509,54 @@ void _migrateTutorialAndTips(Map<String, dynamic> data) {
   }
 }
 
+/// Move a legacy armed voucher into the inventory list, once.
+///
+/// The two old keys are a scalar floor and a bool, so between them a save could
+/// hold at most two vouchers and the Shop had to refuse every further sale. Both
+/// are drained into `scoutVouchers` here and left empty, so a save that has been
+/// through this never carries the same voucher in two places — which is the
+/// whole risk of a fold: read both and you have doubled the player's stock every
+/// time they load.
+///
+/// **Idempotent, and it has to be**, because `migrate` is not version-gated —
+/// every step runs on every load, including one right after this fold already
+/// ran. Draining the sources is what makes a second pass a no-op.
+///
+/// **`saveVersion` is deliberately NOT bumped for this.** Bumping it would make
+/// an older build reject the whole save (`version > saveVersion` returns null)
+/// and boot the player onto a fresh default — losing an entire career to protect
+/// a voucher. An old build reading this save instead finds the keys it expects,
+/// sees no vouchers for that session, and passes `scoutVouchers` through
+/// untouched on write, because nothing in the old chain rebuilds the shop map.
+/// The stock comes back on the next upgrade. Invisible for a session beats gone.
+void _foldVouchersIntoInventory(Map<String, dynamic> shop) {
+  // The same guards as `heldVoucherTier`: a hand-edited or cloud-synced save can
+  // carry 0, 1, a fraction, an infinity or a String here, and none of those is a
+  // floor. Duplicated rather than imported because the migration must not depend
+  // on the engine layer.
+  final tier = _num(shop['scoutVoucherTier']);
+  final held = tier != null && tier.isFinite && tier > 1 ? tier.floor() : null;
+  // A free scout becomes the `1` token — the one entry that reaches the draw as
+  // "no floor at all", so an Icon stays reachable under it.
+  final free = shop['freeScoutReady'] == true;
+
+  final existing = shop['scoutVouchers'];
+  // **NOTHING TO FOLD LEAVES THE KEY ABSENT**, which is the point rather than an
+  // optimisation: `createDefaultState` cannot declare `scoutVouchers` without
+  // failing the JS shape parity, so a fresh save has no such key. Writing an
+  // empty list here would give a MIGRATED save a shape a fresh one never has,
+  // for no gain — `voucherInventory` reads a missing key as empty either way.
+  if (held == null && !free && existing is! List) return;
+
+  final list = existing is List ? existing : <dynamic>[];
+  if (existing is! List) shop['scoutVouchers'] = list;
+
+  if (held != null) list.add(held);
+  if (free) list.add(1);
+  shop['scoutVoucherTier'] = null;
+  shop['freeScoutReady'] = false;
+}
+
 // ── Prestige, shop, transfers, mini-games ───────────────────────────────────
 void _migrateEconomy(Map<String, dynamic> data) {
   final prestige = _map(data['prestige']);
@@ -551,6 +599,7 @@ void _migrateEconomy(Map<String, dynamic> data) {
     };
   } else {
     shop['luckyBootUses'] ??= 0;
+    _foldVouchersIntoInventory(shop);
   }
 
   final market = _map(data['transferMarket']);

@@ -722,6 +722,25 @@ class GameState {
               'vipExpiresAt': shop['vipExpiresAt'] ?? 0,
               'totalSpent': shop['totalSpent'] ?? 0,
               'energyUpgraded': shop['energyUpgraded'] ?? false,
+              // **UNSPENT VOUCHERS SURVIVE A RESET, because they are gems in
+              // another shape.** The rule is already stated below for the gems
+              // themselves — hard currency, bought with real money or earned
+              // once from a faucet that never re-arms, and wiping it revokes
+              // something that was paid for. A voucher is what those gems were
+              // turned into and the argument does not weaken on the way.
+              //
+              // It mattered less when only one could be held and it was
+              // undocumented either way; with a stack a reset could destroy
+              // eight of them at once. The legacy scalar and `freeScoutReady`
+              // are still dropped, because `migrate` has already drained them
+              // into this list and carrying them too would double the stock.
+              //
+              // Omitted entirely when there is nothing to carry, so a reset with
+              // no vouchers leaves a shop branch shaped exactly like a fresh
+              // save's — the key is absent by default and `voucherInventory`
+              // reads a missing one as empty. See `state_schema.dart`.
+              if ((_list(shop['scoutVouchers']) ?? const []).isNotEmpty)
+                'scoutVouchers': [...?_list(shop['scoutVouchers'])],
             },
       hadStarterPack: purchased?.contains('starter_pack') ?? false,
       hadEnergyDirector: shop?['energyUpgraded'] == true,
