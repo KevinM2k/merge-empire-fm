@@ -18,6 +18,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:merge_empire_fc/engine/match_boost_state.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
+import 'package:merge_empire_fc/ui/widgets/match_stat_rows.dart' show StatTint;
 
 /// The fire the Roar burns in. Not kit colours and deliberately not: a flame
 /// is a flame whatever the club wears, the way the level metals on the trait
@@ -149,6 +150,19 @@ class _AuraPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_AuraPainter old) => old.t != t || old.ids.join() != ids.join();
+}
+
+/// Which board figures the live windows are moving, in whose colour — see
+/// `StatTint`. The leading window's colour where two touch one figure.
+({StatTint ours, StatTint theirs}) boardTints(List<LiveBoost> windows) {
+  final ids = {for (final b in windows) b.id};
+  final roar = ids.contains('crowd_roar') ? liveBoostColour('crowd_roar') : null;
+  final sharp = ids.contains('sharp_shooting') ? liveBoostColour('sharp_shooting') : null;
+  final bus = ids.contains('park_the_bus') ? liveBoostColour('park_the_bus') : null;
+  return (
+    ours: (atk: roar ?? sharp ?? bus, def: roar, rating: roar),
+    theirs: (atk: bus, def: null, rating: null),
+  );
 }
 
 /// The window that leads the others on the tile and the arrow: the Roar's

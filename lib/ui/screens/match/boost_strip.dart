@@ -19,6 +19,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/data/boosts.dart';
 import 'package:merge_empire_fc/engine/boost_engine.dart';
+import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/ui/screens/match/boost_bar_paint.dart'
     show liveBoostColour;
@@ -51,6 +52,7 @@ class BoostPitchButtons extends ConsumerWidget {
     return Row(
       key: const ValueKey('match-boosts'),
       mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         for (final boost in proactiveBoosts) ...[
           _PitchChip(
@@ -60,7 +62,7 @@ class BoostPitchButtons extends ConsumerWidget {
             enabled: enabled,
             onUse: () => onUse(boost.id),
           ),
-          if (boost != proactiveBoosts.last) const SizedBox(width: 6),
+          if (boost != proactiveBoosts.last) const SizedBox(width: 10),
         ],
       ],
     );
@@ -94,7 +96,10 @@ class _PitchChip extends StatelessWidget {
         key: ValueKey('match-boost-${boost.id}'),
         behavior: HitTestBehavior.opaque,
         onTap: owned && enabled ? onUse : null,
-        child: Container(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+        Container(
           height: 32,
           padding: const EdgeInsets.fromLTRB(7, 0, 8, 0),
           decoration: BoxDecoration(
@@ -132,6 +137,22 @@ class _PitchChip extends StatelessWidget {
                 ),
             ],
           ),
+        ),
+        const SizedBox(height: 3),
+        // Its name, in caps, on the grass: an icon alone is a guess for a
+        // player who has not learned the three yet. Asked for from the couch.
+        Text(
+          t('boost.${boost.id}.name').toUpperCase(),
+          maxLines: 1,
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w900,
+            letterSpacing: 0.4,
+            color: hue ?? Colors.white,
+            shadows: const [Shadow(color: Color(0xAA000000), blurRadius: 3)],
+          ),
+        ),
+          ],
         ),
       ),
     );

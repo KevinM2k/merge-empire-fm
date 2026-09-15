@@ -3469,11 +3469,18 @@ class MatchScreenState extends ConsumerState<MatchScreen>
                               if (!f.finished && _clip == null && !_boostsHidden)
                                 Positioned(
                                   top: 8,
-                                  right: 8,
-                                  child: BoostPitchButtons(
+                                  left: 12,
+                                  right: 12,
+                                  // Three names across is wider than a narrow
+                                  // phone's pitch: the row shrinks to fit
+                                  // rather than running off the grass.
+                                  child: FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    child: BoostPitchButtons(
                                     endOf: _boosts.endOf,
                                     enabled: !_paused,
                                     onUse: useBoost,
+                                  ),
                                   ),
                                 ),
                           ],
@@ -4369,6 +4376,10 @@ class _Scoreboard extends StatelessWidget {
     // A cup tie or an older save may carry no split at all, and four zeroes
     // would be worse than nothing.
     final hasSplit = result['ourAttackRating'] != null;
+    // **THE FIGURES A WINDOW IS MOVING WEAR ITS COLOUR.** A Roar lifts the
+    // whole side, so all three of ours; Sharp Shooting our ATK; a Bus both
+    // ATKs. Where two windows touch one figure, the leading one's colour.
+    final tints = boardTints(bands);
 
     return Padding(
       // **TIGHTER THAN IT WAS, because it grew a band.** The standings row is
@@ -4508,6 +4519,8 @@ class _Scoreboard extends StatelessWidget {
                   right: isHome ? theirSplit : ourSplit,
                   leftRating: isHome ? ourRating : theirRating,
                   rightRating: isHome ? theirRating : ourRating,
+                  leftTint: isHome ? tints.ours : tints.theirs,
+                  rightTint: isHome ? tints.theirs : tints.ours,
                 ),
               ),
             // Only while there is something to caption — the row costs the
