@@ -6,7 +6,7 @@ because that is the part worth keeping.
 
 ## Where this queue stands
 
-**124 done, 6 open, and one feature parked.** One open row is a report still
+**125 done, 6 open, and one feature parked.** One open row is a report still
 being narrowed (the trees' size, below); none of the rest is a fault.
 One is a feature that was built, tried and turned down; one is a balance
 question rather than work; one is a survey to run before building; and one is
@@ -1785,9 +1785,47 @@ generated catalogues, which is where every word of the write-up already lives.
       Tested by RUNNING THE CLOCK rather than skipping it, which is the whole
       point — every existing cup test reaches full time through `skipToEnd`,
       and a shootout that only ever arrives at once is the thing being fixed.
-      Seven through the screen and nine on the arithmetic, including the pause
+      Nine through the screen and nine on the arithmetic, including the pause
       itself: a walk-up that resolves faster than the gap between kicks has no
       tension in it, so the two durations are asserted against each other.
+
+- [x] **And then it was SHOT, which is what found the rest of it.** Asked for
+      directly — "I need to see a screenshot" — and there is no device in a
+      cloud container, so the real `MatchScreen` was rendered to a PNG through
+      `matchesGoldenFile --update-goldens` at 393×852, with the app's own
+      Barlow and Lilita One loaded through a `FontLoader` (real file I/O has to
+      happen in `setUpAll`; inside `testWidgets` the fake-async zone never lets
+      it finish) and a `runAsync` pause so the bundled portraits decode. The
+      harness was deleted afterwards: this repo has no golden infrastructure
+      and a golden that renders differently on CI's machine is a red suite
+      rather than a test.
+
+      Three faults in one picture, none of which any assertion had asked
+      about. **The tactic strip, the boost strip and the SUBS button were all
+      live over the shootout**, because every one of them is gated on
+      `finished` — the screen offering three things the laws of the game do not
+      allow. `playing` is the gate now, and the pitch carries the final
+      statistics through the kicks instead, which is what a broadcast puts on
+      an empty pitch. Speed and skip stay: the beats scale with the pace.
+
+      **And the rows themselves.** Reported off the shot: "we use the green
+      background for goal and red for goal against and I think we should keep
+      that. I don't like seeing penalties again and again on the boxes title
+      and the score isn't needed there as it's at the top." All one
+      observation — twenty rows cannot each carry a heading that says the same
+      word and a scoreline that is already on the board in three times the
+      type. Then, off the second shot: "the way we do goal now is how I want
+      it, with player image, with Goal as title etc." So a kick that is TAKEN
+      goes through the goal card's own branch — the portrait, the name, the
+      GOAL heading, the sentence as its caption, green for ours and red for
+      theirs — with no minute (every kick is after the ninety) and no
+      scoreline, and the walk-up before it stays a plain line so the pause
+      still reads as one.
+
+      **A MISS is not a goal of either colour**, and the first attempt at it
+      coloured these rows by who the news was good FOR, which put a green card
+      reading "Missed" on the page. It keeps the feed's own plate and a muted
+      rail; the heading and the face are what make it a card.
 
 ## Open
 

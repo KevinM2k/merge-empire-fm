@@ -686,6 +686,7 @@ const Map<String, String> enCopy = <String, String>{
   // `{who}` is the man on the spot, off the team sheet that FINISHED the
   // match; the opposition's is a club, because the engine names no player of
   // theirs and never has.
+  'match.pens.missed_title': 'Missed',
   'match.pens.step_up':
       '{who} steps up.|'
       '{who} places the ball on the spot.|'

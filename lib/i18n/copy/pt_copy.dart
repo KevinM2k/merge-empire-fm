@@ -90,6 +90,7 @@ const Map<String, String> ptCopy = <String, String>{
       'Isto vai para as grandes penalidades.|'
       'Nada os separa ao fim de noventa minutos: decide-se aos onze metros.|'
       'Continuam empatados, e a eliminatória resolve-se na marca de penálti.',
+  'match.pens.missed_title': 'Falhado',
   'match.pens.step_up':
       '{who} avança para a marca.|'
       '{who} coloca a bola na marca de grande penalidade.|'

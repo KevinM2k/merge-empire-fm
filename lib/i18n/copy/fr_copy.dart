@@ -100,6 +100,7 @@ const Map<String, String> frCopy = <String, String>{
       'Rien ne les sépare après quatre-vingt-dix minutes : ce sera aux tirs au '
           'but.|'
       'Toujours à égalité, la qualification se joue depuis le point de penalty.',
+  'match.pens.missed_title': 'Raté',
   'match.pens.step_up':
       '{who} s\'avance.|'
       '{who} pose le ballon sur le point de penalty.|'

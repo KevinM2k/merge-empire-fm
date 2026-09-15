@@ -87,6 +87,7 @@ const Map<String, String> koCopy = <String, String>{
       '승부차기로 갑니다.|'
       '90분으로는 가릴 수 없습니다. 페널티 마크에서 결정됩니다.|'
       '여전히 동점, 다음 라운드는 12야드에서 갈립니다.',
+  'match.pens.missed_title': '실축',
   'match.pens.step_up':
       '{who}이 걸어 나옵니다.|'
       '{who}이 스폿에 공을 내려놓습니다.|'

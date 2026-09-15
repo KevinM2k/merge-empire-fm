@@ -95,6 +95,7 @@ const Map<String, String> itCopy = <String, String>{
       'Si va ai rigori.|'
       'Nulla li divide dopo novanta minuti: si decide dal dischetto.|'
       'Ancora in parità, la qualificazione si gioca dagli undici metri.',
+  'match.pens.missed_title': 'Sbagliato',
   'match.pens.step_up':
       '{who} si presenta sul dischetto.|'
       '{who} sistema il pallone sul dischetto.|'

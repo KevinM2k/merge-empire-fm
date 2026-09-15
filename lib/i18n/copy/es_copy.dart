@@ -93,6 +93,7 @@ const Map<String, String> esCopy = <String, String>{
       'Esto se va a los penaltis.|'
       'Nada les separa tras noventa minutos: se decide desde los once metros.|'
       'Siguen igualados, así que la eliminatoria se decide en la tanda.',
+  'match.pens.missed_title': 'Fallado',
   'match.pens.step_up':
       '{who} se acerca al punto.|'
       '{who} coloca el balón en el punto de penalti.|'

@@ -98,6 +98,7 @@ const Map<String, String> deCopy = <String, String>{
       'Es geht ins Elfmeterschießen.|'
       'Nach neunzig Minuten nichts zwischen ihnen — es geht vom Punkt weiter.|'
       'Keine Entscheidung, also fällt sie aus elf Metern.',
+  'match.pens.missed_title': 'Verschossen',
   'match.pens.step_up':
       '{who} tritt an.|'
       '{who} legt sich den Ball zurecht.|'

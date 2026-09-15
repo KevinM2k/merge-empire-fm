@@ -71,6 +71,7 @@ const Map<String, String> zhCopy = <String, String>{
       '要踢点球了。|'
       '九十分钟难分高下，胜负交给十二码。|'
       '仍然平手，晋级名额在点球点上决定。',
+  'match.pens.missed_title': '罚失',
   'match.pens.step_up':
       '{who}走上前来。|'
       '{who}把球摆在点球点上。|'

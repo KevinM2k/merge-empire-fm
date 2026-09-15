@@ -939,20 +939,6 @@ void main() {
       );
     });
 
-    test('THE SCORELINE IS THE ONE THE COUCH ASKED FOR', () {
-      // "the score being recorded 0(3)-(2)0" — the ninety minutes stand and
-      // the kicks go in brackets on the inside of each of them.
-      expect(
-        shootoutScoreLine(
-          leftGoals: 0,
-          rightGoals: 0,
-          leftPens: 3,
-          rightPens: 2,
-        ),
-        '0 (3) - (2) 0',
-      );
-    });
-
     test('and four pools, because a kick of theirs is opposite news', () {
       ShootoutBeat beat({required bool ours, required bool scored}) => (
         kick: 1,

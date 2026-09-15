@@ -902,19 +902,6 @@ List<ShootoutBeat> shootoutBeats(Map<String, dynamic>? result) {
   return beats;
 }
 
-/// The scoreline a shootout is written in — `1 (3) - (2) 1`.
-///
-/// Asked for from the couch in exactly that shape: the ninety minutes stand,
-/// and the kicks go in brackets on the inside of each of them, which is how
-/// every scoreboard and every results page has ever printed a shootout. Both
-/// pairs are HOME SIDE LEFT, like the board.
-String shootoutScoreLine({
-  required int leftGoals,
-  required int rightGoals,
-  required int leftPens,
-  required int rightPens,
-}) => '$leftGoals ($leftPens) - ($rightPens) $rightGoals';
-
 /// What a kick says in the feed.
 ///
 /// Four pools rather than two: a kick of ours going in and a kick of theirs

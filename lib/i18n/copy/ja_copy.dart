@@ -80,6 +80,7 @@ const Map<String, String> jaCopy = <String, String>{
       'PK戦に入る。|'
       '90分では決着がつかない。決めるのはスポットキックだ。|'
       '互角のまま、勝ち上がりは12ヤードから決まる。',
+  'match.pens.missed_title': '失敗',
   'match.pens.step_up':
       '{who}が歩み出る。|'
       '{who}がボールをスポットに置く。|'

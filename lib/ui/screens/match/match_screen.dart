@@ -1721,16 +1721,7 @@ class MatchScreenState extends ConsumerState<MatchScreen>
         _pensNote('match.pens.sudden_death');
       }
       _pensOnTheSpot = true;
-      _pensNote(
-        shootoutStepUpKey(beat),
-        // The score AS HE PLACES THE BALL, which is the one before this kick.
-        beat: _pensShown == 0 ? null : _pens[_pensShown - 1],
-        // A goalless tie has no beat to read it off and the row still wants
-        // the column filled: nobody has scored, from open play or from twelve
-        // yards.
-        openingScore: _pensShown == 0,
-        who: beat.ours ? _takerFor(beat) : null,
-      );
+      _pensNote(shootoutStepUpKey(beat), beat: beat, taker: _takerFor(beat));
     });
     _pensTimer = Timer(penaltyBeat(penaltyStepUpBeat, pace), _takeThePenalty);
   }
@@ -1745,7 +1736,8 @@ class MatchScreenState extends ConsumerState<MatchScreen>
       _pensNote(
         shootoutLineKey(beat),
         beat: beat,
-        who: beat.ours ? _takerFor(beat) : null,
+        taker: _takerFor(beat),
+        result: true,
       );
     });
     final sound = ref.read(soundServiceProvider);
@@ -1797,14 +1789,14 @@ class MatchScreenState extends ConsumerState<MatchScreen>
           (beat.kick == 1 || !beats[beat.kick - 2].suddenDeath)) {
         _pensNote('match.pens.sudden_death');
       }
-      final who = beat.ours ? _takerFor(beat) : null;
+      final taker = _takerFor(beat);
+      _pensNote(shootoutStepUpKey(beat), beat: beat, taker: taker);
       _pensNote(
-        shootoutStepUpKey(beat),
-        beat: beat.kick == 1 ? null : beats[beat.kick - 2],
-        openingScore: beat.kick == 1,
-        who: who,
+        shootoutLineKey(beat),
+        beat: beat,
+        taker: taker,
+        result: true,
       );
-      _pensNote(shootoutLineKey(beat), beat: beat, who: who);
     }
     _pensNote(_wonOnPens ? 'match.pens.through' : 'match.pens.out');
   }
@@ -1820,6 +1812,12 @@ class MatchScreenState extends ConsumerState<MatchScreen>
   /// The list is taken when the shootout starts rather than at kick-off, so it
   /// is the eleven who FINISHED the match: a substitute takes one, a man sent
   /// off does not.
+  ///
+  /// **INSTANCE IDS, not names.** A kick of ours is drawn as a goal card — the
+  /// face, the name, the heading, the sentence as its caption — and a face is
+  /// resolved from the card rather than from a string. Asked for from the
+  /// couch off the second screenshot: "the way we do goal now is how I want
+  /// it, with player image, with Goal as title etc."
   List<String> _takers = const [];
 
   /// The order they go in.
@@ -1835,18 +1833,20 @@ class MatchScreenState extends ConsumerState<MatchScreen>
       if (row is! Map<String, dynamic>) continue;
       final id = row['cardInstanceId'];
       if (id is! String || _sentOff.contains(id)) continue;
+      // A man the save cannot name cannot be drawn either, so he is no use as
+      // a taker: the row would fall back to the club on both counts.
       final name = cardById(state, id)?.name();
       if (name == null || name.isEmpty) continue;
-      ('${row['slotPosition']}' == 'GK' ? keepers : outfield).add(name);
+      ('${row['slotPosition']}' == 'GK' ? keepers : outfield).add(id);
     }
     return [...outfield, ...keepers];
   }
 
-  /// The man taking kick [beat], or null when the save has no names to give —
-  /// an older result played back with no squad behind it. The copy falls back
-  /// to the club, which is what the opposition's line says anyway.
+  /// The man taking kick [beat] by instance id, or null for one of theirs and
+  /// for a save with no squad behind it — an older result played back. The copy
+  /// falls back to the club, which is what the opposition's line says anyway.
   String? _takerFor(ShootoutBeat beat) {
-    if (_takers.isEmpty) return null;
+    if (!beat.ours || _takers.isEmpty) return null;
     // OUR kicks only, and every second one is ours, so the taker index is the
     // number of kicks we have taken rather than the kick number. Wrapping is
     // what a sudden death that runs past eleven does in real life.
@@ -1883,18 +1883,36 @@ class MatchScreenState extends ConsumerState<MatchScreen>
   /// said — see the merge in `build`, which puts a note at or before the
   /// clock's minute at the end of the list.
   ///
-  /// [beat] is the score the ROW's own head prints, which is the tally AFTER
-  /// that beat — so a walk-up line is handed the PREVIOUS kick and a result
-  /// line is handed its own. The sentence never prints a score.
+  /// **NO SCORE ON THE ROW.** It was in the head of every one of them, and it
+  /// is on the BOARD four inches above in three times the type — see
+  /// `_Scoreboard.leftPens`. Reported off the first screenshot: "the score
+  /// isn't needed there as it's at the top."
+  ///
+  /// [beat] is therefore only the kick's number, for the pool seed — and, on a
+  /// RESULT row, the card it is drawn as.
+  ///
+  /// **A KICK THAT IS TAKEN IS A GOAL CARD.** Asked for from the couch off the
+  /// second screenshot: "the way we do goal now is how I want it, with player
+  /// image, with Goal as title etc. It should look similar." So the four
+  /// outcome rows carry a [GoalCard] and the taker's id, and `_FeedLine` draws
+  /// them through the same branch a goal in open play goes through. The
+  /// walk-up, the announcement and the sudden-death line stay plain rows: they
+  /// are the quiet before it, and three cards a kick would be all shout.
+  ///
+  /// **[GoalCard.ours] means what it says — one of OURS took it** — and the
+  /// colour follows from it only when the kick went in. Green is a ball in our
+  /// net's other end and red is one in ours; a MISS is neither, so it is drawn
+  /// on the ordinary plate with a muted rail. A green card reading "Missed"
+  /// was the first attempt and it read as good news about a failure.
   void _pensNote(
     String key, {
     ShootoutBeat? beat,
-    bool openingScore = false,
-    String? who,
+    String? taker,
+    bool result = false,
   }) {
-    final home = widget.result['isHome'] == true;
-    final ourPens = beat?.ourScore ?? 0;
-    final theirPens = beat?.theirScore ?? 0;
+    final name = taker == null
+        ? null
+        : cardById(ref.read(gameProvider).state, taker)?.name();
     _notes.add((
       minute: _end,
       type: 'penalty',
@@ -1903,22 +1921,21 @@ class MatchScreenState extends ConsumerState<MatchScreen>
         'us': '${widget.result['clubName'] ?? ''}',
         'them': '${widget.result['opponentName'] ?? ''}',
         // The man on the spot, or the club when the save cannot name one.
-        'who': who ?? '${widget.result['clubName'] ?? ''}',
-        if (beat != null || openingScore)
-          'score': shootoutScoreLine(
-            // HOME SIDE LEFT, like the board — see `shootoutScoreLine`. A cup
-            // tie always carries `isHome: true`, but the board's rule is the
-            // one to follow rather than the fixture's habit.
-            leftGoals: home ? frame.ourGoals : frame.theirGoals,
-            rightGoals: home ? frame.theirGoals : frame.ourGoals,
-            leftPens: home ? ourPens : theirPens,
-            rightPens: home ? theirPens : ourPens,
-          ),
+        'who': name ?? '${widget.result['clubName'] ?? ''}',
       },
       // The kick number and which half of it, so no two rows share a pick.
       seed: '$key-${beat?.kick ?? 0}-${_notes.length}',
-      goal: null,
-      aboutId: null,
+      goal: !result || beat == null
+          ? null
+          : (
+              // The board carries the scoreline — see the note above — so the
+              // card's own pair is never printed for a penalty.
+              left: 0,
+              right: 0,
+              tallyInMatch: 0,
+              ours: beat.ours,
+            ),
+      aboutId: taker,
       card: null,
       playerId: null,
       offId: null,
@@ -3706,6 +3723,21 @@ class MatchScreenState extends ConsumerState<MatchScreen>
     // The tactic changes, merged in by minute. A stable merge rather than a
     // sort: `_notes` is already in order, and a note belongs AFTER the events
     // of the minute it was made in — the switch answers what just happened.
+    // **THE NINETY MINUTES ARE STILL BEING PLAYED**, which is not the same
+    // question as `f.finished` any more.
+    //
+    // A shootout sits between the two: the match is not over — the tie is
+    // still being decided — and yet there is nothing left to manage. Gating
+    // the controls on `finished` alone left the tactic strip, the boost strip
+    // and the SUBS button live over a penalty shootout, which is the screen
+    // offering three things the laws of the game do not allow. Caught on the
+    // first shot of the feature.
+    //
+    // The SPEED toggle stays, because the beats scale with it and a player who
+    // wants the kicks quicker can have them; so does SKIP, which is the same
+    // offer it always was.
+    final playing = !f.finished && !_pensRunning;
+
     final lines = <FeedLine>[];
     var next = 0;
     for (final line in events) {
@@ -3778,7 +3810,7 @@ class MatchScreenState extends ConsumerState<MatchScreen>
                     pensRunning: _pensRunning,
                     bands: _boosts.activeAt(f.minute),
                     glow: _liveGlow.isAnimating ? _liveGlow : null,
-                    lifted: !f.finished && _liftedAt(f.minute),
+                    lifted: playing && _liftedAt(f.minute),
                     pill: _pill,
                     onStats: () => _showStats(home),
                     // **Localised HERE, not in the engine.** The result
@@ -3822,7 +3854,7 @@ class MatchScreenState extends ConsumerState<MatchScreen>
                         final stageHeight = stageBandHeight(
                           width: pool.maxWidth - matchInset * 2,
                           pool: pool.maxHeight,
-                          hasTacticStrip: !f.finished,
+                          hasTacticStrip: playing,
                         );
                         return Column(
                           children: [
@@ -3929,7 +3961,7 @@ class MatchScreenState extends ConsumerState<MatchScreen>
                                         memory: _aura,
                                       ),
                                     MomentumArrow(
-                                    arrow: !f.finished,
+                                    arrow: playing,
                                     bias: momentumBias(
                                       dangerHome: stats.dangerHome,
                                       isHome: home,
@@ -3990,13 +4022,16 @@ class MatchScreenState extends ConsumerState<MatchScreen>
                               // tap away. Asked for from the couch. Only once
                               // the clock has stopped and only while no clip is
                               // running — a replay still owns the grass.
-                              if (f.finished && _clip == null)
+                              // **AND THROUGH THE SHOOTOUT TOO**, which is
+                              // what a broadcast puts on an empty pitch
+                              // between the whistle and the first kick.
+                              if (!playing && _clip == null)
                                 PitchStatOverlay(stats: stats, isHome: home),
                               // **THE BOOSTS ARE ON THE PITCH**, in the corner
                               // — the thing they act on, and the one band with
                               // room. Gone while a clip owns the grass. See
                               // `boost_strip.dart`.
-                              if (!f.finished && _clip == null && !_boostsHidden)
+                              if (playing && _clip == null && !_boostsHidden)
                                 Positioned(
                                   top: 8,
                                   left: 12,
@@ -4021,8 +4056,9 @@ class MatchScreenState extends ConsumerState<MatchScreen>
                     // **DIRECTLY UNDER THE PITCH IT ACTS ON** — the JS's own band
                     // order, and the reason for it: a control for the thing above it
                     // reads as belonging to it.
-                    if (!f.finished)
+                    if (playing)
                       _TacticStrip(
+                        key: const ValueKey('match-tactic-strip'),
                         active: _strategy,
                         onPick: applyStrategy,
                         cooldown: _tacticCooldown,
@@ -4265,11 +4301,16 @@ class MatchScreenState extends ConsumerState<MatchScreen>
                                       : '1×',
                                 ),
                               ),
-                              const SizedBox(width: 8),
+                              // **NO SUBSTITUTIONS DURING A SHOOTOUT**, which
+                              // is the laws of the game and not a preference:
+                              // the eleven who finished the match are the
+                              // eleven who take the kicks, and `_penaltyTakers`
+                              // has already read that team sheet.
+                              if (playing) const SizedBox(width: 8),
                               // Subs before skip: one is a decision and the other is
                               // giving up on watching, and the one that takes a
                               // thought should not be the afterthought.
-                              Expanded(
+                              if (playing) Expanded(
                                 child: OutlinedButton(
                                   key: const ValueKey('match-subs'),
                                   // **THE SAME FACE AS SKIP.** It wore
@@ -4581,6 +4622,7 @@ const List<String> strategyStrip = [
 
 class _TacticStrip extends StatelessWidget {
   const _TacticStrip({
+    super.key,
     required this.active,
     required this.onPick,
     required this.cooldown,
@@ -5488,10 +5530,6 @@ class _FeedLine extends StatelessWidget {
       // names both: `boost.sharp.live`, `boost.sharp.over`.
       'boost' => _boostHeading(line.key),
       'chance' => t('match.chance'),
-      // A kick of a shootout. The head carries the running score in place of a
-      // minute — see the row below — because every kick is taken after the
-      // ninety minutes are up and "94'" over twelve of them says nothing.
-      'penalty' => t('match.pens.head'),
       // **THREE WORDS, not one.** A second caution and a straight red are
       // different offences — one is a booking too many, the other is violent
       // conduct or denying a goalscoring opportunity — and a feed that headed
@@ -5501,12 +5539,32 @@ class _FeedLine extends StatelessWidget {
       _ => null,
     };
 
-    // **WHAT THE SCAN COLUMN SAYS.** A minute, for everything the clock
-    // covers — and on a shootout row the running score instead. See the note
-    // on the `Text` below.
-    final head = line.type == 'penalty' && line.params['score'] != null
-        ? '${line.params['score']}'
-        : "${line.minute}'";
+    // **A SHOOTOUT ROW WEARS THE NEWS AND SAYS NOTHING ELSE.**
+    //
+    // Reported off the first screenshot of the feature: "we use the green
+    // background for goal and red for goal against and I think we should keep
+    // that. I don't like seeing penalties again and again on the boxes title
+    // and the score isn't needed there as it's at the top."
+    //
+    // All three are one observation. Twenty rows in a row cannot each carry a
+    // heading and a scoreline — the heading is the same word every time and
+    // the score is on the board four inches above in three times the type — so
+    // what is left is the sentence, and the PLATE says which way it went.
+    // Green for a kick of ours going in and red for one of theirs, which is
+    // the pair the goal card already uses and for the same reason: it is the
+    // one thing on the page that has to be read at a glance.
+    //
+    // Null on a walk-up, a miss and the announcement, all of which are the
+    // absence of a goal rather than one.
+    // The four outcome rows are drawn as goal cards instead — see the branch
+    // below and `MatchScreenState._pensNote`.
+    final pens = line.type != 'penalty'
+        ? null
+        : switch (line.key) {
+            'match.pens.through' => vsGreenOn(context),
+            'match.pens.out' => conceded,
+            _ => null,
+          };
 
     // **TIME OVER DESCRIPTION, not beside it.** Every line was a minute in a
     // 30-point gutter with the sentence flowing off it, so a long line wrapped
@@ -5516,17 +5574,14 @@ class _FeedLine extends StatelessWidget {
     final card = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        // Every kick is taken after the ninety minutes are up, so the minute
+        // is the same on all of them and says nothing — see [pens]. The
+        // sentence is the whole row.
+        if (line.type != 'penalty') ...[
         Row(
           children: [
             Text(
-              // **THE SCORE IN THE MINUTE'S PLACE, on a shootout row.** Asked
-              // for from the couch in this shape — "the score being recorded
-              // 0(3)-(2)0" — and the minute column is where it belongs: it is
-              // what the row is scanned by, and a kick has a running score the
-              // way a minute of the match has a clock. The announcement and
-              // the verdict carry no score and fall back to the minute, which
-              // is full time for all of them.
-              head,
+              "${line.minute}'",
               // **READABLE.** It was `textMuted` at 11 over a pane with a
               // gradient behind it, which is the one column a player scans the
               // feed by.
@@ -5578,6 +5633,7 @@ class _FeedLine extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 5),
+        ],
         // **AND THE SWAP REPLACES THE SENTENCE, rather than sitting over it.**
         // Both names are in the two rows; printing "{off} off, {on} on."
         // underneath them is the same information a second time, which is what
@@ -5599,7 +5655,11 @@ class _FeedLine extends StatelessWidget {
                   text,
                   style: TextStyle(
                     fontSize: 13,
-                    color: isGoal ? glassAccent(context, kit.accentBright) : null,
+                    // A tinted shootout row has no heading to carry its
+                    // colour, so the sentence is what carries it.
+                    color:
+                        pens ??
+                        (isGoal ? glassAccent(context, kit.accentBright) : null),
                   ),
                 ),
               ),
@@ -5629,13 +5689,26 @@ class _FeedLine extends StatelessWidget {
       // the same colour. Reported from the couch. `vsGreenOn` is the green
       // every stat row and every quest verdict already uses for "this went well
       // for us", and it is a colour rather than a kit.
-      final scored = goal.ours ? vsGreenOn(context) : conceded;
+      // **A PENALTY THAT MISSED IS NOT A GOAL OF EITHER COLOUR.** The couch's
+      // rule is green for a goal and red for a goal against, and a miss is
+      // neither — the first attempt coloured it by who it was good news FOR,
+      // which put a green card reading "Missed" on the page. So a miss keeps
+      // the feed's own plate and a muted rail, and the heading and the face
+      // are what make it a card rather than a line.
+      final missed = line.type == 'penalty' && !_pensWentIn(line.key);
+      final scored = missed
+          ? kit.textMuted
+          : goal.ours
+          ? vsGreenOn(context)
+          : conceded;
       return Padding(
         padding: const EdgeInsets.symmetric(horizontal: feedInset, vertical: 4),
         child: Container(
           padding: const EdgeInsets.fromLTRB(10, 8, 10, 9),
           decoration: BoxDecoration(
-            color: scored.withValues(alpha: goal.ours ? 0.15 : 0.13),
+            color: missed
+                ? glassInk(context).withValues(alpha: feedPlateFill)
+                : scored.withValues(alpha: goal.ours ? 0.15 : 0.13),
             borderRadius: BorderRadius.circular(12),
             border: Border(left: BorderSide(color: scored, width: 3)),
           ),
@@ -5644,15 +5717,20 @@ class _FeedLine extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  Text(
-                    "${line.minute}'",
-                    style: TextStyle(
-                      color: kit.textMuted,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w800,
+                  // **NO MINUTE ON A SHOOTOUT CARD.** Every kick is taken
+                  // after the ninety minutes are up, so it is the same figure
+                  // on all of them and says nothing.
+                  if (line.type != 'penalty') ...[
+                    Text(
+                      "${line.minute}'",
+                      style: TextStyle(
+                        color: kit.textMuted,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 8),
+                    const SizedBox(width: 8),
+                  ],
                   // **THE BALL AND THE WORD, on BOTH.** Theirs used to be
                   // headed by their NAME on the reasoning that we hold no card
                   // for their players — but the head is the row's ACTION, not
@@ -5662,11 +5740,19 @@ class _FeedLine extends StatelessWidget {
                   // one slot that says WHAT HAPPENED on a repeat. Reported from
                   // the couch: it should still say GOAL, the colour is what
                   // says whose.
-                  Icon(Icons.sports_soccer, size: 14, color: scored),
+                  // A kick that went in is a goal and wears the ball; one
+                  // that did not is the opposite of one, and says so.
+                  Icon(
+                    missed ? Icons.block : Icons.sports_soccer,
+                    size: 14,
+                    color: scored,
+                  ),
                   const SizedBox(width: 6),
                   Expanded(
                     child: Text(
-                      t('match.goal_card.title'),
+                      missed
+                          ? t('match.pens.missed_title')
+                          : t('match.goal_card.title'),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
@@ -5677,14 +5763,19 @@ class _FeedLine extends StatelessWidget {
                       ),
                     ),
                   ),
-                  Text(
-                    '${goal.left}-${goal.right}',
-                    style: const TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w900,
-                      fontFeatures: [FontFeature.tabularFigures()],
+                  // **AND NO SCORELINE EITHER.** The shootout's running
+                  // tally is on the BOARD in three times this type — see
+                  // `_Scoreboard.leftPens` — and a goal card's own pair is
+                  // the ninety minutes', which a kick does not change.
+                  if (line.type != 'penalty')
+                    Text(
+                      '${goal.left}-${goal.right}',
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w900,
+                        fontFeatures: [FontFeature.tabularFigures()],
+                      ),
                     ),
-                  ),
                 ],
               ),
               // No scorer row for theirs, and none for one of ours whose card
@@ -5715,8 +5806,13 @@ class _FeedLine extends StatelessWidget {
                               fontWeight: FontWeight.w900,
                             ),
                           ),
-                          if (_careerGoals(about, goal.tallyInMatch)
-                              case final total?)
+                          // Not on a shootout card: kicks in a shootout are
+                          // not goals and do not go on a career record, so a
+                          // total printed under one would be claiming the kick
+                          // had moved it.
+                          if (line.type != 'penalty')
+                            if (_careerGoals(about, goal.tallyInMatch)
+                                case final total?)
                             Text(
                               t(
                                 total == 1
@@ -5768,7 +5864,11 @@ class _FeedLine extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.fromLTRB(11, 9, 11, 10),
         decoration: BoxDecoration(
-          color: glassInk(context).withValues(alpha: feedPlateFill),
+          color: pens == null
+              ? glassInk(context).withValues(alpha: feedPlateFill)
+              // The goal card's own tint, so a kick that goes in and a goal
+              // that goes in are the same news drawn the same way.
+              : pens.withValues(alpha: 0.15),
           borderRadius: BorderRadius.circular(10),
           // **A BOOST LINE WEARS ITS COLOUR DOWN THE LEFT**, the way a goal
           // wears green or red — a rail, so the window's opening is found in
@@ -5776,7 +5876,8 @@ class _FeedLine extends StatelessWidget {
           // that opens a window; the one that closes it stays plain.
           // The rail alone, the goal card's own shape: a rounded box cannot
           // carry a rail on one side and a hairline on the other three.
-          border: switch (line.type == 'boost' ? _boostHeadingInk(line.key) : null) {
+          border: switch (pens ??
+              (line.type == 'boost' ? _boostHeadingInk(line.key) : null)) {
             final rail? => Border(left: BorderSide(color: rail, width: 3)),
             null => Border.all(
                 color: glassInk(context).withValues(alpha: feedPlateEdge),
@@ -5873,6 +5974,15 @@ class _SwapRow extends StatelessWidget {
 ///
 /// The save is not written until the whistle, so the stored figure is always one
 /// match behind what the player just watched.
+/// Did the kick this row is about go in?
+///
+/// The row's KEY is what knows — see `shootoutLineKey`, which picks one of
+/// four pools off the beat — and it is the only thing the widget is handed
+/// that does. `GoalCard.ours` cannot answer it: on a shootout row that field
+/// means "went our way", so their miss and our goal share it.
+bool _pensWentIn(String key) =>
+    key == 'match.pens.scored' || key == 'match.pens.opp_scored';
+
 int? _careerGoals(CardInstance card, int today) {
   final stats = card.raw['stats'];
   if (stats is! Map<String, dynamic>) return null;
