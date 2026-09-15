@@ -8,6 +8,19 @@ library;
 
 /// Replaces the generated entry, or adds a key Italian did not have.
 const Map<String, String> itCopy = <String, String>{
+  // ── Il foglio di assegnazione dei buoni osservatore ──────────────────────
+  //
+  // Propria del port: i buoni ora si collezionano, e qui si sceglie quanti
+  // spenderne e su quale carta. Il nome del livello in {tier} arriva da
+  // `tierLabel`, in inglese come nel negozio.
+  'scout.assign.title': 'Spendi un buono?',
+  'scout.assign.hint': 'Trascinane uno su una carta, oppure toccalo. Quelli che '
+      'tieni restano nella borsa.',
+  'scout.assign.promised': '{tier} o meglio',
+  'scout.assign.any_tier': 'Qualsiasi livello',
+  'scout.assign.free': 'GRATIS',
+  'scout.assign.autosell': 'Le tue regole di vendita la incassano subito',
+  'scout.assign.short': 'Monete insufficienti per le carte lasciate scoperte',
   'customise.item.face.bubblegum': 'Gomma',
 
   // Una terza riga accanto a Suono e Musica: il clic di ogni pulsante.

@@ -9,6 +9,19 @@ library;
 
 /// Replaces the generated entry, or adds a key French did not have.
 const Map<String, String> frCopy = <String, String>{
+  // ── La feuille d'attribution des bons de recrutement ─────────────────────
+  //
+  // Propre au port : les bons se collectionnent désormais, et c'est ici qu'on
+  // choisit combien en dépenser et sur quelle carte. Le nom de palier de
+  // {tier} vient de `tierLabel`, en anglais comme dans la boutique.
+  'scout.assign.title': 'Dépenser un bon ?',
+  'scout.assign.hint': 'Glissez-en un sur une carte, ou touchez-le. Ce que vous '
+      'gardez reste dans la sacoche.',
+  'scout.assign.promised': '{tier} ou mieux',
+  'scout.assign.any_tier': 'N\'importe quel palier',
+  'scout.assign.free': 'GRATUIT',
+  'scout.assign.autosell': 'Vos règles de vente vont la revendre aussitôt',
+  'scout.assign.short': 'Pas assez de pièces pour les cartes laissées sans bon',
   'customise.item.face.bubblegum': 'Chewing-gum',
 
   // Une troisième ligne à côté de Son et Musique : le clic de chaque bouton.

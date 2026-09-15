@@ -20,8 +20,9 @@ import 'package:merge_empire_fc/engine/idle_engine.dart';
 import 'package:merge_empire_fc/engine/merge_flow_engine.dart';
 import 'package:merge_empire_fc/engine/sell_card_engine.dart';
 import 'package:merge_empire_fc/engine/tutorial_engine.dart';
+import 'package:merge_empire_fc/engine/scout_voucher_engine.dart';
 import 'package:merge_empire_fc/ui/screens/grid/add_player_button.dart'
-    show signBlockedCopy;
+    show AddPlayerButton, AddPlayerButtonState, signBlockedCopy;
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/state/game_state.dart';
@@ -125,12 +126,27 @@ Future<ProviderContainer> pumpGrid(
   // save with evidence of play now — there is a tutorial to be in the middle
   // of — so the default has to say what these tests actually mean.
   bool tutorialDone = true,
+  /// Scout vouchers in the bag. A non-empty bag puts the assignment sheet in
+  /// front of every Scout tap, so it also changes what `tapAddPlayer` has to
+  /// do — see `tapAddPlayer`'s own note.
+  List<int> vouchers = const [],
+  String? division,
+  int? coins,
 }) async {
   final state = createDefaultState();
   final cells =
       (state['grid'] as Map<String, dynamic>)['cells'] as List<dynamic>;
   cards.forEach((i, card) => cells[i] = card);
   (state['tutorial'] as Map<String, dynamic>)['done'] = tutorialDone;
+  if (vouchers.isNotEmpty) {
+    (state['shop'] as Map<String, dynamic>)['scoutVouchers'] = [...vouchers];
+  }
+  if (division != null) {
+    (state['progression'] as Map<String, dynamic>)['currentDivision'] = division;
+  }
+  if (coins != null) {
+    (state['resources'] as Map<String, dynamic>)['fanCoins'] = coins;
+  }
 
   final container = ProviderContainer(
     overrides: [
@@ -192,8 +208,27 @@ Future<void> settleSave(WidgetTester tester) =>
 /// The button turns its cards over before it hands the grid back, and stays dead
 /// for the duration — so a test that only pumps until the frames stop finds the
 /// reveal still up and the next tap ignored.
-Future<void> tapAddPlayer(WidgetTester tester, {int cards = 1}) async {
+///
+/// **A save holding vouchers gets the assignment sheet first**, and the chain
+/// does not reach the draw until it is answered. [assign] is what to do with it:
+/// null answers it with Continue and nothing assigned, which is the "I just want
+/// to scout" path. A test that wants a voucher actually spent passes a callback
+/// that places one. Pass [assign] only when the bag is non-empty — there is no
+/// sheet otherwise, and a callback that finds no controls fails forty lines
+/// later in an assertion about something else.
+Future<void> tapAddPlayer(
+  WidgetTester tester, {
+  int cards = 1,
+  Future<void> Function(WidgetTester)? assign,
+  bool hasSheet = false,
+}) async {
   await tester.tap(find.byKey(const ValueKey('add-player')));
+  if (hasSheet || assign != null) {
+    await tester.pumpAndSettle();
+    if (assign != null) await assign(tester);
+    await tester.tap(find.byKey(const ValueKey('assign-go')));
+    await tester.pumpAndSettle();
+  }
   // One frame to MOUNT the reveal — its hold only starts counting once it is on
   // screen, so a single long pump would insert it at the end of the very window
   // it was supposed to run inside, and leave it up with a timer pending.
@@ -205,6 +240,11 @@ Future<void> tapAddPlayer(WidgetTester tester, {int cards = 1}) async {
 
 int filledCells(ProviderContainer c) =>
     gridCells(c.read(gameProvider).state).where((x) => x != null).length;
+
+int coinsOf(ProviderContainer c) =>
+    ((c.read(gameProvider).state?['resources'] as Map?)?['fanCoins'] as num?)
+        ?.toInt() ??
+    0;
 
 void main() {
   group('the grid', () {
@@ -2082,5 +2122,125 @@ void main() {
     });
   });
 
+  // ── Scouting with vouchers in the bag ──────────────────────────────────────
+  //
+  // The reachability half of the feature. The engine can put a voucher on any
+  // card of a batch and the sheet can say which — these are the tests that a
+  // player tapping Scout can actually get from one to the other.
 
+  group('the voucher bag', () {
+    testWidgets('AN EMPTY BAG IS THE OLD PATH, with no sheet at all', (
+      tester,
+    ) async {
+      // Load-bearing: it is what keeps every other test in this file, and the
+      // tutorial walkthrough, working untouched.
+      final container = await pumpGrid(tester);
+      await tester.tap(find.byKey(const ValueKey('add-player')));
+      await tester.pump();
+      expect(find.byKey(const ValueKey('assign-go')), findsNothing);
+      await tester.pump(scoutRevealHold(1) + const Duration(milliseconds: 100));
+      await tester.pumpAndSettle();
+      await settleSave(tester);
+      expect(filledCells(container), 1);
+    });
+
+    testWidgets('a full bag puts the sheet in front of the draw', (
+      tester,
+    ) async {
+      final container = await pumpGrid(tester, vouchers: [2]);
+      final before = coinsOf(container);
+
+      await tester.tap(find.byKey(const ValueKey('add-player')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('assign-go')), findsOneWidget);
+      // Nothing has been drawn or charged while it is up.
+      expect(filledCells(container), 0);
+      expect(coinsOf(container), before);
+    });
+
+    testWidgets('A VOUCHER ASSIGNED IS A CARD NOT PAID FOR', (tester) async {
+      final container = await pumpGrid(tester, vouchers: [2]);
+      final before = coinsOf(container);
+
+      await tapAddPlayer(
+        tester,
+        assign: (t) async {
+          await t.tap(find.byKey(const ValueKey('assign-chip-0')));
+          await t.pumpAndSettle();
+        },
+      );
+
+      expect(filledCells(container), 1);
+      expect(coinsOf(container), before, reason: 'the voucher paid');
+      expect(voucherInventory(container.read(gameProvider).state), isEmpty);
+    });
+
+    testWidgets('and one left in the bag stays there, with coins paid', (
+      tester,
+    ) async {
+      final container = await pumpGrid(tester, vouchers: [2]);
+      final before = coinsOf(container);
+
+      await tapAddPlayer(tester, hasSheet: true);
+
+      expect(filledCells(container), 1);
+      expect(coinsOf(container), lessThan(before), reason: 'coins paid');
+      expect(voucherInventory(container.read(gameProvider).state), [2]);
+    });
+
+    testWidgets('BACKING OUT DRAWS NOTHING AND SPENDS NOTHING', (tester) async {
+      final container = await pumpGrid(tester, vouchers: [2]);
+      final before = coinsOf(container);
+
+      await tester.tap(find.byKey(const ValueKey('add-player')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('assign-cancel')));
+      await tester.pumpAndSettle();
+      await settleSave(tester);
+
+      expect(filledCells(container), 0);
+      expect(coinsOf(container), before);
+      expect(voucherInventory(container.read(gameProvider).state), [2]);
+      // And the button is live again rather than stuck dead behind a reveal
+      // that never ran.
+      expect(
+        tester.state<AddPlayerButtonState>(find.byType(AddPlayerButton))
+            .isRevealing,
+        isFalse,
+      );
+    });
+
+    testWidgets('THE BUTTON IS LIVE ON VOUCHERS ALONE, with no coins', (
+      tester,
+    ) async {
+      // `scoutCost` quotes the full price now, so the per-card check says
+      // `insufficient_coins` at zero coins and the whole control greyed out
+      // with a full bag — the opposite of the feature.
+      //
+      // **A card on the grid, because a broke save with an EMPTY one is handed
+      // the starting float back** — `migrate` reads that as a broken start
+      // rather than a hard-earned bankruptcy, so this test cannot set up the
+      // state it is about without one.
+      final container = await pumpGrid(
+        tester,
+        cards: {0: _card(_baseDefId, 'a')},
+        vouchers: [2],
+        coins: 0,
+      );
+      await tapAddPlayer(
+        tester,
+        assign: (t) async {
+          await t.tap(find.byKey(const ValueKey('assign-chip-0')));
+          await t.pumpAndSettle();
+        },
+      );
+      expect(filledCells(container), 2);
+      expect(coinsOf(container), 0, reason: 'the voucher paid, not the purse');
+    });
+
+    testWidgets('the count rides on the button', (tester) async {
+      await pumpGrid(tester, vouchers: [2, 2, 2]);
+      expect(find.text('🎟️ 3'), findsOneWidget);
+    });
+  });
 }

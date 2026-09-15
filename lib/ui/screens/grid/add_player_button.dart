@@ -35,27 +35,46 @@ import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/state/game_state.dart';
 import 'package:merge_empire_fc/ui/screens/grid/auto_tier_sheet.dart';
 import 'package:merge_empire_fc/ui/screens/grid/grid_providers.dart';
+import 'package:merge_empire_fc/ui/screens/grid/scout_assign_sheet.dart';
 import 'package:merge_empire_fc/ui/screens/grid/scout_reveal.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 import 'package:merge_empire_fc/util/format.dart';
 
-final signBlockedProvider = savePick<String?>(signBlocked);
+/// **[scoutBlocked], not `signBlocked`.** The per-card one asks whether THIS
+/// card can be paid for, and `scoutCost` quotes the full price now — so a player
+/// holding three vouchers and no coins got a dead button with a full bag, which
+/// is the opposite of the feature. This one counts the bag.
+final signBlockedProvider = savePick<String?>(scoutBlocked);
 final signCostProvider = savePick<int>(scoutCost);
 final signIsFreeProvider = savePick<bool>((s) => scoutCost(s) == 0);
 
-/// The unit price with any voucher IGNORED. A voucher covers the FIRST card
-/// only, so a batch's remaining cards are charged at this rate — and a discount
-/// the player cannot see is not a reward.
+/// The unit price with any voucher IGNORED.
+///
+/// Both of these now answer the same thing on a live save — `scoutCost` stopped
+/// discounting for a held voucher when vouchers became collectable, because a
+/// card is free for being ASSIGNED one, not for one existing. They still differ
+/// for a save carrying the old scalar, which is what keeps the JS fixture's
+/// states behaving as the JS did.
 final signFullCostProvider = savePick<int>(
   (s) => scoutCost(s, ignoreVoucher: true),
 );
 
-/// The tier floor a Guaranteed Scout has armed, if one is held. The button wears
-/// that tier's colour: before this, an armed Bronze+ voucher and a plain free
-/// scout were the same green button with the same chip, so the one thing bought
-/// with gems was invisible at the moment of spending it.
-final scoutVoucherTierProvider = savePick<int?>(heldVoucherTier);
+/// The BEST floor in the bag, or null when it is empty. The button wears that
+/// tier's colour: before this, an armed Bronze+ voucher and a plain free scout
+/// were the same green button with the same chip, so the one thing bought with
+/// gems was invisible at the moment of spending it.
+///
+/// A colour rather than a number, deliberately — what the button says is that
+/// there is something to spend, and the bag itself is the sheet's job.
+final scoutVoucherTierProvider = savePick<int?>(
+  (s) => voucherInventory(s).firstOrNull,
+);
+
+/// How many are held, for the chip's count.
+final scoutVoucherCountProvider = savePick<int>(
+  (s) => voucherInventory(s).length,
+);
 
 /// What a tap will buy, and what the player could pick instead.
 final scoutBatchProvider = savePick<int>(effectiveScoutBatch);
@@ -146,7 +165,29 @@ class AddPlayerButtonState extends ConsumerState<AddPlayerButton> {
     if (_revealing) return;
     setState(() => _revealing = true);
     try {
-      final result = game.update((s) => signPlayers(s, batch));
+      // **THE ASSIGNMENT COMES FIRST, and only when there is something to
+      // assign.** With an empty bag this is byte-for-byte the old path — which
+      // is deliberate rather than incidental: every existing test that taps
+      // Scout, the tutorial walkthrough included, goes through it untouched.
+      //
+      // It has to be here rather than in the reveal, and not only because a
+      // reveal is an animation layer that asks nothing. `signPlayers` charges
+      // and rolls card by card, so by the time a face-down card is on screen
+      // the coins are gone and the tier is decided. See `scout_assign_sheet`.
+      List<int?>? vouchers;
+      final state = game.state;
+      if (state != null && hasVouchers(state) && mounted) {
+        vouchers = await showScoutAssignSheet(
+          context,
+          batch: batch,
+          state: state,
+        );
+        // Backed out — a scrim tap or a swipe down. Nothing is drawn and
+        // nothing is spent; tapping Scout again costs a tap.
+        if (vouchers == null || !mounted) return;
+      }
+
+      final result = game.update((s) => signPlayers(s, batch, vouchers: vouchers));
       if (result.placed.isEmpty) return;
 
       // Read the cards AFTER the draw and BEFORE the settle: they are all really
@@ -192,6 +233,7 @@ class AddPlayerButtonState extends ConsumerState<AddPlayerButton> {
     final blocked = ref.watch(signBlockedProvider);
     final free = ref.watch(signIsFreeProvider);
     final voucher = ref.watch(scoutVoucherTierProvider);
+    final voucherCount = ref.watch(scoutVoucherCountProvider);
     final counted = ref.watch(gridCountProvider);
     final game = ref.read(gameProvider);
 
@@ -300,8 +342,23 @@ class AddPlayerButtonState extends ConsumerState<AddPlayerButton> {
                           icon: voucher == null ? 'clover' : 'ticket',
                           extra: batch > 1 ? total : null,
                         )
-                      else
+                      else ...[
+                        // **THE PRICE IS WHAT IT COSTS WITH NOTHING ASSIGNED**,
+                        // because that is true until the player says otherwise.
+                        // A held voucher no longer discounts this: it discounts
+                        // the CARD it gets put on, on the sheet, where the total
+                        // falls as each one lands. Quoting a reduced price here
+                        // would promise a saving the player has not chosen yet.
                         _Price(value: total, ink: ink),
+                        // **A COUNT, NOT A TIER.** What the button has to say is
+                        // that there is something to spend; which vouchers, and
+                        // on what, is the sheet's whole job. The gradient
+                        // already carries the best floor as a colour.
+                        if (voucherCount > 0) ...[
+                          const SizedBox(width: 5),
+                          _VoucherCount(count: voucherCount, ink: ink),
+                        ],
+                      ],
                     ],
                   ),
                 ),
@@ -575,6 +632,33 @@ class _Segment extends StatelessWidget {
 }
 
 /// A coin figure with the game's own coin glyph in front of it.
+/// `🎟️ 3` — how many vouchers are in the bag, beside the price.
+///
+/// **Deliberately not a list of tiers.** There is room for one number on a
+/// button that already carries a label, a price and a ×N segment, and the
+/// question it answers is "have I got anything to spend", not "what exactly".
+/// The sheet is where the bag is laid out; the button's gradient already says
+/// what the best of it is.
+class _VoucherCount extends StatelessWidget {
+  const _VoucherCount({required this.count, required this.ink});
+
+  final int count;
+  final Color ink;
+
+  @override
+  Widget build(BuildContext context) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+    decoration: BoxDecoration(
+      color: Colors.black.withValues(alpha: 0.3),
+      borderRadius: BorderRadius.circular(5),
+    ),
+    child: Text(
+      '🎟️ $count',
+      style: TextStyle(color: ink, fontSize: 11, fontWeight: FontWeight.w800),
+    ),
+  );
+}
+
 class _Price extends StatelessWidget {
   const _Price({required this.value, required this.ink});
 

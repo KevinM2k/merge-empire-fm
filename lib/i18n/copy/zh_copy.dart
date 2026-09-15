@@ -8,6 +8,17 @@ library;
 
 /// Replaces the generated entry, or adds a key Chinese did not have.
 const Map<String, String> zhCopy = <String, String>{
+  // ── 球探券分配面板 ───────────────────────────────────────────────────────
+  //
+  // 移植版自有。球探券现在可以囤了，用几张、用在哪张卡上都在这里决定。{tier}
+  // 的等级名来自 `tierLabel`，和商店一样是英文。
+  'scout.assign.title': '要用球探券吗？',
+  'scout.assign.hint': '把券拖到卡片上，或者点一下。没用掉的都会留着。',
+  'scout.assign.promised': '{tier} 或更高',
+  'scout.assign.any_tier': '不限等级',
+  'scout.assign.free': '免费',
+  'scout.assign.autosell': '你的自动出售规则会立刻把它卖掉',
+  'scout.assign.short': '剩下没用券的卡片，金币不够',
   'customise.item.face.bubblegum': '泡泡糖',
 
   // 位于“声音”和“音乐”旁的第三行：每个按钮的点击音。

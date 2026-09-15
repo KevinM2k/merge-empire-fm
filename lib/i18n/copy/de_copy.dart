@@ -10,6 +10,19 @@ library;
 
 /// Replaces the generated entry, or adds a key German did not have.
 const Map<String, String> deCopy = <String, String>{
+  // ── Der Gutschein-Zuteilungsbogen ────────────────────────────────────────
+  //
+  // Eigenbau des Ports: Gutscheine sind jetzt sammelbar, und hier entscheidet
+  // die Spielerin, wie viele sie ausgibt und auf welche Karte. Der Stufenname
+  // in {tier} kommt aus `tierLabel` — englisch, wie schon im Shop.
+  'scout.assign.title': 'Gutschein einlösen?',
+  'scout.assign.hint': 'Zieh einen auf eine Karte oder tipp ihn an. Was du '
+      'behältst, bleibt im Beutel.',
+  'scout.assign.promised': '{tier} oder besser',
+  'scout.assign.any_tier': 'Beliebige Stufe',
+  'scout.assign.free': 'GRATIS',
+  'scout.assign.autosell': 'Deine Verkaufsregeln machen die sofort zu Geld',
+  'scout.assign.short': 'Nicht genug Münzen für die Karten ohne Gutschein',
   'customise.item.face.bubblegum': 'Kaugummi',
 
   // Eine dritte Zeile neben Sound und Musik: der Klick jeder Schaltfläche.

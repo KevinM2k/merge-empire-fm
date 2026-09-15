@@ -766,7 +766,7 @@ class _RevealCard extends StatelessWidget {
           : Transform(
               alignment: Alignment.center,
               transform: Matrix4.identity()..rotateY(math.pi),
-              child: _CardBack(kit: kit, size: size, tier: card.view.tier),
+              child: CardBack(kit: kit, size: size, tier: card.view.tier),
             ),
     );
 
@@ -1012,8 +1012,13 @@ Color revealGlowFor(int tier) => tier >= 7
 /// and the flip looked like a card appearing out of nothing. This is the JS's
 /// own back: a deep navy-to-indigo plate, rimmed in the tier's glow, carrying
 /// the ball and the club wordmark.
-class _CardBack extends StatelessWidget {
-  const _CardBack({required this.kit, required this.size, this.tier = 1});
+/// **Public, because the assignment sheet shows the same object.** A batch is
+/// laid out face down there so vouchers can be dropped on it, and those backs
+/// have to be the ones that then turn over — two implementations of "the back
+/// of a scout card" would drift, and the seam would show at the exact moment
+/// the sheet closes and the reveal opens on the same cards.
+class CardBack extends StatelessWidget {
+  const CardBack({super.key, required this.kit, required this.size, this.tier = 1});
 
   final KitTheme kit;
   final double size;

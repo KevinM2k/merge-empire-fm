@@ -13,6 +13,17 @@ library;
 
 /// Replaces the generated entry, or adds a key Arabic did not have.
 const Map<String, String> arCopy = <String, String>{
+  // ── ورقة صرف قسائم الكشافة ───────────────────────────────────────────────
+  //
+  // خاصة بالمنفذ: صارت القسائم تُجمع، وهنا يقرّر اللاعب كم ينفق ومع أي بطاقة.
+  // اسم الفئة في {tier} يأتي من `tierLabel`، وهو ثابت بالإنجليزية كما في المتجر.
+  'scout.assign.title': 'هل تصرف قسيمة؟',
+  'scout.assign.hint': 'اسحب واحدة إلى بطاقة، أو انقرها. وما تحتفظ به يبقى معك.',
+  'scout.assign.promised': '{tier} أو أفضل',
+  'scout.assign.any_tier': 'أي فئة',
+  'scout.assign.free': 'مجانًا',
+  'scout.assign.autosell': 'قواعد البيع لديك ستبيع هذه فورًا',
+  'scout.assign.short': 'لا تكفي العملات للبطاقات التي لم تغطها',
   'customise.item.face.bubblegum': 'علكة',
 
   // صف ثالث إلى جانب الصوت والموسيقى: نقرة كل زر.

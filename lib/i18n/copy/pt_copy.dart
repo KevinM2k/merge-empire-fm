@@ -7,6 +7,19 @@ library;
 
 /// Replaces the generated entry, or adds a key Portuguese did not have.
 const Map<String, String> ptCopy = <String, String>{
+  // ── A folha de atribuição de vales de observação ─────────────────────────
+  //
+  // Própria do port: os vales agora acumulam-se, e é aqui que se decide quantos
+  // gastar e em que carta. O nome de nível em {tier} vem de `tierLabel`, em
+  // inglês tal como na loja.
+  'scout.assign.title': 'Gastar um vale?',
+  'scout.assign.hint': 'Arrasta um para uma carta, ou toca nele. O que guardares '
+      'fica no saco.',
+  'scout.assign.promised': '{tier} ou melhor',
+  'scout.assign.any_tier': 'Qualquer nível',
+  'scout.assign.free': 'GRÁTIS',
+  'scout.assign.autosell': 'As tuas regras de venda vendem-na logo',
+  'scout.assign.short': 'Moedas insuficientes para as cartas que deixaste sem vale',
   'customise.item.face.bubblegum': 'Chiclete',
 
   // Uma terceira linha ao lado de Som e Música: o clique de cada botão.

@@ -290,6 +290,39 @@ const Map<String, String> enCopy = <String, String>{
   // The cigar it replaced is retired: a lit one in a game aimed at children.
   'customise.item.face.bubblegum': 'Bubblegum',
 
+  // ── The scout voucher assignment sheet ───────────────────────────────────
+  //
+  // The port's own. Vouchers used to be one at a time and applied themselves to
+  // the first card of a batch, so there was nothing to ask and no screen to ask
+  // it on. They are collectable now, and this is where the player decides how
+  // many to burn and on which card.
+  //
+  // `common.continue` and `common.cancel` already ship in all ten, and
+  // `shop.voucher.unlocks_in` is the right sentence for a rung this division
+  // cannot draw — none of those is restated here.
+  'scout.assign.title': 'Spend a voucher?',
+  // Says both halves on purpose: what the gesture is, and that declining costs
+  // nothing. The second is the part a player will not assume.
+  'scout.assign.hint': 'Drag one onto a card, or tap it. Whatever you keep '
+      'stays in the bag.',
+  // On a slot with a floor on it. The tier name comes from `tierLabel`, which
+  // is a const English map the Shop already prints from — not localised, and
+  // deliberately consistent with the shelf the voucher was bought on.
+  'scout.assign.promised': '{tier} or better',
+  // The token. Its worth is "free, and anything can turn up" — it is the only
+  // voucher that can draw an Icon — so it must never read as a weak floor.
+  'scout.assign.any_tier': 'Any tier',
+  // On a covered slot, where the coin price would otherwise be.
+  'scout.assign.free': 'FREE',
+  // The auto-sell warning. The rules are the player's own and are not overruled
+  // here; what would be wrong is letting them watch a card they paid gems for
+  // burst into coins with no warning that it was coming.
+  'scout.assign.autosell': 'Your sell rules will cash this one in',
+  // Why Continue is dead: the batch was offered on the strength of vouchers
+  // that have not been assigned, so the uncovered slots cost more than the
+  // wallet holds.
+  'scout.assign.short': 'Not enough coins for the cards you have not covered',
+
   // ── The second trait slot ────────────────────────────────────────────────
   //
   // The port's own: the JS has one trait per card. Every match trait is

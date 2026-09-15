@@ -7,6 +7,19 @@ library;
 
 /// Replaces the generated entry, or adds a key Spanish did not have.
 const Map<String, String> esCopy = <String, String>{
+  // ── La hoja de canje de vales de ojeo ────────────────────────────────────
+  //
+  // Propia del port: los vales ahora se acumulan, y aquí se decide cuántos
+  // gastar y en qué carta. El nombre de categoría de {tier} sale de
+  // `tierLabel`, en inglés igual que en la tienda.
+  'scout.assign.title': '¿Gastas un vale?',
+  'scout.assign.hint': 'Arrastra uno a una carta, o tócalo. Lo que no uses se '
+      'queda en la bolsa.',
+  'scout.assign.promised': '{tier} o mejor',
+  'scout.assign.any_tier': 'Cualquier categoría',
+  'scout.assign.free': 'GRATIS',
+  'scout.assign.autosell': 'Tus reglas de venta la van a vender al momento',
+  'scout.assign.short': 'No hay monedas para las cartas que has dejado sin vale',
   'customise.item.face.bubblegum': 'Chicle',
 
   // Una tercera fila junto a Sonido y Música: el clic de cada botón.

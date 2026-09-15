@@ -8,6 +8,17 @@ library;
 
 /// Replaces the generated entry, or adds a key Korean did not have.
 const Map<String, String> koCopy = <String, String>{
+  // ── 스카우트 이용권 배정 시트 ────────────────────────────────────────────
+  //
+  // 포팅판 고유. 이용권을 여러 장 모을 수 있게 되면서, 몇 장을 어느 카드에 쓸지
+  // 여기서 정한다. {tier}의 등급 이름은 `tierLabel` — 상점과 같이 영어.
+  'scout.assign.title': '이용권을 쓸까요?',
+  'scout.assign.hint': '카드로 끌어다 놓거나 탭하세요. 남긴 건 그대로 보관됩니다.',
+  'scout.assign.promised': '{tier} 이상',
+  'scout.assign.any_tier': '등급 무관',
+  'scout.assign.free': '무료',
+  'scout.assign.autosell': '자동 판매 설정 때문에 바로 팔립니다',
+  'scout.assign.short': '이용권을 쓰지 않은 카드를 살 코인이 부족합니다',
   'customise.item.face.bubblegum': '풍선껌',
 
   // 사운드·음악 옆의 세 번째 줄. 모든 버튼의 탭 소리.

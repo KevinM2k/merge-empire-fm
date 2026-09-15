@@ -8,6 +8,18 @@ library;
 
 /// Replaces the generated entry, or adds a key Japanese did not have.
 const Map<String, String> jaCopy = <String, String>{
+  // ── スカウト券の割り当てシート ───────────────────────────────────────────
+  //
+  // 移植版独自。スカウト券は複数持てるようになったので、何枚をどのカードに使う
+  // かをここで決める。{tier} のティア名は `tierLabel` — ショップと同じく英語。
+  'scout.assign.title': 'スカウト券を使う？',
+  'scout.assign.hint': 'カードにドラッグするか、タップして置きます。使わなかった'
+      '分はそのまま残ります。',
+  'scout.assign.promised': '{tier} 以上',
+  'scout.assign.any_tier': 'ティア不問',
+  'scout.assign.free': '無料',
+  'scout.assign.autosell': '自動売却の設定で、これはすぐ売られます',
+  'scout.assign.short': '券を使わなかったカードぶんのコインが足りません',
   'customise.item.face.bubblegum': 'ガム',
 
   // サウンド・音楽に並ぶ3つ目の行。すべてのボタンのタップ音。
