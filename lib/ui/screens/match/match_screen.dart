@@ -2435,8 +2435,9 @@ class MatchScreenState extends ConsumerState<MatchScreen>
       'sharp_shooting' => 'whistle',
       _ => 'crowdOoh',
     }));
-    // The name alone: the icon is line art now, and the pill is a caption.
-    _showPill(t('boost.$id.name'));
+    // No caption under the board for a boost: the pill on the pitch is lit
+    // in its colour and the feed says it, so a third telling was noise. The
+    // caption stays for a TRAIT switching on, which has no button to light.
     // Not a change of approach: the injuries the match had coming still come.
     _resimulate(_minute, _strategy, rerollInjuries: false);
     if (mounted) {

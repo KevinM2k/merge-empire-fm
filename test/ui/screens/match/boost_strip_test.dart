@@ -197,7 +197,9 @@ void main() {
       // On the pitch, not the bar: the aura is what says it is live.
       expect(find.byKey(const ValueKey('match-boost-aura')), findsOneWidget);
       expect(find.byKey(const ValueKey('match-live-glow')), findsOneWidget);
-      expect(find.byKey(const ValueKey('match-live-source-pill')), findsOneWidget);
+      // No caption under the board for a boost: the lit pill and the feed
+      // already say it. A trait switching on still gets one — see below.
+      expect(find.byKey(const ValueKey('match-live-source-pill')), findsNothing);
       expect(state.notes.any((n) => n.key == 'boost.roar.live'), isTrue);
       // And the feed's header names it: BOOST · Crowd Roar.
       expect(
@@ -209,10 +211,7 @@ void main() {
       final liftedAtk = state.liveRatings['liveAttackRating'] as num;
       final liftedDef = state.liveRatings['liveDefenceRating'] as num;
 
-      // The pill is a caption for the MOMENT: gone in a few seconds, the glow
-      // still there.
       await tester.pump(const Duration(seconds: 3));
-      expect(find.byKey(const ValueKey('match-live-source-pill')), findsNothing);
       expect(find.byKey(const ValueKey('match-live-glow')), findsOneWidget);
 
       // Run past the window: the remainder is re-decided once more, without
