@@ -382,6 +382,7 @@ class MatchSummaryScreenState extends ConsumerState<MatchSummaryScreen>
                                       quests: _quests,
                                       hasQuests: hasQuests,
                                       doubled: canDouble && _answering,
+                                      canDouble: canDouble,
                                     ),
                                   if (canDouble) ...[
                                     const SizedBox(height: 10),
@@ -1269,6 +1270,7 @@ class _Payout extends StatelessWidget {
     required this.quests,
     required this.hasQuests,
     required this.doubled,
+    required this.canDouble,
   });
 
   final int base;
@@ -1284,6 +1286,11 @@ class _Payout extends StatelessWidget {
   final bool hasQuests;
 
   final bool doubled;
+
+  /// Whether there is an offer on this screen at all — `_canDouble`, which is
+  /// false through the whole tutorial. The teaser is the only thing here that
+  /// talks about the offer, so it is the only thing that needs to know.
+  final bool canDouble;
 
   @override
   Widget build(BuildContext context) {
@@ -1378,7 +1385,14 @@ class _Payout extends StatelessWidget {
         // make: a match that paid no fee still shows its quest money, and
         // "watch to keep 2× coins" under a figure nothing can double is a
         // button that is not there.
-        if (base > 0) ...[
+        //
+        // **AND THE TUTORIAL IS THE SAME CASE.** The script's one match hides
+        // the offer deliberately — see `_canDouble` — and the fee is not zero,
+        // so the line sold a video on a screen whose only control is Continue.
+        // Reported from the couch. `base > 0` is kept as well as the new
+        // question rather than replaced by it: a quests-only purse has nothing
+        // the fee's offer applies to.
+        if (base > 0 && canDouble) ...[
           const SizedBox(height: 4),
           Text(
             t('match.double_teaser'),

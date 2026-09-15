@@ -400,6 +400,12 @@ void main() {
     expect(find.byKey(const ValueKey('summary-continue')), findsOneWidget);
     // The money is still reported; only the offer on it is gone.
     expect(find.byKey(const ValueKey('summary-payout')), findsOneWidget);
+    // **AND THE LINE THAT SELLS THE OFFER GOES WITH IT.** Reported from the
+    // couch: the tutorial's end-of-match screen still read "Watch to keep 2x
+    // coins!" under the purse, with no button anywhere on the page to watch
+    // anything. The teaser is about an offer, which is the rule it already
+    // follows for a match that paid no fee.
+    expect(find.text(t('match.double_teaser')), findsNothing);
   });
 
   testWidgets('and an ordinary match still has the offer', (tester) async {
@@ -407,6 +413,8 @@ void main() {
     expect(find.byKey(const ValueKey('summary-double')), findsOneWidget);
     expect(find.byKey(const ValueKey('summary-no-thanks')), findsOneWidget);
     expect(find.byKey(const ValueKey('summary-continue')), findsNothing);
+    // The control: the teaser belongs on every screen that can take the offer.
+    expect(find.text(t('match.double_teaser')), findsOneWidget);
   });
 
   testWidgets('AND HE IS NOT LEFT STANDING IN A CORNER', (tester) async {
