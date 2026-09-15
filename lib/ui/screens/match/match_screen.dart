@@ -2383,17 +2383,6 @@ class MatchScreenState extends ConsumerState<MatchScreen>
     return 'boost.$short.${live ? 'live' : 'over'}';
   }
 
-  /// The boost sheet, holding the match while it is up — the bench's rule:
-  /// what happens next is being decided, so the clock waits.
-  Future<void> openBoosts() async {
-    if (frame.finished || _paused) return;
-    setState(() => _paused = true);
-    final picked = await showBoostSheet(context, endOf: _boosts.endOf);
-    if (!mounted) return;
-    setState(() => _paused = false);
-    if (picked != null) useBoost(picked);
-  }
-
   /// Tap a proactive boost: debit, open the window, re-decide the rest.
   ///
   /// Two re-simulations bound a window — this one now, and the one
@@ -3481,10 +3470,10 @@ class MatchScreenState extends ConsumerState<MatchScreen>
                                 Positioned(
                                   top: 8,
                                   right: 8,
-                                  child: BoostPitchButton(
-                                    liveId: leadBoost(_boosts.activeAt(f.minute)),
+                                  child: BoostPitchButtons(
+                                    endOf: _boosts.endOf,
                                     enabled: !_paused,
-                                    onTap: openBoosts,
+                                    onUse: useBoost,
                                   ),
                                 ),
                           ],

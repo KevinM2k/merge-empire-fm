@@ -603,8 +603,6 @@ const Map<String, String> frCopy = <String, String>{
   'boost.physio_sponge.name': "Éponge du soigneur",
   'boost.physio_sponge.desc': "Soigner une blessure — le joueur se relève et continue",
   'boost.feed.action': "Boost",
-  'boost.sheet.title': "Boosts",
-  'boost.sheet.sub': "Lancez-en un depuis le banc de touche. Le chrono attend.",
   'boost.roar.live': "L'entraîneur se tourne vers la tribune, et le stade s'embrase.|Un mur de bruit descend des gradins. Chaque tacle est acclamé.",
   'boost.roar.over': "Le bruit retombe, et le match retrouve son rythme.|Les tribunes reprennent leur souffle. Retour au football.",
   'boost.bus.live': "Tout le monde derrière le ballon. Ils vont tenir ce résultat.|Deux lignes de cinq et pas un centimètre concédé. Le match est cadenassé.",

@@ -1,16 +1,11 @@
-/// The in-game boosts: a button in the corner of the pitch, and the sheet
-/// it opens.
+/// The in-game boosts: three buttons in the corner of the pitch.
 ///
-/// **NOT A ROW OF THEIR OWN.** They were a second strip under the tactics —
-/// 34 points, permanently, on a screen with none to spare — then a sixth
-/// tile on the tactic strip, which crowded five controls that were already
-/// tight. Asked for from the couch, both times. The pitch is the thing a
-/// boost acts on and the one band with room in its corners, so the button
-/// floats there, and the sheet under it is where the three are picked.
-///
-/// **The sheet holds the match**, the way the bench does: picking a boost is
-/// a decision about what happens next, and the clock waiting for it is what
-/// makes "when" the decision it is meant to be.
+/// **NOT A ROW OF THEIR OWN, AND NOT A SHEET.** They were a second strip
+/// under the tactics — 34 points, permanently, on a screen with none to spare
+/// — then a sixth tile on the tactic strip, then a button that opened a
+/// sheet. Asked for from the couch each time: the pitch is the thing a boost
+/// acts on and the one band with room in its corners, and a boost is one tap,
+/// not a menu. So the three sit on the grass, and a tap on one calls it.
 ///
 /// **Only the proactive three.** VAR, the sponge and the quiet word undo
 /// something already written and are taken at the bench, in front of the
@@ -24,13 +19,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/data/boosts.dart';
 import 'package:merge_empire_fc/engine/boost_engine.dart';
-import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
-import 'package:merge_empire_fc/ui/popups/bottom_sheet_popup.dart';
-import 'package:merge_empire_fc/ui/popups/sheet_header.dart';
 import 'package:merge_empire_fc/ui/screens/match/boost_bar_paint.dart'
     show liveBoostColour;
-import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 
 /// The three a manager can call from the touchline.
@@ -39,46 +30,78 @@ List<Boost> get proactiveBoosts => [
     if (b.kind == BoostKind.proactive) b,
 ];
 
-/// The button on the pitch: the bolt, how many are in the bag, and the
-/// colour of whatever window is burning.
-class BoostPitchButton extends ConsumerWidget {
-  const BoostPitchButton({
+/// The three on the pitch, in a row in the corner: each its icon and how
+/// many are in the bag, in its window's colour while that window burns.
+class BoostPitchButtons extends ConsumerWidget {
+  const BoostPitchButtons({
     super.key,
-    required this.liveId,
+    required this.endOf,
     required this.enabled,
-    required this.onTap,
+    required this.onUse,
   });
 
-  /// The window burning the bar, or null. See `barBurn`.
-  final String? liveId;
+  /// The minute a live window of this boost runs to, or null when none is.
+  final int? Function(String id) endOf;
   final bool enabled;
-  final VoidCallback onTap;
+  final void Function(String id) onUse;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final state = ref.watch(gameProvider).state;
-    var owned = 0;
-    for (final b in proactiveBoosts) {
-      owned += boostCount(state, b.id);
-    }
-    final live = liveId != null;
-    final hue = live ? liveBoostColour(liveId!) : null;
-    final ink = live || owned > 0 ? Colors.white : Colors.white54;
+    return Row(
+      key: const ValueKey('match-boosts'),
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        for (final boost in proactiveBoosts) ...[
+          _PitchChip(
+            boost: boost,
+            count: boostCount(state, boost.id),
+            until: endOf(boost.id),
+            enabled: enabled,
+            onUse: () => onUse(boost.id),
+          ),
+          if (boost != proactiveBoosts.last) const SizedBox(width: 6),
+        ],
+      ],
+    );
+  }
+}
+
+class _PitchChip extends StatelessWidget {
+  const _PitchChip({
+    required this.boost,
+    required this.count,
+    required this.until,
+    required this.enabled,
+    required this.onUse,
+  });
+
+  final Boost boost;
+  final int count;
+  final int? until;
+  final bool enabled;
+  final VoidCallback onUse;
+
+  @override
+  Widget build(BuildContext context) {
+    final live = until != null;
+    final owned = count > 0;
+    final hue = live ? liveBoostColour(boost.id) : null;
+    final ink = live || owned ? Colors.white : Colors.white54;
     return Semantics(
-      button: true,
-      label: t('boost.sheet.title'),
+      button: owned,
       child: GestureDetector(
-        key: const ValueKey('match-boosts'),
+        key: ValueKey('match-boost-${boost.id}'),
         behavior: HitTestBehavior.opaque,
-        onTap: enabled ? onTap : null,
+        onTap: owned && enabled ? onUse : null,
         child: Container(
-          height: 36,
-          padding: const EdgeInsets.fromLTRB(8, 0, 10, 0),
+          height: 32,
+          padding: const EdgeInsets.fromLTRB(7, 0, 8, 0),
           decoration: BoxDecoration(
             // Over grass, so it wears the glass the HUD wears rather than a
-            // card: dark enough to read on the turf, a live window's colour
-            // when one is burning.
-            color: hue ?? const Color(0xCC12261A),
+            // card: dark enough to read on the turf, the window's colour
+            // while it burns.
+            color: hue ?? Color(owned ? 0xCC12261A : 0x8812261A),
             borderRadius: BorderRadius.circular(999),
             border: Border.all(
               color: hue != null ? Colors.white.withValues(alpha: 0.7) : Colors.white24,
@@ -91,173 +114,23 @@ class BoostPitchButton extends ConsumerWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              GameIcon('bolt', size: 16, color: ink),
+              GameIcon(boost.icon, size: 15, color: ink),
               const SizedBox(width: 4),
-              Text(
-                // The count is the label: what a manager wants to know at a
-                // glance is whether there is anything to call.
-                live ? t('boost.feed.action') : 'x$owned',
-                key: const ValueKey('match-boosts-count'),
-                maxLines: 1,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w900,
-                  color: ink,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Open the sheet; completes with the boost the manager called, or null.
-Future<String?> showBoostSheet(
-  BuildContext context, {
-  required int? Function(String id) endOf,
-}) => showBottomSheetPopup<String>(
-  context,
-  heightFraction: 0.6,
-  child: BoostSheet(endOf: endOf),
-);
-
-class BoostSheet extends ConsumerWidget {
-  const BoostSheet({super.key, required this.endOf});
-
-  /// The minute a live window of this boost runs to, or null when none is.
-  final int? Function(String id) endOf;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final kit = Theme.of(context).extension<KitTheme>()!;
-    final state = ref.watch(gameProvider).state;
-    return Column(
-      key: const ValueKey('match-boost-sheet'),
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        SheetHeader(
-          title: t('boost.sheet.title'),
-          subtitle: t('boost.sheet.sub'),
-        ),
-        Flexible(
-          child: ListView(
-            shrinkWrap: true,
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
-            children: [
-              for (final boost in proactiveBoosts)
-                _BoostRow(
-                  boost: boost,
-                  count: boostCount(state, boost.id),
-                  until: endOf(boost.id),
-                  kit: kit,
-                  onUse: () => Navigator.of(context).pop(boost.id),
+              if (live)
+                // Where the window ends, in match minutes — the same unit
+                // the bar burns in.
+                Text(
+                  "$until'",
+                  key: ValueKey('match-boost-until-${boost.id}'),
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: ink),
+                )
+              else
+                Text(
+                  'x$count',
+                  key: ValueKey('match-boost-count-${boost.id}'),
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: ink),
                 ),
             ],
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _BoostRow extends StatelessWidget {
-  const _BoostRow({
-    required this.boost,
-    required this.count,
-    required this.until,
-    required this.kit,
-    required this.onUse,
-  });
-
-  final Boost boost;
-  final int count;
-  final int? until;
-  final KitTheme kit;
-  final VoidCallback onUse;
-
-  @override
-  Widget build(BuildContext context) {
-    final live = until != null;
-    final owned = count > 0;
-    final hue = live ? liveBoostColour(boost.id) : null;
-    final ink = owned || live ? kit.accentBright : kit.textMuted;
-    return Semantics(
-      button: owned,
-      child: GestureDetector(
-        key: ValueKey('match-boost-${boost.id}'),
-        behavior: HitTestBehavior.opaque,
-        // A dead row still swallows its tap: with no handler the tap falls
-        // through to the barrier and closes the sheet under the thumb.
-        onTap: owned ? onUse : () {},
-        child: Opacity(
-          opacity: owned || live ? 1 : 0.5,
-          child: Container(
-            margin: const EdgeInsets.only(bottom: 8),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              color: hue?.withValues(alpha: 0.18) ?? kit.surface2,
-              border: Border.all(
-                color: hue ?? (owned ? kit.accent : kit.border),
-                width: live || owned ? 1.6 : 1,
-              ),
-            ),
-            child: Row(
-              children: [
-                GameIcon(boost.icon, size: 24, color: hue ?? ink),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        t('boost.${boost.id}.name'),
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.w900,
-                          color: ink,
-                        ),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(
-                        t('boost.${boost.id}.desc'),
-                        style: TextStyle(
-                          fontSize: 12,
-                          height: 1.35,
-                          color: kit.textMuted,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 10),
-                if (live)
-                  // Where the window ends, in match minutes — the same unit
-                  // the bar burns in.
-                  Text(
-                    "→ $until'",
-                    key: ValueKey('match-boost-until-${boost.id}'),
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w900,
-                      color: hue,
-                    ),
-                  )
-                else
-                  Text(
-                    'x$count',
-                    key: ValueKey('match-boost-count-${boost.id}'),
-                    style: TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w900,
-                      color: ink,
-                    ),
-                  ),
-              ],
-            ),
           ),
         ),
       ),

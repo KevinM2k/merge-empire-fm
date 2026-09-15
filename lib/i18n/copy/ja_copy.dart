@@ -476,8 +476,6 @@ const Map<String, String> jaCopy = <String, String>{
   'boost.physio_sponge.name': "魔法のスポンジ",
   'boost.physio_sponge.desc': "負傷を治療――選手は立ち上がってプレーを続ける",
   'boost.feed.action': "ブースト",
-  'boost.sheet.title': "ブースト",
-  'boost.sheet.sub': "タッチラインから発動しよう。時計は止まっている。",
   'boost.roar.live': "監督がスタンドを振り返り、スタジアムが爆発する。|スタンドから音の壁が降りてくる。一つ一つのタックルに歓声が上がる。",
   'boost.roar.over': "歓声が収まり、試合はリズムを取り戻す。|スタンドが息をつく。サッカーに戻る。",
   'boost.bus.live': "全員がボールの後ろへ。このまま逃げ切るつもりだ。|5人の二列で一歩も引かない。試合を閉じにかかった。",

@@ -605,8 +605,6 @@ const Map<String, String> deCopy = <String, String>{
   'boost.physio_sponge.name': "Wunderschwamm",
   'boost.physio_sponge.desc': "Eine Verletzung behandeln – der Spieler steht auf und macht weiter",
   'boost.feed.action': "Bonus",
-  'boost.sheet.title': "Boosts",
-  'boost.sheet.sub': "Ruf einen von der Seitenlinie. Die Uhr wartet.",
   'boost.roar.live': "Der Trainer dreht sich zur Kurve, und das Stadion bebt.|Eine Wand aus Lärm kommt von den Rängen. Jeder Zweikampf wird gefeiert.",
   'boost.roar.over': "Der Lärm legt sich, und das Spiel findet seinen Rhythmus.|Die Ränge holen Luft. Zurück zum Fußball.",
   'boost.bus.live': "Alle hinter den Ball. Das wird jetzt verwaltet.|Zwei Fünferketten und kein Zentimeter frei. Hier wird zugemacht.",
