@@ -201,7 +201,7 @@ void main() {
       expect(state.notes.any((n) => n.key == 'boost.roar.live'), isTrue);
       // And the feed's header names it: BOOST · Crowd Roar.
       expect(
-        find.text('${t('boost.feed.action')} · ${t('boost.crowd_roar.name')}'.toUpperCase()),
+        find.text('${t('boost.feed.action')} · ${t('boost.crowd_roar.name')} · ${t('boost.feed.on')}'.toUpperCase()),
         findsWidgets,
       );
       // The split, not the star: the star is an int blended from the already

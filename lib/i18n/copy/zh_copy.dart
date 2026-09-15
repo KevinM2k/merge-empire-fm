@@ -446,6 +446,8 @@ const Map<String, String> zhCopy = <String, String>{
   'boost.physio_sponge.name': "神奇海绵",
   'boost.physio_sponge.desc': "治疗伤病——球员起身继续比赛",
   'boost.feed.action': "增益",
+  'boost.feed.on': "生效",
+  'boost.feed.off': "结束",
   'boost.crowd_roar.effect': "全队评分+10%",
   'boost.sharp_shooting.effect': "进攻+25%",
   'boost.park_the_bus.effect': "双方进攻-25%",

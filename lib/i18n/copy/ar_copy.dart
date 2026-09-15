@@ -549,6 +549,8 @@ const Map<String, String> arCopy = <String, String>{
   'boost.physio_sponge.name': "الإسفنجة السحرية",
   'boost.physio_sponge.desc': "معالجة إصابة — ينهض اللاعب ويواصل",
   'boost.feed.action': "تعزيز",
+  'boost.feed.on': "مفعّل",
+  'boost.feed.off': "انتهى",
   'boost.crowd_roar.effect': "+10% تقييم للفريق كله",
   'boost.sharp_shooting.effect': "+25% هجوم",
   'boost.park_the_bus.effect': "-25% هجوم للفريقين",

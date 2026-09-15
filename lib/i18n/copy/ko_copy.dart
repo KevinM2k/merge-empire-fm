@@ -521,6 +521,8 @@ const Map<String, String> koCopy = <String, String>{
   'boost.physio_sponge.name': "마법의 스펀지",
   'boost.physio_sponge.desc': "부상을 치료합니다 — 선수가 일어나 경기를 이어갑니다",
   'boost.feed.action': "부스트",
+  'boost.feed.on': "발동",
+  'boost.feed.off': "종료",
   'boost.crowd_roar.effect': "팀 전체 능력치 +10%",
   'boost.sharp_shooting.effect': "ATK +25%",
   'boost.park_the_bus.effect': "양 팀 ATK -25%",

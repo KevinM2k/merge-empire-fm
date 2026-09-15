@@ -622,6 +622,8 @@ const Map<String, String> deCopy = <String, String>{
   'boost.physio_sponge.name': "Wunderschwamm",
   'boost.physio_sponge.desc': "Eine Verletzung behandeln – der Spieler steht auf und macht weiter",
   'boost.feed.action': "Bonus",
+  'boost.feed.on': "An",
+  'boost.feed.off': "Aus",
   'boost.crowd_roar.effect': "+10% Wertung, ganzes Team",
   'boost.sharp_shooting.effect': "+25% ANG",
   'boost.park_the_bus.effect': "-25% ANG, beide Teams",

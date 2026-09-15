@@ -620,6 +620,8 @@ const Map<String, String> frCopy = <String, String>{
   'boost.physio_sponge.name': "Éponge du soigneur",
   'boost.physio_sponge.desc': "Soigner une blessure — le joueur se relève et continue",
   'boost.feed.action': "Boost",
+  'boost.feed.on': "Activé",
+  'boost.feed.off': "Terminé",
   'boost.crowd_roar.effect': "+10% de note, toute l'équipe",
   'boost.sharp_shooting.effect': "+25% ATT",
   'boost.park_the_bus.effect': "-25% ATT, les deux équipes",

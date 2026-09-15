@@ -493,6 +493,8 @@ const Map<String, String> jaCopy = <String, String>{
   'boost.physio_sponge.name': "魔法のスポンジ",
   'boost.physio_sponge.desc': "負傷を治療――選手は立ち上がってプレーを続ける",
   'boost.feed.action': "ブースト",
+  'boost.feed.on': "発動",
+  'boost.feed.off': "終了",
   'boost.crowd_roar.effect': "チーム全体 評価+10%",
   'boost.sharp_shooting.effect': "ATK +25%",
   'boost.park_the_bus.effect': "両チーム ATK -25%",

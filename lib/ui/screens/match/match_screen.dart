@@ -4631,6 +4631,39 @@ class _Scoreboard extends StatelessWidget {
 }
 
 
+/// `BOOST · Crowd Roar · On` from a feed key like `boost.roar.live`.
+String _boostHeading(String key) {
+  final parts = key.split('.');
+  final name = switch (parts.elementAtOrNull(1)) {
+    'roar' => t('boost.crowd_roar.name'),
+    'bus' => t('boost.park_the_bus.name'),
+    'sharp' => t('boost.sharp_shooting.name'),
+    'var' => t('boost.var_review.name'),
+    'physio' => t('boost.physio_sponge.name'),
+    'quiet' => t('boost.quiet_word.name'),
+    _ => null,
+  };
+  final state = switch (parts.elementAtOrNull(2)) {
+    'live' => t('boost.feed.on'),
+    'over' => t('boost.feed.off'),
+    _ => null,
+  };
+  return [t('boost.feed.action'), ?name, ?state].join(' · ');
+}
+
+/// The colour a boost line's heading wears: the window's own while it is
+/// coming on, the feed's muted ink when it is going off.
+Color? _boostHeadingInk(String key) {
+  final parts = key.split('.');
+  if (parts.elementAtOrNull(2) != 'live') return null;
+  return switch (parts.elementAtOrNull(1)) {
+    'roar' => liveBoostColour('crowd_roar'),
+    'bus' => liveBoostColour('park_the_bus'),
+    'sharp' => liveBoostColour('sharp_shooting'),
+    _ => null,
+  };
+}
+
 class _FeedLine extends StatelessWidget {
   const _FeedLine({
     required this.line,
@@ -4748,18 +4781,12 @@ class _FeedLine extends StatelessWidget {
       'injury' => t('match.subs.injured'),
       'subs' || 'opp_sub' => t('match.subs'),
       'tactics' => t('match.tab.tactics'),
-      // **WHICH boost**, beside the word: "BOOST · Sharp Shooting" over the
-      // line, so the feed says what was called without the line having to.
-      // Asked for from the couch. The line's key names it: `boost.sharp.*`.
-      'boost' => switch (line.key.split('.').elementAtOrNull(1)) {
-        'roar' => '${t('boost.feed.action')} · ${t('boost.crowd_roar.name')}',
-        'bus' => '${t('boost.feed.action')} · ${t('boost.park_the_bus.name')}',
-        'sharp' => '${t('boost.feed.action')} · ${t('boost.sharp_shooting.name')}',
-        'var' => '${t('boost.feed.action')} · ${t('boost.var_review.name')}',
-        'physio' => '${t('boost.feed.action')} · ${t('boost.physio_sponge.name')}',
-        'quiet' => '${t('boost.feed.action')} · ${t('boost.quiet_word.name')}',
-        _ => t('boost.feed.action'),
-      },
+      // **WHICH boost, and whether it is coming ON or going OFF**, beside
+      // the word: "BOOST · Sharp Shooting · On" over the line, so the feed
+      // says what was called and which end of the window this is, without
+      // the line having to. Asked for from the couch, twice. The line's key
+      // names both: `boost.sharp.live`, `boost.sharp.over`.
+      'boost' => _boostHeading(line.key),
       'chance' => t('match.chance'),
       // **THREE WORDS, not one.** A second caution and a straight red are
       // different offences — one is a booking too many, the other is violent
@@ -4816,8 +4843,10 @@ class _FeedLine extends StatelessWidget {
                     // take the feed's own ink and nothing is lost. A red still
                     // wears its own: it reads at any size, and it is the one a
                     // player must not miss.
-                    color:
-                        line.card == null || line.card == cardYellow
+                    color: line.type == 'boost'
+                        ? (_boostHeadingInk(line.key) ??
+                            glassAccent(context, kit.textMuted))
+                        : line.card == null || line.card == cardYellow
                         ? glassAccent(context, kit.accentBright)
                         : cardInk(line.card!),
                   ),

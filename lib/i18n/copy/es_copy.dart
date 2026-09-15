@@ -603,6 +603,8 @@ const Map<String, String> esCopy = <String, String>{
   'boost.physio_sponge.name': "Esponja mágica",
   'boost.physio_sponge.desc': "Cura una lesión: el jugador se levanta y sigue",
   'boost.feed.action': "Mejora",
+  'boost.feed.on': "Activo",
+  'boost.feed.off': "Fin",
   'boost.crowd_roar.effect': "+10% valoración, todo el equipo",
   'boost.sharp_shooting.effect': "+25% ATQ",
   'boost.park_the_bus.effect': "-25% ATQ, ambos equipos",

@@ -613,6 +613,8 @@ const Map<String, String> itCopy = <String, String>{
   'boost.physio_sponge.name': "Spugna magica",
   'boost.physio_sponge.desc': "Cura un infortunio: il giocatore si rialza e continua",
   'boost.feed.action': "Bonus",
+  'boost.feed.on': "Attivo",
+  'boost.feed.off': "Fine",
   'boost.crowd_roar.effect': "+10% valutazione, tutta la squadra",
   'boost.sharp_shooting.effect': "+25% ATT",
   'boost.park_the_bus.effect': "-25% ATT, entrambe",
