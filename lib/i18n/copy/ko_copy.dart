@@ -504,6 +504,8 @@ const Map<String, String> koCopy = <String, String>{
   'boost.physio_sponge.name': "마법의 스펀지",
   'boost.physio_sponge.desc': "부상을 치료합니다 — 선수가 일어나 경기를 이어갑니다",
   'boost.feed.action': "부스트",
+  'boost.sheet.title': "부스트",
+  'boost.sheet.sub': "터치라인에서 하나를 사용하세요. 시계는 멈춰 있습니다.",
   'boost.roar.live': "감독이 관중석을 향해 돌아서자 경기장이 폭발합니다.|관중석에서 소리의 벽이 쏟아집니다. 태클 하나하나에 환호가 터집니다.",
   'boost.roar.over': "함성이 가라앉고 경기는 리듬을 되찾습니다.|관중석이 숨을 고릅니다. 다시 축구로.",
   'boost.bus.live': "모두 볼 뒤로. 이대로 지켜낼 생각입니다.|다섯 명씩 두 줄, 한 치도 내주지 않습니다. 경기가 잠기고 있습니다.",

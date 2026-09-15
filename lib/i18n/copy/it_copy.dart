@@ -596,6 +596,8 @@ const Map<String, String> itCopy = <String, String>{
   'boost.physio_sponge.name': "Spugna magica",
   'boost.physio_sponge.desc': "Cura un infortunio: il giocatore si rialza e continua",
   'boost.feed.action': "Bonus",
+  'boost.sheet.title': "Potenziamenti",
+  'boost.sheet.sub': "Chiamane uno dalla panchina. Il cronometro aspetta.",
   'boost.roar.live': "L'allenatore si volta verso la curva e lo stadio esplode.|Un muro di rumore scende dagli spalti. Ogni contrasto è un'ovazione.",
   'boost.roar.over': "Il rumore si placa e la partita ritrova il suo ritmo.|Gli spalti riprendono fiato. Si torna al calcio.",
   'boost.bus.live': "Tutti dietro la palla. Vogliono portarla a casa così.|Due linee da cinque e non un centimetro. Qui si chiude tutto.",

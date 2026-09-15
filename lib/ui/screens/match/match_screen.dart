@@ -182,16 +182,14 @@ double stageBandHeight({
   required double width,
   required double pool,
   required bool hasTacticStrip,
-  bool hasBoostStrip = false,
 }) {
   if (!width.isFinite || width <= 0) return stageMinHeight;
   final ideal = width / pitchAspect;
   if (!pool.isFinite) return ideal;
-  // The boost strip is the second control band and is paid for the same way:
-  // out of the stage, never out of the commentary's floor.
+  // One control band: the boosts are a tile on the tactic strip now, not a
+  // second row paid for out of the stage.
   final forTheFeed = feedMinHeight +
       (hasTacticStrip ? tacticStripHeight : 0) +
-      (hasBoostStrip ? boostStripHeight + matchGap : 0) +
       matchGap * 2;
   return math.max(
     stageMinHeight,
@@ -2385,6 +2383,17 @@ class MatchScreenState extends ConsumerState<MatchScreen>
     return 'boost.$short.${live ? 'live' : 'over'}';
   }
 
+  /// The boost sheet, holding the match while it is up — the bench's rule:
+  /// what happens next is being decided, so the clock waits.
+  Future<void> openBoosts() async {
+    if (frame.finished || _paused) return;
+    setState(() => _paused = true);
+    final picked = await showBoostSheet(context, endOf: _boosts.endOf);
+    if (!mounted) return;
+    setState(() => _paused = false);
+    if (picked != null) useBoost(picked);
+  }
+
   /// Tap a proactive boost: debit, open the window, re-decide the rest.
   ///
   /// Two re-simulations bound a window — this one now, and the one
@@ -3302,7 +3311,6 @@ class MatchScreenState extends ConsumerState<MatchScreen>
                           width: pool.maxWidth - matchInset * 2,
                           pool: pool.maxHeight,
                           hasTacticStrip: !f.finished,
-                          hasBoostStrip: !f.finished,
                         );
                         return Column(
                           children: [
@@ -3457,17 +3465,16 @@ class MatchScreenState extends ConsumerState<MatchScreen>
                         active: _strategy,
                         onPick: applyStrategy,
                         cooldown: _tacticCooldown,
-                      ),
-                    // The two proactive boosts, under the tactic they sit
-                    // beside in the manager's head: a change to how the side
-                    // plays for a while. The bench pair are not here — see
-                    // `boost_strip.dart`.
-                    if (!f.finished && !_boostsHidden)
-                      BoostStrip(
-                        onUse: useBoost,
-                        endOf: _boosts.endOf,
-                        inset: matchInset,
-                        gap: matchGap,
+                        // The in-game boosts, as the sixth tile — a change to
+                        // how the side plays, beside the other five. See
+                        // `boost_strip.dart`.
+                        boosts: _boostsHidden
+                            ? null
+                            : BoostTacticTile(
+                                liveId: barBurn(_boosts.activeAt(f.minute)),
+                                enabled: !_paused,
+                                onTap: openBoosts,
+                              ),
                       ),
                     // **THE COMMENTARY IS NOT IN A BOX OF ITS OWN.** Every
                     // line already draws its own plate — that is what makes a
@@ -4026,11 +4033,16 @@ class _TacticStrip extends StatelessWidget {
     required this.active,
     required this.onPick,
     required this.cooldown,
+    this.boosts,
   });
 
   final String active;
   final void Function(String) onPick;
   final bool cooldown;
+
+  /// The boosts tile on the end, or null during the tutorial — see
+  /// `boost_strip.dart` for why it lives here rather than on a row of its own.
+  final Widget? boosts;
 
   @override
   Widget build(BuildContext context) {
@@ -4078,11 +4090,12 @@ class _TacticStrip extends StatelessWidget {
                       child: _TacticButton(
                         id: id,
                         active: id == active,
-                        last: id == strategyStrip.last,
+                        last: boosts == null && id == strategyStrip.last,
                         enabled: !cooldown,
                         onTap: () => onPick(id),
                       ),
                     ),
+                  if (boosts case final tile?) Expanded(child: tile),
                 ],
               ),
               // Only while it is shut. A bar that is always there, empty, is a

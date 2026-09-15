@@ -578,6 +578,8 @@ const Map<String, String> ptCopy = <String, String>{
   'boost.physio_sponge.name': "Esponja mágica",
   'boost.physio_sponge.desc': "Trata uma lesão: o jogador se levanta e segue",
   'boost.feed.action': "Bônus",
+  'boost.sheet.title': "Boosts",
+  'boost.sheet.sub': "Chama um da linha lateral. O relógio espera.",
   'boost.roar.live': "O técnico se vira para a torcida e o estádio explode.|Uma parede de barulho desce das arquibancadas. Cada dividida é um grito.",
   'boost.roar.over': "O barulho assenta e o jogo reencontra o ritmo.|A torcida recupera o fôlego. De volta ao futebol.",
   'boost.bus.live': "Todos atrás da bola. Vão segurar este resultado.|Duas linhas de cinco e nem um centímetro cedido. Isto está trancado.",

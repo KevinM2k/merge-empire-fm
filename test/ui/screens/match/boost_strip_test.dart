@@ -96,6 +96,15 @@ Future<void> _finish(WidgetTester tester, MatchScreenState state) async {
   await settleSave(tester);
 }
 
+/// Open the sheet off the tactic strip's tile and call [id] from it.
+Future<void> _call(WidgetTester tester, String id) async {
+  await tester.tap(find.byKey(const ValueKey('match-boosts')));
+  await tester.pumpAndSettle();
+  expect(find.byKey(const ValueKey('match-boost-sheet')), findsOneWidget);
+  await tester.tap(find.byKey(ValueKey('match-boost-$id')));
+  await tester.pumpAndSettle();
+}
+
 void main() {
   // The shared stream is seeded off the wall clock, and injuries and cautions
   // come off it — either moves the star the ratings below compare. See
@@ -103,21 +112,38 @@ void main() {
   setUp(() => setSeed(7));
 
   group('THE BOOST STRIP', () {
-    testWidgets('shows the two proactive boosts with what you own', (
+    testWidgets('IS A TILE ON THE TACTIC STRIP, and its sheet holds the match', (
       tester,
     ) async {
       await pumpMatch(tester, _playable(), save: _save(), instance: 'strip');
+      final state = stateOf(tester);
       expect(find.byKey(const ValueKey('match-boosts')), findsOneWidget);
+      // The bag's total is the tile's label.
+      expect(
+        tester.widget<Text>(find.byKey(const ValueKey('match-boosts-count'))).data,
+        'x3',
+      );
+      expect(find.byKey(const ValueKey('match-boost-sheet')), findsNothing);
+      await tester.tap(find.byKey(const ValueKey('match-boosts')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('match-boost-sheet')), findsOneWidget);
+      expect(state.paused, isTrue, reason: 'the clock waits on the decision');
       expect(find.byKey(const ValueKey('match-boost-crowd_roar')), findsOneWidget);
       expect(find.byKey(const ValueKey('match-boost-park_the_bus')), findsOneWidget);
-      // Only the proactive pair: the bench boosts are not here.
+      expect(find.byKey(const ValueKey('match-boost-sharp_shooting')), findsOneWidget);
+      // Only the proactive three: the bench boosts are not here.
       expect(find.byKey(const ValueKey('match-boost-var_review')), findsNothing);
       expect(find.byKey(const ValueKey('match-boost-physio_sponge')), findsNothing);
       expect(
         tester.widget<Text>(find.byKey(const ValueKey('match-boost-count-crowd_roar'))).data,
         'x2',
       );
-      await _finish(tester, stateOf(tester));
+      // Closing it without a pick lets play go on, and spends nothing.
+      await tester.tapAt(const Offset(5, 5));
+      await tester.pumpAndSettle();
+      expect(state.paused, isFalse);
+      expect(state.boostWindows, isEmpty);
+      await _finish(tester, state);
     });
 
     testWidgets('AND IS NOT THERE AT ALL DURING THE TUTORIAL', (tester) async {
@@ -154,17 +180,25 @@ void main() {
         instance: 'unowned',
       );
       expect(
+        tester.widget<Text>(find.byKey(const ValueKey('match-boosts-count'))).data,
+        'x0',
+      );
+      await tester.tap(find.byKey(const ValueKey('match-boosts')));
+      await tester.pumpAndSettle();
+      expect(
         tester.widget<Text>(find.byKey(const ValueKey('match-boost-count-crowd_roar'))).data,
         'x0',
       );
-      expect(find.byKey(const ValueKey('match-boost-price-crowd_roar')), findsNothing);
       final before = stateOf(tester).resimCount;
       await tester.tap(find.byKey(const ValueKey('match-boost-crowd_roar')));
-      await tester.pump();
+      await tester.pumpAndSettle();
       // Nothing was spent, nothing re-decided, and no shop was asked for —
-      // nothing is for sale on the pitch.
+      // nothing is for sale on the pitch. The sheet is still up.
       expect(stateOf(tester).resimCount, before);
       expect(c.read(shellControllerProvider).pendingShopSection, isNull);
+      expect(find.byKey(const ValueKey('match-boost-sheet')), findsOneWidget);
+      await tester.tapAt(const Offset(5, 5));
+      await tester.pumpAndSettle();
       await _finish(tester, stateOf(tester));
     });
 
@@ -177,12 +211,13 @@ void main() {
       expect(find.byKey(const ValueKey('match-live-source-pill')), findsNothing);
       expect(find.byKey(const ValueKey('match-live-glow')), findsNothing);
 
-      await tester.tap(find.byKey(const ValueKey('match-boost-crowd_roar')));
-      await tester.pump();
+      final at = state.frame.minute;
+      await _call(tester, 'crowd_roar');
 
       expect(boostCount(c.read(gameProvider).state, 'crowd_roar'), 1);
       expect(state.boostWindows.single.id, 'crowd_roar');
-      expect(state.boostWindows.single.toMinute, state.frame.minute + 25);
+      // From the minute the sheet was opened on: the clock waited.
+      expect(state.boostWindows.single.toMinute, at + 25);
       expect(state.resimCount, 1);
       expect(find.byKey(const ValueKey('match-boost-band-crowd_roar')), findsOneWidget);
       expect(find.byKey(const ValueKey('match-live-glow')), findsOneWidget);
@@ -222,8 +257,7 @@ void main() {
       await pumpMatch(tester, _playable(), save: _save(), instance: 'bus');
       final state = stateOf(tester);
       await tester.pump(minuteDurationFor(40));
-      await tester.tap(find.byKey(const ValueKey('match-boost-park_the_bus')));
-      await tester.pump();
+      await _call(tester, 'park_the_bus');
       expect(state.boostWindows.single.id, 'park_the_bus');
       expect(find.byKey(const ValueKey('match-boost-band-park_the_bus')), findsOneWidget);
       expect(state.notes.any((n) => n.key == 'boost.bus.live'), isTrue);
@@ -254,8 +288,7 @@ void main() {
       );
       final state = stateOf(tester);
       await tester.pump(minuteDurationFor(40));
-      await tester.tap(find.byKey(const ValueKey('match-boost-sharp_shooting')));
-      await tester.pump();
+      await _call(tester, 'sharp_shooting');
       expect(state.boostWindows.single.id, 'sharp_shooting');
       expect(find.byKey(const ValueKey('match-boost-band-sharp_shooting')), findsOneWidget);
       expect(find.byKey(const ValueKey('match-boost-band-crowd_roar')), findsNothing);
@@ -281,16 +314,19 @@ void main() {
       await pumpMatch(tester, _playable(), save: _save(), instance: 'stack');
       final state = stateOf(tester);
       await tester.pump(minuteDurationFor(30));
-      await tester.tap(find.byKey(const ValueKey('match-boost-crowd_roar')));
-      await tester.pump();
+      await _call(tester, 'crowd_roar');
       await _runTo(tester, state, state.frame.minute + 5);
-      await tester.tap(find.byKey(const ValueKey('match-boost-crowd_roar')));
-      await tester.pump();
+      await _call(tester, 'crowd_roar');
       expect(state.boostWindows.length, 2);
+      // The sheet says where the later window ends.
+      await tester.tap(find.byKey(const ValueKey('match-boosts')));
+      await tester.pumpAndSettle();
       expect(
         tester.widget<Text>(find.byKey(const ValueKey('match-boost-until-crowd_roar'))).data,
         contains("${state.boostWindows.last.toMinute}'"),
       );
+      await tester.tapAt(const Offset(5, 5));
+      await tester.pumpAndSettle();
       await _finish(tester, state);
     });
   });
@@ -353,8 +389,7 @@ void main() {
       );
       final state = stateOf(tester);
       await tester.pump(minuteDurationFor(40));
-      await tester.tap(find.byKey(const ValueKey('match-boost-crowd_roar')));
-      await tester.pump();
+      await _call(tester, 'crowd_roar');
       await tester.tap(find.byKey(const ValueKey('match-stats-button')));
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('match-active')), findsOneWidget);

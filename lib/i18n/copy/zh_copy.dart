@@ -429,6 +429,8 @@ const Map<String, String> zhCopy = <String, String>{
   'boost.physio_sponge.name': "神奇海绵",
   'boost.physio_sponge.desc': "治疗伤病——球员起身继续比赛",
   'boost.feed.action': "增益",
+  'boost.sheet.title': "增益",
+  'boost.sheet.sub': "在场边发动一个。时间会等你。",
   'boost.roar.live': "主教练转向看台，全场沸腾。|声浪从看台倾泻而下，每一次抢断都赢来欢呼。",
   'boost.roar.over': "喧嚣平息，比赛找回节奏。|看台喘了口气。回到足球。",
   'boost.bus.live': "全员回防。他们打算就这样守到底。|两条五人防线，寸土不让。比赛被锁死了。",
