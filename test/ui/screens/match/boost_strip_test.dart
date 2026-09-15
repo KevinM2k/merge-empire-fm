@@ -384,7 +384,11 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('match-active')), findsOneWidget);
       expect(find.byKey(const ValueKey('match-active-crowd_roar')), findsOneWidget);
-      expect(find.byKey(const ValueKey('match-active-fortress')), findsOneWidget);
+      // A trait is listed per man, as his card: all eleven wear Fortress.
+      expect(find.byKey(const ValueKey('match-active-cards')), findsOneWidget);
+      for (var i = 0; i < 11; i++) {
+        expect(find.byKey(ValueKey('match-active-fortress-c$i')), findsOneWidget);
+      }
       expect(find.textContaining("${state.boostWindows.single.toMinute}'"), findsWidgets);
       await tester.tapAt(const Offset(5, 5));
       await tester.pumpAndSettle();

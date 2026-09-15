@@ -361,6 +361,74 @@ String? leadBoost(List<LiveBoost> windows) {
   return windows.isEmpty ? null : windows.first.id;
 }
 
+/// A breathing halo round a man whose match trait is lit — or would be, if
+/// he came on. Its own ticker, because the bench is a sheet of its own with
+/// no share of the screen's glow. Off, it is the child alone; under reduced
+/// motion it holds one frame.
+class BoostPulse extends StatefulWidget {
+  const BoostPulse({super.key, required this.on, required this.child});
+
+  final bool on;
+  final Widget child;
+
+  @override
+  State<BoostPulse> createState() => _BoostPulseState();
+}
+
+class _BoostPulseState extends State<BoostPulse>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _t = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1100),
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final still = MediaQuery.of(context).disableAnimations;
+    if (widget.on && !still && !_t.isAnimating) _t.repeat(reverse: true);
+    if ((!widget.on || still) && _t.isAnimating) _t.stop();
+  }
+
+  @override
+  void didUpdateWidget(BoostPulse oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final still = MediaQuery.of(context).disableAnimations;
+    if (widget.on && !still && !_t.isAnimating) _t.repeat(reverse: true);
+    if (!widget.on && _t.isAnimating) _t.stop();
+  }
+
+  @override
+  void dispose() {
+    _t.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!widget.on) return widget.child;
+    final kit = Theme.of(context).extension<KitTheme>()!;
+    return AnimatedBuilder(
+      animation: _t,
+      builder: (context, child) => DecoratedBox(
+        key: const ValueKey('boost-pulse'),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: kit.accentBright.withValues(alpha: 0.35 + 0.4 * _t.value),
+              blurRadius: 10 + 8 * _t.value,
+              spreadRadius: 1 + 2 * _t.value,
+            ),
+          ],
+        ),
+        child: child,
+      ),
+      child: widget.child,
+    );
+  }
+}
+
 /// A soft pulse round the figures while anything temporary lifts the side.
 ///
 /// Opacity only. The box the child sits in does not change size, so the

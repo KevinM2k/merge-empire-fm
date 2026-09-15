@@ -42,6 +42,7 @@ import 'package:merge_empire_fc/ui/screens/squad/squad_pitch.dart';
 import 'package:merge_empire_fc/ui/screens/squad/squad_providers.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/card_glyph.dart';
+import 'package:merge_empire_fc/ui/screens/match/boost_bar_paint.dart' show BoostPulse;
 import 'package:merge_empire_fc/ui/widgets/player_card.dart';
 import 'package:merge_empire_fc/ui/theme/app_theme.dart' show minFontSize;
 import 'package:merge_empire_fc/ui/screens/squad/squad_pickers.dart'
@@ -63,20 +64,34 @@ Future<void> showSubsPanel(
   Map<String, PitchSlot> sentOffSlots = const {},
   Set<String> cautioned = const {},
   List<BenchBoostOffer> Function()? boostOffers,
-}) => showBottomSheetPopup<void>(
-  context,
-  heightFraction: 0.92,
-  child: SubsPanel(
-    used: used,
-    withdrawn: withdrawn,
-    onSub: onSub,
-    openOn: openOn,
-    sentOff: sentOff,
-    sentOffSlots: sentOffSlots,
-    cautioned: cautioned,
-    boostOffers: boostOffers,
-  ),
-);
+  Set<String> lit = const {},
+  Set<String> wouldBeLit = const {},
+}) {
+  // The sheet is its own route, so the screen's reduced-motion flag has to
+  // be carried in by hand — the pulses loop and honour it.
+  final still = MediaQuery.of(context).disableAnimations;
+  return showBottomSheetPopup<void>(
+    context,
+    heightFraction: 0.92,
+    child: Builder(
+      builder: (ctx) => MediaQuery(
+        data: MediaQuery.of(ctx).copyWith(disableAnimations: still),
+        child: SubsPanel(
+          used: used,
+          withdrawn: withdrawn,
+          onSub: onSub,
+          openOn: openOn,
+          sentOff: sentOff,
+          sentOffSlots: sentOffSlots,
+          cautioned: cautioned,
+          boostOffers: boostOffers,
+          lit: lit,
+          wouldBeLit: wouldBeLit,
+        ),
+      ),
+    ),
+  );
+}
 
 class SubsPanel extends ConsumerStatefulWidget {
   const SubsPanel({
@@ -89,7 +104,16 @@ class SubsPanel extends ConsumerStatefulWidget {
     this.sentOffSlots = const {},
     this.cautioned = const {},
     this.boostOffers,
+    this.lit = const {},
+    this.wouldBeLit = const {},
   });
+
+  /// **WHO IS BOOSTING, AND WHO WOULD BE.** The men on the pitch whose match
+  /// trait is lit right now, and the men on the bench whose trait would be
+  /// if they came on this minute — both pulse, so a boost in play and a
+  /// boost in hand are both seen at the bench. Asked for from the couch.
+  final Set<String> lit;
+  final Set<String> wouldBeLit;
 
   /// How many changes have already been made this match.
   final int used;
@@ -219,6 +243,7 @@ class SubsPanelState extends ConsumerState<SubsPanel> {
         offId: offId,
         cautioned: widget.cautioned,
         spent: widget.withdrawn,
+        wouldBeLit: widget.wouldBeLit,
         onChosen: (onId) => slotId == null
             ? Future.value(false)
             : _confirmAndApply(slotId, offId, onId),
@@ -374,6 +399,7 @@ class SubsPanelState extends ConsumerState<SubsPanel> {
                     gone != null ||
                     widget.sentOff.contains(slot.cardInstanceId),
                 cautioned: widget.cautioned.contains(slot.cardInstanceId),
+                lit: widget.lit.contains(slot.cardInstanceId),
                 onTap: () => _pick(slot),
               );
             },
@@ -434,12 +460,16 @@ class _SubSlot extends ConsumerWidget {
     required this.onTap,
     this.sentOff = false,
     this.cautioned = false,
+    this.lit = false,
   });
 
   final PitchSlot slot;
   final bool enabled;
   final bool sentOff;
   final bool cautioned;
+
+  /// His match trait is lit this minute — see [SubsPanel.lit].
+  final bool lit;
   final VoidCallback onTap;
 
   /// The slot as the rest of this match sees it: a booked player is carrying
@@ -512,7 +542,10 @@ class _SubSlot extends ConsumerWidget {
                 alignment: Alignment.center,
                 clipBehavior: Clip.none,
                 children: [
-                  PitchToken(slot: _shown, proMode: ref.watch(proModeProvider)),
+                  BoostPulse(
+                    on: lit,
+                    child: PitchToken(slot: _shown, proMode: ref.watch(proModeProvider)),
+                  ),
                   if (sentOff || cautioned)
                     Positioned(
                       top: -2,
@@ -539,6 +572,7 @@ class _BenchSheet extends ConsumerStatefulWidget {
     required this.cautioned,
     required this.spent,
     required this.onChosen,
+    this.wouldBeLit = const {},
   });
 
   /// Sent off this match — on no bench, whatever the lineup says.
@@ -559,6 +593,9 @@ class _BenchSheet extends ConsumerStatefulWidget {
 
   /// Resolves true once the change has gone through, which is when this closes.
   final Future<bool> Function(String onId) onChosen;
+
+  /// See [SubsPanel.wouldBeLit]: a man whose trait would fire if he came on.
+  final Set<String> wouldBeLit;
 
   @override
   ConsumerState<_BenchSheet> createState() => _BenchSheetState();
@@ -731,7 +768,9 @@ class _BenchSheetState extends ConsumerState<_BenchSheet> {
                     // THIS one: what he is worth in the hole being filled,
                     // green over the man coming off, amber level with him, red
                     // under. See `PlayerCard.ratingInstead`.
-                    child: PlayerCard(
+                    child: BoostPulse(
+                      on: widget.wouldBeLit.contains(entry.instanceId),
+                      child: PlayerCard(
                       key: ValueKey('sub-bench-${entry.instanceId}'),
                       view: entry.card,
                       light: light,
@@ -745,6 +784,7 @@ class _BenchSheetState extends ConsumerState<_BenchSheet> {
                               ),
                               offStats,
                             ),
+                      ),
                     ),
                   ),
                 );

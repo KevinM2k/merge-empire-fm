@@ -22,7 +22,7 @@ import 'package:merge_empire_fc/data/players.dart'
     show PlayerDef, getPlayerDef;
 import 'package:merge_empire_fc/engine/match_coach.dart';
 import 'package:merge_empire_fc/ui/screens/grid/grid_providers.dart'
-    show isProMode;
+    show isProMode, cardViewFor;
 import 'package:merge_empire_fc/engine/tactic_coach.dart'
     show baselineInjuryRisk, injuryCostPoints;
 import 'package:merge_empire_fc/engine/match_tactics.dart';
@@ -1800,6 +1800,8 @@ class MatchScreenState extends ConsumerState<MatchScreen>
       sentOffSlots: _sentOffSlots,
       cautioned: _cautioned,
       boostOffers: _boostsHidden ? null : _benchOffers,
+      lit: litIds(),
+      wouldBeLit: wouldBeLitIds(),
     );
     // **CLOSING THE BENCH IS THE DECISION.** Whoever was on offer for a review
     // or a sponge and was not taken is not coming back — you cannot undo a
@@ -2494,6 +2496,58 @@ class MatchScreenState extends ConsumerState<MatchScreen>
     }
   }
 
+  /// The men on the pitch whose match trait is lit at this minute, and the
+  /// men on the bench whose trait WOULD be if they came on now — the bench
+  /// pulses both, so a boost in play and a boost in hand are both seen.
+  /// Asked for from the couch.
+  Set<String> litIds() {
+    final cells = _gridCells();
+    final lineup = _lineupSnapshot();
+    final ctx = _matchContext();
+    return {
+      for (final row in lineup)
+        if (row['cardInstanceId'] case final String id)
+          if (isMatchTraitLit(cells, lineup, ctx, id)) id,
+    };
+  }
+
+  Set<String> wouldBeLitIds() {
+    final cells = _gridCells();
+    final lineup = _lineupSnapshot();
+    final on = {
+      for (final row in lineup)
+        if (row['cardInstanceId'] case final String id) id,
+    };
+    final late = _minute >= _end - 20;
+    final out = <String>{};
+    for (final card in cells.whereType<CardInstance>()) {
+      final id = card.instanceId;
+      if (on.contains(id) || _withdrawn.contains(id) || _sentOff.contains(id)) continue;
+      if (card.injured || matchTraitOf(card) == null) continue;
+      // As if he filled the first empty row, or the last, right now.
+      final trial = [
+        for (final row in lineup) Map<String, dynamic>.from(row),
+      ];
+      final hole = trial.indexWhere((r) => r['cardInstanceId'] == null);
+      trial[hole < 0 ? trial.length - 1 : hole]['cardInstanceId'] = id;
+      final base = _matchContext();
+      final ctx = (
+        isHome: base.isHome,
+        isCup: base.isCup,
+        isDerby: base.isDerby,
+        inRelegationZone: base.inRelegationZone,
+        oppStronger: base.oppStronger,
+        tenMen: base.tenMen,
+        minute: base.minute,
+        fullTime: base.fullTime,
+        subbedOnLate: late ? {...base.subbedOnLate, id} : base.subbedOnLate,
+        cautioned: base.cautioned,
+      );
+      if (isMatchTraitLit(cells, trial, ctx, id)) out.add(id);
+    }
+    return out;
+  }
+
   /// Everything running, for the statboard's "Active" list.
   List<ActiveLift> _activeLifts() {
     final out = <ActiveLift>[];
@@ -2506,6 +2560,7 @@ class MatchScreenState extends ConsumerState<MatchScreen>
         label: t('boost.${b.id}.name'),
         effect: t('boost.${b.id}.effect'),
         until: _boosts.endOf(b.id),
+        card: null,
       ));
     }
     final cells = _gridCells();
@@ -2515,17 +2570,25 @@ class MatchScreenState extends ConsumerState<MatchScreen>
       final id = row['cardInstanceId'];
       if (id is! String) continue;
       final card = cells.whereType<CardInstance>().where((c) => c.instanceId == id).firstOrNull;
+      if (card == null) continue;
       final trait = getMatchTrait(matchTraitOf(card)?['id'] as String?);
-      if (trait == null || out.any((a) => a.id == trait.id)) continue;
+      if (trait == null) continue;
       if (!isMatchTraitLit(cells, lineup, ctx, id)) continue;
-      final ref = matchTraitOf(card);
-      final level = getMatchTraitLevel(trait, (ref?['level'] as num?)?.toInt() ?? 1);
+      final held = matchTraitOf(card);
+      final level = getMatchTraitLevel(trait, (held?['level'] as num?)?.toInt() ?? 1);
+      final state = ref.read(gameProvider).state;
+      final ratios = state?['definitionRatios'];
       out.add((
-        id: trait.id,
+        id: '${trait.id}-$id',
         icon: trait.icon,
         label: matchTraitName(trait),
         effect: level == null ? '' : matchTraitEffect(trait, level),
         until: null,
+        card: cardViewFor(
+          card.raw,
+          proMode: state != null && isProMode(state),
+          definitionRatios: ratios is Map<String, dynamic> ? ratios : const {},
+        ),
       ));
     }
     return out;

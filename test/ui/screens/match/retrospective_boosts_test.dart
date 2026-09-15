@@ -93,6 +93,7 @@ Map<String, dynamic> _injuryResult({List<String> also = const []}) => {
 Map<String, dynamic> _save({
   int cards = 16,
   Map<String, int> boosts = const {'var_review': 1, 'physio_sponge': 1},
+  String? trait,
 }) {
   final state = createDefaultState();
   final cells = (state['grid'] as Map<String, dynamic>)['cells'] as List;
@@ -108,6 +109,8 @@ Map<String, dynamic> _save({
       'definitionId': byPos[i < order.length ? order[i] : 'MID']!,
       'instanceId': 'c$i',
       'variant': 0,
+      if (trait != null) 'matchSlot': true,
+      if (trait != null) 'matchTrait': {'id': trait, 'level': 3},
     };
   }
   (state['squad'] as Map<String, dynamic>)['lineup'] = [
@@ -216,6 +219,7 @@ void main() {
       WidgetTester tester, {
       required String instance,
       Map<String, int> boosts = const {'var_review': 1, 'physio_sponge': 1},
+      String? trait,
     }) async {
       tester.view.physicalSize = const Size(420 * 3, 2000 * 3);
       tester.view.devicePixelRatio = 3;
@@ -223,7 +227,7 @@ void main() {
       final c = await pumpMatch(
         tester,
         _redResult(),
-        save: _save(boosts: boosts),
+        save: _save(boosts: boosts, trait: trait),
         instance: instance,
       );
       final state = stateOf(tester);
@@ -269,6 +273,41 @@ void main() {
       // And the whistle writes nothing on his card.
       final stats = _cell(c, 'c7')['stats'] as Map?;
       expect(stats?['yellows'] ?? 0, 0);
+    });
+
+    // Ten Man Wall lights on the red, so the ten left glow and the man who
+    // went is not listed — his trait died with his square.
+    testWidgets('THE MAN SENT OFF IS NOT ON THE ACTIVE LIST, AND THE TEN PULSE',
+        (tester) async {
+      final (c, state) = await atTheRed(
+        tester,
+        instance: 'lit-bench',
+        trait: 'ten_man_wall',
+      );
+      expect(state.sentOffIds, contains('c3'));
+      expect(state.litIds(), hasLength(10));
+      expect(state.litIds(), isNot(contains('c3')));
+      // The bench sheet: the ten on the pitch pulse, and so does a sub who
+      // would light up the moment he came on.
+      final pulses = find.byKey(const ValueKey('boost-pulse'));
+      expect(pulses, findsWidgets);
+      expect(state.wouldBeLitIds(), contains('c11'));
+      expect(state.wouldBeLitIds(), isNot(contains('c3')));
+      await tester.tapAt(const Offset(5, 5));
+      await tester.pumpAndSettle();
+      expect(find.byType(SubsPanel), findsNothing);
+      // Colin's tactic tip may be over the board; put him away first.
+      state.clearCoachLine();
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('match-stats-button')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('match-active-cards')), findsOneWidget);
+      expect(find.byKey(const ValueKey('match-active-ten_man_wall-c3')), findsNothing);
+      expect(find.byKey(const ValueKey('match-active-ten_man_wall-c7')), findsOneWidget);
+      await tester.tapAt(const Offset(5, 5));
+      await tester.pumpAndSettle();
+      await _finish(tester, state);
+      expect(c.read(gameProvider).state, isNotNull);
     });
 
     testWidgets('PUTS HIM BACK IN HIS OWN SQUARE, ON A YELLOW', (tester) async {

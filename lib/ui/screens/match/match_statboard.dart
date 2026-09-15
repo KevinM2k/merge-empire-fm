@@ -24,7 +24,9 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:merge_empire_fc/ui/screens/match/boost_bar_paint.dart' show liveBoostColour;
+import 'package:merge_empire_fc/ui/screens/match/subs_panel.dart' show benchCardAspect;
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
+import 'package:merge_empire_fc/ui/widgets/player_card.dart';
 import 'package:merge_empire_fc/engine/match_tactics.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/ui/screens/match/match_clock.dart';
@@ -266,7 +268,16 @@ LiveStats liveStatsFor({
 /// trait. [until] is the minute a window closes, null for a trait.
 /// One thing lifting the side, and — the part the list did not say — WHAT
 /// it does: a boost's copy, a trait's own figure at its level.
-typedef ActiveLift = ({String id, String icon, String label, String effect, int? until});
+typedef ActiveLift = ({
+  String id,
+  String icon,
+  String label,
+  String effect,
+  int? until,
+
+  /// The man carrying it, for a trait — drawn as his card. Null for a boost.
+  CardView? card,
+});
 
 class MatchStatboard extends StatelessWidget {
   const MatchStatboard({
@@ -370,6 +381,7 @@ class MatchStatboard extends StatelessWidget {
             // the couch. The figure sits beside the name, in the colour of
             // whatever is lifting, with the window's end where there is one.
             for (final lift in active)
+              if (lift.card == null)
               Container(
                 key: ValueKey('match-active-${lift.id}'),
                 margin: const EdgeInsets.only(bottom: 6),
@@ -418,6 +430,65 @@ class MatchStatboard extends StatelessWidget {
                     ],
                   ],
                 ),
+              ),
+            // **THE MEN WHOSE TRAIT IS LIT, AS THEIR CARDS.** A row that
+            // said "🎩 Big Game Player" named the trait and not the man; the
+            // card is who is doing it, the name and figure under it what.
+            // Off the list the moment he is off, hurt or sent off, because
+            // the list is built from the lineup every tick. Asked for from
+            // the couch, with the column count left to the width.
+            if (active.any((l) => l.card != null))
+              LayoutBuilder(
+                key: const ValueKey('match-active-cards'),
+                builder: (context, box) {
+                  final columns = benchColumns(box.maxWidth).clamp(2, 4);
+                  const gap = 8.0;
+                  final width = (box.maxWidth - gap * (columns - 1)) / columns;
+                  return Wrap(
+                    spacing: gap,
+                    runSpacing: gap,
+                    children: [
+                      for (final lift in active)
+                        if (lift.card case final view?)
+                          SizedBox(
+                            key: ValueKey('match-active-${lift.id}'),
+                            width: width,
+                            child: Column(
+                              children: [
+                                // A card fills its box, so the bench's shape.
+                                AspectRatio(
+                                  aspectRatio: benchCardAspect,
+                                  child: PlayerCard(view: view),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  '${lift.icon} ${lift.label}',
+                                  textAlign: TextAlign.center,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w900,
+                                    color: kit.accentBright,
+                                  ),
+                                ),
+                                if (lift.effect.isNotEmpty)
+                                  Text(
+                                    lift.effect,
+                                    key: ValueKey('match-active-effect-${lift.id}'),
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w800,
+                                      color: kit.textMuted,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                    ],
+                  );
+                },
               ),
           ],
         ],
