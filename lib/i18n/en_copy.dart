@@ -1072,4 +1072,5 @@ const Map<String, String> enCopy = <String, String>{
   // an abbreviation. See `league_sheets.dart`.
   'fixtures.on_pens': 'pens',
 
+  'hud.income.trophy_polish': 'Trophy Polish · {mins}m left',
 };

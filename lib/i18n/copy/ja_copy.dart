@@ -552,4 +552,5 @@ const Map<String, String> jaCopy = <String, String>{
   'matchtrait.desc.ice_veins': "カードをもらっても同じプレー――ゲームで最も冷たい頭脳",
   'matchtrait.name.warrior': "闘士",
   'matchtrait.desc.warrior': "痛みをこらえる――負傷を振り払って続けることがある",
+  'hud.income.trophy_polish': "トロフィー磨き · 残り{mins}分",
 };

@@ -681,4 +681,5 @@ const Map<String, String> deCopy = <String, String>{
   'matchtrait.desc.ice_veins': "Spielt verwarnt genauso weiter – der kühlste Kopf im Spiel",
   'matchtrait.name.warrior': "Krieger",
   'matchtrait.desc.warrior': "Beißt sich durch – schüttelt einen Schlag vielleicht ab und macht weiter",
+  'hud.income.trophy_polish': "Trophäen-Politur · noch {mins} Min.",
 };

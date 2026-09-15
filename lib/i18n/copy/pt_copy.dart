@@ -654,4 +654,5 @@ const Map<String, String> ptCopy = <String, String>{
   'matchtrait.desc.ice_veins': "Joga igual com cartão: a cabeça mais fria do jogo",
   'matchtrait.name.warrior': "Guerreiro",
   'matchtrait.desc.warrior': "Segura a pancada: pode sacudir uma lesão e seguir",
+  'hud.income.trophy_polish': "Polimento de Troféus · {mins} min restantes",
 };

@@ -662,4 +662,5 @@ const Map<String, String> esCopy = <String, String>{
   'matchtrait.desc.ice_veins': "Juega igual con tarjeta: la cabeza más fría del juego",
   'matchtrait.name.warrior': "Guerrero",
   'matchtrait.desc.warrior': "Aguanta el golpe: puede sacudirse un percance y seguir",
+  'hud.income.trophy_polish': "Pulido de Trofeos · faltan {mins} min",
 };

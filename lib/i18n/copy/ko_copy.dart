@@ -580,4 +580,5 @@ const Map<String, String> koCopy = <String, String>{
   'matchtrait.desc.ice_veins': "경고를 받아도 똑같이 뜀 — 게임에서 가장 차가운 머리",
   'matchtrait.name.warrior': "전사",
   'matchtrait.desc.warrior': "통증을 참고 뜀 — 부상을 털어내고 이어갈 수 있음",
+  'hud.income.trophy_polish': "트로피 광택 · {mins}분 남음",
 };

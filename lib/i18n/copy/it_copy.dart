@@ -672,4 +672,5 @@ const Map<String, String> itCopy = <String, String>{
   'matchtrait.desc.ice_veins': "Gioca uguale con il cartellino: la testa più fredda del gioco",
   'matchtrait.name.warrior': "Guerriero",
   'matchtrait.desc.warrior': "Stringe i denti: può scrollarsi di dosso un colpo e continuare",
+  'hud.income.trophy_polish': "Lucidatura Trofei · {mins} min rimasti",
 };

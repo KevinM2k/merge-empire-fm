@@ -608,4 +608,5 @@ const Map<String, String> arCopy = <String, String>{
   'matchtrait.desc.ice_veins': "يلعب كما هو رغم الإنذار — أهدأ رأس في اللعبة",
   'matchtrait.name.warrior': "المحارب",
   'matchtrait.desc.warrior': "يتحمل الألم — قد ينفض عنه الإصابة ويواصل",
+  'hud.income.trophy_polish': "تلميع الكؤوس · {mins} دقيقة متبقية",
 };

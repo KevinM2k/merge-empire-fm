@@ -49,17 +49,9 @@ List<HudBoost> hudBoostsFor(Map<String, dynamic>? state, {required int nowMs}) {
     out.add((label: '🌟 VIP', sub: '${days < 1 ? 1 : days}d'));
   }
 
-  // **THE TROPHY POLISH BELONGS HERE, and it could not before.** It is a ×2 on
-  // idle income, which is this row's whole rule — but a pill's sub is a
-  // countdown, and while the polish was a SEASON buff there were no minutes to
-  // put on it. It runs for half an hour now, so eight gems buys something the
-  // player can watch running and watch go. The glyph is the catalogue's own
-  // 🏆, so this needs no copy, which is the other reason the row exists.
-  final polishEnds = _int(boosts['trophyPolishUntil']);
-  if (polishEnds > nowMs) {
-    final mins = ((polishEnds - nowMs) / 60000).ceil();
-    out.add((label: '🏆 ×2', sub: '${mins < 1 ? 1 : mins}m'));
-  }
+  // **NOT THE TROPHY POLISH.** It was a pill here for a while; the income
+  // breakdown carries it with its minutes, and the bar is the one strip with
+  // no room to give. Asked for from the couch.
   return out;
 }
 
@@ -72,8 +64,13 @@ class HudBoosts extends ConsumerWidget {
     final boosts = ref.watch(hudBoostsProvider);
     if (boosts.isEmpty) return const SizedBox.shrink();
     final kit = Theme.of(context).extension<KitTheme>()!;
-    return Flexible(
-      child: Row(
+    // The chips are the transient thing on the bar, so they are what gives
+    // way: they take what the crest and the wallet leave, and scale down
+    // rather than push the wallet's figures smaller.
+    return FittedBox(
+        fit: BoxFit.scaleDown,
+        alignment: Alignment.centerRight,
+        child: Row(
         key: const ValueKey('hud-boosts'),
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -123,7 +120,7 @@ class HudBoosts extends ConsumerWidget {
               ),
             ),
         ],
-      ),
+        ),
     );
   }
 }

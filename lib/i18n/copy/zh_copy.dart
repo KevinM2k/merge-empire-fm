@@ -505,4 +505,5 @@ const Map<String, String> zhCopy = <String, String>{
   'matchtrait.desc.ice_veins': "领牌后照常发挥——全场最冷静的头脑",
   'matchtrait.name.warrior': "战士",
   'matchtrait.desc.warrior': "咬牙坚持——可能抖掉伤痛继续比赛",
+  'hud.income.trophy_polish': "奖杯抛光 · 剩余 {mins} 分钟",
 };
