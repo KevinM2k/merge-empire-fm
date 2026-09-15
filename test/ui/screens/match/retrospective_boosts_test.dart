@@ -327,6 +327,19 @@ void main() {
       expect(find.byKey(const ValueKey('match-active-cards')), findsOneWidget);
       expect(find.byKey(const ValueKey('match-active-ten_man_wall-c3')), findsNothing);
       expect(find.byKey(const ValueKey('match-active-ten_man_wall-c7')), findsOneWidget);
+      // And each card is rated as he plays: base × the wall's lift, in gold.
+      final lifted = tester.widget<PlayerCard>(
+        find.descendant(
+          of: find.byKey(const ValueKey('match-active-ten_man_wall-c5')),
+          matching: find.byType(PlayerCard),
+        ),
+      );
+      expect(lifted.ratingInstead, isNotNull);
+      expect(
+        lifted.ratingInstead!.value,
+        (lifted.view.rating * (1 + matchTraitSquadCap)).round(),
+      );
+      expect(lifted.ratingInstead!.value, greaterThan(lifted.view.rating));
       // Ten cards over three columns leave a short last row; it starts at the
       // left like the rows above it, not centred.
       final heading = tester.getRect(find.byKey(const ValueKey('match-active')));

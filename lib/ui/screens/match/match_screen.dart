@@ -2582,11 +2582,13 @@ class MatchScreenState extends ConsumerState<MatchScreen>
         effect: t('boost.${b.id}.effect'),
         until: _boosts.endOf(b.id),
         card: null,
+        mult: 1,
       ));
     }
     final cells = _gridCells();
     final lineup = _lineupSnapshot();
     final ctx = _matchContext();
+    final mults = matchTraitMultipliers(cells, lineup, ctx);
     for (final row in lineup) {
       final id = row['cardInstanceId'];
       if (id is! String) continue;
@@ -2610,6 +2612,7 @@ class MatchScreenState extends ConsumerState<MatchScreen>
           proMode: state != null && isProMode(state),
           definitionRatios: ratios is Map<String, dynamic> ? ratios : const {},
         ),
+        mult: mults[id] ?? 1,
       ));
     }
     return out;
