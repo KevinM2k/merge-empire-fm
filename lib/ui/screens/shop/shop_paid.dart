@@ -84,15 +84,17 @@ Future<void> buyProduct(
   WidgetRef ref,
   IapProduct product,
   String name,
-  String price,
-) async {
+  String price, {
+  /// What the tile drew, when it is not [shopProductGlyph].
+  Widget? glyph,
+}) async {
   final game = ref.read(gameProvider);
   final state = game.state;
   if (state == null) return;
   final ok = await confirmRealMoneyPurchase(
     context,
     productId: product.id,
-    icon: product.icon,
+    glyph: glyph ?? shopProductGlyph(product),
     name: name,
     description: productDesc(product, state: state, hardMode: hardModeOf(state)),
     price: price,

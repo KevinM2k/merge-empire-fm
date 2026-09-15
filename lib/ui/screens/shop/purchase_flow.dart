@@ -124,7 +124,7 @@ Future<void> offerToBuy(
 Future<bool> confirmRealMoneyPurchase(
   BuildContext context, {
   required String productId,
-  required String icon,
+  required Widget glyph,
   required String name,
   required String? description,
   required String price,
@@ -134,7 +134,7 @@ Future<bool> confirmRealMoneyPurchase(
     context: context,
     builder: (_) => _PaidConfirmCard(
       productId: productId,
-      icon: icon,
+      glyph: glyph,
       name: name,
       description: description,
       price: price,
@@ -147,7 +147,7 @@ Future<bool> confirmRealMoneyPurchase(
 class _PaidConfirmCard extends StatelessWidget {
   const _PaidConfirmCard({
     required this.productId,
-    required this.icon,
+    required this.glyph,
     required this.name,
     required this.description,
     required this.price,
@@ -155,7 +155,9 @@ class _PaidConfirmCard extends StatelessWidget {
   });
 
   final String productId;
-  final String icon;
+
+  /// The same picture the tile drew — the card and the tile must match.
+  final Widget glyph;
   final String name;
   final String? description;
   final String price;
@@ -175,9 +177,10 @@ class _PaidConfirmCard extends StatelessWidget {
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // The product's own glyph, which for the paid shelf is an emoji in
-          // the catalogue rather than a name in `game_icon.dart`.
-          Text(icon, style: const TextStyle(fontSize: 40)),
+          // The tile's own picture, not the catalogue's emoji: that one is
+          // for the toast. The Vault's tile is a bank and its card was a
+          // wardrobe. Reported from the couch.
+          SizedBox(height: 44, child: Center(child: glyph)),
           const SizedBox(height: 8),
           Text(
             name,

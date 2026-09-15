@@ -4761,7 +4761,7 @@ class _StatsHint extends StatelessWidget {
           const SizedBox(width: 3),
           Text(
             t('match.tab.stats'),
-            style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900, color: ink, height: 1),
+            style: TextStyle(fontSize: minFontSize, fontWeight: FontWeight.w900, color: ink, height: 1),
           ),
         ],
       ),

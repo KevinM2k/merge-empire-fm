@@ -513,6 +513,7 @@ class _VaultHero extends ConsumerWidget {
                   vault.product.price,
                   ref.read(storeCatalogueProvider).valueOrNull,
                 ),
+                glyph: GameIcon('bank', size: 34, color: ink),
               ),
             ),
           ],
