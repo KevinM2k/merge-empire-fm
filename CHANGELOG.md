@@ -1,3 +1,8 @@
+## v2.1.3
+
+- Fixed a quiet word wiping a booking but the player being sent off later in the same match anyway, for a second yellow he no longer had a first for. The later booking is now his first, he stays on, and he serves no ban for it.
+- How many in-game boosts you own now sits in a badge on the corner of its tile, rather than on a line of its own.
+
 ## v2.1.2
 
 - An injured or suspended player is now taken out of the XI before kickoff and replaced by the next available man, instead of being left on the team sheet. Coach Colin says who is out and who comes in.
