@@ -216,10 +216,10 @@ Future<TransferAnswer?> showTransferOffer(
   final offer = ref.read(pendingOfferProvider);
   if (offer == null) return null;
 
-  // Through `update`, because spending the id WRITES to the save.
-  final explain = ref
-      .read(gameProvider)
-      .update((s) => takeTipOnce(s, 'transfer_offer'));
+  // The once-ever `coachtip.transfer_offer` explainer is still spent here so
+  // the ledger matches the JS, but the card no longer prints it: this is
+  // Colin passing on a bid, not the life story. Reported from the couch.
+  ref.read(gameProvider).update((s) => takeTipOnce(s, 'transfer_offer'));
 
   final answer = await showDialog<TransferAnswer>(
     context: context,
@@ -227,7 +227,7 @@ Future<TransferAnswer?> showTransferOffer(
     // Tapping outside parks it rather than answering, which is only safe
     // because nothing is lost by doing so.
     barrierDismissible: true,
-    builder: (_) => _TransferOfferCard(offer: offer, explain: explain),
+    builder: (_) => _TransferOfferCard(offer: offer),
   );
   if (answer == null) return null;
 
@@ -241,13 +241,9 @@ Future<TransferAnswer?> showTransferOffer(
 }
 
 class _TransferOfferCard extends ConsumerWidget {
-  const _TransferOfferCard({required this.offer, required this.explain});
+  const _TransferOfferCard({required this.offer});
 
   final Map<String, dynamic> offer;
-
-  /// Whether this is the first bid this save has ever received, and so carries
-  /// Colin's one-time explanation of what one IS.
-  final bool explain;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -295,18 +291,6 @@ class _TransferOfferCard extends ConsumerWidget {
     return CoachCardFrame(
       key: const ValueKey('transfer-offer'),
       title: t('transfer.card_title', {'club': offer['fromTeam'] ?? ''}),
-      // **What a bid MEANS, once ever.** A paragraph inside the offer rather
-      // than a coach tip stacked on top of it — the JS makes that point twice,
-      // and it is why `coachtip.transfer_offer.*` exists and still turns up in
-      // `seenTips`.
-      extraLines: [
-        if (explain)
-          (
-            key: 'coachtip.transfer_offer.body',
-            params: const {},
-            strong: false,
-          ),
-      ],
       // Park, no, yes. Three answers stack rather than sharing a row, which is
       // the frame's own rule: at three, a row makes every label too narrow.
       actions: [

@@ -1430,6 +1430,7 @@ class CoachCardFrame extends StatelessWidget {
             const SizedBox(height: 8),
             Flexible(
               child: CoachPages(
+              fixed: child == null,
               paragraphs: [
                 if (body != null)
                   CoachParagraph(
@@ -1805,9 +1806,17 @@ const double _paraGap = 8;
 /// stage, where it still finishes his line. A › in the corner is the only
 /// other sign there is more.
 class CoachPages extends StatefulWidget {
-  const CoachPages({super.key, required this.paragraphs});
+  const CoachPages({super.key, required this.paragraphs, this.fixed = true});
 
   final List<CoachParagraph> paragraphs;
+
+  /// Whether the box holds its full height even when the text is short.
+  /// True for a card that is words alone — every one the same size. False
+  /// for a card with a [CoachCardFrame.child]: a portrait and a set of
+  /// terms need the room more than an empty box does, and reserving six
+  /// lines under them squeezed the bid card's terms into a scroll.
+  /// Reported from the couch.
+  final bool fixed;
 
   @override
   State<CoachPages> createState() => CoachPagesState();
@@ -1879,6 +1888,18 @@ class CoachPagesState extends State<CoachPages> {
     final n = painter.computeLineMetrics().length;
     painter.dispose();
     return n;
+  }
+
+  /// What one page measures, laid out: its paragraphs and the gaps between.
+  double _heightOfPage(BuildContext context, List<CoachParagraph> page, double width) {
+    final base = DefaultTextStyle.of(context).style;
+    final scaler = MediaQuery.textScalerOf(context);
+    var h = 0.0;
+    for (var i = 0; i < page.length; i++) {
+      if (i > 0) h += _paraGap;
+      h += _heightOf(page[i].text, base.merge(page[i].style), width, scaler);
+    }
+    return h;
   }
 
   List<List<CoachParagraph>> _paginate(BuildContext context, double width, double height) {
@@ -1954,12 +1975,17 @@ class CoachPagesState extends State<CoachPages> {
         pageCount = pages.length;
         final at = _page.clamp(0, pages.length - 1);
         final more = at + 1 < pages.length;
+        // Sized to the page when the box need not hold its height: one page
+        // is measured, several are the cap.
+        final shownHeight = widget.fixed || more || at > 0
+            ? height
+            : math.min(height, _heightOfPage(context, pages[at], box.maxWidth));
         return GestureDetector(
           key: const ValueKey('coach-pages'),
           behavior: more ? HitTestBehavior.opaque : HitTestBehavior.deferToChild,
           onTap: more ? next : null,
           child: SizedBox(
-            height: height,
+            height: shownHeight,
             child: Stack(
               children: [
                 Column(
