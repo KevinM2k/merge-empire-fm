@@ -1064,4 +1064,7 @@ const Map<String, String> enCopy = <String, String>{
   'fixtures.on_pens': 'pens',
 
   'hud.income.trophy_polish': 'Trophy Polish · {mins}m left',
+  'product.starter_pack.desc': "{coins} coins + 10 Energy + {gems} gems — coins and energy re-granted every reset!",
+  'product.starter_pack.descHard': "{coins} coins + fully refresh squad fitness + {gems} gems — coins and fitness re-granted every reset!",
+  'product.vip_pass.desc': "{coins} coins instantly · {gems} gems · ×2 income · 10s match cooldown (vs 30s) · 30 days.",
 };

@@ -368,4 +368,23 @@ void main() {
       }
     });
   });
+
+  // Asked for from the couch: five gems in the Starter Pack, ten in the VIP
+  // Pass. Beside the catalogue rather than in it, so the JS parity holds.
+  group('THE TWO OFFERS PAY GEMS', () {
+    test('the Starter Pack pays five and the VIP Pass ten, once', () {
+      expect(productGems(getProduct('starter_pack')!), 5);
+      expect(productGems(getProduct('vip_pass')!), 10);
+      expect(productGems(getProduct('coins_small')!), 0);
+      expect(productGems(getProduct('gems_5')!), 5);
+      final s = _state(coins: 0);
+      purchaseProduct(s, 'starter_pack');
+      expect(getGems(s), 5);
+      purchaseProduct(s, 'vip_pass');
+      expect(getGems(s), 15);
+      // A second Starter Pack is refused and pays nothing more.
+      purchaseProduct(s, 'starter_pack');
+      expect(getGems(s), 15);
+    });
+  });
 }

@@ -614,4 +614,7 @@ const Map<String, String> arCopy = <String, String>{
   'coach.tactic_tip.park_underdog': "{opp} خطر حقيقي وسنعاني للتسجيل. {tactic} – قلّل الخسائر.",
   'coach.tactic_tip.tight_favoured': "مباراة محكمة لكن الأفضلية لنا. {tactic} – اصنع الفرصة.",
   'coach.tactic_tip.tight_underdog': "التسجيل صعب على الطرفين. {tactic} – حافظ على الانضباط.",
+  'product.starter_pack.desc': "{coins} عملة + 10 طاقة + {gems} جواهر – تُمنح العملات والطاقة مجدداً مع كل بداية جديدة!",
+  'product.starter_pack.descHard': "{coins} عملة + استعادة لياقة الفريق بالكامل + {gems} جواهر – تُمنح العملات واللياقة مجدداً مع كل بداية جديدة!",
+  'product.vip_pass.desc': "{coins} عملة فوراً · {gems} جواهر · دخل ×2 · 10 ثوانٍ بين المباريات (بدل 30) · 30 يوماً.",
 };

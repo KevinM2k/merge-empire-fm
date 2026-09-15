@@ -686,4 +686,7 @@ const Map<String, String> frCopy = <String, String>{
   'coach.tactic_tip.tight_favoured': "Un match serré, mais l'avantage est pour nous. {tactic} – créer l'occasion.",
   'coach.tactic_tip.tight_underdog': "Difficile de marquer des deux côtés. {tactic} – rester disciplinés.",
   'game.whack.fouls': "Stadiers",
+  'product.starter_pack.desc': "{coins} pièces + 10 d'énergie + {gems} gemmes – pièces et énergie offertes à chaque nouveau départ !",
+  'product.starter_pack.descHard': "{coins} pièces + forme de l'effectif rétablie + {gems} gemmes – pièces et forme offertes à chaque nouveau départ !",
+  'product.vip_pass.desc': "{coins} pièces immédiatement · {gems} gemmes · ×2 revenus · 10 s entre les matchs (au lieu de 30 s) · 30 jours.",
 };

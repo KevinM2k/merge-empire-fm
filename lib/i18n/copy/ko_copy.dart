@@ -586,4 +586,7 @@ const Map<String, String> koCopy = <String, String>{
   'coach.tactic_tip.park_underdog': "{opp}은(는) 실제 위협이고 득점이 어려울 겁니다. {tactic} — 피해를 최소화하세요.",
   'coach.tactic_tip.tight_favoured': "팽팽한 경기지만 우리가 우위입니다. {tactic} — 기회를 만들어내세요.",
   'coach.tactic_tip.tight_underdog': "양쪽 모두 득점이 어렵습니다. {tactic} — 규율을 지키세요.",
+  'product.starter_pack.desc': "{coins} 코인 + 에너지 10 + 젬 {gems}개 — 코인과 에너지는 리셋마다 다시 지급!",
+  'product.starter_pack.descHard': "{coins} 코인 + 스쿼드 체력 완전 회복 + 젬 {gems}개 — 코인과 체력은 리셋마다 다시 지급!",
+  'product.vip_pass.desc': "{coins} 코인 즉시 지급 · 젬 {gems}개 · 수입 ×2 · 경기 대기 10초(기본 30초) · 30일.",
 };

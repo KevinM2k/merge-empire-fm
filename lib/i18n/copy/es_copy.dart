@@ -670,4 +670,7 @@ const Map<String, String> esCopy = <String, String>{
   'coach.tactic_tip.tight_underdog': "Difícil marcar para los dos. {tactic}: mantener la disciplina.",
   'club.stats.tier_value': "Nivel {tier}",
   'hud.income.base_total': "Total base",
+  'product.starter_pack.desc': "{coins} monedas + 10 de energía + {gems} gemas: monedas y energía de nuevo en cada reinicio.",
+  'product.starter_pack.descHard': "{coins} monedas + forma física de la plantilla al máximo + {gems} gemas: monedas y forma de nuevo en cada reinicio.",
+  'product.vip_pass.desc': "{coins} monedas al instante · {gems} gemas · ×2 ingresos · 10 s entre partidos (en vez de 30 s) · 30 días.",
 };

@@ -558,4 +558,7 @@ const Map<String, String> jaCopy = <String, String>{
   'coach.tactic_tip.park_underdog': "{opp}は本物の脅威で、得点は難しい。{tactic}――被害を最小限に。",
   'coach.tactic_tip.tight_favoured': "締まった試合だが、優位はこちらだ。{tactic}――チャンスを作り出す。",
   'coach.tactic_tip.tight_underdog': "どちらも点を取りにくい。{tactic}――規律を守る。",
+  'product.starter_pack.desc': "{coins}コイン + 10エナジー + {gems}ジェム――コインとエナジーはリセットごとに再付与！",
+  'product.starter_pack.descHard': "{coins}コイン + チームの体力を全回復 + {gems}ジェム――コインと体力はリセットごとに再付与！",
+  'product.vip_pass.desc': "{coins}コインをすぐに · {gems}ジェム · 収入×2 · 試合間の待ち時間10秒（通常30秒） · 30日間。",
 };

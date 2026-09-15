@@ -181,10 +181,10 @@ const List<IapProduct> products = [
   // nothing. Energy is additive, has a Pro-mode branch already written, and is
   // what the reference set actually bundles.
   //
-  // **And not gems**, which is the other thing the shots suggest: every gem
-  // price in this game is quoted against one rate, so a coin bundle handing out
-  // gems discounts the whole catalogue and squeezes the Style Vault's ceiling
-  // with it.
+  // **And the COIN bundles carry no gems**: every gem price in this game is
+  // quoted against one rate, so a coin bundle handing out gems discounts the
+  // whole catalogue. The two OFFERS do — see [portGemBonus], which is the
+  // port's own and sits beside the catalogue rather than in it.
   //
   // The screen half needed nothing: `PackContentsRow` draws whatever
   // `packContents` returns and that function has read `energyAdd` all along.
@@ -330,6 +330,22 @@ final Map<String, IapProduct> _byId = {for (final p in products) p.id: p};
 
 /// A product by id, or null.
 IapProduct? getProduct(String? id) => id == null ? null : _byId[id];
+
+/// **GEMS ON THE TWO OFFERS, beside the catalogue rather than in it.** The
+/// catalogue above is compared field for field against the JS's by
+/// `iap_parity_test`, so a `gems:` on `starter_pack` cannot live there. Asked
+/// for from the couch: five gems in the Starter Pack, ten in the VIP Pass.
+/// Granted once, at purchase — a reset keeps gems, so the Starter Pack's
+/// re-grant does not pay them again.
+///
+/// Mutable for one reason: `iap_parity_test` compares the save after a
+/// purchase against the JS's and swaps this out for the run, the way the daily
+/// parity tests swap the calendar.
+Map<String, int> portGemBonus = const {'starter_pack': 5, 'vip_pass': 10};
+
+/// What a product pays in gems: the catalogue's own, or the port's bonus.
+int productGems(IapProduct product) =>
+    product.gems ?? portGemBonus[product.id] ?? 0;
 
 /// Coin bundle amounts scale with division so they stay meaningful at every
 /// level.
@@ -512,7 +528,7 @@ PurchaseResult purchaseProduct(
   // Gems go through addGems rather than a bare increment, so the balance is
   // sanitised, the HUD hears about it, and the purchase is logged with the same
   // shape as an earned one.
-  if (product.gems != null) addGems(state, product.gems!, 'iap');
+  if (productGems(product) > 0) addGems(state, productGems(product), 'iap');
 
   if (product.energyDirector) shop['energyUpgraded'] = true;
 

@@ -511,4 +511,7 @@ const Map<String, String> zhCopy = <String, String>{
   'coach.tactic_tip.park_underdog': "{opp}威胁很大，我们很难进球。{tactic}——把损失降到最低。",
   'coach.tactic_tip.tight_favoured': "比赛会很紧，但我们略有优势。{tactic}——创造出那个机会。",
   'coach.tactic_tip.tight_underdog': "双方都很难进球。{tactic}——保持纪律。",
+  'product.starter_pack.desc': "{coins} 金币 + 10 体力 + {gems} 宝石——金币和体力每次重置都会再次发放！",
+  'product.starter_pack.descHard': "{coins} 金币 + 全队体能完全恢复 + {gems} 宝石——金币和体能每次重置都会再次发放！",
+  'product.vip_pass.desc': "立即获得 {coins} 金币 · {gems} 宝石 · 收入 ×2 · 比赛间隔 10 秒（原为 30 秒） · 30 天。",
 };

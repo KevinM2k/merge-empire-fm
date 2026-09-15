@@ -59,7 +59,7 @@ String productDesc(
   final pct = ((1 - Energy.regenMsUpgraded / Energy.regenMs) * 100).round();
   String fill(String s) => s
       .replaceAll('{coins}', formatCoins(getProductGrantCoins(state, product)))
-      .replaceAll('{gems}', '${product.gems ?? ''}')
+      .replaceAll('{gems}', '${productGems(product)}')
       .replaceAll('{energyPct}', '$pct');
 
   if (hardMode && product.descHard != null) {
