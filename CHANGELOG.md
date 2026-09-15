@@ -1,3 +1,13 @@
+## v2.1.0
+
+- Every player has a second, match trait slot, open on every card. Twelve traits that only pay when the situation calls for them — a derby, a cup tie, a relegation fight, the last fifteen minutes.
+- Six manager boosts to spend in a live match. Crowd Roar, Park the Bus and Sharp Shooting are tapped from the pitch and run for a window; VAR Review, the Physio Sponge and a Quiet Word are taken at the bench to undo a red card, an injury or a booking.
+- The match screen shows what a boost is doing while it does it, and the attack and defence figures move with it.
+- Full-time stats read as rows, our half of every bar green and theirs red, and the sheet follows the match while it is open.
+- Traits are drawn in the game's own artwork wherever they appear, and one sheet lists every trait and what each level is worth.
+- The Starter Pack now includes five gems and the VIP Pass ten.
+- Coach Colin's tactic tips, and a dozen stray English strings, now translated in all ten languages.
+
 ## v2.0.9
 
 - Fixed rewarded videos staying unavailable for the rest of the session when the ad service failed to start.
