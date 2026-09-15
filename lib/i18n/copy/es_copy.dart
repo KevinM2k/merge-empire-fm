@@ -82,6 +82,25 @@ const Map<String, String> esCopy = <String, String>{
           'otros.|'
       'Se acabó, iguales, y costó hasta el minuto {minute} llegar ahí.|'
       'Final, con el gol del empate cayendo en el minuto {minute}.',
+  // ── Y una eliminatoria que se va a los penaltis ──────────────────────────
+  //
+  // Claves nuevas: los catálogos generados vienen de un JS cuya crónica no
+  // sabía de tandas de penaltis. Sustituyen al titular que la diferencia habría
+  // elegido en `report.draw.*`. `{score}` son los noventa minutos y `{pens}` la
+  // tanda, ambos escritos empezando por el equipo local.
+  'report.cup.pens_won':
+      'Se acabó, y hicieron falta los penaltis: {score} tras noventa minutos, '
+          'y el {club} gana la tanda {pens} y pasa.|'
+      'Sonó el silbato con el {score} en el marcador. El {club} aguantó desde '
+          'los once metros: {pens}, y el {opp} queda eliminado.|'
+      'Final, {score}, y lo decide la tanda: {pens} para el {club}, que pasa.',
+  'report.cup.pens_lost':
+      'Se acabó, y hicieron falta los penaltis: {score} tras noventa minutos, '
+          'y el {club} queda fuera, batido {pens} en la tanda.|'
+      'Sonó el silbato con el {score} en el marcador. El {club} no supo '
+          'resolverlo desde los once metros: {pens}, y el {opp} pasa.|'
+      'Final, {score}, y lo decide la tanda: {pens}, y ahí acaba la andadura '
+          'copera del {club}.',
   'report.draw.thriller':
       'Se acabó, y menudo partido: {total} goles y nada que los separe.|'
       'Pitido final a un partido de {total} goles que ninguno de los dos pudo '

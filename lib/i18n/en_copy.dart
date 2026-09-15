@@ -659,6 +659,32 @@ const Map<String, String> enCopy = <String, String>{
       'It\'s all over, level, and it took until the {minute} minute to get '
           'there.|'
       'Full time, with the goal that levelled it coming in the {minute} minute.',
+  // ── AND A CUP TIE THAT WENT TO PENALTIES ─────────────────────────────────
+  //
+  // New keys rather than replacements: the generated catalogues are built from
+  // a JS whose write-up never knew about shootouts, so there is nothing here
+  // to widen. They take the headline off whichever `report.draw.*` pool the
+  // margin would otherwise have chosen — see `beatRank` and the override in
+  // `buildMatchReport` — because a knockout tie that finished level is a draw
+  // to the margin and to nothing else.
+  //
+  // `{score}` is the ninety minutes and `{pens}` the kicks, both written home
+  // team first so the two scorelines in one sentence name the clubs in the
+  // same order.
+  'report.cup.pens_won':
+      'It\'s all over, and it took penalties — {score} after ninety minutes, '
+          'and {club} win the shootout {pens} to go through.|'
+      'The whistle has gone with the tie level at {score}. {club} held their '
+          'nerve from twelve yards: {pens}, and {opp} are out.|'
+      'Full time, {score}, and a shootout settles it — {pens} to {club}, who '
+          'go through.',
+  'report.cup.pens_lost':
+      'It\'s all over, and it took penalties — {score} after ninety minutes, '
+          'and {club} are out, beaten {pens} in the shootout.|'
+      'The whistle has gone with the tie level at {score}. {club} could not '
+          'settle it from twelve yards: {pens}, and {opp} go through.|'
+      'Full time, {score}, and a shootout settles it — {pens}, and the cup run '
+          'ends here for {club}.',
   'report.draw.thriller':
       'It\'s all over, and what a game — {total} goals and nothing to separate '
           'them.|'

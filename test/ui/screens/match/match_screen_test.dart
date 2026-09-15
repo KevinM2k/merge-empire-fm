@@ -4620,6 +4620,81 @@ void main() {
       await settleSave(tester);
     });
 
+    testWidgets('AND THE KICKS ARE ON THE BOARD, WHICH THEY NEVER WERE', (
+      tester,
+    ) async {
+      // **`ShootoutRow` was reachable by no fixture that could have one.** It
+      // was built for `MatchSummaryScreen`, and the summary is pushed from the
+      // LEAGUE flow only — `play_button` hands `MatchScreen` an `onLeave` that
+      // replaces it with the summary, and the cup flow pushes the screen with
+      // no `onLeave` and nothing after the whistle but `settleCupRound` and
+      // Colin's through-or-out card. A shootout can only happen in a cup. So
+      // every tie decided on penalties ended on a board reading a level
+      // scoreline under the words FULL TIME, and the marks that explained it
+      // were drawn on a screen that fixture never opened.
+      //
+      // Reported from the couch with the shot: 1-1, full time, a cup tie,
+      // "why no penalties". The two tests either side of this one pin the
+      // ARITHMETIC of a shootout on this screen — the folded goal, the sting,
+      // Colin's line — and neither of them asks whether a player can see it,
+      // which is the whole of the fault.
+      await pumpMatch(
+        tester,
+        {
+          ...scored(fixtureKey: 's1_m44', isHome: true, ours: 2, theirs: 2),
+          'isCup': true,
+          'homeGoals': 3,
+          'won': true,
+          'drawn': false,
+          'penaltyShootout': <String, dynamic>{
+            'playerWins': true,
+            'homeScore': 4,
+            'awayScore': 3,
+            'kicks': <Map<String, dynamic>>[
+              for (var i = 0; i < 4; i++) {'team': 'home', 'scored': true},
+              for (var i = 0; i < 3; i++) {'team': 'away', 'scored': true},
+              {'team': 'away', 'scored': false},
+            ],
+          },
+        },
+        save: squadSave(),
+      );
+      // Not before the whistle: the kicks come after the ninety minutes the
+      // feed is still playing.
+      expect(find.byKey(const ValueKey('shootout-row')), findsNothing);
+
+      stateOf(tester).skipToEnd();
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey('shootout-row')),
+        findsOneWidget,
+        reason: 'a level cup scoreline with no shootout on the board',
+      );
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('shootout-row')),
+          matching: find.text('4 - 3'),
+        ),
+        findsOneWidget,
+      );
+      await settleSave(tester);
+    });
+
+    testWidgets('AND A LEAGUE DRAW HAS NOTHING TO SHOW', (tester) async {
+      // The control, and the one that stops the row appearing on every level
+      // scoreline in the game: a league match that finished 2-2 finished 2-2.
+      await pumpMatch(
+        tester,
+        scored(fixtureKey: 's1_m44', isHome: true, ours: 2, theirs: 2),
+        save: squadSave(),
+      );
+      stateOf(tester).skipToEnd();
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('shootout-row')), findsNothing);
+      await settleSave(tester);
+    });
+
     testWidgets('AND HE DOES NOT CALL A SHOOTOUT A DRAW', (tester) async {
       // **Reported from the couch: "it ended 2-2, it said it was a draw, but
       // then I got the you-are-through box up."** The whistle sting already

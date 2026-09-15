@@ -79,6 +79,26 @@ const Map<String, String> ptCopy = <String, String>{
       'Acabou, iguais, e foi preciso esperar até aos {minute} minutos para lá '
           'chegar.|'
       'Final, com o golo do empate a cair aos {minute} minutos.',
+  // ── E uma eliminatória que vai a grandes penalidades ─────────────────────
+  //
+  // Chaves novas: os catálogos gerados vêm de um JS cuja crónica não conhecia
+  // desempates por grandes penalidades. Substituem o título que a diferença
+  // teria escolhido em `report.draw.*`. `{score}` são os noventa minutos e
+  // `{pens}` o desempate, ambos escritos a começar pela equipa da casa.
+  'report.cup.pens_won':
+      'Acabou, e foram precisas grandes penalidades: {score} ao fim de noventa '
+          'minutos, e o {club} vence o desempate {pens} e segue em frente.|'
+      'Soou o apito com o {score} no marcador. O {club} aguentou a partir dos '
+          'onze metros: {pens}, e o {opp} está fora.|'
+      'Fim de jogo, {score}, e o desempate decide: {pens} para o {club}, que '
+          'segue em frente.',
+  'report.cup.pens_lost':
+      'Acabou, e foram precisas grandes penalidades: {score} ao fim de noventa '
+          'minutos, e o {club} está fora, batido {pens} no desempate.|'
+      'Soou o apito com o {score} no marcador. O {club} não resolveu a partir '
+          'dos onze metros: {pens}, e o {opp} segue em frente.|'
+      'Fim de jogo, {score}, e o desempate decide: {pens}, e o percurso do '
+          '{club} na prova termina aqui.',
   'report.draw.thriller':
       'Acabou, e que jogo: {total} golos e nada que os separe.|'
       'Apito final num jogo de {total} golos que nenhum dos dois conseguiu '

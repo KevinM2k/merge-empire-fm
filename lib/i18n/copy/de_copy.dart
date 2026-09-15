@@ -87,6 +87,26 @@ const Map<String, String> deCopy = <String, String>{
           'und zwei verlorene für die anderen.|'
       'Vorbei, ausgeglichen, und es hat bis zur {minute}. Minute gedauert.|'
       'Spielende, mit dem Ausgleichstor in der {minute}. Minute.',
+  // ── Und ein Pokalspiel, das ins Elfmeterschießen geht ────────────────────
+  //
+  // Neue Schlüssel: die generierten Kataloge stammen aus einem JS, dessen
+  // Spielbericht kein Elfmeterschießen kannte. Sie ersetzen die Überschrift,
+  // die der Abstand sonst aus `report.draw.*` gewählt hätte. `{score}` sind die
+  // neunzig Minuten, `{pens}` die Elfmeter, beide mit der Heimmannschaft zuerst.
+  'report.cup.pens_won':
+      'Vorbei, und es brauchte Elfmeter — {score} nach neunzig Minuten, und '
+          '{club} gewinnt das Schießen {pens} und zieht weiter.|'
+      'Der Schlusspfiff ist bei {score} gefallen. {club} behielt vom Punkt die '
+          'Nerven: {pens}, und {opp} sind raus.|'
+      'Spielende, {score}, und das Schießen entscheidet — {pens} für {club}, '
+          'das weiterkommt.',
+  'report.cup.pens_lost':
+      'Vorbei, und es brauchte Elfmeter — {score} nach neunzig Minuten, und '
+          '{club} ist raus, {pens} im Schießen unterlegen.|'
+      'Der Schlusspfiff ist bei {score} gefallen. {club} konnte es vom Punkt '
+          'nicht klären: {pens}, und {opp} kommen weiter.|'
+      'Spielende, {score}, und das Schießen entscheidet — {pens}, und der '
+          'Pokalweg von {club} endet hier.',
   'report.draw.thriller':
       'Vorbei, und was für ein Spiel — {total} Tore, und nichts trennt sie.|'
       'Schlusspfiff über einem Spiel mit {total} Toren, das keiner von beiden '

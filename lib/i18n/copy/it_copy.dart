@@ -84,6 +84,25 @@ const Map<String, String> itCopy = <String, String>{
           'l\'altra.|'
       'È finita, pari, e c\'è voluto fino al {minute}\' per arrivarci.|'
       'Finale, con il gol del pareggio caduto al {minute}\'.',
+  // ── E una partita di coppa che va ai rigori ──────────────────────────────
+  //
+  // Chiavi nuove: i cataloghi generati vengono da un JS la cui cronaca non
+  // conosceva i tiri dal dischetto. Sostituiscono il titolo che il margine
+  // avrebbe scelto tra i `report.draw.*`. `{score}` sono i novanta minuti e
+  // `{pens}` i rigori, entrambi scritti partendo dalla squadra di casa.
+  'report.cup.pens_won':
+      'È finita, e ci sono voluti i rigori: {score} dopo novanta minuti, e il '
+          '{club} vince i tiri dal dischetto {pens} e passa il turno.|'
+      'Il fischio finale è arrivato sul {score}. Il {club} ha tenuto i nervi '
+          'dagli undici metri: {pens}, e il {opp} è fuori.|'
+      'Finita, {score}, e decidono i rigori: {pens} per il {club}, che passa.',
+  'report.cup.pens_lost':
+      'È finita, e ci sono voluti i rigori: {score} dopo novanta minuti, e il '
+          '{club} esce, battuto {pens} dal dischetto.|'
+      'Il fischio finale è arrivato sul {score}. Il {club} non ha saputo '
+          'chiuderla dagli undici metri: {pens}, e il {opp} passa il turno.|'
+      'Finita, {score}, e decidono i rigori: {pens}, e il cammino in coppa del '
+          '{club} finisce qui.',
   'report.draw.thriller':
       'È finita, e che partita: {total} gol e niente a dividerle.|'
       'Fischio finale su una partita da {total} gol che nessuna delle due è '

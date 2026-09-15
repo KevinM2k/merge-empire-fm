@@ -88,6 +88,27 @@ const Map<String, String> frCopy = <String, String>{
           'y arriver.|'
       'Fin du match, avec le but de l\'égalisation tombé à la {minute}e '
           'minute.',
+  // ── Et un match de coupe qui va aux tirs au but ──────────────────────────
+  //
+  // Nouvelles clés : le catalogue généré vient d'un JS dont le résumé ignorait
+  // les séances de tirs au but. Elles remplacent le titre que la marge aurait
+  // choisi dans `report.draw.*`. `{score}` est le score des quatre-vingt-dix
+  // minutes, `{pens}` celui des tirs au but, tous deux écrits en commençant par
+  // l'équipe qui reçoit.
+  'report.cup.pens_won':
+      'C\'est fini, et il a fallu les tirs au but : {score} après quatre-vingt-'
+          'dix minutes, et {club} gagne la séance {pens} et passe.|'
+      'Le coup de sifflet est tombé sur un {score}. {club} a tenu depuis le '
+          'point de penalty : {pens}, et {opp} est éliminé.|'
+      'Fin du match, {score}, et la séance décide de tout : {pens} pour {club}, '
+          'qui se qualifie.',
+  'report.cup.pens_lost':
+      'C\'est fini, et il a fallu les tirs au but : {score} après quatre-vingt-'
+          'dix minutes, et {club} sort, battu {pens} dans la séance.|'
+      'Le coup de sifflet est tombé sur un {score}. {club} n\'a pas su conclure '
+          'depuis le point de penalty : {pens}, et {opp} se qualifie.|'
+      'Fin du match, {score}, et la séance décide de tout : {pens}, et le '
+          'parcours de {club} s\'arrête là.',
   'report.draw.thriller':
       'C\'est fini, et quel match : {total} buts et rien pour les séparer.|'
       'Coup de sifflet final sur un match à {total} buts qu\'aucun des deux '

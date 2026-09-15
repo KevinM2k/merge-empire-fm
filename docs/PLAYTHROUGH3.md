@@ -6,7 +6,7 @@ because that is the part worth keeping.
 
 ## Where this queue stands
 
-**120 done, 6 open, and one feature parked.** One open row is a report still
+**122 done, 6 open, and one feature parked.** One open row is a report still
 being narrowed (the trees' size, below); none of the rest is a fault.
 One is a feature that was built, tried and turned down; one is a balance
 question rather than work; one is a survey to run before building; and one is
@@ -1660,6 +1660,59 @@ Reported live on 14 Sep 2026.
       lives in `app_shell_test.dart` instead, walking all five tabs and checking
       `hitTestable` as well as the rect: on screen but untappable is exactly the
       shape of this bug, and a plain `findsOneWidget` passed throughout it.
+
+## Fifteenth batch — a cup tie with no penalties in it
+
+One report, with the shot: a cup tie, 1-1, FULL TIME on the board, the write-up
+underneath it saying both clubs have a next round. "Why no penalties???? We are
+meant to have tests for this."
+
+**We were, and we had them — six files of them, on everything about a shootout
+except whether a player can see one.** `shootout_order_test` pins the kick order,
+`match_orchestration_test` pins that a re-simulated tie never ends level,
+`cup_launcher_test` pins the folded goal, `match_screen_test` pins the whistle
+sting and Colin's line, `shootout_row_test` and `match_summary_test` pin the
+widget. The shootout was rolled, stored and settled correctly on every one of
+them. It was simply never drawn.
+
+- [x] **`ShootoutRow` was reachable by no fixture that could have a shootout.**
+      It lives on `MatchSummaryScreen`, and the summary is a LEAGUE screen:
+      `play_button` gives the league flow's `MatchScreen` an `onLeave` that
+      replaces it with the summary, and the cup flow pushes the screen with no
+      `onLeave` and nothing after the whistle but `settleCupRound` and Colin's
+      through-or-out card. A shootout can only happen in a cup. So the one
+      surface that drew one was on the one screen a cup tie never opened, and
+      every tie decided on penalties ended on a level scoreline under the words
+      FULL TIME, followed a beat later by a card saying the club was through.
+
+      The marks go on the BOARD now, against the full-time line, which is the
+      line they correct — the summary's own note argues the placement: it is
+      not a footnote to the result, it is the rest of it. Not between the score
+      and the ratings band under it, because those two are one block and a
+      panel dropped between them cuts the figures off the goals they belong
+      to. `match_screen_test` asks the question the other nine
+      did not — it is on screen at full time on a cup tie, it is not there
+      before the whistle, and it is not there on a level LEAGUE match.
+
+      This is `tool/unreached_ui.sh`'s question asked about a WIDGET rather than
+      a file: `shootout_row.dart` has a `lib/` importer, so the sweep reads it
+      as live, and it was live — for a fixture that cannot produce one.
+
+- [x] **And the write-up called it a draw between two clubs who both went
+      through.** Two more faults in the same paragraph, both in `reportFactsFor`.
+      `ReportFacts` had no shootout field, so the headline came off the margin
+      and the margin says a level scoreline is `report.draw.shared` — "they
+      share the points", about a knockout round with no points to share. Two
+      new pools take the headline off every draw arm when the kicks have been
+      taken, in all ten languages, with both scorelines in the sentence.
+
+      And `oppNextOpponent` is a lookup against the LEAGUE schedule: a cup
+      opponent can be a club from that league, so the tie closed on
+      `report.next.away_both` naming a fixture for each of the two clubs "in
+      the next round" — which is the sentence in the shot, and it reads as
+      neither of them having gone out. `_nextFor`'s own doc has said it is null
+      for a cup tie since it was written; nothing made it so. Ours is still
+      printed, because the league game after the tie is still the next game.
 
 ## Open
 
