@@ -3473,6 +3473,20 @@ class MatchScreenState extends ConsumerState<MatchScreen>
                               // running — a replay still owns the grass.
                               if (f.finished && _clip == null)
                                 PitchStatOverlay(stats: stats, isHome: home),
+                              // **THE BOOSTS ARE ON THE PITCH**, in the corner
+                              // — the thing they act on, and the one band with
+                              // room. Gone while a clip owns the grass. See
+                              // `boost_strip.dart`.
+                              if (!f.finished && _clip == null && !_boostsHidden)
+                                Positioned(
+                                  top: 8,
+                                  right: 8,
+                                  child: BoostPitchButton(
+                                    liveId: leadBoost(_boosts.activeAt(f.minute)),
+                                    enabled: !_paused,
+                                    onTap: openBoosts,
+                                  ),
+                                ),
                           ],
                         ),
                       ),
@@ -3486,16 +3500,6 @@ class MatchScreenState extends ConsumerState<MatchScreen>
                         active: _strategy,
                         onPick: applyStrategy,
                         cooldown: _tacticCooldown,
-                        // The in-game boosts, as the sixth tile — a change to
-                        // how the side plays, beside the other five. See
-                        // `boost_strip.dart`.
-                        boosts: _boostsHidden
-                            ? null
-                            : BoostTacticTile(
-                                liveId: leadBoost(_boosts.activeAt(f.minute)),
-                                enabled: !_paused,
-                                onTap: openBoosts,
-                              ),
                       ),
                     // **THE COMMENTARY IS NOT IN A BOX OF ITS OWN.** Every
                     // line already draws its own plate — that is what makes a
@@ -4054,16 +4058,11 @@ class _TacticStrip extends StatelessWidget {
     required this.active,
     required this.onPick,
     required this.cooldown,
-    this.boosts,
   });
 
   final String active;
   final void Function(String) onPick;
   final bool cooldown;
-
-  /// The boosts tile on the end, or null during the tutorial — see
-  /// `boost_strip.dart` for why it lives here rather than on a row of its own.
-  final Widget? boosts;
 
   @override
   Widget build(BuildContext context) {
@@ -4111,12 +4110,11 @@ class _TacticStrip extends StatelessWidget {
                       child: _TacticButton(
                         id: id,
                         active: id == active,
-                        last: boosts == null && id == strategyStrip.last,
+                        last: id == strategyStrip.last,
                         enabled: !cooldown,
                         onTap: () => onPick(id),
                       ),
                     ),
-                  if (boosts case final tile?) Expanded(child: tile),
                 ],
               ),
               // Only while it is shut. A bar that is always there, empty, is a

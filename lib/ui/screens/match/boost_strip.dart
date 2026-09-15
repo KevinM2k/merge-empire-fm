@@ -1,11 +1,12 @@
-/// The in-game boosts: a tile on the end of the tactic strip, and the sheet
+/// The in-game boosts: a button in the corner of the pitch, and the sheet
 /// it opens.
 ///
 /// **NOT A ROW OF THEIR OWN.** They were a second strip under the tactics —
-/// 34 points, permanently, on a screen with none to spare — and a tactic and
-/// a boost are the same kind of decision: a change to how the side plays for
-/// a while. Asked for from the couch. So they are the sixth tile on the
-/// tactic strip, and the sheet under it is where the three are picked.
+/// 34 points, permanently, on a screen with none to spare — then a sixth
+/// tile on the tactic strip, which crowded five controls that were already
+/// tight. Asked for from the couch, both times. The pitch is the thing a
+/// boost acts on and the one band with room in its corners, so the button
+/// floats there, and the sheet under it is where the three are picked.
 ///
 /// **The sheet holds the match**, the way the bench does: picking a boost is
 /// a decision about what happens next, and the clock waiting for it is what
@@ -29,7 +30,6 @@ import 'package:merge_empire_fc/ui/popups/bottom_sheet_popup.dart';
 import 'package:merge_empire_fc/ui/popups/sheet_header.dart';
 import 'package:merge_empire_fc/ui/screens/match/boost_bar_paint.dart'
     show liveBoostColour;
-import 'package:merge_empire_fc/ui/theme/glass.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 
@@ -39,10 +39,10 @@ List<Boost> get proactiveBoosts => [
     if (b.kind == BoostKind.proactive) b,
 ];
 
-/// The sixth tile on the tactic strip: the bolt, how many are in the bag,
-/// and the colour of whatever window is burning.
-class BoostTacticTile extends ConsumerWidget {
-  const BoostTacticTile({
+/// The button on the pitch: the bolt, how many are in the bag, and the
+/// colour of whatever window is burning.
+class BoostPitchButton extends ConsumerWidget {
+  const BoostPitchButton({
     super.key,
     required this.liveId,
     required this.enabled,
@@ -56,7 +56,6 @@ class BoostTacticTile extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final kit = Theme.of(context).extension<KitTheme>()!;
     final state = ref.watch(gameProvider).state;
     var owned = 0;
     for (final b in proactiveBoosts) {
@@ -64,42 +63,49 @@ class BoostTacticTile extends ConsumerWidget {
     }
     final live = liveId != null;
     final hue = live ? liveBoostColour(liveId!) : null;
-    final ink = live
-        ? Colors.white
-        : owned > 0
-            ? glassAccent(context, kit.accentBright)
-            : kit.textMuted;
-    return GestureDetector(
-      key: const ValueKey('match-boosts'),
-      behavior: HitTestBehavior.opaque,
-      onTap: enabled ? onTap : null,
-      child: DecoratedBox(
-        decoration: BoxDecoration(color: hue ?? kit.surface2),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 6),
-          child: FittedBox(
-            fit: BoxFit.scaleDown,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                GameIcon('bolt', size: 17, color: ink),
-                const SizedBox(height: 1),
-                Text(
-                  // The count is the label: what a manager wants to know at
-                  // a glance is whether there is anything to call.
-                  live ? t('boost.feed.action') : 'x$owned',
-                  key: const ValueKey('match-boosts-count'),
-                  maxLines: 1,
-                  style: TextStyle(
-                    fontSize: 12,
-                    height: 1.2,
-                    fontWeight: FontWeight.w900,
-                    color: ink,
-                  ),
-                ),
-              ],
+    final ink = live || owned > 0 ? Colors.white : Colors.white54;
+    return Semantics(
+      button: true,
+      label: t('boost.sheet.title'),
+      child: GestureDetector(
+        key: const ValueKey('match-boosts'),
+        behavior: HitTestBehavior.opaque,
+        onTap: enabled ? onTap : null,
+        child: Container(
+          height: 36,
+          padding: const EdgeInsets.fromLTRB(8, 0, 10, 0),
+          decoration: BoxDecoration(
+            // Over grass, so it wears the glass the HUD wears rather than a
+            // card: dark enough to read on the turf, a live window's colour
+            // when one is burning.
+            color: hue ?? const Color(0xCC12261A),
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(
+              color: hue != null ? Colors.white.withValues(alpha: 0.7) : Colors.white24,
+              width: 1.2,
             ),
+            boxShadow: const [
+              BoxShadow(color: Color(0x55000000), blurRadius: 6, offset: Offset(0, 2)),
+            ],
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              GameIcon('bolt', size: 16, color: ink),
+              const SizedBox(width: 4),
+              Text(
+                // The count is the label: what a manager wants to know at a
+                // glance is whether there is anything to call.
+                live ? t('boost.feed.action') : 'x$owned',
+                key: const ValueKey('match-boosts-count'),
+                maxLines: 1,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w900,
+                  color: ink,
+                ),
+              ),
+            ],
           ),
         ),
       ),

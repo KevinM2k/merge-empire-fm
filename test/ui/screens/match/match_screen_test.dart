@@ -4179,10 +4179,10 @@ void main() {
       final feed = tester.getRect(
         find.byKey(const ValueKey('match-commentary')),
       );
-      // **AND THE BOOSTS ARE A TILE ON THE STRIP, not a band of their own** —
-      // inside it, and the one gap still runs strip to feed.
+      // **AND THE BOOSTS ARE A BUTTON ON THE PITCH, not a band of their own** —
+      // inside the stage, and the one gap still runs strip to feed.
       final boosts = tester.getRect(find.byKey(const ValueKey('match-boosts')));
-      expect(strip.contains(boosts.center), isTrue);
+      expect(pitch.contains(boosts.center), isTrue);
       final gap = strip.top - pitch.bottom;
       expect(feed.top - strip.bottom, closeTo(gap, 0.5));
     });

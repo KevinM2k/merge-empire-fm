@@ -112,7 +112,7 @@ void main() {
   setUp(() => setSeed(7));
 
   group('THE BOOST STRIP', () {
-    testWidgets('IS A TILE ON THE TACTIC STRIP, and its sheet holds the match', (
+    testWidgets('IS A BUTTON ON THE PITCH, and its sheet holds the match', (
       tester,
     ) async {
       await pumpMatch(tester, _playable(), save: _save(), instance: 'strip');
