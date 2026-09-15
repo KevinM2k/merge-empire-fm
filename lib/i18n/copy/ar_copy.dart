@@ -604,5 +604,4 @@ const Map<String, String> arCopy = <String, String>{
   'matchtrait.name.warrior': "المحارب",
   'matchtrait.desc.warrior': "يتحمل الألم — قد ينفض عنه الإصابة ويواصل",
   'hud.income.trophy_polish': "تلميع الكؤوس · {mins} دقيقة متبقية",
-  'play.mod.stagnation': "مواسم في هذه الدرجة – نقطة لكل موسم",
 };

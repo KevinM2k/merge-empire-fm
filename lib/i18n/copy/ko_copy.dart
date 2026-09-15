@@ -576,5 +576,4 @@ const Map<String, String> koCopy = <String, String>{
   'matchtrait.name.warrior': "전사",
   'matchtrait.desc.warrior': "통증을 참고 뜀 — 부상을 털어내고 이어갈 수 있음",
   'hud.income.trophy_polish': "트로피 광택 · {mins}분 남음",
-  'play.mod.stagnation': "이 디비전에서 보낸 시즌 – 시즌마다 1점",
 };

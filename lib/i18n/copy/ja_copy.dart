@@ -548,5 +548,4 @@ const Map<String, String> jaCopy = <String, String>{
   'matchtrait.name.warrior': "闘士",
   'matchtrait.desc.warrior': "痛みをこらえる――負傷を振り払って続けることがある",
   'hud.income.trophy_polish': "トロフィー磨き · 残り{mins}分",
-  'play.mod.stagnation': "このディビジョンでの在籍シーズン – 1シーズンごとに1ポイント",
 };

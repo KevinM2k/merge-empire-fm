@@ -668,5 +668,4 @@ const Map<String, String> itCopy = <String, String>{
   'matchtrait.name.warrior': "Guerriero",
   'matchtrait.desc.warrior': "Stringe i denti: può scrollarsi di dosso un colpo e continuare",
   'hud.income.trophy_polish': "Lucidatura Trofei · {mins} min rimasti",
-  'play.mod.stagnation': "Stagioni in questa divisione: un punto per ciascuna",
 };

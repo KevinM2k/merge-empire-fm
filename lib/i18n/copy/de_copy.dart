@@ -677,5 +677,4 @@ const Map<String, String> deCopy = <String, String>{
   'matchtrait.name.warrior': "Krieger",
   'matchtrait.desc.warrior': "Beißt sich durch – schüttelt einen Schlag vielleicht ab und macht weiter",
   'hud.income.trophy_polish': "Trophäen-Politur · noch {mins} Min.",
-  'play.mod.stagnation': "Saisons in dieser Liga – ein Punkt pro Saison",
 };

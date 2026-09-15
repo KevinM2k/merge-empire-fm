@@ -198,9 +198,16 @@ final nextMatchProvider = savePick<NextMatch?>((s) {
   // applies; `prepareCupRound` builds its own ATK and DEF straight off
   // `computeSquadRatings` and hands the tactic the result. The tactic itself
   // stays on both paths — that one is ours whatever the competition.
+  // **THE STAGNATION BUFF IS NEVER SHOWN.** It lifts the sim — a point of
+  // ATK and DEF a season spent in a division — and the player must never
+  // see it: a side reading 30 here and 29 everywhere else looked as if it
+  // had a home advantage it had not bought. Asked for from the couch. The
+  // preview's `eff*` keep it because the parity fixture compares them to the
+  // JS's; the divergence lives on the screen.
+  final hidden = cupTie == null ? preview.stagnationBuff : 0;
   final ours = fifaSplitTactic(
-    cupTie == null ? preview.effAttack : preview.ourAttackRating.toDouble(),
-    cupTie == null ? preview.effDefence : preview.ourDefenceRating.toDouble(),
+    cupTie == null ? preview.effAttack - hidden : preview.ourAttackRating.toDouble(),
+    cupTie == null ? preview.effDefence - hidden : preview.ourDefenceRating.toDouble(),
     mult.atk,
     mult.def,
   );
@@ -245,16 +252,6 @@ final nextMatchProvider = savePick<NextMatch?>((s) {
         amount: _relegationLift(),
         tone: StatTone.warn,
         tip: t('play.mod.battle_ours'),
-      ),
-    // **THE STAGNATION BUFF IS NAMED TOO.** It was inside the figure with no
-    // badge, so a side reading 30 on this card and 29 everywhere else looked
-    // as if it had a home advantage it had not bought. Reported from the couch.
-    if (cupTie == null && preview.stagnationBuff > 0)
-      (
-        icon: 'calendar',
-        amount: preview.stagnationBuff,
-        tone: StatTone.warn,
-        tip: t('play.mod.stagnation'),
       ),
   ];
   final theirMods = <StatMod>[
@@ -304,7 +301,7 @@ final nextMatchProvider = savePick<NextMatch?>((s) {
     // answer `cup_launcher` writes onto the result for the match board.
     rating: cupTie != null
         ? preview.squadRating
-        : preview.effectiveSquadRating.round(),
+        : (preview.effectiveSquadRating - hidden).round(),
     split: ours,
     mods: ourMods,
     position: posOf(clubName, ours: true),

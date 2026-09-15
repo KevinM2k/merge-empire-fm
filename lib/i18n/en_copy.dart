@@ -1064,5 +1064,4 @@ const Map<String, String> enCopy = <String, String>{
   'fixtures.on_pens': 'pens',
 
   'hud.income.trophy_polish': 'Trophy Polish · {mins}m left',
-  'play.mod.stagnation': 'Seasons in this division — a point for each',
 };

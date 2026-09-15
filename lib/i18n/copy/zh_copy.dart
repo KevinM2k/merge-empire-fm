@@ -501,5 +501,4 @@ const Map<String, String> zhCopy = <String, String>{
   'matchtrait.name.warrior': "战士",
   'matchtrait.desc.warrior': "咬牙坚持——可能抖掉伤痛继续比赛",
   'hud.income.trophy_polish': "奖杯抛光 · 剩余 {mins} 分钟",
-  'play.mod.stagnation': "在本级别联赛的赛季数 – 每个赛季加 1 分",
 };

@@ -675,5 +675,4 @@ const Map<String, String> frCopy = <String, String>{
   'matchtrait.name.warrior': "Guerrier",
   'matchtrait.desc.warrior': "Serre les dents — peut encaisser un coup et continuer",
   'hud.income.trophy_polish': "Polissage des Trophées · {mins} min restantes",
-  'play.mod.stagnation': "Saisons dans cette division – un point par saison",
 };
