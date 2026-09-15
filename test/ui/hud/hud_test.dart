@@ -117,6 +117,26 @@ void main() {
       expect(coins.top, greaterThanOrEqualTo(44));
       expect(coins.bottom, lessThanOrEqualTo(glass.bottom + 0.5));
     });
+
+    // The wallet was scaled to half the row when a boost chip appeared beside
+    // it, with room for both. The chip is what gives way; the figures never.
+    testWidgets('AND A BOOST CHIP DOES NOT SHRINK THE WALLET', (tester) async {
+      await pumpHud(tester, (_) {});
+      final plain = tester.getRect(find.byKey(const ValueKey('hud-cluster')));
+      await pumpHud(tester, (s) {
+        (s['boosts'] as Map<String, dynamic>)
+          ..['incomeBoostActive'] = true
+          ..['incomeBoostEndsAt'] = DateTime.now().millisecondsSinceEpoch + 40 * 60000;
+      });
+      expect(find.byKey(const ValueKey('hud-boosts')), findsOneWidget);
+      final withChip = tester.getRect(find.byKey(const ValueKey('hud-cluster')));
+      expect(withChip.width, closeTo(plain.width, 0.5));
+      expect(withChip.height, closeTo(plain.height, 0.5));
+      // And the chip sits between the crest and the wallet, unclipped.
+      final chip = tester.getRect(find.byKey(const ValueKey('hud-boosts')));
+      expect(chip.right, lessThanOrEqualTo(withChip.left + 0.5));
+      expect(chip.width, greaterThan(20));
+    });
   });
 
   group('THE BAND IS GLASS THE DEVICE CAN AFFORD', () {

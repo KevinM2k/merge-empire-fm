@@ -225,7 +225,18 @@ void main() {
         find.text(t('transfer.card_title', {'club': _rival})),
         findsOneWidget,
       );
-      expect(find.byKey(const ValueKey('transfer-pitch')), findsOneWidget);
+      // All in Colin's relay: the club, the man and what he earns, set heavy.
+      final relay = tester.widget<CoachTypewriter>(
+        find.ancestor(
+          of: find.byKey(const ValueKey('transfer-relay')),
+          matching: find.byType(CoachTypewriter),
+        ),
+      );
+      final name = findCardById(_saveWithOffer(), _instanceId)!.name('Test Player');
+      expect(relay.strong, _rival);
+      expect(relay.strongs, contains(name));
+      expect(relay.strongs.any((s) => s.startsWith('+')), isTrue);
+      expect(relay.text, contains(name));
     });
 
     testWidgets('AND IT SAYS NEITHER THE PERCENTAGE NOR THE GRUDGE', (
@@ -370,47 +381,28 @@ void main() {
   });
 
   group('THE MONEY IS NOT A SENTENCE', () {
-    testWidgets('the fee wears a coin and the premium wears its band', (
+    testWidgets('THE CARD IS HIS RELAY AND HIS CALL, and nothing else', (
       tester,
     ) async {
-      // Every fact used to be one paragraph in the same 13px grey, so the
-      // number the whole card is about had to be found by reading.
+      // It carried a portrait, a pane for the loss and a plate for the fee
+      // with its band — and stood as tall as the pitch. The price is on the
+      // Accept button; the loss is in his own sentence. Asked for from the
+      // couch.
       final sellValue = players.firstWhere((p) => p.id == _defId).sellValue;
       await _pump(tester, _saveWithOffer(price: (sellValue * 2.2).round()));
-      expect(find.byKey(const ValueKey('transfer-price')), findsOneWidget);
-      expect(
-        find.descendant(
-          of: find.byKey(const ValueKey('transfer-price')),
-          matching: find.byType(CoinIcon),
-        ),
-        findsOneWidget,
-      );
-      // 120% over fair value is a great deal, not a jackpot.
-      expect(
-        find.byKey(const ValueKey('transfer-band-transfer.market.great')),
-        findsOneWidget,
-      );
-      // The band's own colour is what carries the reading now that the
-      // percentage under it has gone.
-      expect(
-        tester
-            .widget<Text>(
-              find.descendant(
-                of: find.byKey(
-                  const ValueKey('transfer-band-transfer.market.great'),
-                ),
-                matching: find.byType(Text),
-              ),
-            )
-            .style
-            ?.color,
-        // **The CONTEXT-FREE band, because the row sits on a dark plate now.**
-        // `transferBand` takes a context so its two ends darken on a light
-        // card; on a plate that darkening is exactly wrong, and the plate is
-        // what makes the gold and the band legible in light mode at all — the
-        // report was "the yellow is hard to read when there is a bid".
-        transferBand(120).colour,
-      );
+      expect(find.byKey(const ValueKey('transfer-price')), findsNothing);
+      expect(find.byKey(const ValueKey('transfer-pitch')), findsNothing);
+      expect(find.textContaining(t('transfer.market.great')), findsNothing);
+      final relay = tester
+          .widget<CoachTypewriter>(
+            find.ancestor(
+              of: find.byKey(const ValueKey('transfer-relay')),
+              matching: find.byType(CoachTypewriter),
+            ),
+          )
+          .text;
+      final def = players.firstWhere((p) => p.id == _defId);
+      expect(relay, contains('+${def.idleIncomePerSec.toStringAsFixed(2)}'));
     });
 
     test('the bands are Colin\'s own thresholds, so they cannot disagree', () {
@@ -425,16 +417,6 @@ void main() {
       expect(transferBand(-30).key, 'transfer.market.below');
     });
 
-    testWidgets('and a bid at fair value is a BAND, not a +0%', (
-      tester,
-    ) async {
-      final sellValue = players.firstWhere((p) => p.id == _defId).sellValue;
-      await _pump(tester, _saveWithOffer(price: sellValue));
-      expect(
-        find.byKey(const ValueKey('transfer-band-transfer.market.below')),
-        findsOneWidget,
-      );
-    });
   });
 
   group('THE WAY BACK TO A PARKED BID', () {

@@ -45,18 +45,13 @@ void main() {
     expect(pills.single.sub, '9d');
   });
 
-  /// **THE POLISH IS A PILL NOW, and it could not have been before.**
-  ///
-  /// It is a ×2 on idle income, which is this row's whole rule — but the sub is
-  /// a countdown and a SEASON has no minutes on it. Half an hour from purchase
-  /// gives eight gems something the player can watch running and watch go.
-  test('the trophy polish shows its multiplier and the minutes left', () {
-    final pills = hudBoostsFor(
-      save({'trophyPolishUntil': _now + 22 * _minute}),
-      nowMs: _now,
+  // The polish is NOT a pill: the income breakdown carries it, with its
+  // minutes, and the bar has no room to give.
+  test('the trophy polish is not on the bar', () {
+    expect(
+      hudBoostsFor(save({'trophyPolishUntil': _now + 22 * _minute}), nowMs: _now),
+      isEmpty,
     );
-    expect(pills.single.label, '🏆 ×2');
-    expect(pills.single.sub, '22m');
   });
 
   test('and a spent one is not a pill', () {

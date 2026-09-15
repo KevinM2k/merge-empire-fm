@@ -441,7 +441,240 @@ void main() {
     });
   });
 
+  group('Warrior — the second slot\'s injury shrug', () {
+    /// Every card in the XI carrying Warrior at [level], or none.
+    Map<String, dynamic> squad({int? level}) {
+      final state = _state(seasonsPlayed: 8);
+      if (level != null) {
+        final cells = (state['grid'] as Map<String, dynamic>)['cells'] as List;
+        for (final c in cells.whereType<Map<String, dynamic>>()) {
+          c['matchSlot'] = true;
+          c['matchTrait'] = {'id': 'warrior', 'level': level};
+        }
+      }
+      return state;
+    }
+
+    int injuriesOver(int seeds, {int? level}) {
+      var n = 0;
+      for (var seed = 0; seed < seeds; seed++) {
+        seeded.setSeed(seed);
+        final result = simulateMatch(squad(level: level), 'regional_league');
+        n += (result['injuryCount'] as num?)?.toInt() ?? 0;
+      }
+      return n;
+    }
+
+    test('A SQUAD OF WARRIORS IS HURT LESS OFTEN, at its level', () {
+      // Level III shrugs seventy per cent of knocks off, so about thirty per
+      // cent of the plain squad's injuries should land. Wide bounds: the roll
+      // is seeded but the count is small.
+      final plain = injuriesOver(400);
+      final iii = injuriesOver(400, level: 3);
+      expect(plain, greaterThan(20), reason: 'the fixture never injures anyone');
+      expect(iii, lessThan(plain * 0.55));
+      expect(iii, greaterThan(0), reason: 'Warrior is not immunity');
+    });
+
+    // The gem gate went, so an old save's `matchSlot` flag changes nothing:
+    // a Warrior shrugs with or without it.
+    test('and the old slot flag makes no difference', () {
+      var withFlag = 0, without = 0;
+      for (var seed = 0; seed < 200; seed++) {
+        seeded.setSeed(seed);
+        final s = squad(level: 3);
+        for (final c in ((s['grid'] as Map<String, dynamic>)['cells'] as List)
+            .whereType<Map<String, dynamic>>()) {
+          c.remove('matchSlot');
+        }
+        without += (simulateMatch(s, 'regional_league')['injuryCount'] as num?)?.toInt() ?? 0;
+        seeded.setSeed(seed);
+        withFlag += (simulateMatch(squad(level: 3), 'regional_league')['injuryCount'] as num?)?.toInt() ?? 0;
+      }
+      expect(withFlag, without);
+    });
+  });
+
+  group('undoInjury — the Physio Sponge', () {
+    /// A save with c3 hurt and his square emptied, the way the sim leaves a
+    /// casualty, plus the log entry the sim writes beside it.
+    (Map<String, dynamic> state, Map<String, dynamic> result, String slotId)
+    hurt() {
+      final state = _state();
+      final lineup = (state['squad'] as Map<String, dynamic>)['lineup'] as List;
+      final row = lineup
+          .cast<Map<String, dynamic>>()
+          .firstWhere((r) => r['cardInstanceId'] == 'c3');
+      final slotId = row['slotId'] as String;
+      row['cardInstanceId'] = null;
+      final cells = (state['grid'] as Map<String, dynamic>)['cells'] as List;
+      final cell = cells
+          .whereType<Map<String, dynamic>>()
+          .firstWhere((c) => c['instanceId'] == 'c3');
+      cell['injured'] = true;
+      cell['injuredAt'] = _now;
+      cell['injuryDurationMs'] = 86400000;
+      final result = <String, dynamic>{
+        'injuredName': 'Smith',
+        'injuryCount': 1,
+        'injuryLog': <Map<String, dynamic>>[
+          {
+            'iid': 'c3',
+            'minute': 30,
+            'name': 'Smith',
+            'prevSlotId': slotId,
+            'replacedBy': null,
+          },
+        ],
+      };
+      return (state, result, slotId);
+    }
+
+    Map<String, dynamic> cellOf(Map<String, dynamic> state, String id) =>
+        ((state['grid'] as Map<String, dynamic>)['cells'] as List)
+            .whereType<Map<String, dynamic>>()
+            .firstWhere((c) => c['instanceId'] == id);
+
+    Map<String, dynamic> rowOf(Map<String, dynamic> state, String slotId) =>
+        ((state['squad'] as Map<String, dynamic>)['lineup'] as List)
+            .cast<Map<String, dynamic>>()
+            .firstWhere((r) => r['slotId'] == slotId);
+
+    test('HEALS HIM AND PUTS HIM BACK IN HIS OWN SQUARE', () {
+      final (state, result, slotId) = hurt();
+      expect(undoInjury(result, state, 'c3'), isTrue);
+      final cell = cellOf(state, 'c3');
+      expect(cell['injured'], isFalse);
+      expect(cell.containsKey('injuredAt'), isFalse);
+      expect(cell.containsKey('injuryDurationMs'), isFalse);
+      expect(rowOf(state, slotId)['cardInstanceId'], 'c3');
+    });
+
+    test('marks the log entry cancelled and fixes the counters', () {
+      final (state, result, _) = hurt();
+      undoInjury(result, state, 'c3');
+      final entry = (result['injuryLog'] as List).first as Map;
+      expect(entry['cancelled'], isTrue);
+      expect(result['injuryCount'], 0);
+      expect(result['injuredName'], isNull);
+    });
+
+    test('is one undo: a second call finds nothing', () {
+      final (state, result, _) = hurt();
+      expect(undoInjury(result, state, 'c3'), isTrue);
+      expect(undoInjury(result, state, 'c3'), isFalse);
+    });
+
+    test('an unknown man, or one never hurt, is refused', () {
+      final (state, result, _) = hurt();
+      expect(undoInjury(result, state, 'nope'), isFalse);
+      expect(undoInjury(result, state, 'c1'), isFalse);
+      expect(cellOf(state, 'c3')['injured'], isTrue);
+    });
+
+    // A manual sub since wins the square — the same rule the cancel branch of
+    // reSimulateRemainder applies. He is healed, but he is not put back over
+    // whoever the manager brought on.
+    test('does not evict a replacement who has taken the square', () {
+      final (state, result, slotId) = hurt();
+      rowOf(state, slotId)['cardInstanceId'] = 'c12';
+      expect(undoInjury(result, state, 'c3'), isTrue);
+      expect(cellOf(state, 'c3')['injured'], isFalse);
+      expect(rowOf(state, slotId)['cardInstanceId'], 'c12');
+    });
+
+    test('a result with no log is refused', () {
+      final (state, _, _) = hurt();
+      expect(undoInjury(<String, dynamic>{}, state, 'c3'), isFalse);
+    });
+  });
+
   group('reSimulateRemainder', () {
+    group('the boost windows', () {
+      Map<String, dynamic> fresh() => <String, dynamic>{
+        'divisionId': 'regional_league',
+        'isHome': true,
+        'squadRating': 60,
+        'ourAttackRating': 60,
+        'ourDefenceRating': 60,
+        'effOppAttackRating': 60,
+        'effOppDefenceRating': 60,
+        'opponentRating': 60,
+        'addedTime': 0,
+        'homeGoals': 0,
+        'awayGoals': 0,
+        'events': <Object?>[],
+        'injuryLog': <Object?>[],
+      };
+
+      test('A BUS DAMPS BOTH SIDES, NOT JUST THEIRS', () {
+        // Park the Bus kills the game for everyone — that is what makes it
+        // distinct from the ultra-defensive tactic already on the strip,
+        // which only makes us harder to score against. On both ATK figures,
+        // so the board shows it.
+        num ours = 0, theirs = 0, dampOurs = 0, dampTheirs = 0;
+        for (var seed = 0; seed < 400; seed++) {
+          seeded.setSeed(seed);
+          final a = fresh();
+          reSimulateRemainder(a, 20, 'balanced', 0, 0, _state());
+          ours += a['homeGoals'] as num;
+          theirs += a['awayGoals'] as num;
+
+          seeded.setSeed(seed);
+          final b = fresh();
+          final live = <String, dynamic>{};
+          reSimulateRemainder(
+            b, 20, 'balanced', 0, 0, _state(),
+            ourAttackMult: 0.75,
+            oppAttackMult: 0.75,
+            liveRatingsOut: live,
+          );
+          dampOurs += b['homeGoals'] as num;
+          dampTheirs += b['awayGoals'] as num;
+          expect(live['liveOppAttackRating'], closeTo(45, 1e-9));
+        }
+        expect(dampOurs, lessThan(ours * 0.85));
+        expect(dampTheirs, lessThan(theirs * 0.85));
+      });
+
+      test('SHARP SHOOTING LIFTS OUR ATK ALONE, and the board reads it', () {
+        seeded.setSeed(3);
+        final plain = <String, dynamic>{};
+        reSimulateRemainder(
+          fresh(), 20, 'balanced', 0, 0, _state(),
+          liveRatingsOut: plain,
+        );
+        seeded.setSeed(3);
+        final sharp = <String, dynamic>{};
+        reSimulateRemainder(
+          fresh(), 20, 'balanced', 0, 0, _state(),
+          ourAttackMult: 1.25,
+          liveRatingsOut: sharp,
+        );
+        expect(
+          sharp['liveAttackRating'],
+          closeTo((plain['liveAttackRating'] as num) * 1.25, 1e-9),
+        );
+        expect(sharp['liveDefenceRating'], plain['liveDefenceRating']);
+        expect(sharp['liveOppAttackRating'], plain['liveOppAttackRating']);
+      });
+
+      test('defaults to 1.0, so every existing caller is unchanged', () {
+        seeded.setSeed(7);
+        final a = fresh();
+        reSimulateRemainder(a, 20, 'balanced', 0, 0, _state());
+        seeded.setSeed(7);
+        final b = fresh();
+        reSimulateRemainder(
+          b, 20, 'balanced', 0, 0, _state(),
+          ourAttackMult: 1.0,
+          oppAttackMult: 1.0,
+        );
+        expect(a['homeGoals'], b['homeGoals']);
+        expect(a['awayGoals'], b['awayGoals']);
+      });
+    });
+
     test('a cup tie never ends level', () {
       for (var seed = 0; seed < 40; seed++) {
         seeded.setSeed(seed);

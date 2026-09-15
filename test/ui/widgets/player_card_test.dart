@@ -26,6 +26,7 @@ const CardView _view = (
   maxed: false,
   atCap: false,
   trait: null,
+  matchTrait: null,
   form: 0,
   suspended: false,
 );
@@ -45,6 +46,7 @@ CardView withSuspension({bool injured = false}) => (
   maxed: _view.maxed,
   atCap: _view.atCap,
   trait: _view.trait,
+  matchTrait: null,
   form: _view.form,
   suspended: true,
 );
@@ -62,6 +64,7 @@ CardView withForm(int form) => (
   maxed: _view.maxed,
   atCap: _view.atCap,
   trait: _view.trait,
+  matchTrait: null,
   form: form,
   suspended: false,
 );
@@ -221,6 +224,7 @@ void main() {
           maxed: false,
           atCap: false,
           trait: null,
+          matchTrait: null,
           form: 0,
           suspended: false,
         ), light: true);
@@ -248,6 +252,7 @@ void main() {
         maxed: false,
         atCap: false,
         trait: null,
+        matchTrait: null,
         form: 0,
         suspended: false,
       ));
@@ -278,6 +283,7 @@ void main() {
       maxed: false,
       atCap: false,
       trait: null,
+      matchTrait: null,
       form: 0,
       suspended: false,
     ));
@@ -307,6 +313,7 @@ void main() {
       maxed: false,
       atCap: false,
       trait: null,
+      matchTrait: null,
       form: 0,
       suspended: false,
     ));
@@ -349,6 +356,7 @@ void main() {
       maxed: false,
       atCap: false,
       trait: null,
+      matchTrait: null,
       form: 0,
       suspended: false,
     ));
@@ -381,6 +389,7 @@ void main() {
         maxed: false,
         atCap: false,
         trait: null,
+        matchTrait: null,
         form: 0,
         suspended: false,
       ));
@@ -404,6 +413,7 @@ void main() {
         maxed: false,
         atCap: false,
         trait: null,
+        matchTrait: null,
         form: 0,
         suspended: false,
       ));
@@ -430,6 +440,7 @@ void main() {
           maxed: false,
           atCap: false,
           trait: null,
+          matchTrait: null,
           form: 0,
           suspended: false,
         ));
@@ -500,6 +511,7 @@ void main() {
         maxed: false,
         atCap: false,
         trait: (icon: '⚽', level: 'III', title: '⚽ Finisher III'),
+        matchTrait: null,
         form: 0,
         suspended: false,
       ));
@@ -544,6 +556,40 @@ void main() {
     testWidgets('and a card with none draws none', (tester) async {
       await pumpCard(tester, _view);
       expect(find.byKey(const ValueKey('card-trait')), findsNothing);
+    });
+
+    // The card marked one slot and not the other. Reported from the couch.
+    testWidgets('AND THE MATCH TRAIT UNDER IT, as the app\'s own mark', (tester) async {
+      await pumpCard(tester, (
+        name: 'Bobby Charlton',
+        tier: 5,
+        rating: 72,
+        position: 'FWD',
+        injured: false,
+        onLoan: false,
+        variant: 0,
+        fitness: null,
+        incomePerSec: null,
+        maxed: false,
+        atCap: false,
+        trait: (icon: '⚽', level: 'III', title: 'Finisher III'),
+        matchTrait: (icon: '🏰', level: 'II', title: 'Fortress II'),
+        form: 0,
+        suspended: false,
+      ));
+      final badge = find.byKey(const ValueKey('card-match-trait'));
+      expect(badge, findsOneWidget);
+      expect(find.text('II'), findsOneWidget);
+      expect(find.text('🏰'), findsNothing);
+      final icons = tester.widgetList<GameIcon>(
+        find.descendant(of: badge, matching: find.byType(GameIcon)),
+      );
+      expect(icons.single.name, traitIcons['🏰']);
+      // Under the first badge, not on top of it.
+      expect(
+        tester.getTopLeft(badge).dy,
+        greaterThan(tester.getBottomLeft(find.byKey(const ValueKey('card-trait'))).dy - 1),
+      );
     });
   });
 

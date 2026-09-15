@@ -322,6 +322,13 @@ Color statToneColor(BuildContext context, StatTone tone, int amount) =>
 /// and the sentence that explains it.
 typedef StatMod = ({String icon, int amount, StatTone tone, String tip});
 
+/// A figure printed in a colour that is not its own: the ones a live boost
+/// is moving, in the boost's colour, so the number says WHY it moved. Null
+/// leaves the figure as it is.
+typedef StatTint = ({Color? atk, Color? def, Color? rating});
+
+const StatTint noTint = (atk: null, def: null, rating: null);
+
 class MatchStatRows extends StatelessWidget {
   const MatchStatRows({
     super.key,
@@ -331,6 +338,8 @@ class MatchStatRows extends StatelessWidget {
     required this.rightRating,
     this.leftMods = const [],
     this.rightMods = const [],
+    this.leftTint = noTint,
+    this.rightTint = noTint,
   });
 
   final StatSide left;
@@ -339,6 +348,11 @@ class MatchStatRows extends StatelessWidget {
   final int? rightRating;
   final List<StatMod> leftMods;
   final List<StatMod> rightMods;
+
+  /// See [StatTint]. Asked for from the couch: a number a boost is moving
+  /// should say so by its colour.
+  final StatTint leftTint;
+  final StatTint rightTint;
 
   /// The Lucky Boot weakened this side. Marked rather than silently quoted.
 
@@ -421,7 +435,13 @@ class MatchStatRows extends StatelessWidget {
                 SizedBox(
                   key: const ValueKey('nm-stat-well'),
                   width: rowsWidth,
-                  child: _StatWell(left: left, right: right, bars: bars),
+                  child: _StatWell(
+                    left: left,
+                    right: right,
+                    bars: bars,
+                    leftTint: leftTint,
+                    rightTint: rightTint,
+                  ),
                 ),
                 Positioned(
                   left: 0,
@@ -430,6 +450,7 @@ class MatchStatRows extends StatelessWidget {
                     key: const ValueKey('nm-rating-left'),
                     figureKey: const ValueKey('nm-figure-left'),
                     value: leftRating,
+                    tint: leftTint.rating,
                     mods: leftMods,
                     modsOnLeft: true,
                     modRoom: modRoom,
@@ -446,6 +467,7 @@ class MatchStatRows extends StatelessWidget {
                     key: const ValueKey('nm-rating-right'),
                     figureKey: const ValueKey('nm-figure-right'),
                     value: rightRating,
+                    tint: rightTint.rating,
                     mods: rightMods,
                     modsOnLeft: false,
                     modRoom: modRoom,
@@ -559,11 +581,15 @@ class _StatWell extends StatelessWidget {
     required this.left,
     required this.right,
     required this.bars,
+    this.leftTint = noTint,
+    this.rightTint = noTint,
   });
 
   final StatSide left;
   final StatSide right;
   final bool bars;
+  final StatTint leftTint;
+  final StatTint rightTint;
 
   @override
   Widget build(BuildContext context) {
@@ -606,8 +632,8 @@ class _StatWell extends StatelessWidget {
             rightValue: right.atk,
             bars: bars,
             // Cross-stat: attack is judged against the defence it faces.
-            leftColour: vsColorOnGlass(context, left.atk, right.def),
-            rightColour: vsColorOnGlass(context, right.atk, left.def),
+            leftColour: leftTint.atk ?? vsColorOnGlass(context, left.atk, right.def),
+            rightColour: rightTint.atk ?? vsColorOnGlass(context, right.atk, left.def),
           ),
           const SizedBox(height: 5),
           _StatRow(
@@ -615,8 +641,8 @@ class _StatWell extends StatelessWidget {
             leftValue: left.def,
             rightValue: right.def,
             bars: bars,
-            leftColour: vsColorOnGlass(context, left.def, right.atk),
-            rightColour: vsColorOnGlass(context, right.def, left.atk),
+            leftColour: leftTint.def ?? vsColorOnGlass(context, left.def, right.atk),
+            rightColour: rightTint.def ?? vsColorOnGlass(context, right.def, left.atk),
           ),
         ],
       ),
@@ -824,6 +850,7 @@ class _Rating extends StatelessWidget {
     required this.value,
     required this.mods,
     required this.modsOnLeft,
+    this.tint,
     required this.modRoom,
     required this.columnWidth,
     required this.figureSize,
@@ -860,6 +887,9 @@ class _Rating extends StatelessWidget {
   /// height, or the two ratings stop lining up.
   final int slots;
 
+  /// A boost's colour while one is moving this figure — see [StatTint].
+  final Color? tint;
+
   @override
   Widget build(BuildContext context) {
     // **NOT THE FULL-STRENGTH ONSURFACE.** In light mode that is a near black,
@@ -868,9 +898,17 @@ class _Rating extends StatelessWidget {
     // position chip's own) and then further: the club name above it is what
     // this card is about, and the rating is an annotation on it. A step back in
     // weight is what says so.
-    final ink = Theme.of(
-      context,
-    ).colorScheme.onSurface.withValues(alpha: 0.72);
+    // **DEEPER ON LIGHT GLASS.** The window's own orange is fine at 26pt on
+    // a dark pane and fine at 13 in the well, and washed out at 26 on a pale
+    // one — reported from the couch. The big figure takes the colour pulled
+    // a third of the way to black there, which keeps the hue and buys the
+    // contrast; the ATK/DEF pair sit in the dark well and keep theirs.
+    final light = Theme.of(context).brightness == Brightness.light;
+    final ink = tint == null
+        ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.72)
+        : light
+            ? Color.lerp(tint, Colors.black, 0.38)!
+            : tint!;
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [

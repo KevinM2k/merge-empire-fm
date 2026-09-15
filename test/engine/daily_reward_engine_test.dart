@@ -19,6 +19,8 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:merge_empire_fc/data/boosts.dart' show boostList;
+import 'package:merge_empire_fc/engine/boost_engine.dart';
 import 'package:merge_empire_fc/engine/daily_reward_engine.dart';
 import 'package:merge_empire_fc/util/event_bus.dart';
 import 'package:merge_empire_fc/util/time.dart';
@@ -249,6 +251,118 @@ void main() {
     clearBus();
   });
 
+  // ── The day-4 boost, the port's own ─────────────────────────────────────
+  //
+  // The JS calendar has no boosts, and the parity checks above and below read
+  // the five fields it does have — so this rides beside them, never in them.
+  group('the boosts on the calendar', () {
+    test('A WEEK PAYS ONE OF EACH BOOST, two of them on day 7', () {
+      expect(dailyRewards[1]!.boosts, ['physio_sponge']);
+      expect(dailyRewards[3]!.boosts, ['park_the_bus']);
+      expect(dailyRewards[4]!.boosts, ['quiet_word']);
+      expect(dailyRewards[6]!.boosts, ['sharp_shooting']);
+      expect(dailyRewards[7]!.boosts, ['var_review', 'crowd_roar']);
+      // The coins are untouched by any of them.
+      expect(dailyRewards[4]!.coinsMult, 3);
+      for (final d in [2, 5]) {
+        expect(dailyRewards[d]!.boosts, isEmpty, reason: 'day $d');
+      }
+      // Every boost there is, exactly once across the week.
+      final all = [for (final r in dailyRewards.values) ...r.boosts];
+      expect(all.toSet(), boostList.map((b) => b.id).toSet());
+      expect(all.length, boostList.length);
+    });
+
+    test('the preview carries them, and the other days carry nothing', () {
+      expect(getDailyRewardPreview(_state(), 4)!.boosts, ['quiet_word']);
+      expect(getDailyRewardPreview(_state(), 5)!.boosts, isEmpty);
+    });
+
+    test('CLAIMING DAY 4 PUTS ONE IN THE BAG, doubled or not', () {
+      final at = _at();
+      // Three claims in, yesterday's the last: today is day four.
+      final s = _state(
+        dailyReward: _dr(
+          cycleDay: 3,
+          lastClaimDayKey: _key(at - _day),
+          streak: 3,
+        ),
+      );
+      expect(boostCount(s, 'quiet_word'), 0);
+      final claim = claimDailyReward(s, ts: at, doubled: true);
+      expect(claim.ok, isTrue);
+      expect(claim.day, 4);
+      expect(claim.boosts, ['quiet_word']);
+      // ONE, whatever the double: a video that mints two is a gem faucet.
+      expect(boostCount(s, 'quiet_word'), 1);
+    });
+
+    test('a day with no boost grants none and reports none', () {
+      final at = _at();
+      // One claim in, yesterday's the last: today is day two, which pays none.
+      final s = _state(
+        dailyReward: _dr(
+          cycleDay: 1,
+          lastClaimDayKey: _key(at - _day),
+          streak: 1,
+        ),
+      );
+      final claim = claimDailyReward(s, ts: at);
+      expect(claim.day, 2);
+      expect(claim.boosts, isEmpty);
+      expect(s.containsKey('matchBoosts'), isFalse);
+    });
+  });
+
+  // **THE PORT PAYS LESS ENERGY THAN THE JS, BY DESIGN** — 1 / 2 / 3 on days
+  // 2 / 5 / 7 against the JS's 2 / 3 / 4, now that the boosts carry the
+  // calendar's weight. The node fixture was dumped from the JS's calendar, so
+  // the parity tests below run the engine ON THE JS'S INPUTS: the calendar is
+  // put back to the JS's energies for their duration and restored after.
+  // What parity checks is the arithmetic, not the port's own numbers, which
+  // the test above pins on their own.
+  const jsEnergy = {2: 2, 5: 3, 7: 4};
+  final portEnergy = {for (final d in jsEnergy.keys) d: dailyRewards[d]!.energy};
+  void withJsCalendar() {
+    for (final e in jsEnergy.entries) {
+      final r = dailyRewards[e.key]!;
+      dailyRewards[e.key] = (
+        coinsMult: r.coinsMult,
+        energy: e.value,
+        gems: r.gems,
+        freeScout: r.freeScout,
+        healOne: r.healOne,
+        boosts: r.boosts,
+      );
+    }
+  }
+  void restorePortCalendar() {
+    for (final e in portEnergy.entries) {
+      final r = dailyRewards[e.key]!;
+      dailyRewards[e.key] = (
+        coinsMult: r.coinsMult,
+        energy: e.value,
+        gems: r.gems,
+        freeScout: r.freeScout,
+        healOne: r.healOne,
+        boosts: r.boosts,
+      );
+    }
+  }
+
+  test('THE PORT\'S CALENDAR PAYS 1 / 2 / 3 ENERGY, a step under the JS', () {
+    expect(dailyRewards[2]!.energy, 1);
+    expect(dailyRewards[5]!.energy, 2);
+    expect(dailyRewards[7]!.energy, 3);
+    for (final d in [1, 3, 4, 6]) {
+      expect(dailyRewards[d]!.energy, 0, reason: 'day $d');
+    }
+  });
+
+  group('against the JS\'s own calendar', () {
+    setUp(withJsCalendar);
+    tearDown(restorePortCalendar);
+
   test('the calendar matches the JS', () {
     expect(cycleDays, _ref['cycleDays']);
     expect(trainedBonusMult, _ref['trainedBonusMult']);
@@ -423,6 +537,8 @@ void main() {
     expect((state['resources'] as Map)['gems'], want['gems']);
   });
 
+  });
+
   group('parity — the two calendar entries nothing currently uses', () {
     // Still supported end to end, so a day can pick either back up with no new
     // plumbing. Exercised by swapping day 4 out, exactly as the dump does.
@@ -436,6 +552,7 @@ void main() {
         gems: 0,
         freeScout: true,
         healOne: true,
+        boosts: const [],
       );
     });
     tearDown(() => dailyRewards[4] = original);

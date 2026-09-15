@@ -191,6 +191,61 @@ void main() {
     });
   });
 
+  group('a room', () {
+    /// A short dry burst on a bus: everything after 0.05s is tail, or nothing.
+    void burst(Render bus) => bus.noise(
+      start: 0,
+      stop: 0.05,
+      gain: Env(0.5),
+    );
+
+    double energyAfter(Float32List b, double seconds) {
+      final from = (seconds * audioSampleRate).round();
+      return _rms(Float32List.sublistView(b, from));
+    }
+
+    test('WET ADDS A TAIL THE DRY SIGNAL DOES NOT HAVE', () {
+      final dry = Render(seconds: 0.5, seed: 1)
+        ..room(level: 1, wet: 0, decay: 0.3, build: burst);
+      final wet = Render(seconds: 0.5, seed: 1)
+        ..room(level: 1, wet: 0.6, decay: 0.3, build: burst);
+      expect(energyAfter(dry.out, 0.1), lessThan(1e-6));
+      expect(energyAfter(wet.out, 0.1), greaterThan(1e-3));
+    });
+
+    test('wet zero is an ordinary mix at the bus level', () {
+      final plain = Render(seconds: 0.5, seed: 1);
+      burst(plain);
+      final bus = Render(seconds: 0.5, seed: 1)
+        ..room(level: 0.5, wet: 0, decay: 0.3, build: burst);
+      // Same noise, half the level: the bus reseeds its child from its own
+      // stream, so compare energies rather than samples.
+      expect(_rms(bus.out), closeTo(_rms(plain.out) * 0.5, _rms(plain.out) * 0.05));
+    });
+
+    // Web Audio's `normalize = true`: the impulse is scaled so the reverb does
+    // not multiply the level by the length of the tail. A tail louder than the
+    // burst that caused it is the failure this guards.
+    test('the impulse is normalised, so the tail is quieter than the burst', () {
+      final wet = Render(seconds: 0.6, seed: 1)
+        ..room(level: 1, wet: 1, decay: 0.4, build: burst);
+      final head = _rms(Float32List.sublistView(wet.out, 0, (0.05 * audioSampleRate).round()));
+      expect(energyAfter(wet.out, 0.06), lessThan(head));
+    });
+
+    test('convolve is the plain sum of shifted impulses', () {
+      final x = Float32List.fromList([1, 0, 0, 2]);
+      final h = Float32List.fromList([1, 0.5]);
+      expect(convolve(x, h, 6), [1, 0.5, 0, 2, 1, 0]);
+    });
+
+    test('and is clipped to the window it is asked for', () {
+      final x = Float32List.fromList([1, 1]);
+      final h = Float32List.fromList([1, 1, 1]);
+      expect(convolve(x, h, 2), [1, 2]);
+    });
+  });
+
   group('the master chain', () {
     test('pulls a hot signal down and leaves a quiet one alone', () {
       double gainFor(double level) {

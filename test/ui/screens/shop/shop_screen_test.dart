@@ -89,16 +89,16 @@ void main() {
     }
 
     // **AND THE BOOSTS TAB IS SPELLED OUT**, because it is the one place the
-    // order is an argument rather than the enum's. What fixes the squad, then
-    // what multiplies its income, then the voucher ladder — eight tiles, which
-    // buries whatever is under it. The quick-fire match and the lucky boot had
-    // a shelf between income and the vouchers; they are tiles on the Boosts
-    // grid now.
+    // order is an argument rather than the enum's. The four in-game boosts
+    // first — the port's own shelf, asked for from the couch — then what
+    // fixes the squad, then what multiplies its income, then the voucher
+    // ladder — eight tiles, which buries whatever is under it.
     expect(
       shopTabs
           .firstWhere((t) => t.titleKey == 'shop.section.boosts')
           .sections,
       [
+        ShopSectionId.matchBoosts,
         ShopSectionId.boosts,
         ShopSectionId.income,
         ShopSectionId.vouchers,

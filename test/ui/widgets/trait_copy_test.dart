@@ -45,7 +45,7 @@ void main() {
 
   test('a held trait reads as glyph, name and level', () {
     setLocale('en');
-    expect(traitTitle({'id': 'finisher', 'level': 3}), '⚽ Finisher III');
+    expect(traitTitle({'id': 'finisher', 'level': 3}), 'Finisher III');
     expect(traitTitle(null), '');
     expect(traitTitle({'id': 'nope', 'level': 1}), '');
     expect(

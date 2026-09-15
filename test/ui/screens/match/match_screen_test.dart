@@ -754,10 +754,14 @@ void main() {
       matchResult(addedTime: 1),
       onFinished: (_) => finished++,
     );
+    // The board's `Stats` tag is up while it plays and gone at the whistle,
+    // when the statistics are on the pitch already.
+    expect(find.byKey(const ValueKey('match-stats-hint')), findsOneWidget);
     await tester.pump(minuteDurationFor(95));
     await tester.pumpAndSettle();
 
     expect(stateOf(tester).frame.finished, isTrue);
+    expect(find.byKey(const ValueKey('match-stats-hint')), findsNothing);
     // **In the FOOTER, not in the gutter.** The gutter is a fixed 34px — what
     // makes the ratings line up under the club names — and "Full Time" wraps
     // inside it and grows the row, which moved the whole pitch band down a line
@@ -4126,6 +4130,23 @@ void main() {
       ),
       findsOneWidget,
     );
+    // The sheet's shape: a figure each side, one two-tone bar under them,
+    // ours always green and theirs always red.
+    final label = t('match.stat.possession');
+    expect(find.byKey(ValueKey('pitch-stat-home-$label')), findsOneWidget);
+    expect(find.byKey(ValueKey('pitch-stat-away-$label')), findsOneWidget);
+    final home = tester.widget<ColoredBox>(find.byKey(ValueKey('pitch-stat-bar-home-$label')));
+    final away = tester.widget<ColoredBox>(find.byKey(ValueKey('pitch-stat-bar-away-$label')));
+    final isHome = stateOf(tester).widget.result['isHome'] == true;
+    final ours = isHome ? home.color : away.color;
+    final theirs = isHome ? away.color : home.color;
+    expect(ours, const Color(0xFF4ADE80));
+    expect(theirs, const Color(0xFFF87171));
+    // And at FULL size on a phone: the block's `FittedBox` is the escape
+    // hatch for a language or a screen it was not drawn for, not the layout.
+    final card = find.byKey(const ValueKey('pitch-stats'));
+    final laidOut = tester.renderObject<RenderBox>(card).size;
+    expect(tester.getRect(card).height, closeTo(laidOut.height, 0.5));
   });
 
   testWidgets('THE STATISTICS ARE BEHIND THE BOARD, and nowhere else', (
@@ -4149,6 +4170,37 @@ void main() {
     expect(find.byKey(const ValueKey('match-stats-sheet')), findsOneWidget);
   });
 
+  testWidgets('AND THE SHEET KEEPS UP WITH THE MATCH while it is open', (
+    tester,
+  ) async {
+    // The sheet is its own route, so the screen's rebuilds never reached
+    // it: it showed the numbers it opened with until it closed.
+    await pumpMatch(tester, matchResult());
+    final state = stateOf(tester);
+    await tester.tap(find.byKey(const ValueKey('match-stats-button')));
+    await tester.pumpAndSettle();
+    final board = find.byType(MatchStatboard);
+    final at = state.frame.minute;
+    // Reading the stats does not stop the clock, and the sheet follows it.
+    await tester.pump(minuteDurationFor(30));
+    expect(state.frame.minute, greaterThan(at));
+    // The possession figure is a reading of the last ten minutes; thirty
+    // minutes on, it has had every chance to move — and the sheet shows it.
+    final shown = tester.widget<MatchStatboard>(board).stats;
+    final live = liveStatsFor(
+      frame: state.frame,
+      result: state.widget.result,
+      isHome: true,
+      strategyId: state.strategy,
+    );
+    expect(shown.possHome, live.possHome);
+    expect(shown.rows.map((r) => r.home).toList(), live.rows.map((r) => r.home).toList());
+    await tester.tapAt(const Offset(5, 5));
+    await tester.pumpAndSettle();
+    state.skipToEnd();
+    await tester.pumpAndSettle();
+    await settleSave(tester);
+  });
 
   testWidgets('AND IT IS THE SAME SEAM THE PLAY PAGE USES', (tester) async {
     // Six here and twelve there meant walking from one screen to the other
@@ -4164,7 +4216,8 @@ void main() {
       // The cooldown bar was a two-point row UNDER the panel and inside the
       // strip's own padding, so the gap below the buttons was eight and the gap
       // above them six — on the control the eye returns to most.
-      await pumpMatch(tester, matchResult());
+      // A played save: the boost strip is hidden for the tutorial's match.
+      await pumpMatch(tester, matchResult(), save: squadSave());
       final strip = tester.getRect(find.byKey(const ValueKey('match-tactics')));
       // **AND A LINE OF COMMENTARY STARTS WHERE A TACTIC DOES.** The feed used
       // to pay the inset twice — once for the band and again inside each plate
@@ -4178,7 +4231,12 @@ void main() {
       final feed = tester.getRect(
         find.byKey(const ValueKey('match-commentary')),
       );
-      expect(strip.top - pitch.bottom, closeTo(feed.top - strip.bottom, 0.5));
+      // **AND THE BOOSTS ARE A BUTTON ON THE PITCH, not a band of their own** —
+      // inside the stage, and the one gap still runs strip to feed.
+      final boosts = tester.getRect(find.byKey(const ValueKey('match-boosts')));
+      expect(pitch.contains(boosts.center), isTrue);
+      final gap = strip.top - pitch.bottom;
+      expect(feed.top - strip.bottom, closeTo(gap, 0.5));
     });
 
     testWidgets('every band starts and ends on the same margin', (

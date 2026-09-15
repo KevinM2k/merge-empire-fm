@@ -273,12 +273,21 @@ class Hud extends ConsumerWidget {
       // space — and a loose Flexible that does not use all of its share leaves
       // the remainder stranded on the right of the row, which put 46px of
       // nothing between the cog and the edge.
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      // **WHO GIVES WAY, IN ORDER.** A `Row` with two `Flexible`s split the
+      // free space in half, so a boost chip appearing scaled the wallet to
+      // half the row while there was room for both. The delegate lays the
+      // crest out, then the wallet at its own size, and the boost chips take
+      // what is left; only on a phone where crest and wallet alone do not
+      // fit does the wallet scale, and then by the least it can. Reported
+      // from the couch: never shrink that font.
+      child: CustomMultiChildLayout(
+        delegate: _HudBarLayout(),
         children: [
           // The crest and the prestige count are ONE group at the left edge —
           // `.hud-cluster` in `hud.css`, which holds exactly these two.
-          Row(
+          LayoutId(
+            id: _HudBarSlot.crest,
+            child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               IconButton(
@@ -298,25 +307,23 @@ class Hud extends ConsumerWidget {
               ),
               const HudPrestige(),
             ],
+            ),
           ),
           // **BETWEEN THE CREST AND THE CLUSTER, which is where the JS puts
           // them** — beside the income rate, because what belongs next to a
           // rate is what changes it. Only the boosts that affect IDLE income
           // for that reason; a match-only one goes in the pre-match card and
           // the income breakdown instead.
-          const HudBoosts(),
+          LayoutId(id: _HudBarSlot.boosts, child: const HudBoosts()),
           // `.hud-chips { margin-left: auto }` — the resources are a group on the
           // RIGHT and the crest is on the left, which is the JS's own layout. The
           // port had them all packed against the badge with the empty half of the
           // bar on the right.
           // ONE BOX round all four. See `HudCluster`.
           //
-          // **It SCALES rather than overflowing.** Four readings in one pill is
-          // a fixed width where four separate chips with gaps between them had
-          // slack to give, and on a 400px screen it was 1.8px over. A caption
-          // that scales down a point is the same answer the fixture caption
-          // gives, and it beats both an ellipsis and a yellow overflow stripe.
-          Flexible(
+          // At its own size unless the phone cannot hold it — see the delegate.
+          LayoutId(
+            id: _HudBarSlot.cluster,
             child: FittedBox(
               fit: BoxFit.scaleDown,
               alignment: Alignment.centerRight,
@@ -437,6 +444,52 @@ class Hud extends ConsumerWidget {
       ),
     );
   }
+}
+
+enum _HudBarSlot { crest, boosts, cluster }
+
+/// The bar's height is the crest button's — Material's 48 touch target,
+/// the tallest thing on it — and [hudClearance] is measured against it.
+const double _hudBarHeight = 48;
+
+class _HudBarLayout extends MultiChildLayoutDelegate {
+  _HudBarLayout();
+
+  @override
+  Size getSize(BoxConstraints constraints) =>
+      Size(constraints.maxWidth, _hudBarHeight);
+
+  @override
+  void performLayout(Size size) {
+    final crest = layoutChild(_HudBarSlot.crest, BoxConstraints.loose(size));
+    final cluster = layoutChild(
+      _HudBarSlot.cluster,
+      BoxConstraints(
+        maxWidth: math.max(0, size.width - crest.width),
+        maxHeight: size.height,
+      ),
+    );
+    final boosts = layoutChild(
+      _HudBarSlot.boosts,
+      BoxConstraints(
+        maxWidth: math.max(0, size.width - crest.width - cluster.width),
+        maxHeight: size.height,
+      ),
+    );
+    double mid(Size s) => (size.height - s.height) / 2;
+    positionChild(_HudBarSlot.crest, Offset(0, mid(crest)));
+    positionChild(
+      _HudBarSlot.cluster,
+      Offset(size.width - cluster.width, mid(cluster)),
+    );
+    positionChild(
+      _HudBarSlot.boosts,
+      Offset(size.width - cluster.width - boosts.width, mid(boosts)),
+    );
+  }
+
+  @override
+  bool shouldRelayout(_HudBarLayout oldDelegate) => false;
 }
 
 /// The chrome behind the top bar and the bottom tab bar: LIGHT on a light theme,

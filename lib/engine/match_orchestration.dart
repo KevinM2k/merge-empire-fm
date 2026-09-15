@@ -45,6 +45,8 @@ import 'package:merge_empire_fc/engine/sponsor_engine.dart';
 import 'package:merge_empire_fc/engine/squad_rating.dart';
 import 'package:merge_empire_fc/engine/tactic_coach.dart';
 import 'package:merge_empire_fc/engine/trait_engine.dart';
+import 'package:merge_empire_fc/engine/match_trait_engine.dart'
+    show warriorShrugChance;
 import 'package:merge_empire_fc/engine/transfer_engine.dart';
 import 'package:merge_empire_fc/util/analytics.dart';
 import 'package:merge_empire_fc/util/event_bus.dart';
@@ -742,7 +744,13 @@ MatchResult simulateMatch(
       if (grudgeBoost > 0) {
         chance = math.min(0.65, chance * grudgeInjuryMultiplier);
       }
-      return seeded.random() < chance * mult;
+      // **WARRIOR, and it costs no draw.** The second slot's trait is "a
+      // knock that lands is shrugged off with probability p" — which in
+      // expectation is the chance times (1 - p), so it goes on the number
+      // rather than as a second roll. No card in the parity fixtures carries
+      // it, and for every other card the factor is exactly one, so the draw
+      // order the JS harness compares is untouched.
+      return seeded.random() < chance * mult * (1 - warriorShrugChance(candidate));
     }
 
     if (pool.isNotEmpty) {
@@ -1664,6 +1672,13 @@ List<Map<String, dynamic>> reSimulateRemainder(
   /// So the caller passes a map to be filled. Null, and nothing is written and
   /// the result is byte-for-byte what the JS produces.
   Map<String, dynamic>? liveRatingsOut,
+
+  /// OUR attack after the fixture's modifiers and before the tactic, and
+  /// THEIR attack after their referee — the boost windows. 1.0 is the
+  /// arithmetic every other caller gets, which the parity harness holds
+  /// true, and the board reads the moved figures through [liveRatingsOut].
+  double ourAttackMult = 1.0,
+  double oppAttackMult = 1.0,
 }) {
   final strat = strategies[strategyId] ?? strategies[defaultStrategy];
   final addedTime = _num(result['addedTime'])?.toInt() ?? 0;
@@ -1696,7 +1711,7 @@ List<Map<String, dynamic>> reSimulateRemainder(
   // for the same reason our booking is applied inside the rating rather than
   // after the tactic: both are facts about the players, and the tactic and the
   // clock are what act on the result of them.
-  oppAttack *= oppRatingMult;
+  oppAttack *= oppRatingMult * oppAttackMult;
   oppDefence *= oppRatingMult;
 
   double adjAttack;
@@ -1774,7 +1789,7 @@ List<Map<String, dynamic>> reSimulateRemainder(
       liveRatings.defence,
       result,
     );
-    final liveAttack = live.attack;
+    final liveAttack = live.attack * ourAttackMult;
     final liveDefence = live.defence;
 
     adjAttack = math.max(1.0, applyTacticAtk(liveAttack, strat, oppAttackRatio));
@@ -1805,10 +1820,12 @@ List<Map<String, dynamic>> reSimulateRemainder(
   // Tempo times a FRESH hot/cold roll: Counter Attack's gamble re-rolls with the
   // remainder.
   final variance = (strat?.variance ?? 1.0) * rollSwingFactor(strat);
-  final remainHome =
-      poissonGoals(goalRateLambda(adjAttack, oppDefence) * fraction * variance);
-  final remainAway =
-      poissonGoals(goalRateLambda(oppAttack, adjDefence) * fraction * variance);
+  final remainHome = poissonGoals(
+    goalRateLambda(adjAttack, oppDefence) * fraction * variance,
+  );
+  final remainAway = poissonGoals(
+    goalRateLambda(oppAttack, adjDefence) * fraction * variance,
+  );
 
   // **WHAT THE REMAINDER WAS ROLLED WITH, so the board can print it.**
   //
@@ -1997,6 +2014,9 @@ List<Map<String, dynamic>> reSimulateRemainder(
       _cells(state),
       _lineupOf(state),
     ).teamInjuryReduction;
+    // Warrior, exactly as at kickoff — see the roll there for why it is a
+    // factor on the chance and not a second draw.
+    chance *= 1 - warriorShrugChance(candidate);
     if (seeded.random() < chance) {
       result['injuryCount'] = priorInjuryCount + 1;
       candidate.raw['injured'] = true;
@@ -2165,6 +2185,58 @@ List<CardInstance?> _cells(Map<String, dynamic>? state) {
   final cells = _map(state?['grid'])?['cells'];
   if (cells is! List) return const [];
   return [for (final c in cells) CardInstance.from(c)];
+}
+
+/// Undo an injury that has ALREADY happened — the Physio Sponge.
+///
+/// The cancel branch of [reSimulateRemainder] does exactly this for an injury
+/// still ahead of the clock: heal the card, put him back in the square the
+/// injury emptied unless a manual change has since taken it, mark the log
+/// entry so nothing re-applies it, and fix the two counters. This is the same
+/// undo applied to an entry BEHIND the clock. The feed's injury line stands —
+/// it happened, and then he got up.
+///
+/// Returns false when there is nothing to undo: no log, no live entry for him,
+/// or no such card.
+bool undoInjury(
+  MatchResult result,
+  Map<String, dynamic>? state,
+  String instanceId,
+) {
+  final rawLog = result['injuryLog'];
+  if (rawLog is! List) return false;
+  for (final raw in rawLog) {
+    final entry = _map(raw);
+    if (entry == null ||
+        entry['iid'] != instanceId ||
+        _flag(entry['cancelled'])) {
+      continue;
+    }
+    final card = _cardById(state, instanceId);
+    if (card == null) return false;
+    card.raw['injured'] = false;
+    card.raw.remove('injuredAt');
+    card.raw.remove('injuryDurationMs');
+    final slot = _findSlot(state, (s) => s['slotId'] == entry['prevSlotId']);
+    // Only restore the victim if the slot still holds what the injury left
+    // there — a manual sub since wins.
+    if (slot != null && slot['cardInstanceId'] == entry['replacedBy']) {
+      slot['cardInstanceId'] = instanceId;
+    }
+    entry['cancelled'] = true;
+    result['injuryCount'] = math.max(
+      0,
+      (_num(result['injuryCount']) ?? 1) - 1,
+    );
+    result['injuredName'] = rawLog
+        .map(_map)
+        .firstWhere(
+          (e) => e != null && !_flag(e['cancelled']),
+          orElse: () => null,
+        )?['name'];
+    return true;
+  }
+  return false;
 }
 
 List<CardInstance> _cards(Map<String, dynamic>? state) =>

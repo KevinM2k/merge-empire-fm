@@ -290,6 +290,129 @@ const Map<String, String> enCopy = <String, String>{
   // The cigar it replaced is retired: a lit one in a game aimed at children.
   'customise.item.face.bubblegum': 'Bubblegum',
 
+  // ── The second trait slot ────────────────────────────────────────────────
+  //
+  // The port's own: the JS has one trait per card. Every match trait is
+  // CONDITIONAL — see `data/match_traits.dart` for why that is the licence for
+  // a gem-gated slot at all — so each description says when it fires.
+  'squad.matchtrait': 'Match trait',
+  'squad.traits': 'Traits',
+  'squad.trait.slot.player': 'Player',
+  'squad.trait.slot.match': 'Match',
+  'squad.traits.all': 'See all traits',
+  'squad.traits.all.title': 'Every trait',
+  'squad.traits.match_blurb':
+      'Match traits fire only in the moments that matter — away days, cup ties, the last fifteen, ten men. Open the slot and roll for one.',
+  'matchtrait.none': 'No match trait yet',
+  'matchtrait.when.home': 'At home',
+  'matchtrait.when.away': 'Away from home',
+  'matchtrait.when.strongerOpponent': 'Against a stronger side',
+  'matchtrait.when.firstTwenty': 'The first twenty minutes',
+  'matchtrait.when.relegationZone': 'In the relegation zone',
+  'matchtrait.when.lastFifteen': 'The last fifteen minutes',
+  'matchtrait.when.cupTie': 'In a cup tie',
+  'matchtrait.when.superSub': 'Brought on late',
+  'matchtrait.when.derby': 'In a derby',
+  'matchtrait.when.tenMen': 'Down to ten men',
+  'matchtrait.when.booked': 'After a yellow card',
+  'matchtrait.when.injuryShrug': 'On going down injured',
+  'matchtrait.when': 'When',
+  'matchtrait.effect.rating': '+{n}% rating',
+  'matchtrait.effect.squad': '+{n}% for the whole side',
+  'matchtrait.effect.booked': '-{n}% booked, not -10%',
+  'matchtrait.effect.shrug': '{n}% chance to play on',
+  // ── Manager boosts ───────────────────────────────────────────────────────
+  //
+  // The port's own. Two are tapped from the match screen while watching, two
+  // are taken at the bench in front of the consequence. The feed lines are
+  // POOLS: the feed rebuilds every tick and a repeat is read.
+  'boost.crowd_roar.name': 'Crowd Roar',
+  'boost.crowd_roar.desc':
+      'The ground erupts — the whole side lifts for twenty-five minutes',
+  'boost.park_the_bus.name': 'Park the Bus',
+  'boost.park_the_bus.desc':
+      'Everyone behind the ball — a dead game for twenty-five minutes',
+  'boost.var_review.name': 'VAR Review',
+  'boost.var_review.desc':
+      'Overturn a sending-off — the player stays on, on a yellow',
+  'boost.physio_sponge.name': 'Physio Sponge',
+  'boost.physio_sponge.desc':
+      'Patch up an injury — the player gets up and carries on',
+  'boost.feed.action': 'Boost',
+  'boost.feed.on': 'On',
+  'boost.feed.off': 'Off',
+  'boost.crowd_roar.effect': '+10% rating, whole side',
+  'boost.sharp_shooting.effect': '+25% ATK',
+  'boost.park_the_bus.effect': '-25% ATK, both sides',
+  'boost.roar.live':
+      'The manager turns to the crowd, and the ground erupts.|'
+      'A wall of noise comes down off the stands. Every challenge is a cheer.',
+  'boost.roar.over':
+      'The noise settles, and the game finds its rhythm again.|'
+      'The stands catch their breath. Back to football.',
+  'boost.bus.live':
+      'Everyone behind the ball. They are going to see this one out.|'
+      'Two banks of five and not an inch given. This is being shut down.',
+  'boost.bus.over':
+      'The shackles come off, and there is space again.|'
+      'The shape loosens. Both sides are allowed to play once more.',
+  'boost.var.overturned':
+      'VAR has overturned it. The card is withdrawn and {player} stays on.|'
+      'The referee goes to the monitor, and comes back shaking the head. '
+          '{player} is reprieved.',
+  'boost.physio.recovered':
+      '{player} is back up, waving the stretcher away, and carrying on.|'
+      'The physio works some magic. {player} is up, and staying on.',
+  'boost.shop.pack': 'x{n}',
+  'boost.shop.owned': 'You have {n}',
+  'boost.shop.count': 'x{n}',
+  'shop.section.match_boosts': 'In-game boosts',
+  'boost.bench.for': 'for {player}',
+  'boost.bench.none': 'None in the bag',
+  'boost.locked.too_late': 'Too late. Play has restarted.',
+  'boost.var_review.idle': 'No sending-off to review',
+  'boost.physio_sponge.idle': 'Nobody is down',
+  'boost.sharp_shooting.name': 'Sharp Shooting',
+  'boost.sharp_shooting.desc': 'Every chance is a good one — our finishing sharpens for twenty-five minutes',
+  'boost.quiet_word.name': 'Quiet Word',
+  'boost.quiet_word.desc': 'A word in the referee\'s ear — a yellow card is wiped',
+  'boost.quiet_word.idle': 'Nobody is on a yellow',
+  'boost.sharp.live': 'The finishing coach has had a word. Every shot looks like it is going in.|Boots laced tighter. The chances that come are being buried.',
+  'boost.sharp.over': 'The radar cools, and a chance is a chance again.|The purple patch passes. Back to earning them.',
+  'boost.quiet.wiped': 'A quiet word with the referee, and {player}\'s yellow is forgotten.|The fourth official has a word. {player}\'s booking goes in the bin.',
+  'coach.red_card.var_hint':
+      'You have a VAR Review. Send it from the bench before play restarts.',
+  'coach.injury.physio_hint':
+      'You have a Physio Sponge. Use it from the bench before play restarts.',
+  'match.active.title': 'Active',
+  'match.active.until': "until {minute}'",
+
+  'matchtrait.name.fortress': 'Fortress',
+  'matchtrait.desc.fortress': 'Immovable at home — but only at home',
+  'matchtrait.name.away_day': 'Away Day Hero',
+  'matchtrait.desc.away_day': 'Loves a hostile ground — thrives on the road',
+  'matchtrait.name.big_game': 'Big Game Player',
+  'matchtrait.desc.big_game': 'Turns up against the better side',
+  'matchtrait.name.fast_starter': 'Fast Starter',
+  'matchtrait.desc.fast_starter': 'Out of the blocks — huge for the opening twenty',
+  'matchtrait.name.relegation_scrapper': 'Relegation Scrapper',
+  'matchtrait.desc.relegation_scrapper': 'Fights hardest when the drop is real',
+  'matchtrait.name.last_gasp': 'Last Gasp',
+  'matchtrait.desc.last_gasp': 'Finds something in the closing minutes',
+  'matchtrait.name.cup_fighter': 'Cup Fighter',
+  'matchtrait.desc.cup_fighter':
+      'Made for the cup — nothing else brings out the same fight',
+  'matchtrait.name.super_sub': 'Super Sub',
+  'matchtrait.desc.super_sub': 'Devastating off the bench in the closing twenty',
+  'matchtrait.name.derby_devil': 'Derby Devil',
+  'matchtrait.desc.derby_devil': 'Lives for the grudge match',
+  'matchtrait.name.ten_man_wall': 'Ten Man Wall',
+  'matchtrait.desc.ten_man_wall': 'Rallies the ten — lifts everyone left on the pitch',
+  'matchtrait.name.ice_veins': 'Ice Veins',
+  'matchtrait.desc.ice_veins': 'Plays the same booked — the coolest head in the game',
+  'matchtrait.name.warrior': 'Warrior',
+  'matchtrait.desc.warrior': 'Plays through it — may shrug off a knock and carry on',
+
   // ── The interface's own audio channel ────────────────────────────────────
   //
   // A third row beside Sound and Music. The press cue rides the theme's splash
@@ -817,9 +940,10 @@ const Map<String, String> enCopy = <String, String>{
   // grey line at the foot. Asked for from the couch: he should be TELLING us an
   // offer has come in, and saying whether to take it. No pronoun for the
   // player, who may be either gender.
-  'coach.bid.relay':
-      '{club} have been on the phone, gaffer. They want {player}, and they\'re '
-      'putting {price} on the table.',
+  'coach.bid.relay': '{club} have been on the phone, gaffer. They want {player}, and they\'re putting {price} on the table. You\'d lose their +{rate} income.',
+  'coach.sponsor.title': 'Sponsorship Deal',
+  'coach.sponsor.catch': 'The catch: {terms}.',
+  'coach.sponsor.clean': 'No catch on this one.',
   'coach.sponsor.relay':
       '{company} have been in touch, gaffer. They want {player} as the face of '
       'their brand — {n}% more income from that player while the deal runs.',
@@ -939,4 +1063,6 @@ const Map<String, String> enCopy = <String, String>{
   // an abbreviation. See `league_sheets.dart`.
   'fixtures.on_pens': 'pens',
 
+  'hud.income.trophy_polish': 'Trophy Polish · {mins}m left',
+  'play.mod.stagnation': 'Seasons in this division — a point for each',
 };

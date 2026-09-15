@@ -3,16 +3,19 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:merge_empire_fc/engine/boost_engine.dart';
 import 'package:merge_empire_fc/engine/scout_voucher_engine.dart';
 import 'package:merge_empire_fc/engine/shop_consumables_engine.dart';
 import 'package:merge_empire_fc/data/card_theme.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_providers.dart';
+import 'package:merge_empire_fc/ui/screens/shop/shop_paid.dart' show GemPacksSection;
 import 'package:merge_empire_fc/ui/screens/shop/shop_spend.dart';
 
 import 'shop_helpers.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
+import 'package:merge_empire_fc/ui/screens/match/boost_bar_paint.dart' show flameDeep;
 import 'package:merge_empire_fc/ui/widgets/store_button.dart';
 
 /// Tap a priced row and say yes. Spending is a two-beat flow now — see
@@ -29,6 +32,78 @@ Future<void> buyRow(WidgetTester tester, String tileKey) async {
 
 void main() {
   tearDown(resetLocale);
+
+  group('THE FOUR MANAGER BOOSTS', () {
+    const ids = [
+      'crowd_roar', 'park_the_bus', 'var_review', 'physio_sponge',
+      'sharp_shooting', 'quiet_word',
+    ];
+
+    testWidgets('ARE ON THEIR OWN SHELF, one gem each, and the badge counts the bag', (
+      tester,
+    ) async {
+      final container = await pumpShopWidget(
+        tester,
+        (s) => (s['resources'] as Map<String, dynamic>)['gems'] = 500,
+        MatchBoostsSection.new,
+      );
+      for (final id in ids) {
+        expect(find.byKey(ValueKey('shop-buy-boost-$id')), findsOneWidget, reason: id);
+      }
+      expect(find.text(t('boost.shop.count', {'n': '0'})), findsNWidgets(6));
+      final gems = container.read(gemsProvider);
+      // The confirm card wears the boost's own icon and says its figure.
+      await tester.tap(find.byKey(const ValueKey('shop-buy-boost-crowd_roar')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('boost-effect-crowd_roar')), findsOneWidget);
+      expect(find.text(t('boost.crowd_roar.effect')), findsOneWidget);
+      final glyphs = tester.widgetList<GameIcon>(
+        find.descendant(
+          of: find.byKey(const ValueKey('spend-confirm-boost-crowd_roar')),
+          matching: find.byType(GameIcon),
+        ),
+      );
+      // And in the tile's red, not the accent.
+      expect(glyphs.any((g) => g.name == 'megaphone' && g.color == flameDeep), isTrue);
+      await tester.tap(find.byKey(const ValueKey('spend-cancel-boost-crowd_roar')));
+      await tester.pumpAndSettle();
+      await buyRow(tester, 'boost-crowd_roar');
+      expect(container.read(gemsProvider), gems - 1);
+      expect(boostCount(container.read(gameProvider).state, 'crowd_roar'), 1);
+      expect(find.text(t('boost.shop.count', {'n': '1'})), findsOneWidget);
+      // And again: the badge follows the bag.
+      await buyRow(tester, 'boost-crowd_roar');
+      expect(boostCount(container.read(gameProvider).state, 'crowd_roar'), 2);
+      expect(find.text(t('boost.shop.count', {'n': '2'})), findsOneWidget);
+      await settleSave(tester);
+    });
+
+    testWidgets('and not on the Boosts or Income shelves', (tester) async {
+      await pumpShopWidget(tester, (_) {}, IncomeSection.new);
+      for (final id in ids) {
+        expect(find.byKey(ValueKey('shop-buy-boost-$id')), findsNothing, reason: id);
+      }
+      await pumpShopWidget(tester, (_) {}, BoostsSection.new);
+      for (final id in ids) {
+        expect(find.byKey(ValueKey('shop-buy-boost-$id')), findsNothing, reason: id);
+      }
+    });
+
+    testWidgets('a boost nobody can afford is still LIVE, like every gem row', (
+      tester,
+    ) async {
+      final container = await pumpShopWidget(tester, (_) {}, MatchBoostsSection.new);
+      expect(
+        tester.widget<StoreButton>(find.byKey(const ValueKey('shop-buy-boost-var_review'))).onTap,
+        isNotNull,
+      );
+      final gems = container.read(gemsProvider);
+      await buyRow(tester, 'boost-var_review');
+      expect(find.byKey(const ValueKey('currency-sheet-gems')), findsOneWidget);
+      expect(container.read(gemsProvider), gems);
+      expect(boostCount(container.read(gameProvider).state, 'var_review'), 0);
+    });
+  });
 
   group('boosts and consumables', () {
     testWidgets('buying a gem item debits the gems', (tester) async {
@@ -50,16 +125,8 @@ void main() {
       await buyRow(tester, 'gem-${live.item.id}');
       expect(container.read(gemsProvider), lessThan(before));
 
-      // And a receipt, so a purchase is an event rather than a number quietly
-      // changing.
-      expect(
-        find.byKey(ValueKey('spend-receipt-gem-${live.item.id}')),
-        findsOneWidget,
-      );
-      await tester.tap(
-        find.byKey(ValueKey('spend-receipt-ok-gem-${live.item.id}')),
-      );
-      await tester.pumpAndSettle();
+      // And no receipt to dismiss: the purchase is toasted, not carded.
+      expect(find.byKey(ValueKey('spend-receipt-gem-${live.item.id}')), findsNothing);
       await settleSave(tester);
     });
 
@@ -229,10 +296,6 @@ void main() {
       final before = container.read(coinsProvider);
 
       await buyRow(tester, 'coin-kit_sponsor');
-      await tester.tap(
-        find.byKey(const ValueKey('spend-receipt-ok-coin-kit_sponsor')),
-      );
-      await tester.pumpAndSettle();
       await settleSave(tester);
 
       expect(container.read(coinsProvider), lessThan(before));
@@ -257,6 +320,25 @@ void main() {
       expect(container.read(coinsProvider), 999999);
     });
 
+    testWidgets('A RUNNING POLISH WEARS A GREEN BADGE THAT COUNTS DOWN', (
+      tester,
+    ) async {
+      // It said "Already active" in plain text under the button — the TV
+      // deal's green badge, and the minutes left on it. Reported from the couch.
+      await pumpShopWidget(tester, (s) {
+        (s['resources'] as Map<String, dynamic>)['gems'] = 50;
+        (s['boosts'] as Map<String, dynamic>)['trophyPolishUntil'] =
+            DateTime.now().millisecondsSinceEpoch + 29 * 60000 + 500;
+      }, IncomeSection.new);
+      final badge = find.byKey(const ValueKey('shop-active-gem-trophy_polish_gem'));
+      expect(badge, findsOneWidget);
+      expect(
+        find.descendant(of: badge, matching: find.text(t('shop.active_mins_left', {'mins': 30}))),
+        findsOneWidget,
+      );
+      expect(find.text(t('shop.already_active')), findsNothing);
+    });
+
     testWidgets('the sponge is dead with nobody injured, and says why', (
       tester,
     ) async {
@@ -278,6 +360,20 @@ void main() {
   });
 
   group('the voucher ladder', () {
+    testWidgets('THE ARMED RUNG WEARS THE GREEN CHIP, and the others say nothing', (
+      tester,
+    ) async {
+      await pumpShopWidget(
+        tester,
+        (s) => (s['shop'] as Map<String, dynamic>)['freeScoutReady'] = true,
+        VouchersSection.new,
+      );
+      expect(find.byKey(const ValueKey('shop-active-voucher-random')), findsOneWidget);
+      expect(find.text(t('shop.already_active')), findsOneWidget);
+      // The rule once, in the section's note — not again under each rung.
+      expect(find.text(t('shop.voucher.one_at_a_time')), findsOneWidget);
+    });
+
     testWidgets('the one-at-a-time rule is stated once, not per rung', (
       tester,
     ) async {
@@ -424,10 +520,6 @@ void main() {
       final before = container.read(gemsProvider);
 
       await buyRow(tester, 'voucher-${open.floor}');
-      await tester.tap(
-        find.byKey(ValueKey('spend-receipt-ok-voucher-${open.floor}')),
-      );
-      await tester.pumpAndSettle();
       await settleSave(tester);
 
       expect(container.read(gemsProvider), lessThan(before));
@@ -447,10 +539,6 @@ void main() {
           .firstWhere((t) => t.blocked == null);
 
       await buyRow(tester, 'voucher-${open.floor}');
-      await tester.tap(
-        find.byKey(ValueKey('spend-receipt-ok-voucher-${open.floor}')),
-      );
-      await tester.pumpAndSettle();
       await settleSave(tester);
 
       // Every rung this division can BUY is blocked by the armed one. The
@@ -487,5 +575,25 @@ void main() {
       find.byKey(const ValueKey('shop-tile-gem-scout_voucher_gem')),
       findsNothing,
     );
+  });
+
+  group('THE SHELVES FOLD', () {
+    testWidgets('a Boosts & Items shelf closes on its heading and opens again', (
+      tester,
+    ) async {
+      await pumpShopWidget(tester, (_) {}, MatchBoostsSection.new);
+      expect(find.byKey(const ValueKey('shop-buy-boost-crowd_roar')), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('shop-section-toggle-matchBoosts')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('shop-buy-boost-crowd_roar')), findsNothing);
+      await tester.tap(find.byKey(const ValueKey('shop-section-toggle-matchBoosts')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('shop-buy-boost-crowd_roar')), findsOneWidget);
+    });
+
+    testWidgets('and a shelf on another tab does not', (tester) async {
+      await pumpShopWidget(tester, (_) {}, GemPacksSection.new);
+      expect(find.byKey(const ValueKey('shop-section-toggle-gems')), findsNothing);
+    });
   });
 }

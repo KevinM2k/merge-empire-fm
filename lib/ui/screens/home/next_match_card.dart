@@ -246,6 +246,16 @@ final nextMatchProvider = savePick<NextMatch?>((s) {
         tone: StatTone.warn,
         tip: t('play.mod.battle_ours'),
       ),
+    // **THE STAGNATION BUFF IS NAMED TOO.** It was inside the figure with no
+    // badge, so a side reading 30 on this card and 29 everywhere else looked
+    // as if it had a home advantage it had not bought. Reported from the couch.
+    if (cupTie == null && preview.stagnationBuff > 0)
+      (
+        icon: 'calendar',
+        amount: preview.stagnationBuff,
+        tone: StatTone.warn,
+        tip: t('play.mod.stagnation'),
+      ),
   ];
   final theirMods = <StatMod>[
     if (!preview.isHome && preview.theirHomeAdv > 0)

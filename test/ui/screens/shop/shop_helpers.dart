@@ -26,7 +26,7 @@ class MatchDayTilesHarness extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) =>
-      ShopGrid(children: matchDayTiles(ref));
+      ShopGrid(children: matchDayTiles(context, ref));
 }
 
 ProviderContainer shopContainer(

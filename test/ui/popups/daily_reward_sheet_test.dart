@@ -116,15 +116,15 @@ void main() {
     });
 
     test('and only mentions the extras a day actually has', () {
-      // Day one is coins alone; day seven is the gem day. The rewards are typed
-      // now rather than joined into a string, so the day is asked which WALLETS
-      // it pays into — the emoji were what the icons replaced.
-      final plain = getDailyRewardPreview(save(), 1)!;
+      // Day five is coins and energy alone; day seven is the gem day, with a
+      // VAR Review beside them. The rewards are typed now rather than joined
+      // into a string, so the day is asked which WALLETS it pays into.
+      final plain = getDailyRewardPreview(save(), 5)!;
       final seventh = getDailyRewardPreview(save(), 7)!;
       List<String?> icons(DailyRewardPreview r) =>
           [for (final p in dayRewardParts(r)) p.icon];
-      expect(icons(plain), ['coin']);
-      expect(icons(seventh), containsAll(<String>['coin', 'bolt', 'gem']));
+      expect(icons(plain), ['coin', 'bolt']);
+      expect(icons(seventh), containsAll(<String>['coin', 'bolt', 'gem', 'tv']));
     });
   });
 
@@ -482,8 +482,9 @@ void main() {
         find.descendant(of: day, matching: find.textContaining('💰')),
         findsNothing,
       );
+      // The first chip is the coin; day 1 also carries a sponge now.
       final coin = tester.widget<GameIcon>(
-        find.descendant(of: day, matching: find.byType(GameIcon)),
+        find.descendant(of: day, matching: find.byType(GameIcon)).first,
       );
       expect(coin.name, 'coin');
       expect(coin.color, hudBadgeInk(hudBadgeColour(hudCoinInk)));

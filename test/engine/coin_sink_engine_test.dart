@@ -127,6 +127,9 @@ void main() {
       ).factors.where((f) => f.key == 'hud.income.trophy_polish');
       expect(polish, hasLength(1));
       expect(polish.first.x, live);
+      // And says how long is left, not how long it started with.
+      expect(polish.first.params['mins'], isA<int>());
+      expect(polish.first.params['mins'], inInclusiveRange(1, 30));
 
       // And the shop's "already active" is the same question.
       expect(

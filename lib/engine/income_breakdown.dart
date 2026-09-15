@@ -172,7 +172,13 @@ List<IncomeFactor> _factorsOf(Map<String, dynamic>? state) {
   // that.
   final polish = trophyPolishMultiplierFor(boosts);
   if (polish > 1) {
-    out.add((key: 'hud.income.trophy_polish', params: const {}, x: polish));
+    // The minutes LEFT, not the half hour it started with. Asked for.
+    final mins = (trophyPolishLeftMsFor(boosts) / 60000).ceil();
+    out.add((
+      key: 'hud.income.trophy_polish',
+      params: {'mins': mins < 1 ? 1 : mins},
+      x: polish,
+    ));
   }
   return out;
 }

@@ -22,8 +22,12 @@ class SectionHeading extends StatelessWidget {
     required this.title,
     required this.icon,
     required this.ink,
+    this.trailing,
     super.key,
   });
+
+  /// After the rule, at the right edge — the shop's open/closed chevron.
+  final Widget? trailing;
 
   /// Rendered in caps. Pass it in the caller's own words — this does not
   /// translate.
@@ -36,7 +40,11 @@ class SectionHeading extends StatelessWidget {
   final Color ink;
 
   @override
-  Widget build(BuildContext context) => Row(
+  Widget build(BuildContext context) => LayoutBuilder(
+    builder: (context, box) {
+      // Everything on the row that is not the title or the rule.
+      final fixed = 20.0 + 8 + 8 + (trailing == null ? 0 : 6 + 20);
+      return Row(
     children: [
       // NO DISC. Every icon in the shop used to sit in a bordered, tinted box
       // and the gem tiles never did — and the gem tiles are the ones that look
@@ -44,10 +52,19 @@ class SectionHeading extends StatelessWidget {
       // card's own edge and shrinks the art to pay for it. Bigger glyph, no box.
       Icon(icon, size: 20, color: ink),
       const SizedBox(width: 8),
-      // Flexible: "MANAGER-ANPASSUNG" is wider than a 320pt phone once the
-      // glyph and the rule either side are paid for. Found by the long-language
-      // sweep.
-      Flexible(
+      // **CAPPED, NOT FLEXED.** "MANAGER-ANPASSUNG" is wider than a 320pt
+      // phone once the glyph and the rule are paid for, so the title needs a
+      // ceiling — but as a `Flexible` beside the rule's `Expanded` it took an
+      // equal SHARE of the spare width and left its unused half as dead space,
+      // so the rule ended, and the chevron sat, at a different x on every
+      // shelf. Reported from the couch, twice. A ceiling from the row's own
+      // width keeps the ellipsis and hands the rest to the rule.
+      ConstrainedBox(
+        constraints: BoxConstraints(
+          maxWidth: box.maxWidth.isFinite
+              ? (box.maxWidth - fixed - 24).clamp(0.0, double.infinity)
+              : double.infinity,
+        ),
         child: Text(
           title.toUpperCase(),
           maxLines: 1,
@@ -73,6 +90,9 @@ class SectionHeading extends StatelessWidget {
           ),
         ),
       ),
+      if (trailing != null) ...[const SizedBox(width: 6), trailing!],
     ],
+      );
+    },
   );
 }

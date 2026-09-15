@@ -2,6 +2,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_section.dart';
@@ -13,10 +14,13 @@ import 'package:merge_empire_fc/ui/widgets/store_button.dart';
 /// in a row lines up — so it needs a bounded height, the way the grid gives it
 /// one. Pumped into an unbounded scroller it has nothing to push against.
 Future<void> pump(WidgetTester tester, Widget child) => tester.pumpWidget(
-  MaterialApp(
-    theme: buildAppTheme(kitId: '#4caf50', light: false),
-    home: Scaffold(
-      body: SingleChildScrollView(child: SizedBox(height: 220, child: child)),
+  // A scope, because a shelf frame reads which shelves are folded.
+  ProviderScope(
+    child: MaterialApp(
+      theme: buildAppTheme(kitId: '#4caf50', light: false),
+      home: Scaffold(
+        body: SingleChildScrollView(child: SizedBox(height: 220, child: child)),
+      ),
     ),
   ),
 );
@@ -37,6 +41,8 @@ void main() {
       ShopSectionId.offers,
       ShopSectionId.gems,
       ShopSectionId.coins,
+      // The port's own: the four match boosts, above the season ones.
+      ShopSectionId.matchBoosts,
       ShopSectionId.boosts,
       ShopSectionId.income,
       ShopSectionId.vouchers,

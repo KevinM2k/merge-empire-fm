@@ -15,6 +15,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/data/card_theme.dart';
 import 'package:merge_empire_fc/engine/gem_engine.dart';
 import 'package:merge_empire_fc/engine/scout_voucher_engine.dart';
+import 'package:merge_empire_fc/data/boosts.dart';
+import 'package:merge_empire_fc/engine/coin_sink_engine.dart' show trophyPolishLeftMs;
+import 'package:merge_empire_fc/engine/boost_engine.dart';
 import 'package:merge_empire_fc/engine/shop_consumables_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
@@ -24,6 +27,7 @@ import 'package:merge_empire_fc/ui/screens/shop/purchase_flow.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_copy.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_match_day.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_providers.dart';
+import 'package:merge_empire_fc/ui/screens/match/boost_bar_paint.dart' show flameDeep, liveBoostColour;
 import 'package:merge_empire_fc/ui/screens/shop/shop_section.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_tiles.dart';
 import 'package:merge_empire_fc/ui/widgets/store_button.dart';
@@ -63,6 +67,16 @@ String? blockedCopy(String? reason) => switch (reason) {
   'no_injured' => t('shop.toast.no_injured'),
   _ => t('settings.comingSoon'),
 };
+
+bool _held(String? blocked) =>
+    blocked == 'already_active' || blocked == 'already_held';
+
+/// The badge on a held item: the polish says how long it has left.
+String _activeLabel(String id, Map<String, dynamic>? state) {
+  if (id != 'trophy_polish_gem') return t('shop.already_active');
+  final mins = (trophyPolishLeftMs(state) / 60000).ceil();
+  return t('shop.active_mins_left', {'mins': mins < 1 ? 1 : mins});
+}
 
 /// The app's own line art for each coin-priced consumable, and for the gem
 /// items — the JS's emoji, in the icon set the rest of the app is drawn in.
@@ -152,7 +166,7 @@ class _SpendShelf extends ConsumerWidget {
           // heading of their own directly under this one and it was a
           // subdivision of a tab already named for this shelf. See
           // [matchDayTiles].
-          if (!income) ...matchDayTiles(ref),
+          if (!income) ...matchDayTiles(context, ref),
           for (final row in coins)
             ShopTile(
               tileKey: 'coin-${row.id}',
@@ -161,7 +175,12 @@ class _SpendShelf extends ConsumerWidget {
               glyph: _icon(consumableIcons[row.id] ?? 'coin', hudCoinInk),
               price: formatCoins(row.cost),
               tone: StoreTone.coin,
-              disabledReason: blockedCopy(row.blocked),
+              disabledReason: row.blocked == 'already_active'
+                  ? null
+                  : blockedCopy(row.blocked),
+              activeLabel: row.blocked == 'already_active'
+                  ? t('shop.already_active')
+                  : null,
               warnReason: isPreconditionBlock(row.blocked),
               onBuy: blockedCopy(row.blocked) != null
                   ? null
@@ -172,6 +191,8 @@ class _SpendShelf extends ConsumerWidget {
                       body: null,
                       glyph: consumableIcons[row.id] ?? 'coin',
                       currency: SpendCurrency.coins,
+                      // The tile's own ink, so the card and the tile agree.
+                      glyphColor: hudCoinInk,
                       cost: row.cost,
                       buy: () =>
                           game.update((s) => buyConsumable(s, row.id)).reason,
@@ -193,10 +214,22 @@ class _SpendShelf extends ConsumerWidget {
                 state: game.state,
                 hardMode: hardMode,
               ),
-              glyph: _icon(gemItemIcons[tile.item.id] ?? 'gem', hudGemInk),
+              // On the Income shelf the icon says what it EARNS, in the
+              // coin gold its neighbours wear; the button still says gems.
+              glyph: _icon(
+                gemItemIcons[tile.item.id] ?? 'gem',
+                income ? hudCoinInk : hudGemInk,
+              ),
               price: formatCoins(tile.item.cost),
               tone: StoreTone.gem,
-              disabledReason: blockedCopy(tile.blocked),
+              // A held item is ACTIVE, in the green badge the TV deal wears
+              // — and the polish's badge counts down. Reported from the couch.
+              disabledReason: _held(tile.blocked)
+                  ? null
+                  : blockedCopy(tile.blocked),
+              activeLabel: _held(tile.blocked)
+                  ? _activeLabel(tile.item.id, game.state)
+                  : null,
               onBuy: blockedCopy(tile.blocked) != null
                   ? null
                   : () => offerToBuy(context, ref, (
@@ -210,6 +243,7 @@ class _SpendShelf extends ConsumerWidget {
                       body: null,
                       glyph: gemItemIcons[tile.item.id] ?? 'gem',
                       currency: SpendCurrency.gems,
+                      glyphColor: income ? hudCoinInk : hudGemInk,
                       cost: tile.item.cost,
                       buy: () => game
                           .update((s) => buyGemItem(s, tile.item.id))
@@ -258,6 +292,9 @@ class VouchersSection extends ConsumerWidget {
         .watch(gemItemTilesProvider)
         .where((g) => g.item.id == _scoutVoucherGemId);
     final game = ref.read(gameProvider);
+    final shop = game.state?['shop'];
+    final randomArmed =
+        shop is Map<String, dynamic> && shop['freeScoutReady'] == true;
 
     return ShopSectionFrame(
       id: ShopSectionId.vouchers,
@@ -279,7 +316,15 @@ class VouchersSection extends ConsumerWidget {
               price: '${item.item.cost}',
               tone: StoreTone.gem,
               // Never locked: every division can scout a random player.
-              disabledReason: blockedCopy(item.blocked),
+              // "Held" is state-wide, so the chip goes on only when THIS is
+              // the one armed — a floor armed instead says nothing here; the
+              // section's note is the rule.
+              disabledReason: item.blocked == 'already_held'
+                  ? null
+                  : blockedCopy(item.blocked),
+              activeLabel: item.blocked == 'already_held' && randomArmed
+                  ? t('shop.already_active')
+                  : null,
               onBuy: blockedCopy(item.blocked) != null
                   ? null
                   : () => offerToBuy(context, ref, (
@@ -287,8 +332,9 @@ class VouchersSection extends ConsumerWidget {
                       title: t('shop.voucher.random'),
                       subtitle: t('shop.voucher.random_sub'),
                       body: null,
-                      glyph: 'ticket',
+                      glyph: t('shop.voucher.random_icon'),
                       currency: SpendCurrency.gems,
+                      glyphColor: hudGemInk,
                       cost: item.item.cost,
                       buy: () => game
                           .update((s) => buyGemItem(s, item.item.id))
@@ -315,13 +361,15 @@ class VouchersSection extends ConsumerWidget {
               // the division. `blockedCopy` has no line for it, and its
               // fallthrough printed the settings screen's "Coming soon" under
               // a tile whose own subtitle said when it unlocks.
-              final reason = tile.holding
-                  ? t('shop.already_active')
-                  : tile.blocked == VoucherBlock.alreadyHeld
-                  ? t('shop.voucher.one_at_a_time')
+              // The held rung wears the green chip; the rungs it blocks say
+              // nothing — the rule is the section's note, once, above them.
+              final held = tile.holding;
+              final reason = held || tile.blocked == VoucherBlock.alreadyHeld
+                  ? null
                   : tile.blocked == VoucherBlock.notOffered
                   ? null
                   : blockedCopy(tile.blocked?.name);
+              final dead = held || tile.blocked != null;
               return ShopTile(
                 tileKey: 'voucher-${tile.floor}',
                 title: name,
@@ -344,7 +392,8 @@ class VouchersSection extends ConsumerWidget {
                 tone: StoreTone.gem,
                 locked: !tile.offered,
                 disabledReason: reason,
-                onBuy: reason != null
+                activeLabel: held ? t('shop.already_active') : null,
+                onBuy: dead
                     ? null
                     : () => offerToBuy(context, ref, (
                         key: 'voucher-${tile.floor}',
@@ -355,8 +404,9 @@ class VouchersSection extends ConsumerWidget {
                           ),
                         }),
                         body: null,
-                        glyph: 'ticket',
+                        glyph: tierEmoji[tile.floor] ?? 'ticket',
                         currency: SpendCurrency.gems,
+                        glyphColor: hudGemInk,
                         cost: tile.cost ?? 0,
                         buy: () => game
                             .update((s) => buyScoutVoucher(s, tile.floor))
@@ -365,6 +415,76 @@ class VouchersSection extends ConsumerWidget {
                       )),
               );
             }(),
+        ],
+      ),
+    );
+  }
+}
+
+/// The four manager boosts, three across, on a shelf of their own — see
+/// `ShopSectionId.matchBoosts`. One gem buys one; the badge is how many are
+/// in the bag, so a second buy reads x2 where the first read x1.
+class MatchBoostsSection extends ConsumerWidget {
+  const MatchBoostsSection({super.key});
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    // The bag is a pick, so a buy redraws the badge; the gem balance is the
+    // shelf's other input and already has its own.
+    ref.watch(saveRevisionProvider);
+    ref.watch(gemsProvider);
+    final game = ref.read(gameProvider);
+    return ShopSectionFrame(
+      id: ShopSectionId.matchBoosts,
+      child: ShopGrid(
+        columns: 3,
+        children: [
+          for (final boost in boostList)
+            // No description on the tile: three across, two clamped lines
+            // read as "The ground erupts - the ..." and were cut off on every
+            // one. The confirm card carries it. Reported from the couch.
+            ShopTile(
+              tileKey: 'boost-${boost.id}',
+              title: t('boost.${boost.id}.name'),
+              // The Roar's red, the same the daily calendar draws them in.
+              glyph: _icon(boost.icon, flameDeep),
+              badge: t('boost.shop.count', {
+                'n': '${boostCount(game.state, boost.id)}',
+              }),
+              price: formatCoins(boost.gemCost),
+              tone: StoreTone.gem,
+              disabledReason: blockedCopy(boostPackBlocked(game.state, boost.id)),
+              onBuy: blockedCopy(boostPackBlocked(game.state, boost.id)) != null
+                  ? null
+                  : () => offerToBuy(context, ref, (
+                      key: 'boost-${boost.id}',
+                      title: t('boost.${boost.id}.name'),
+                      subtitle: t('boost.${boost.id}.desc'),
+                      // The figure, for the three that have one: "+25% ATK"
+                      // is what is being bought, and the prose alone did not
+                      // say it. Reported from the couch.
+                      body: boost.kind == BoostKind.proactive
+                          ? Text(
+                              t('boost.${boost.id}.effect'),
+                              key: ValueKey('boost-effect-${boost.id}'),
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w900,
+                                color: liveBoostColour(boost.id),
+                              ),
+                            )
+                          : null,
+                      // Its own icon in the tile's red, not the gem: the
+                      // gem is on the button.
+                      glyph: boost.icon,
+                      currency: SpendCurrency.gems,
+                      glyphColor: flameDeep,
+                      cost: boost.gemCost,
+                      buy: () =>
+                          game.update((s) => buyBoostPack(s, boost.id)).reason,
+                    )),
+            ),
         ],
       ),
     );

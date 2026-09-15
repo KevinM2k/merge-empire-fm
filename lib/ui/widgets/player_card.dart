@@ -243,6 +243,10 @@ typedef CardView = ({
   /// localised `⚽ Finisher III` and it is what a screen reader is given.
   ({String icon, String level, String title})? trait,
 
+  /// The second slot — his match trait — drawn as a badge under the first.
+  /// Null when the slot is empty.
+  ({String icon, String level, String title})? matchTrait,
+
   /// **FORM: a rating point, up or down, and it was invisible.**
   ///
   /// It is real — `getEffectiveRating` adds `card.form` straight onto the
@@ -777,6 +781,19 @@ class PlayerCard extends StatelessWidget {
                       title: trait.title,
                     ),
                   ),
+                // The match trait under it, the same badge: the card had one
+                // slot marked and not the other. Reported from the couch.
+                if (view.matchTrait case final trait?)
+                  Positioned(
+                    top: view.trait == null ? 24 : 40,
+                    left: 5,
+                    child: TraitBadge(
+                      badgeKey: const ValueKey('card-match-trait'),
+                      icon: trait.icon,
+                      level: trait.level,
+                      title: trait.title,
+                    ),
+                  ),
                 // **AND THE INJURY IS A CROSS OVER THE ART.** Asked for from
                 // the couch in exactly that shape: keep the tier, and put a
                 // medical mark in the middle of the card so a hurt player reads
@@ -867,8 +884,12 @@ class TraitBadge extends StatelessWidget {
     required this.level,
     required this.title,
     this.size = 9,
+    this.badgeKey = const ValueKey('card-trait'),
     super.key,
   });
+
+  /// The drawn badge's own key — the second slot's badge needs another.
+  final Key badgeKey;
 
   /// The trait's own emoji, as `traits.dart` carries it — and what actually
   /// gets DRAWN is the app's own mark for it. See [traitIcons].
@@ -886,7 +907,7 @@ class TraitBadge extends StatelessWidget {
   Widget build(BuildContext context) => Semantics(
     label: title,
     child: Container(
-      key: const ValueKey('card-trait'),
+      key: badgeKey,
       padding: EdgeInsets.symmetric(horizontal: size * 0.44, vertical: 1.5),
       decoration: BoxDecoration(
         color: const Color(0xC7000000),
@@ -896,15 +917,7 @@ class TraitBadge extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (traitIcons[icon] case final name?)
-            GameIcon(name, size: size * 1.15, color: Colors.white)
-          else
-            // A trait the set has no mark for keeps its emoji rather than being
-            // forced into a wrong one.
-            Text(
-              icon,
-              style: TextStyle(fontSize: size, height: 1.2),
-            ),
+          TraitGlyph(icon, size: size * 1.15, color: Colors.white),
           if (level.isNotEmpty) ...[
             SizedBox(width: size * 0.28),
             Text(
@@ -1227,6 +1240,26 @@ class _FillPainter extends CustomPainter {
 /// emoji itself**, because that is what a `CardView.trait` carries and every
 /// one of them is unique. A trait with no counterpart in the set keeps its
 /// emoji rather than being forced into a wrong one.
+/// A trait's mark, wherever one is drawn: the app's own icon for the emoji
+/// the spec carries, and the emoji itself only for a trait the set has no
+/// mark for. The card badge, the detail sheet's medals and reels, the
+/// catalogue and the stats sheet all go through this, so a trait looks the
+/// same in every one of them. Reported from the couch: icons, not emoji.
+class TraitGlyph extends StatelessWidget {
+  const TraitGlyph(this.icon, {required this.size, this.color, super.key});
+
+  final String icon;
+  final double size;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) {
+    final name = traitIcons[icon];
+    if (name != null) return GameIcon(name, size: size, color: color);
+    return Text(icon, style: TextStyle(fontSize: size * 0.85, height: 1.2, color: color));
+  }
+}
+
 const Map<String, String> traitIcons = {
   '⚽': 'goal', // finisher
   '🏃': 'flame', // pressing
@@ -1248,5 +1281,19 @@ const Map<String, String> traitIcons = {
   '🦾': 'bandage', // tough
   '🦅': 'trophy', // veteran
   '🫁': 'stopwatch', // iron_lungs
+  // The match traits — see `match_traits.dart`. Emoji in the popup and on
+  // the card were the one place the app drew a trait as text. Reported.
+  '🏰': 'home', // fortress
+  '✈️': 'globe', // away_day
+  '🎩': 'crown', // big_game
+  '🚀': 'play', // fast_starter
+  '🛟': 'scales', // relegation_scrapper
+  '⏱': 'stopwatch', // last_gasp
+  '🏆': 'trophy', // cup_fighter
+  '🔄': 'squad', // super_sub
+  '😈': 'invader', // derby_devil
+  '🧱': 'shield', // ten_man_wall
+  '🧊': 'check', // ice_veins
+  '🦿': 'sword', // warrior
 };
 

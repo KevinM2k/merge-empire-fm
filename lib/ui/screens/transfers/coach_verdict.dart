@@ -93,39 +93,35 @@ class CoachVerdictLine extends StatelessWidget {
       CoachVerdict.yourCall => Icons.balance_rounded,
     };
     final muted = Theme.of(context).extension<KitTheme>()!.textMuted;
-    return Column(
-      mainAxisSize: MainAxisSize.min,
+    // **ONE SENTENCE, HIS.** The verdict was a pill and the reasoning a
+    // paragraph under it, which read as a badge and a footnote — his call
+    // and his reason are one thought, so they are one run of text: the
+    // call in the verdict's colour, the reason straight after it, left
+    // aligned like everything else he says. Asked for from the couch.
+    return Row(
+      key: chipKey ?? ValueKey('coach-verdict-${read.verdict.name}'),
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
-          key: chipKey ?? ValueKey('coach-verdict-${read.verdict.name}'),
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-          decoration: BoxDecoration(
-            color: colour.withValues(alpha: 0.16),
-            borderRadius: BorderRadius.circular(999),
-            border: Border.all(color: colour.withValues(alpha: 0.55)),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 14, color: colour),
-              const SizedBox(width: 6),
-              Text(
-                coachVerdictLabel(read.verdict),
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w900,
-                  color: colour,
-                ),
-              ),
-            ],
-          ),
+        Padding(
+          padding: const EdgeInsets.only(top: 2),
+          child: Icon(icon, size: 15, color: colour),
         ),
-        const SizedBox(height: 6),
-        Text(
-          read.text,
-          key: textKey,
-          textAlign: TextAlign.center,
-          style: TextStyle(fontSize: 12.5, height: 1.5, color: muted),
+        const SizedBox(width: 7),
+        Expanded(
+          child: Text.rich(
+            TextSpan(
+              children: [
+                TextSpan(
+                  text: '${coachVerdictLabel(read.verdict)}. ',
+                  style: TextStyle(fontWeight: FontWeight.w900, color: colour),
+                ),
+                TextSpan(text: read.text),
+              ],
+            ),
+            key: textKey,
+            textAlign: TextAlign.start,
+            style: TextStyle(fontSize: 13, height: 1.5, color: muted),
+          ),
         ),
       ],
     );

@@ -645,6 +645,10 @@ void main() {
       await tester.tap(buy);
       await tester.pumpAndSettle();
       expect(find.byKey(ValueKey('paid-confirm-${offer.id}')), findsOneWidget);
+      // And wears the tile's picture, not the catalogue's emoji.
+      final card = find.byKey(ValueKey('paid-confirm-${offer.id}'));
+      expect(find.descendant(of: card, matching: find.byType(ShopArt)), findsOneWidget);
+      expect(find.descendant(of: card, matching: find.text(offer.icon)), findsNothing);
     });
   });
 

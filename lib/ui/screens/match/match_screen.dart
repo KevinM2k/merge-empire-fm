@@ -22,7 +22,7 @@ import 'package:merge_empire_fc/data/players.dart'
     show PlayerDef, getPlayerDef;
 import 'package:merge_empire_fc/engine/match_coach.dart';
 import 'package:merge_empire_fc/ui/screens/grid/grid_providers.dart'
-    show isProMode;
+    show isProMode, cardViewFor;
 import 'package:merge_empire_fc/engine/tactic_coach.dart'
     show baselineInjuryRisk, injuryCostPoints;
 import 'package:merge_empire_fc/engine/match_tactics.dart';
@@ -40,10 +40,21 @@ import 'package:merge_empire_fc/ui/screens/match/cutaway/cutaway_game.dart'
     show CutawayOutcome;
 import 'package:merge_empire_fc/ui/screens/match/cutaway/cutaway_stage.dart';
 import 'package:merge_empire_fc/engine/booking_engine.dart';
+import 'package:merge_empire_fc/engine/match_trait_engine.dart';
+import 'package:merge_empire_fc/engine/boost_engine.dart';
+import 'package:merge_empire_fc/data/boosts.dart' show BoostKind, getBoost;
+import 'package:merge_empire_fc/engine/match_boost_state.dart';
+import 'package:merge_empire_fc/engine/tutorial_engine.dart' show tutorialFinished;
+import 'package:merge_empire_fc/ui/screens/match/boost_strip.dart';
+import 'package:merge_empire_fc/ui/screens/match/bench_boost_row.dart';
+import 'package:merge_empire_fc/ui/screens/match/boost_bar_paint.dart';
+import 'package:merge_empire_fc/ui/widgets/trait_copy.dart' show matchTraitEffect, matchTraitName;
+import 'package:merge_empire_fc/data/match_traits.dart'
+    show MatchTraitCondition, getMatchTrait, getMatchTraitLevel, matchTraitList;
 import 'package:merge_empire_fc/ui/screens/match/goal_replay.dart'
     show conceded;
 import 'package:merge_empire_fc/engine/match_orchestration.dart'
-    show ourMatchSplit, recordFixtureResult, reSimulateRemainder;
+    show ourMatchSplit, recordFixtureResult, reSimulateRemainder, undoInjury;
 import 'package:merge_empire_fc/ui/screens/home/coach_bubble.dart'
     show coachSuggestedTacticProvider;
 import 'package:merge_empire_fc/ui/screens/home/league_providers.dart'
@@ -175,8 +186,11 @@ double stageBandHeight({
   if (!width.isFinite || width <= 0) return stageMinHeight;
   final ideal = width / pitchAspect;
   if (!pool.isFinite) return ideal;
-  final forTheFeed =
-      feedMinHeight + (hasTacticStrip ? tacticStripHeight : 0) + matchGap * 2;
+  // One control band: the boosts are a tile on the tactic strip now, not a
+  // second row paid for out of the stage.
+  final forTheFeed = feedMinHeight +
+      (hasTacticStrip ? tacticStripHeight : 0) +
+      matchGap * 2;
   return math.max(
     stageMinHeight,
     math.min(ideal, math.max(0, pool - forTheFeed)),
@@ -353,7 +367,8 @@ class MatchScreen extends ConsumerStatefulWidget {
   ConsumerState<MatchScreen> createState() => MatchScreenState();
 }
 
-class MatchScreenState extends ConsumerState<MatchScreen> {
+class MatchScreenState extends ConsumerState<MatchScreen>
+    with SingleTickerProviderStateMixin {
   /// Rebuilt whenever the tactic changes — see [applyStrategy]. Not `final`:
   /// the remainder of the match is genuinely re-decided, so the list of what is
   /// left to show is replaced.
@@ -677,6 +692,19 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
   bool get tacticOnCooldown => _tacticCooldown;
   int get subsUsed => _subsUsed;
   bool get paused => _paused;
+  Map<String, dynamic> get liveRatings => _liveRatings;
+  int get resimCount => _resimCount;
+  Set<String> get sentOffIds => _sentOff;
+  Set<String> get cautionedIds => _cautioned;
+  List<FeedLine> get notes => _notes;
+  List<LiveBoost> get boostWindows => _boosts.live;
+  String? get livePill => _pill;
+  List<({int minute, String reason})> get pendingResims => _pendingResims;
+
+  /// The map the next re-simulation at [at] would be handed — bookings, match
+  /// traits and any Roar composed. Test seam: it is what proves a trait in the
+  /// save reaches the sim, without depending on what the re-roll then does.
+  Map<String, double> liveMultipliersAt(int at) => _liveMultipliers(at);
 
   /// Held from initState: `ref` is not usable once the widget is disposed, and
   /// handing the gates back is exactly a teardown job.
@@ -768,6 +796,19 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
         : null;
     _standings = _standingsAtKickoff();
     _kickoffLineup = _lineupSnapshot();
+    // The minute-gated traits, queued once at kickoff. `_resimulate` is what
+    // costs, and an empty queue never reaches it.
+    if (_hasTraitWithCondition(MatchTraitCondition.firstTwenty)) {
+      scheduleResimAt(21, 'fast_starter');
+    }
+    if (_hasTraitWithCondition(MatchTraitCondition.lastFifteen)) {
+      scheduleResimAt(76, 'last_gasp');
+    }
+    // A kickoff-condition trait is lit from the first minute: the glow has to
+    // know, and it needs a frame for `context` to answer about motion.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _syncGlow();
+    });
     _startClock();
     // **THE MATCH HAS ITS OWN BED, and the whistle starts it.** The sounds here
     // belong to the CLOCK rather than to the simulation: the whole ninety
@@ -838,6 +879,9 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
       _minute++;
       _cutIfWorthWatching();
     });
+    // Before the minute's events are told, so what is told was rolled under
+    // the state the boundary put the side in.
+    if (_pendingResims.isNotEmpty) _drainResims(_minute);
     _soundFor(_minute);
     // A goal the pitch is retelling has not been TOLD yet — the cutaway's own
     // `onDone` cuts to him instead, so his reaction lands after the move
@@ -1541,6 +1585,9 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
   /// match run the same method with nothing left to do.
   void skipToEnd() {
     if (!mounted) return;
+    // A skipped match still has its windows close: every queued boundary
+    // fires at its own minute, in order, before the referee's catch-up.
+    if (_pendingResims.isNotEmpty) _drainResims(_end);
     _catchUpSendingsOff();
     // Nothing to watch on the way to full time — and nothing left to hear for
     // it either, so the clip's own cues go with it.
@@ -1556,6 +1603,7 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
   void _finish() {
     _timer?.cancel();
     _timer = null;
+    if (_liveGlow.isAnimating) _liveGlow.stop();
     if (_reported) return;
     _reported = true;
     _catchUpSendingsOff();
@@ -1705,6 +1753,9 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
   @override
   void dispose() {
     _timer?.cancel();
+    _pillTimer?.cancel();
+    _liveGlow.dispose();
+    _ticked.dispose();
     _cooldownTimer?.cancel();
     _coachTimer?.cancel();
     _momentum.dispose();
@@ -1748,7 +1799,16 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
       sentOff: _sentOff,
       sentOffSlots: _sentOffSlots,
       cautioned: _cautioned,
+      boostOffers: _boostsHidden ? null : _benchOffers,
+      lifts: lifts(),
+      wouldBeLifts: wouldBeLifts(),
     );
+    // **CLOSING THE BENCH IS THE DECISION.** Whoever was on offer for a review
+    // or a sponge and was not taken is not coming back — you cannot undo a
+    // red card five minutes after play has restarted.
+    _varSpent.addAll(_sentOff);
+    _physioSpent.addAll(_physioCandidates());
+    _quietSpent.addAll(_quietCandidates());
     if (mounted) setState(() => _paused = false);
   }
 
@@ -1764,15 +1824,61 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
   /// decision the manager makes about what happens next, and this is a look at
   /// what has already happened. Stopping the clock to read a number would make
   /// checking possession a way to buy time.
-  Future<void> _showStats(LiveStats stats, bool home) => showBottomSheetPopup<void>(
+  ///
+  /// **AND IT KEEPS UP.** The sheet is its own route, so the screen's
+  /// rebuilds never reached it: the numbers it opened with were the numbers
+  /// it showed until it closed. Reported from the couch. It listens to the
+  /// clock now and re-reads the same figures the board reads, every tick.
+  /// The sheet closes itself at the whistle: the statistics are on the pitch
+  /// at full time, and its own "Active" list is about a match that is over.
+  /// Asked for from the couch. By ROUTE, not by `pop`, so a card that has
+  /// landed on top of it is left alone.
+  void _closeStatsAtWhistle(BuildContext ctx) {
+    if (!frame.finished) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!ctx.mounted) return;
+      final route = ModalRoute.of(ctx);
+      if (route != null && route.isActive) Navigator.of(ctx).removeRoute(route);
+    });
+  }
+
+  Future<void> _showStats(bool home) => _openStats(home);
+
+  Future<void> _openStats(bool home) => showBottomSheetPopup<void>(
     context,
     heightFraction: 0.6,
     child: SingleChildScrollView(
       key: const ValueKey('match-stats-sheet'),
       padding: const EdgeInsets.fromLTRB(18, 16, 18, 24),
-      child: MatchStatboard(stats: stats, isHome: home),
+      child: AnimatedBuilder(
+        animation: _ticked,
+        builder: (context, _) {
+          _closeStatsAtWhistle(context);
+          return MatchStatboard(
+            stats: liveStatsFor(
+              frame: frame,
+              result: widget.result,
+              isHome: home,
+              strategyId: _strategy,
+            ),
+            isHome: home,
+            active: _activeLifts(),
+          );
+        },
+      ),
     ),
   );
+
+  /// Bumped on every rebuild of the screen — a tick, a re-simulation, a
+  /// goal — for anything on a route of its own that wants to follow the
+  /// match: the stats sheet.
+  final ValueNotifier<int> _ticked = ValueNotifier<int>(0);
+
+  @override
+  void setState(VoidCallback fn) {
+    super.setState(fn);
+    _ticked.value++;
+  }
 
   /// **AN INJURY STOPS THE MATCH AND PUTS YOU IN FRONT OF THE BENCH.**
   ///
@@ -1853,6 +1959,8 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
           t('match.subs.injury_tip_none')
         else if (cover != null)
           t('match.subs.injury_tip', {'name': cover.card.name}),
+        // Signposted here, taken at the bench — see [_benchOffers].
+        if (physioTarget != null) t('coach.injury.physio_hint'),
       ],
       actions: [
         CoachAction(
@@ -1863,7 +1971,11 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
     );
     if (!mounted) return;
     setState(() => _paused = false);
-    if (spent || nobody) return;
+    // **UNLESS A SPONGE IS HELD.** A bench with nobody to bring on is
+    // pointless, which is why this guard exists — and with a sponge in hand it
+    // is the one place the boost can be taken, so the guard would have hidden
+    // it in the exact case it is worth most.
+    if ((spent || nobody) && physioTarget == null) return;
     if (frame.finished) return;
     await openSubs(openOn: holes.length == 1 ? holes.first : null);
   }
@@ -1884,6 +1996,624 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
   /// needs is the state at THIS minute — a card shown in the eightieth is not
   /// something the manager was living with at half time.
   final Set<String> _cautioned = <String>{};
+
+  /// Everyone brought on with twenty or fewer to play — Super Sub's condition.
+  /// Screen-owned, like [_withdrawn]: the panel forgets and this must not.
+  final Set<String> _subbedOnLate = <String>{};
+
+  /// What is true about the match right now, for the second trait slot.
+  ///
+  /// The kickoff flags come off the result — `isHome`, `isCup`, the grudge
+  /// the sim stamped, the drop zone it read — and the rest is this screen's.
+  /// "Down to ten" is a vacated lineup row, which is exactly what the rating
+  /// engine scores as a man short.
+  MatchContext _matchContext({int? at}) {
+    final ours = (widget.result['squadRating'] as num?)?.toDouble();
+    final theirs = (widget.result['opponentRating'] as num?)?.toDouble();
+    return (
+      isHome: widget.result['isHome'] == true,
+      isCup: widget.result['isCup'] == true,
+      isDerby: ((widget.result['grudgeBoost'] as num?) ?? 0) > 0,
+      inRelegationZone: widget.result['playerInRelegationZone'] == true,
+      oppStronger: ours != null && theirs != null && theirs > ours,
+      tenMen: _lineupSnapshot().any((r) => r['cardInstanceId'] == null),
+      minute: at ?? _minute,
+      fullTime: _end,
+      subbedOnLate: _subbedOnLate,
+      cautioned: _cautioned.where((id) => !_withdrawn.contains(id)).toSet(),
+    );
+  }
+
+  List<CardInstance?> _gridCells() {
+    final grid = ref.read(gameProvider).state?['grid'];
+    final cells = grid is Map<String, dynamic> ? grid['cells'] : null;
+    return [
+      for (final raw in cells is List ? cells : const [])
+        CardInstance.from(raw),
+    ];
+  }
+
+  /// Does anyone in the eleven carry a trait with this condition? Cheap when
+  /// nobody does, which is the common case.
+  bool _hasTraitWithCondition(MatchTraitCondition condition) {
+    for (final card in _gridCells()) {
+      final ref = matchTraitOf(card);
+      if (ref == null) continue;
+      if (getMatchTrait(ref['id'] as String?)?.condition == condition) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /// Minutes at which the remainder must be re-decided with no manager input.
+  ///
+  /// **Boost windows and minute-gated traits are the same problem.** A Crowd
+  /// Roar that ends at 65 and a Fast Starter that stops paying at 21 both need
+  /// the remainder re-rolled at a minute nobody taps, so they share one queue
+  /// rather than growing two timers that can disagree about ordering.
+  ///
+  /// Drained in the per-minute tick rather than on a `Timer`, so it obeys the
+  /// speed toggle, the auto-slow and a paused match for free — a wall-clock
+  /// timer would fire during a bottom sheet.
+  final List<({int minute, String reason})> _pendingResims = [];
+
+  /// How many times the remainder has been re-decided. Test seam.
+  int _resimCount = 0;
+
+  /// Queue a re-simulation for [minute]. A minute already behind the clock, or
+  /// at or past the whistle, is dropped: there is nothing left to re-decide.
+  void scheduleResimAt(int minute, String reason) {
+    if (minute >= _end || minute <= _minute) return;
+    _pendingResims.add((minute: minute, reason: reason));
+    _pendingResims.sort((a, b) => a.minute.compareTo(b.minute));
+  }
+
+  /// Fire everything due at or before [minute], in order.
+  void _drainResims(int minute) {
+    while (_pendingResims.isNotEmpty && _pendingResims.first.minute <= minute) {
+      final due = _pendingResims.removeAt(0);
+      // A window closing is told before the remainder is re-rolled without
+      // it, so the `.over` line lands beside the change it explains.
+      for (final b in _boosts.expireThrough(due.minute)) {
+        _note(_boostNoteKey(b.id, live: false), const {});
+      }
+      // Last Gasp switching ON is a lift the board has to explain; Fast
+      // Starter switching OFF is not — a caption is for "why did it go up".
+      if (due.reason == 'last_gasp') {
+        final trait = matchTraitList.firstWhere((t) => t.id == 'last_gasp');
+        _showPill('${trait.icon} ${matchTraitName(trait)}');
+      }
+      // Never re-rolls injuries: a window closing is not a change of approach,
+      // the same reasoning a substitution passes `rerollInjuries: false`.
+      _resimulate(due.minute, _strategy, rerollInjuries: false);
+    }
+    if (mounted) {
+      setState(() => _timeline = timelineOf(widget.result, bookings: _bookings));
+    }
+  }
+
+  /// A line of the port's own in the feed, after the events of its minute.
+  void _note(String key, Map<String, Object?> params, {String? aboutId}) {
+    _notes.add((
+      minute: _minute,
+      type: 'boost',
+      key: key,
+      params: params,
+      seed: '$key-$_minute',
+      goal: null,
+      aboutId: aboutId,
+      card: null,
+      playerId: null,
+      offId: null,
+    ));
+  }
+
+  // ── VAR and the Physio Sponge ─────────────────────────────────────────────
+  //
+  // Neither PREVENTS anything. By the time either is reachable the man is off
+  // the pitch, his square is empty and the referee's list has moved on; both
+  // are an undo, taken at the bench in front of the consequence with the clock
+  // stopped. Both re-decide the rest of the match from NOW — never from the
+  // incident's minute, which would rewrite minutes the player has already
+  // watched, the thing the 13 Sep audit exists to prevent. He simply comes
+  // back on, and a late overturn is worth less, which is how it balances.
+
+  /// **ONE OFFER PER MAN PER MATCH.** Replace him, or close the bench without
+  /// using it, and that is the decision — he does not come back. A second
+  /// casualty later gets its own offer; this man does not get a second one.
+  /// Screen-owned like [_withdrawn]: the panel forgets and this must not.
+  final Set<String> _physioSpent = <String>{};
+  final Set<String> _varSpent = <String>{};
+  final Set<String> _quietSpent = <String>{};
+
+  /// Cautions a word could still wipe: booked, still on, not passed on.
+  List<String> _quietCandidates() => [
+    for (final id in _cautioned)
+      if (!_withdrawn.contains(id) && !_quietSpent.contains(id)) id,
+  ];
+
+  /// Casualties a sponge could still reach: hurt, logged, the injury already
+  /// told, not replaced, not passed on. The bench and the guard in
+  /// [_onInjuryShown] both read this.
+  List<String> _physioCandidates() {
+    final log = widget.result['injuryLog'];
+    if (log is! List) return const [];
+    final state = ref.read(gameProvider).state;
+    return [
+      for (final raw in log)
+        if (raw is Map<String, dynamic>)
+          if (raw['iid'] case final String id)
+            if (raw['cancelled'] != true &&
+                ((raw['minute'] as num?) ?? 0) <= _minute &&
+                !_withdrawn.contains(id) &&
+                !_physioSpent.contains(id) &&
+                (cardById(state, id)?.injured ?? false))
+              id,
+    ];
+  }
+
+  /// **NONE OF THE FOUR DURING THE TUTORIAL.** The script walks a new player
+  /// through one match, and a gem shelf in the middle of it is a second
+  /// lesson on top of the first. Asked for from the couch: just hide them.
+  bool get _boostsHidden => !tutorialFinished(ref.read(gameProvider).state);
+
+  bool canPhysio(String instanceId) =>
+      !_boostsHidden &&
+      !frame.finished &&
+      boostCount(ref.read(gameProvider).state, 'physio_sponge') > 0 &&
+      _physioCandidates().contains(instanceId);
+
+  bool canVar(String instanceId) =>
+      !_boostsHidden &&
+      !frame.finished &&
+      boostCount(ref.read(gameProvider).state, 'var_review') > 0 &&
+      _sentOff.contains(instanceId) &&
+      !_varSpent.contains(instanceId);
+
+  bool canQuietWord(String instanceId) =>
+      !_boostsHidden &&
+      !frame.finished &&
+      boostCount(ref.read(gameProvider).state, 'quiet_word') > 0 &&
+      _quietCandidates().contains(instanceId);
+
+  /// The man the bench should offer each boost for, or null.
+  String? get physioTarget =>
+      _physioCandidates().where(canPhysio).lastOrNull;
+  String? get varTarget => _sentOff.where(canVar).lastOrNull;
+  String? get quietTarget => _quietCandidates().where(canQuietWord).lastOrNull;
+
+  /// The two retrospective boosts as the bench should show them now.
+  ///
+  /// A tile is never blank: it is FOR somebody, or it says why not — the man
+  /// was passed on when the bench last closed, nobody is down, or none is
+  /// owned and here is what one costs.
+  List<BenchBoostOffer> _benchOffers() {
+    final state = ref.read(gameProvider).state;
+    String? nameOf(String? id) =>
+        id == null ? null : cardById(state, id)?.name();
+    BenchBoostOffer offer({
+      required String id,
+      required String? target,
+      required bool passedOn,
+      required String idleKey,
+      required void Function(String) apply,
+    }) {
+      final count = boostCount(state, id);
+      final String? reason;
+      if (count == 0) {
+        reason = t('boost.bench.none');
+      } else if (target == null) {
+        reason = t(passedOn ? 'boost.locked.too_late' : idleKey);
+      } else {
+        reason = null;
+      }
+      return (
+        id: id,
+        count: count,
+        targetName: nameOf(target),
+        reason: reason,
+        onUse: target == null || count == 0 ? null : () => apply(target),
+      );
+    }
+
+    return [
+      offer(
+        id: 'var_review',
+        target: varTarget,
+        passedOn: _sentOff.any(_varSpent.contains),
+        idleKey: 'boost.var_review.idle',
+        apply: applyVar,
+      ),
+      offer(
+        id: 'physio_sponge',
+        target: physioTarget,
+        // Passed on means still down: a man the sponge HEALED is also in the
+        // spent set, and he is not a missed chance.
+        passedOn: _physioSpent.any(
+          (id) => cardById(state, id)?.injured ?? false,
+        ),
+        idleKey: 'boost.physio_sponge.idle',
+        apply: applyPhysio,
+      ),
+      offer(
+        id: 'quiet_word',
+        target: quietTarget,
+        passedOn: _cautioned.any(_quietSpent.contains),
+        idleKey: 'boost.quiet_word.idle',
+        apply: applyQuietWord,
+      ),
+    ];
+  }
+
+  /// Put a man back in the square [slots] banked for him.
+  void _restoreToSlot(String instanceId, Map<String, PitchSlot> slots) {
+    final entry = slots.entries
+        .where((e) => e.value.cardInstanceId == instanceId)
+        .firstOrNull;
+    if (entry == null) return;
+    ref.read(gameProvider).update((state) {
+      final squad = state['squad'];
+      final lineup = squad is Map<String, dynamic> ? squad['lineup'] : null;
+      if (lineup is! List) return;
+      for (final row in lineup) {
+        if (row is Map<String, dynamic> && row['slotId'] == entry.key) {
+          row['cardInstanceId'] = instanceId;
+        }
+      }
+    });
+    slots.remove(entry.key);
+  }
+
+  /// Overturn his sending-off: he returns now, on a yellow.
+  ///
+  /// A straight red is downgraded to a caution; a second yellow is rescinded
+  /// and the first stands. Either way he is booked, which is what keeps the
+  /// review from being a clean slate. Off BOTH lists — `_bookings` feeds the
+  /// feed, the skip's catch-up and the ban the whistle writes;
+  /// `_bookingRecords` is the red that would land on his career card.
+  void applyVar(String instanceId) {
+    if (!canVar(instanceId)) return;
+    final game = ref.read(gameProvider);
+    if (!game.update((s) => spendBoost(s, 'var_review'))) return;
+    _varSpent.add(instanceId);
+
+    final row = _bookings
+        .where(
+          (b) =>
+              b['playerInstanceId'] == instanceId &&
+              cardSendsOff('${b['card'] ?? cardYellow}'),
+        )
+        .lastOrNull;
+    final minute = ((row?['minute'] as num?) ?? _minute).toInt();
+    if (row != null) {
+      if (row['card'] == cardSecondYellow) {
+        _bookings.remove(row);
+      } else {
+        row['card'] = cardYellow;
+        // The rewritten row is a card the clock has already dealt with.
+        _cardsApplied.add(_cardKey(minute, cardYellow, instanceId));
+      }
+    }
+    _bookingRecords = [
+      for (final b in _bookingRecords)
+        if (b.instanceId != instanceId ||
+            b.minute != minute ||
+            !cardSendsOff(b.card))
+          b
+        else if (b.card == cardRed)
+          (
+            minute: b.minute,
+            instanceId: b.instanceId,
+            name: b.name,
+            card: cardYellow,
+          ),
+    ];
+
+    _sentOff.remove(instanceId);
+    _cautioned.add(instanceId);
+    _restoreToSlot(instanceId, _sentOffSlots);
+    _note(
+      'boost.var.overturned',
+      {'player': cardById(game.state, instanceId)?.name() ?? ''},
+      aboutId: instanceId,
+    );
+    unawaited(_sound.play('boostVar'));
+    _resimulate(_minute, _strategy, rerollInjuries: false);
+    if (mounted) {
+      setState(() => _timeline = timelineOf(widget.result, bookings: _bookings));
+    }
+  }
+
+  /// Wipe his yellow: off the caution list, so he plays at full rating and
+  /// the whistle writes no ban for it. Off BOTH booking lists, as VAR is.
+  void applyQuietWord(String instanceId) {
+    if (!canQuietWord(instanceId)) return;
+    final game = ref.read(gameProvider);
+    if (!game.update((s) => spendBoost(s, 'quiet_word'))) return;
+    _quietSpent.add(instanceId);
+    _bookings.removeWhere(
+      (b) =>
+          b['playerInstanceId'] == instanceId &&
+          !cardSendsOff('${b['card'] ?? cardYellow}'),
+    );
+    _bookingRecords = [
+      for (final b in _bookingRecords)
+        if (b.instanceId != instanceId || cardSendsOff(b.card)) b,
+    ];
+    _cautioned.remove(instanceId);
+    _note(
+      'boost.quiet.wiped',
+      {'player': cardById(game.state, instanceId)?.name() ?? ''},
+      aboutId: instanceId,
+    );
+    unawaited(_sound.play('whistle'));
+    _resimulate(_minute, _strategy, rerollInjuries: false);
+    if (mounted) {
+      setState(() => _timeline = timelineOf(widget.result, bookings: _bookings));
+    }
+  }
+
+  /// Patch him up: healed, back in his own square, and the rest re-decided.
+  ///
+  /// The cards the referee struck off him when he went down are not restored
+  /// — a man who has just been patched up is not going to dive into anything.
+  void applyPhysio(String instanceId) {
+    if (!canPhysio(instanceId)) return;
+    final game = ref.read(gameProvider);
+    if (!game.update((s) => spendBoost(s, 'physio_sponge'))) return;
+    _physioSpent.add(instanceId);
+    game.update((s) => undoInjury(widget.result, s, instanceId));
+    _note(
+      'boost.physio.recovered',
+      {'player': cardById(game.state, instanceId)?.name() ?? ''},
+      aboutId: instanceId,
+    );
+    unawaited(_sound.play('boostPhysio'));
+    _resimulate(_minute, _strategy, rerollInjuries: false);
+    if (mounted) {
+      setState(() => _timeline = timelineOf(widget.result, bookings: _bookings));
+    }
+  }
+
+  /// **THE BOOKING MAP AND THE TRAIT MAP, COMPOSED ONCE.**
+  ///
+  /// Every re-simulation has to see both or a trait fires on a tactic switch
+  /// and not on a substitution — which is why [_resimulate] reads this rather
+  /// than being handed a map by whichever caller happens to know about cards.
+  /// Ice Veins is the reason this is a compose rather than an `addAll`: its
+  /// value REPLACES the caution multiplier, so it is written after the bookings
+  /// and deliberately wins.
+  Map<String, double> _liveMultipliers(int at) {
+    final out = Map<String, double>.from(
+      bookedRatingMultipliers(
+        _cautioned.where((id) => !_withdrawn.contains(id)),
+      ),
+    );
+    final cells = _gridCells();
+    final lineup = _lineupSnapshot();
+    final traits = matchTraitMultipliers(cells, lineup, _matchContext(at: at));
+    final byId = {
+      for (final c in cells.whereType<CardInstance>()) c.instanceId: c,
+    };
+    for (final e in traits.entries) {
+      final ref = matchTraitOf(byId[e.key]);
+      final replaces = getMatchTrait(ref?['id'] as String?)?.condition ==
+          MatchTraitCondition.booked;
+      out[e.key] = replaces ? e.value : (out[e.key] ?? 1) * e.value;
+    }
+    // **A ROAR LIFTS THE WHOLE SIDE.** Squad-wide, so it goes on every man in
+    // the lineup through the same map — the sim never learns a new input.
+    final roar = _boosts.ratingMultAt(at);
+    if (roar != 1) {
+      for (final row in lineup) {
+        if (row['cardInstanceId'] case final String id) {
+          out[id] = (out[id] ?? 1) * roar;
+        }
+      }
+    }
+    return out;
+  }
+
+  // ── The proactive boosts ──────────────────────────────────────────────────
+
+  /// The windows live during THIS match. Never saved: a boost is debited the
+  /// moment it is tapped, so an abandoned match has spent it — honest, and the
+  /// same rule the trait reel plays by.
+  final MatchBoostState _boosts = MatchBoostState();
+
+  /// The aura's lanes and glides, outliving the painter — see `AuraMemory`.
+  final AuraMemory _aura = AuraMemory();
+
+  /// The feed line a window opens and closes with.
+  static String _boostNoteKey(String id, {required bool live}) {
+    final short = switch (id) {
+      'crowd_roar' => 'roar',
+      'park_the_bus' => 'bus',
+      _ => 'sharp',
+    };
+    return 'boost.$short.${live ? 'live' : 'over'}';
+  }
+
+  /// Tap a proactive boost: debit, open the window, re-decide the rest.
+  ///
+  /// Two re-simulations bound a window — this one now, and the one
+  /// [scheduleResimAt] queues for the minute it closes — because the remainder
+  /// is rolled as ONE Poisson draw and cannot carry a multiplier for part of
+  /// itself. A window that runs past the whistle needs no closing re-sim.
+  void useBoost(String id) {
+    final boost = getBoost(id);
+    if (boost == null || boost.kind != BoostKind.proactive) return;
+    if (frame.finished) return;
+    final game = ref.read(gameProvider);
+    if (!game.update((s) => spendBoost(s, id))) return;
+    _boosts.start(id, _minute, boost.windowMinutes);
+    scheduleResimAt(_minute + boost.windowMinutes, 'boost:$id');
+    _note(_boostNoteKey(id, live: true), const {});
+    unawaited(_sound.play(switch (id) {
+      'crowd_roar' => 'crowdCheerRoar',
+      'sharp_shooting' => 'whistle',
+      _ => 'crowdOoh',
+    }));
+    // No caption under the board for a boost: the pill on the pitch is lit
+    // in its colour and the feed says it, so a third telling was noise. The
+    // caption stays for a TRAIT switching on, which has no button to light.
+    // Not a change of approach: the injuries the match had coming still come.
+    _resimulate(_minute, _strategy, rerollInjuries: false);
+    if (mounted) {
+      setState(() => _timeline = timelineOf(widget.result, bookings: _bookings));
+    }
+  }
+
+  /// The caption naming what JUST changed — see `LiveSourcePill`. One at a
+  /// time, and it fades: a second lift starting replaces it rather than
+  /// joining it. Shorter at 2×, because a reader does not speed up.
+  String? _pill;
+  Timer? _pillTimer;
+
+  void _showPill(String text) {
+    if (!mounted) return;
+    _pillTimer?.cancel();
+    setState(() => _pill = text);
+    _pillTimer = Timer(
+      Duration(milliseconds: _fast ? 1500 : 2500),
+      () {
+        if (mounted) setState(() => _pill = null);
+      },
+    );
+  }
+
+  /// The pulse round the figures while anything temporary lifts the side.
+  ///
+  /// **Repeats only while something is live, and never under reduced motion.**
+  /// A controller that never settles means no widget test in the suite could
+  /// `pumpAndSettle` this screen again — the same trap the trait reel's flash
+  /// documents — so it is stopped the moment the last lift ends.
+  late final AnimationController _liveGlow = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1400),
+  );
+
+  /// Is anything temporary lifting the side at [at]?
+  bool _liftedAt(int at) =>
+      _boosts.activeAt(at).isNotEmpty ||
+      matchTraitMultipliers(
+        _gridCells(),
+        _lineupSnapshot(),
+        _matchContext(at: at),
+      ).isNotEmpty;
+
+  void _syncGlow() {
+    if (!mounted) return;
+    final live = !frame.finished && _liftedAt(_minute);
+    final still = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
+    if (live && !still) {
+      if (!_liveGlow.isAnimating) _liveGlow.repeat(reverse: true);
+    } else if (_liveGlow.isAnimating) {
+      _liveGlow.stop();
+    }
+  }
+
+  /// The men on the pitch whose match trait is lifting them at this minute,
+  /// each with his multiplier, and the men on the bench whose trait WOULD be
+  /// if they came on now — the bench pulses both and rates them lifted, so a
+  /// boost in play and a boost in hand are both seen. Asked for from the couch.
+  Map<String, double> lifts() {
+    final cells = _gridCells();
+    final lineup = _lineupSnapshot();
+    final mults = matchTraitMultipliers(cells, lineup, _matchContext());
+    return {
+      for (final e in mults.entries)
+        if (e.value > 1) e.key: e.value,
+    };
+  }
+
+  Map<String, double> wouldBeLifts() {
+    final cells = _gridCells();
+    final lineup = _lineupSnapshot();
+    final on = {
+      for (final row in lineup)
+        if (row['cardInstanceId'] case final String id) id,
+    };
+    final late = _minute >= _end - 20;
+    final out = <String, double>{};
+    for (final card in cells.whereType<CardInstance>()) {
+      final id = card.instanceId;
+      if (on.contains(id) || _withdrawn.contains(id) || _sentOff.contains(id)) continue;
+      if (card.injured || matchTraitOf(card) == null) continue;
+      // As if he filled the first empty row, or the last, right now.
+      final trial = [
+        for (final row in lineup) Map<String, dynamic>.from(row),
+      ];
+      final hole = trial.indexWhere((r) => r['cardInstanceId'] == null);
+      trial[hole < 0 ? trial.length - 1 : hole]['cardInstanceId'] = id;
+      final base = _matchContext();
+      final ctx = (
+        isHome: base.isHome,
+        isCup: base.isCup,
+        isDerby: base.isDerby,
+        inRelegationZone: base.inRelegationZone,
+        oppStronger: base.oppStronger,
+        tenMen: base.tenMen,
+        minute: base.minute,
+        fullTime: base.fullTime,
+        subbedOnLate: late ? {...base.subbedOnLate, id} : base.subbedOnLate,
+        cautioned: base.cautioned,
+      );
+      if (!isMatchTraitLit(cells, trial, ctx, id)) continue;
+      final mult = matchTraitMultipliers(cells, trial, ctx)[id] ?? 1;
+      if (mult > 1) out[id] = mult;
+    }
+    return out;
+  }
+
+  /// Everything running, for the statboard's "Active" list. Empty at full
+  /// time: nothing lifts a match that is over.
+  List<ActiveLift> _activeLifts() {
+    final out = <ActiveLift>[];
+    if (frame.finished) return out;
+    for (final b in _boosts.activeAt(_minute)) {
+      if (out.any((a) => a.id == b.id)) continue;
+      final boost = getBoost(b.id);
+      out.add((
+        id: b.id,
+        icon: boost?.icon ?? '',
+        label: t('boost.${b.id}.name'),
+        effect: t('boost.${b.id}.effect'),
+        until: _boosts.endOf(b.id),
+        card: null,
+      ));
+    }
+    final cells = _gridCells();
+    final lineup = _lineupSnapshot();
+    final ctx = _matchContext();
+    for (final row in lineup) {
+      final id = row['cardInstanceId'];
+      if (id is! String) continue;
+      final card = cells.whereType<CardInstance>().where((c) => c.instanceId == id).firstOrNull;
+      if (card == null) continue;
+      final trait = getMatchTrait(matchTraitOf(card)?['id'] as String?);
+      if (trait == null) continue;
+      if (!isMatchTraitLit(cells, lineup, ctx, id)) continue;
+      final held = matchTraitOf(card);
+      final level = getMatchTraitLevel(trait, (held?['level'] as num?)?.toInt() ?? 1);
+      final state = ref.read(gameProvider).state;
+      final ratios = state?['definitionRatios'];
+      out.add((
+        id: '${trait.id}-$id',
+        icon: trait.icon,
+        label: matchTraitName(trait),
+        effect: level == null ? '' : matchTraitEffect(trait, level),
+        until: null,
+        card: cardViewFor(
+          card.raw,
+          proMode: state != null && isProMode(state),
+          definitionRatios: ratios is Map<String, dynamic> ? ratios : const {},
+        ),
+      ));
+    }
+    return out;
+  }
 
   /// **THEIR referee, counted rather than named.** The port never names an
   /// opposition player — see the feed's own note on why their card reads about
@@ -1998,6 +2728,12 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
         titleKey: 'coach.red_card.title',
         bodyKey: 'coach.red_card.body',
         bodyParams: {'player': player},
+        // Signposted here, taken at the bench: this card shows once ever, so
+        // it can introduce the door but must never be the only one.
+        extraTexts: [
+          if (boostCount(game.state, 'var_review') > 0)
+            t('coach.red_card.var_hint'),
+        ],
         actions: [
           CoachAction(labelKey: 'coachtip.tap_dismiss', onTap: () {}),
         ],
@@ -2179,6 +2915,17 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
     // re-rolls against is the one with him on it.
     // **The injuries are LEFT ALONE.** A substitution changes who is on the
     // pitch, not how dangerously the side is playing — see the flag's own note.
+    // Super Sub's window: twenty or fewer to play, stoppage included.
+    if (_minute >= _end - 20) {
+      _subbedOnLate.add(sub.onId);
+      final trait = getMatchTrait(
+        matchTraitOf(cardById(ref.read(gameProvider).state, sub.onId))?['id']
+            as String?,
+      );
+      if (trait?.condition == MatchTraitCondition.superSub) {
+        _showPill('${trait!.icon} ${matchTraitName(trait)}');
+      }
+    }
     _resimulate(_minute, _strategy, rerollInjuries: false);
 
     final state = ref.read(gameProvider).state;
@@ -2302,6 +3049,10 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
         }
       }
     });
+    if (_hasTraitWithCondition(MatchTraitCondition.tenMen)) {
+      final trait = matchTraitList.firstWhere((t) => t.id == 'ten_man_wall');
+      _showPill('${trait.icon} ${matchTraitName(trait)}');
+    }
     // Same reasoning as a substitution: losing a man is not a change of
     // approach, so the injuries the match had coming still come.
     _resimulate(minute, _strategy, rerollInjuries: false);
@@ -2394,6 +3145,7 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
   /// scoreboard tally. Passing the tally would drop a goal the feed has already
   /// promised, and the screen would end 2-1 with the engine calling it a draw.
   void _resimulate(int at, String strategyId, {bool rerollInjuries = true}) {
+    _resimCount++;
     final raw = widget.result['events'];
     final kept = [
       for (final e in raw is List ? raw : const [])
@@ -2424,10 +3176,10 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
       // happens to know about it. A man already sent off is not in `_cautioned`
       // and is out of the lineup anyway; one already withdrawn is off the
       // pitch, so his caution stops costing.
-      bookedMultipliers: bookedRatingMultipliers(
-        _cautioned.where((id) => !_withdrawn.contains(id)),
-      ),
+      bookedMultipliers: _liveMultipliers(at),
       oppRatingMult: oppTeamRatingMult(_oppYellows, _oppSendOffs),
+      ourAttackMult: _boosts.ourAttackMultAt(at),
+      oppAttackMult: _boosts.oppAttackMultAt(at),
       liveRatingsOut: _liveRatings,
     );
     widget.result['events'] = [...kept, ...fresh];
@@ -2451,6 +3203,7 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
     ref.read(gameProvider).update((state) {
       recordFixtureResult(state, widget.result);
     });
+    _syncGlow();
   }
 
   void applyStrategy(String id) {
@@ -2626,7 +3379,11 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
                     standings: _standings,
                     minute: f.minute,
                     finished: f.finished,
-                    onStats: () => _showStats(stats, home),
+                    bands: _boosts.activeAt(f.minute),
+                    glow: _liveGlow.isAnimating ? _liveGlow : null,
+                    lifted: !f.finished && _liftedAt(f.minute),
+                    pill: _pill,
+                    onStats: () => _showStats(home),
                     // **Localised HERE, not in the engine.** The result
                     // map is stamped by `match_orchestration`, whose fields
                     // the parity harness compares against the JS's — so
@@ -2752,7 +3509,29 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
                                 // most needs them to say which side is which.
                                 // Reported from the couch in turn. See
                                 // `MomentumArrow.arrow`.
-                                onGrass: MomentumArrow(
+                                // The aura under the arrow, both on the
+                                // grass — see `BoostAura`. The arrow takes
+                                // the colour of whatever is burning the bar,
+                                // so the pitch says what the tile says.
+                                onGrass: Stack(
+                                  fit: StackFit.expand,
+                                  children: [
+                                    if (!f.finished &&
+                                        _boosts.activeAt(f.minute).isNotEmpty)
+                                      BoostAura(
+                                        rings: [
+                                          for (final b in _boosts.activeAt(f.minute))
+                                            (
+                                              id: b.id,
+                                              left: (b.toMinute - f.minute) /
+                                                  (b.toMinute - b.fromMinute),
+                                            ),
+                                        ],
+                                        on: _liveGlow.isAnimating,
+                                        minute: pace.minute,
+                                        memory: _aura,
+                                      ),
+                                    MomentumArrow(
                                     arrow: !f.finished,
                                     bias: momentumBias(
                                       dangerHome: stats.dangerHome,
@@ -2760,8 +3539,12 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
                                     ),
                                     attackingRight: home,
                                     // Shades of the TURF, not of the kit: a solid
-                                    // mark on the grass rather than a tint over it.
-                                    ours: momentumOurs,
+                                    // mark on the grass rather than a tint over it
+                                    // — until a window burns, when it wears that.
+                                    ours: switch (leadBoost(_boosts.activeAt(f.minute))) {
+                                      final b? => liveBoostColour(b),
+                                      null => momentumOurs,
+                                    },
                                     theirs: momentumTheirs,
                                     // **WHOSE END IS WHICH, painted on the
                                     // grass.** The markings are symmetric, so
@@ -2784,6 +3567,8 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
                                     leftEnd: t('play.home'),
                                     rightEnd: t('play.away'),
                                   ),
+                                  ],
+                                ),
                                 onDone: (_) {
                                   if (!mounted) return;
                                   final told = _clippedMinute;
@@ -2810,6 +3595,27 @@ class MatchScreenState extends ConsumerState<MatchScreen> {
                               // running — a replay still owns the grass.
                               if (f.finished && _clip == null)
                                 PitchStatOverlay(stats: stats, isHome: home),
+                              // **THE BOOSTS ARE ON THE PITCH**, in the corner
+                              // — the thing they act on, and the one band with
+                              // room. Gone while a clip owns the grass. See
+                              // `boost_strip.dart`.
+                              if (!f.finished && _clip == null && !_boostsHidden)
+                                Positioned(
+                                  top: 8,
+                                  left: 12,
+                                  right: 12,
+                                  // Three names across is wider than a narrow
+                                  // phone's pitch: the row shrinks to fit
+                                  // rather than running off the grass.
+                                  child: FittedBox(
+                                    fit: BoxFit.scaleDown,
+                                    child: BoostPitchButtons(
+                                    endOf: _boosts.endOf,
+                                    enabled: !_paused,
+                                    onUse: useBoost,
+                                  ),
+                                  ),
+                                ),
                           ],
                         ),
                       ),
@@ -3578,7 +4384,23 @@ class _Scoreboard extends StatelessWidget {
     required this.finished,
     required this.label,
     required this.onStats,
+    this.bands = const [],
+    this.glow,
+    this.lifted = false,
+    this.pill,
   });
+
+  /// The boost windows live at [minute], burned across the bar.
+  final List<LiveBoost> bands;
+
+  /// The shared pulse, or null when nothing should move.
+  final Animation<double>? glow;
+
+  /// Anything temporary — a window, a lit match trait — is lifting the side.
+  final bool lifted;
+
+  /// What just changed, or null. See `LiveSourcePill`.
+  final String? pill;
 
   final String left;
   final String right;
@@ -3687,6 +4509,10 @@ class _Scoreboard extends StatelessWidget {
     // A cup tie or an older save may carry no split at all, and four zeroes
     // would be worse than nothing.
     final hasSplit = result['ourAttackRating'] != null;
+    // **THE FIGURES A WINDOW IS MOVING WEAR ITS COLOUR.** A Roar lifts the
+    // whole side, so all three of ours; Sharp Shooting our ATK; a Bus both
+    // ATKs. Where two windows touch one figure, the leading one's colour.
+    final tints = boardTints(bands);
 
     return Padding(
       // **TIGHTER THAN IT WAS, because it grew a band.** The standings row is
@@ -3799,27 +4625,59 @@ class _Scoreboard extends StatelessWidget {
                   color: kit.textMuted,
                 ),
               ),
-              right: Text(
-                '$rightGoals',
-                key: const ValueKey('match-score-right'),
-                style: TextStyle(
-                  fontSize: 34,
-                  height: 1,
-                  fontWeight: FontWeight.w900,
-                  color: ink,
-                  fontFeatures: const [FontFeature.tabularFigures()],
+              // Full width, or the stack hugs the number and the tag lands on it.
+              right: SizedBox(
+                width: double.infinity,
+                child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Text(
+                    '$rightGoals',
+                    key: const ValueKey('match-score-right'),
+                    style: TextStyle(
+                      fontSize: 34,
+                      height: 1,
+                      fontWeight: FontWeight.w900,
+                      color: ink,
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                    ),
+                  ),
+                  // **A HINT THAT THE BOARD OPENS.** Floated at the score
+                  // row's far edge, which is the emptiest strip on the card,
+                  // so it costs no height and sits under nothing. Gone at
+                  // full time, when the statistics are on the pitch already.
+                  if (!finished)
+                    Positioned(
+                      right: 0,
+                      child: _StatsHint(ink: kit.textMuted),
+                    ),
+                ],
                 ),
               ),
             ),
             // Only when the result carries the split. A cup tie or an older save
             // may not, and four zeroes would be worse than nothing.
+            // **GLOWING WHILE SOMETHING TEMPORARY LIFTS IT.** The figures
+            // already move — they read the live pair — and a number that moves
+            // for an unexplained reason reads as noise. The glow says
+            // "something is doing this"; the caption under it says what.
             if (hasSplit)
-              MatchStatRows(
-                left: isHome ? ourSplit : theirSplit,
-                right: isHome ? theirSplit : ourSplit,
-                leftRating: isHome ? ourRating : theirRating,
-                rightRating: isHome ? theirRating : ourRating,
+              LiveGlow(
+                on: lifted,
+                glow: glow,
+                child: MatchStatRows(
+                  left: isHome ? ourSplit : theirSplit,
+                  right: isHome ? theirSplit : ourSplit,
+                  leftRating: isHome ? ourRating : theirRating,
+                  rightRating: isHome ? theirRating : ourRating,
+                  leftTint: isHome ? tints.ours : tints.theirs,
+                  rightTint: isHome ? tints.theirs : tints.ours,
+                ),
               ),
+            // Only while there is something to caption — the row costs the
+            // board height, so it is not reserved on a quiet afternoon.
+            if (hasSplit && (lifted || pill != null))
+              LiveSourcePill(text: pill),
             // **THE FOOTER STRIP IS GONE, and the BOARD is the stats door.**
             // The competition line went first ("Sunday League · Away" is a fact
             // the player brought with them), which left a chart icon alone in a
@@ -3847,6 +4705,10 @@ class _Scoreboard extends StatelessWidget {
                 ),
               ),
             const SizedBox(height: 8),
+            // **THE BAR IS THE CLOCK AND NOTHING ELSE.** It burned in a
+            // window's colour for a while; the aura on the pitch says that
+            // now, and says how long is left, so the bar went back to being
+            // the bar. Asked for from the couch.
             ClipRRect(
               borderRadius: const BorderRadius.only(
                 bottomLeft: Radius.circular(14),
@@ -3857,7 +4719,9 @@ class _Scoreboard extends StatelessWidget {
                 child: LinearProgressIndicator(
                   value: (minute / 90).clamp(0.0, 1.0),
                   backgroundColor: kit.border,
-                  valueColor: AlwaysStoppedAnimation(glassAccent(context, kit.accentBright)),
+                  valueColor: AlwaysStoppedAnimation(
+                    glassAccent(context, kit.accentBright),
+                  ),
                 ),
               ),
             ),
@@ -3869,6 +4733,70 @@ class _Scoreboard extends StatelessWidget {
   }
 }
 
+
+/// The little `Stats` tag on the board — a label, not a button: the board
+/// itself takes the tap, this only says so.
+class _StatsHint extends StatelessWidget {
+  const _StatsHint({required this.ink});
+
+  final Color ink;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: const ValueKey('match-stats-hint'),
+      padding: const EdgeInsets.fromLTRB(6, 3, 7, 3),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: ink.withValues(alpha: 0.55), width: 1.2),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          GameIcon('bars', size: 10, color: ink),
+          const SizedBox(width: 3),
+          Text(
+            t('match.tab.stats'),
+            style: TextStyle(fontSize: minFontSize, fontWeight: FontWeight.w900, color: ink, height: 1),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// `BOOST · Crowd Roar · On` from a feed key like `boost.roar.live`.
+String _boostHeading(String key) {
+  final parts = key.split('.');
+  final name = switch (parts.elementAtOrNull(1)) {
+    'roar' => t('boost.crowd_roar.name'),
+    'bus' => t('boost.park_the_bus.name'),
+    'sharp' => t('boost.sharp_shooting.name'),
+    'var' => t('boost.var_review.name'),
+    'physio' => t('boost.physio_sponge.name'),
+    'quiet' => t('boost.quiet_word.name'),
+    _ => null,
+  };
+  final state = switch (parts.elementAtOrNull(2)) {
+    'live' => t('boost.feed.on'),
+    'over' => t('boost.feed.off'),
+    _ => null,
+  };
+  return [t('boost.feed.action'), ?name, ?state].join(' · ');
+}
+
+/// The colour a boost line's heading wears: the window's own while it is
+/// coming on, the feed's muted ink when it is going off.
+Color? _boostHeadingInk(String key) {
+  final parts = key.split('.');
+  if (parts.elementAtOrNull(2) != 'live') return null;
+  return switch (parts.elementAtOrNull(1)) {
+    'roar' => liveBoostColour('crowd_roar'),
+    'bus' => liveBoostColour('park_the_bus'),
+    'sharp' => liveBoostColour('sharp_shooting'),
+    _ => null,
+  };
+}
 
 class _FeedLine extends StatelessWidget {
   const _FeedLine({
@@ -3987,6 +4915,12 @@ class _FeedLine extends StatelessWidget {
       'injury' => t('match.subs.injured'),
       'subs' || 'opp_sub' => t('match.subs'),
       'tactics' => t('match.tab.tactics'),
+      // **WHICH boost, and whether it is coming ON or going OFF**, beside
+      // the word: "BOOST · Sharp Shooting · On" over the line, so the feed
+      // says what was called and which end of the window this is, without
+      // the line having to. Asked for from the couch, twice. The line's key
+      // names both: `boost.sharp.live`, `boost.sharp.over`.
+      'boost' => _boostHeading(line.key),
       'chance' => t('match.chance'),
       // **THREE WORDS, not one.** A second caution and a straight red are
       // different offences — one is a booking too many, the other is violent
@@ -4043,8 +4977,14 @@ class _FeedLine extends StatelessWidget {
                     // take the feed's own ink and nothing is lost. A red still
                     // wears its own: it reads at any size, and it is the one a
                     // player must not miss.
-                    color:
-                        line.card == null || line.card == cardYellow
+                    // Through `glassAccent`, like every other ink on the
+                    // glass: the raw gold was unreadable on a light pane.
+                    color: line.type == 'boost'
+                        ? glassAccent(
+                            context,
+                            _boostHeadingInk(line.key) ?? kit.textMuted,
+                          )
+                        : line.card == null || line.card == cardYellow
                         ? glassAccent(context, kit.accentBright)
                         : cardInk(line.card!),
                   ),
@@ -4246,9 +5186,18 @@ class _FeedLine extends StatelessWidget {
         decoration: BoxDecoration(
           color: glassInk(context).withValues(alpha: feedPlateFill),
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: glassInk(context).withValues(alpha: feedPlateEdge),
-          ),
+          // **A BOOST LINE WEARS ITS COLOUR DOWN THE LEFT**, the way a goal
+          // wears green or red — a rail, so the window's opening is found in
+          // the feed at a glance. Asked for from the couch. Only the line
+          // that opens a window; the one that closes it stays plain.
+          // The rail alone, the goal card's own shape: a rounded box cannot
+          // carry a rail on one side and a hairline on the other three.
+          border: switch (line.type == 'boost' ? _boostHeadingInk(line.key) : null) {
+            final rail? => Border(left: BorderSide(color: rail, width: 3)),
+            null => Border.all(
+                color: glassInk(context).withValues(alpha: feedPlateEdge),
+              ),
+          },
         ),
         child: card,
       ),

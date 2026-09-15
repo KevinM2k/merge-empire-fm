@@ -11,6 +11,37 @@ rough sense of size, not a target.
 **The live queue for this session is `docs/PLAYTHROUGH3.md`**, which is where
 the couch's reports are ticked off one at a time. What follows is the summary.
 
+## Match traits and manager boosts, 14 Sep 2026
+
+Two features of the port's own, on `match-traits-and-boosts`. Spec at
+`docs/superpowers/specs/2026-09-14-match-traits-and-boosts-design.md`.
+
+- [x] **A second, gem-gated trait slot** rolling from twelve CONDITIONAL
+      traits. Every one is condition-gated — home, away, cup, grudge, the drop
+      zone, a stronger opponent, the first twenty, the last fifteen, a late
+      substitution, ten men, a booking, an injury — which is the licence for a
+      gem-bought slot at all under the catalogue's "never raw rating" rule. They
+      reach the sim through the `ratingMultipliers` map `computeSquadRatings`
+      already takes, so the rating engine is untouched and nothing is stamped
+      on the result. Tested: the pool's rarity ladder as an assertion, the
+      multiplier map per condition, a trait in the SAVE reaching the sim, the
+      timed re-simulation at 21 and 76, the second reel on the sheet spinning
+      the SAME machine as the first (lifted into `trait_reel.dart`), Warrior
+      as a factor on the injury roll. Comeback King is held for a
+      goal-triggered re-sim.
+- [x] **Four manager boosts**, three to a pack for two gems, a Crowd Roar on
+      day 4 of the calendar. Roar and Bus are tapped from a two-tile strip on
+      the match screen and open a 25-minute window bounded by two
+      re-simulations; VAR and the Physio Sponge undo a sending-off or an
+      injury from the BENCH, in front of the consequence, and close with the
+      panel — one offer per man per match. The window burns across the
+      progress bar, the figures glow while anything temporary lifts the side,
+      and one fading caption names what just changed; the statboard lists
+      everything running. The crowd cheer is the spec's own synth, ported with
+      a real convolution room (measured: ~0.5s once, in the warm-up isolate).
+      Tested end to end through the screen, including the guard that used to
+      keep the bench shut when nobody fit was left.
+
 ## Audit, 13 Sep 2026 — can the result still disagree with the match?
 
 Asked after the store review that said "you win the match and then it's marked

@@ -15,17 +15,21 @@
 /// in these definitions were tuned by ear against that behaviour, so "fixing" it
 /// would make every noise layer in the game about twenty times louder.
 ///
-/// **What is NOT here: the crowd cheers.** The JS carries three
-/// (`crowdCheerSmall/Mid/Roar`) built from a formant-synthesis voice model, and
-/// its own comment says they are unwired — "the synth is parked pending real
-/// samples", `_celebrateCrowd` never calls it. Nothing in the port taps the stand
-/// either. Two hundred lines of DSP for a call nobody makes is the thing the
-/// standing rules say not to port; when a real cheer is wanted it will be a
-/// sample, and the tier→size decision belongs with it.
+/// **The crowd cheers are here now, and the deferral is why they look like
+/// this.** This file used to record that the JS's three
+/// (`crowdCheerSmall/Mid/Roar`) were unwired — "the synth is parked pending
+/// real samples", `_celebrateCrowd` never called it — that two hundred lines of
+/// DSP for a call nobody makes is what the standing rules say not to port, and
+/// that a real cheer would be a sample. Crowd Roar is the caller that made it
+/// wanted, so the synth was ported rather than sampled: it exists, it is
+/// documented down to why every voice gets its own vibrato, and
+/// `Biquad.bandpass` was already the exact filter `_voice` needs. The
+/// tier→size ladder came across with it — see [_crowd].
 ///
 /// Deliberately Flutter-free so it runs under plain `dart test`.
 library;
 
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:merge_empire_fc/util/audio_render.dart';
@@ -97,6 +101,162 @@ void _sweep(
       ? const []
       : [Biquad.lowpass(lowpass, 1, audioSampleRate)],
 );
+
+/// ONE shouting voice, and the reason a crowd reads as people rather than as
+/// weather — the JS's `_voice`.
+///
+/// A sawtooth through two parallel BANDPASS resonators parked at the first two
+/// vowel formants. Formants are what the ear uses to decide something is a
+/// voice; a single lowpassed tone is a buzz and filtered noise is wind, which
+/// is what the earlier version of the JS sounded like.
+///
+/// **The vibrato gets a random rate and depth PER VOICE on purpose.** Share one
+/// wobble across the crowd and it chorus-es into a single huge synth voice —
+/// the roughness of many uncorrelated wobbles IS the crowd.
+///
+/// Two oscillator calls stand in for one oscillator split two ways: both start
+/// at phase zero on the same frequency envelope, so they are the same waveform
+/// through two filters, which is what the Web Audio graph is.
+void _voice(Render r, {
+  required double start,
+  required double dur,
+  required double f0,
+  required double vol,
+}) {
+  // A cheer whoops: pitch climbs into the shout, then sags as breath runs out.
+  Env freq() => Env(f0 * 0.86)
+    ..expTo(f0, start + dur * 0.28)
+    ..expTo(f0 * 0.8, start + dur);
+  final lfoHz = 4.2 + r.random() * 3.4;
+  final lfoDepth = f0 * (0.012 + r.random() * 0.022);
+  final atk = math.min(0.05 + r.random() * 0.1, dur * 0.35);
+  Env gain(double v) => Env(0.0001)
+    ..expTo(v, start + atk)
+    ..expTo(v * 0.5, start + dur * 0.6)
+    ..expTo(0.0001, start + dur);
+  final f1 = 560 + r.random() * 320;
+  final f2 = 1000 + r.random() * 500;
+  r.oscillator(
+    wave: Wave.sawtooth,
+    freq: freq(),
+    gain: gain(vol),
+    start: start,
+    stop: start + dur,
+    lfoHz: lfoHz,
+    lfoDepthHz: lfoDepth,
+    chain: [Biquad.bandpass(f1, 5, audioSampleRate)],
+  );
+  // F2 sits under F1.
+  r.oscillator(
+    wave: Wave.sawtooth,
+    freq: freq(),
+    gain: gain(vol * 0.45),
+    start: start,
+    stop: start + dur,
+    lfoHz: lfoHz,
+    lfoDepthHz: lfoDepth,
+    chain: [Biquad.bandpass(f2, 7, audioSampleRate)],
+  );
+}
+
+/// One pair of hands — the JS's `_clap`. Short (12–24ms) so it snaps instead
+/// of hissing, and pitched bright to survive the -9dB 6kHz shelf the master
+/// chain puts on everything.
+void _clap(Render r, double start, double vol) {
+  final dur = 0.012 + r.random() * 0.012;
+  r.noise(
+    start: start,
+    stop: start + dur,
+    gain: Env(vol)..expTo(0.0006, start + dur),
+    chain: [Biquad.bandpass(1100 + r.random() * 1900, 1.1, audioSampleRate)],
+  );
+}
+
+/// A crowd, one builder for all three sizes — the JS's `_crowd`.
+///
+/// **Loudness is NOT the tier cue and can't be**: the master chain compresses
+/// at ratio 6 over a -18dB threshold, so a 6dB gap between two of these comes
+/// out about 1dB apart. Four other axes carry the progression instead —
+///   voices     3 shouts you can count  →  22 that blur into a mass
+///   density    scattered claps         →  continuous applause wash
+///   wet        an open field (dry)      →  an enclosed bowl (reverberant)
+///   sub        nothing                  →  chest, which needs bodies to exist
+/// Reverb is the strongest of the four and the least obvious: a park has
+/// nothing to reflect off, which is most of why a small crowd sounds small.
+void _crowd(
+  Render r, {
+  required double dur,
+  required int voices,
+  required int density,
+  required double level,
+  required double wet,
+  required double decay,
+  required double f0lo,
+  required double f0hi,
+  double sub = 0,
+}) => r.room(
+  level: level,
+  wet: wet,
+  decay: decay,
+  build: (bus) {
+    // Direct sound has to finish a reverb-tail early, or convolution runs past
+    // the render window and the tail gets chopped off mid-decay.
+    final body = math.max(0.25, dur - (wet > 0 ? decay : 0.05));
+    // Incoherent sources sum as sqrt(n), so divide it back out — otherwise
+    // adding voices raises the level instead of thickening the texture.
+    final vvol = 0.42 / math.sqrt(voices);
+    for (var i = 0; i < voices; i++) {
+      // Staggered entries: a real crowd doesn't start shouting in unison.
+      final start = bus.random() * body * 0.35;
+      final vdur = math.min(
+        body * (0.55 + bus.random() * 0.45),
+        body - start + 0.05,
+      );
+      _voice(
+        bus,
+        start: start,
+        dur: vdur,
+        f0: f0lo + bus.random() * (f0hi - f0lo),
+        vol: vvol,
+      );
+    }
+    final claps = math.max(1, (density * body).round());
+    for (var i = 0; i < claps; i++) {
+      // Weighted early so the applause peaks with the shout, not after it.
+      _clap(
+        bus,
+        0.01 + math.pow(bus.random(), 0.8) * body,
+        0.5 * (0.45 + bus.random() * 0.55),
+      );
+    }
+    if (sub > 0) {
+      bus.oscillator(
+        wave: Wave.sine,
+        freq: Env(68),
+        gain: Env(0.0001)
+          ..expTo(sub, 0.18)
+          ..expTo(0.0001, body),
+        start: 0,
+        stop: body,
+      );
+    }
+  },
+);
+
+/// A sine that opens AT [start] and decays away — for a note placed late in a
+/// cue. [_osc]'s envelope ramps from t=0, which is harmless for a note in the
+/// first tenth of a second and leaves one at 0.7s already decayed to nothing;
+/// this anchors the step where the Web Audio `setValueAtTime(vol, start)` did.
+void _ping(Render r, double freq, double start, double dur, double vol) =>
+    r.oscillator(
+      wave: Wave.sine,
+      freq: Env(freq),
+      gain: Env(0.001)
+        ..setAt(vol, start)
+        ..expTo(0.001, start + dur),
+      start: start,
+      stop: start + dur,
+    );
 
 /// How long a sound is, and what it is.
 typedef SoundDef = ({double seconds, void Function(Render r) build});
@@ -520,6 +680,77 @@ final Map<String, SoundDef> soundDefs = {
       );
       vowel(300, 190, 0.07);
       vowel(225, 150, 0.05);
+    },
+  ),
+  // ── The stand ────────────────────────────────────────────────────────────
+  // The JS's three, at its own numbers. All three stay under the 1100ms bob the
+  // League diorama gives a cheer, so the sound ends inside the animation.
+  // A handful of blokes on a touchline: countable, and dry — open air, no bowl.
+  'crowdCheerSmall': (
+    seconds: 0.75,
+    build: (r) => _crowd(
+      r,
+      dur: 0.75, voices: 3, density: 7, level: 0.42, wet: 0.06, decay: 0.16,
+      f0lo: 150, f0hi: 260,
+    ),
+  ),
+  'crowdCheerMid': (
+    seconds: 0.95,
+    build: (r) => _crowd(
+      r,
+      dur: 0.95, voices: 10, density: 26, level: 0.62, wet: 0.20, decay: 0.26,
+      f0lo: 130, f0hi: 280,
+    ),
+  ),
+  // **Crowd Roar's own cue**, and the reason the stand was ported at all.
+  'crowdCheerRoar': (
+    seconds: 1.05,
+    build: (r) => _crowd(
+      r,
+      dur: 1.05, voices: 22, density: 60, level: 0.80, wet: 0.32, decay: 0.34,
+      f0lo: 110, f0hi: 300, sub: 0.12,
+    ),
+  ),
+
+  // ── The other two boosts ─────────────────────────────────────────────────
+  // A decision being checked, then given. The drama of a review is the PAUSE,
+  // so the drone is most of the length and the answer is a bright pair on the
+  // tail of it.
+  'boostVar': (
+    seconds: 1.1,
+    build: (r) {
+      r.oscillator(
+        wave: Wave.triangle,
+        freq: Env(110),
+        gain: Env(0.001)
+          ..expTo(0.10, 0.08)
+          ..expTo(0.10, 0.55)
+          ..expTo(0.001, 0.68),
+        start: 0,
+        stop: 0.68,
+        lfoHz: 5.5,
+        lfoDepthHz: 2,
+        chain: [Biquad.lowpass(600, 0.8, audioSampleRate)],
+      );
+      _noise(r, 0.0, 0.62, 0.05);
+      _ping(r, 880, 0.70, 0.18, 0.12);
+      _ping(r, 1320, 0.82, 0.26, 0.12);
+    },
+  ),
+  // A spray and a chime — short, because he is up and play restarts.
+  'boostPhysio': (
+    seconds: 0.55,
+    build: (r) {
+      r.noise(
+        start: 0,
+        stop: 0.22,
+        gain: Env(0.001)
+          ..expTo(0.12, 0.03)
+          ..expTo(0.001, 0.22),
+        chain: [Biquad.bandpass(3200, 0.9, audioSampleRate)],
+      );
+      _ping(r, 660, 0.24, 0.14, 0.10);
+      _ping(r, 990, 0.34, 0.20, 0.10);
     },
   ),
   'rouletteClick': (

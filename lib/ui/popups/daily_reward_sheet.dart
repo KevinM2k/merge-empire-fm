@@ -21,6 +21,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/ui/popups/sheet_header.dart';
+import 'package:merge_empire_fc/data/boosts.dart' show getBoost;
+import 'package:merge_empire_fc/ui/screens/match/boost_bar_paint.dart' show flameDeep;
 import 'package:merge_empire_fc/engine/daily_reward_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
@@ -94,6 +96,17 @@ List<DayReward> dayRewardParts(DailyRewardPreview reward) => [
       label: null,
     ),
   if (reward.healOne) (text: '➕', icon: null, ink: null, label: null),
+  // A boost is not a wallet either, but it has the shape of one: its own
+  // glyph in the badge, a count beside it, its name in caps underneath — and
+  // the Roar's own red, so the day reads as the day it is. Asked for from
+  // the couch, replacing a badge that spelled the name out in the pill.
+  for (final boost in reward.boosts)
+    (
+      text: '1',
+      icon: getBoost(boost)?.icon,
+      ink: flameDeep,
+      label: t('boost.$boost.name'),
+    ),
 ];
 
 /// The same day as ONE LINE, for a screen reader.
@@ -350,7 +363,9 @@ class _CycleStrip extends StatelessWidget {
           (box.maxWidth - grandWidth - spacing * 3) / 3;
       // The two rows plus the gap between them, so the tall tile lines up top
       // and bottom with the block beside it rather than approximately.
-      const rowHeight = 118.0;
+      // Tall enough for two chips whose names take two lines, at full size:
+      // scaling the row down made every figure tiny. Reported from the couch.
+      const rowHeight = 134.0;
       const grandHeight = rowHeight * 2 + spacing;
 
       Widget row(Iterable<int> days) => Row(
@@ -508,7 +523,10 @@ class _CycleStrip extends StatelessWidget {
                           // it would be a big empty box with small print.
                           // Two halves on a normal day, thirds on the one that
                           // pays three wallets.
-                          slots: grand ? 3 : 2,
+                          // Two on a day, five on the grand tile: a boost
+                          // beside the coins most days, two beside the gems
+                          // and the energy on day 7.
+                          slots: grand ? 5 : 2,
                         ),
                       ),
                     ),
@@ -736,12 +754,22 @@ class _RewardChips extends StatelessWidget {
       // about 44pt across and a seven-figure coin day does not fit in it at
       // 10.5px; scaling it down keeps the rows even, which is the whole reason
       // they are a fixed height.
-      child: FittedBox(
-        fit: BoxFit.scaleDown,
-        child: Column(
+      // **THE NAME WRAPS BEFORE ANYTHING SCALES.** The whole chip sat in the
+      // scaler with unbounded width, so a two-word boost name never wrapped
+      // and shrank the figure and itself instead — reported as tiny. Given
+      // the tile's width the name takes a second line, and the scaler only
+      // acts if even that will not fit the slot.
+      child: LayoutBuilder(
+        builder: (context, box) => FittedBox(
+          fit: BoxFit.scaleDown,
+          child: SizedBox(
+            width: box.maxWidth.isFinite ? box.maxWidth : 120,
+            child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Container(
               padding: const EdgeInsets.symmetric(
                 horizontal: 6,
                 vertical: 2,
@@ -771,6 +799,7 @@ class _RewardChips extends StatelessWidget {
                   ),
                 ],
               ),
+              ),
             ),
             // **AND THE WALLET SAYS ITS OWN NAME.** The badge is a colour, a
             // glyph and a figure; which of the three wallets it is was left to
@@ -789,15 +818,20 @@ class _RewardChips extends StatelessWidget {
               // instead; the badge above it is still the thing being read.
               Text(
                 name,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   fontSize: 12,
-                  height: 1,
+                  height: 1.05,
                   fontWeight: FontWeight.w600,
                   color: kit.textMuted,
                 ),
               ),
             ],
           ],
+            ),
+          ),
         ),
       ),
     );

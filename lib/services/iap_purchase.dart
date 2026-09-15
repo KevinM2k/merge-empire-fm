@@ -76,8 +76,10 @@ Future<InitiateResult> initiatePurchase(
     if (expires is num && expires > now()) return _refused('vip_already_active');
   }
 
-  // Only ask the store once the answer can change something.
-  final known = await storeCatalogue();
+  // Only ask the store once the answer can change something — and never in
+  // a dev build, which is the JS's own rule: a debug binary grants for free
+  // rather than putting an App Store sign-in over a test run.
+  final known = simulatePurchases ? null : await storeCatalogue();
   if (known != null) {
     final outcome = await buySku(
       product.sku,

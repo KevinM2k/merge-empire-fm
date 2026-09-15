@@ -110,6 +110,10 @@ void main() {
         find.byKey(const ValueKey('shop-buy-ad-lucky-boot')).first,
       );
       await tester.pumpAndSettle();
+      // The same confirm card every gem tile opens, then the spend.
+      expect(luckyBootHeld(c.read(gameProvider).state), isFalse);
+      await tester.tap(find.byKey(const ValueKey('spend-confirm-yes-ad-lucky-boot')));
+      await tester.pumpAndSettle();
       await settleSave(tester);
 
       final state = c.read(gameProvider).state!;
@@ -124,6 +128,8 @@ void main() {
         find.byKey(const ValueKey('shop-buy-ad-match-cooldown')).first,
       );
       await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('spend-confirm-yes-ad-match-cooldown')));
+      await tester.pumpAndSettle();
       await settleSave(tester);
 
       final state = c.read(gameProvider).state!;
@@ -137,6 +143,8 @@ void main() {
     // half-applied — which is why the charge and the grant are one update.
     final c = await _pump(tester, mutate: (s) => _withGems(s, 0));
     await tester.tap(find.byKey(const ValueKey('shop-buy-ad-lucky-boot')).first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('spend-confirm-yes-ad-lucky-boot')));
     await tester.pumpAndSettle();
     await settleSave(tester);
     final state = c.read(gameProvider).state!;
@@ -193,6 +201,8 @@ void main() {
     await tester.tap(
       find.byKey(const ValueKey('shop-buy-ad-match-cooldown')).first,
     );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('spend-confirm-yes-ad-match-cooldown')));
     await tester.pumpAndSettle();
     await settleSave(tester);
     expect(matchCooldownFree(c.read(gameProvider).state!), isTrue);

@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:math' as math;
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:merge_empire_fc/ui/widgets/art_image.dart';
 import 'package:merge_empire_fc/util/time.dart' show now;
 import 'package:merge_empire_fc/data/divisions.dart';
 import 'package:merge_empire_fc/data/formations.dart';
@@ -23,6 +24,7 @@ import 'package:merge_empire_fc/state/save_slots.dart';
 import 'package:merge_empire_fc/state/save_store.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
 import 'package:merge_empire_fc/ui/screens/squad/player_detail_sheet.dart';
+import 'package:merge_empire_fc/ui/screens/squad/traits_block.dart';
 import 'package:merge_empire_fc/engine/trait_engine.dart';
 import 'package:merge_empire_fc/data/traits.dart';
 import 'package:merge_empire_fc/data/players.dart';
@@ -682,7 +684,9 @@ void main() {
       await scrollSheetTo(tester, 'detail-trait');
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('detail-trait-roll')), findsOneWidget);
-      expect(find.byKey(const ValueKey('detail-trait-label')), findsOneWidget);
+      // The two slots, side by side; the PLAYER one is lit by default.
+      expect(find.byKey(const ValueKey('detail-trait-slot-player')), findsOneWidget);
+      expect(find.byKey(const ValueKey('detail-trait-slot-match')), findsOneWidget);
       expect(find.byKey(const ValueKey('trait-reel-name')), findsOneWidget);
       expect(find.byKey(const ValueKey('trait-reel-level')), findsOneWidget);
     });
@@ -868,14 +872,19 @@ void main() {
       await openDetailOfFirst(tester, container);
       await scrollSheetTo(tester, 'detail-trait-roll');
       await tester.pumpAndSettle();
+      // The PLAYER tile's caption: the MATCH tile beside it is empty too.
+      final none = find.descendant(
+        of: find.byKey(const ValueKey('detail-trait-slot-player')),
+        matching: find.text(t('trait.name.none')),
+      );
       // He starts with nothing, so that is what the label has to keep saying
       // until the wheel stops.
-      expect(find.text(t('trait.name.none')), findsOneWidget);
+      expect(none, findsOneWidget);
 
       await tester.tap(find.byKey(const ValueKey('detail-trait-roll')));
       await tester.pump();
       expect(
-        find.text(t('trait.name.none')),
+        none,
         findsOneWidget,
         reason: 'the trait was announced while the reels were still turning',
       );
@@ -917,7 +926,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('feature-unlock')), findsNothing);
       expect(
-        find.text(t('trait.name.none')),
+        none,
         findsNothing,
         reason: 'the wheel stopped and never said what it landed on',
       );
@@ -940,6 +949,18 @@ void main() {
       final container = await pumpSquad(tester);
       await openDetailOfFirst(tester, container);
       await tester.pumpAndSettle();
+
+      // The hero is a portrait crop anchored to the TOP, or the head goes.
+      final hero = tester.widget<ArtImage>(
+        find.descendant(
+          of: find.ancestor(
+            of: find.byKey(const ValueKey('detail-attributes')),
+            matching: find.byType(Stack),
+          ).first,
+          matching: find.byType(ArtImage),
+        ).first,
+      );
+      expect(hero.alignment, Alignment.topCenter);
 
       List<String?> numbers() => tester
           .widgetList<Text>(
@@ -1048,6 +1069,7 @@ void main() {
       // Land on the pool's first entry — his own position's headline trait,
       // which is directional and so shares no axis with Crowd Pleaser.
       setTraitRandom(_AlwaysPicks(0));
+      await scrollSheetTo(tester, 'detail-trait-roll');
       await tester.tap(find.byKey(const ValueKey('detail-trait-roll')));
       await tester.pump();
       expect(
@@ -1121,6 +1143,9 @@ void main() {
       Future<({double name, double level})> roll() async {
         final nameFrom = offsetOf('trait-reel-name');
         final levelFrom = offsetOf('trait-reel-level');
+        // A won trait writes its description above the reel, so the button
+        // moves down the sheet between rolls.
+        await scrollSheetTo(tester, 'detail-trait-roll');
         await tester.tap(find.byKey(const ValueKey('detail-trait-roll')));
         await tester.pump();
         await tester.pump(
