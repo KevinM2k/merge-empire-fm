@@ -205,8 +205,24 @@ Map<String, dynamic> _withoutAgedRatings(Map<String, dynamic> m) => {
     if (!_agedRatingKeys.contains(e.key)) e.key: e.value,
 };
 
+/// The reference's result with the shootout's winning goal taken back OUT.
+///
+/// A level cup tie used to have the winning penalty added to its scoreline so
+/// that `won` and the score agreed; it stays level now and `won` travels beside
+/// it. The expectation is corrected from the file rather than the file being
+/// re-baselined — every scenario that never went to penalties is untouched, and
+/// every other field of the ones that did is still compared exactly.
+Map<String, dynamic> _unfoldPens(Map<String, dynamic> want) {
+  final shootout = want['penaltyShootout'];
+  if (shootout is! Map) return want;
+  final out = Map<String, dynamic>.of(want);
+  final key = want['won'] == true ? 'homeGoals' : 'awayGoals';
+  out[key] = (want[key] as num).toInt() - 1;
+  return out;
+}
+
 void _expectResult(String name, Map<String, dynamic> got, {bool aged = false}) {
-  final want = _scenario(name)['result'] as Map<String, dynamic>;
+  final want = _unfoldPens(_scenario(name)['result'] as Map<String, dynamic>);
   if (!aged) {
     expect(_json(got), want, reason: '$name — result');
     return;

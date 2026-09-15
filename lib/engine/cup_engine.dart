@@ -784,6 +784,7 @@ PreparedCupRound? prepareCupRound(Map<String, dynamic> state) {
     awayGoals = simulateGoals(oppSplit.attack, adjDefence, cupVariance);
   }
 
+  // **A CUP TIE CANNOT END LEVEL, so a level one goes to penalties.**
   Shootout? penaltyShootout;
   if (homeGoals == awayGoals) {
     penaltyShootout = simulatePenaltyShootout(
@@ -792,14 +793,20 @@ PreparedCupRound? prepareCupRound(Map<String, dynamic> state) {
       oppSplit.attack,
       oppSplit.defence,
     );
-    if (penaltyShootout.playerWins) {
-      homeGoals += 1;
-    } else {
-      awayGoals += 1;
-    }
   }
 
-  final won = homeGoals > awayGoals;
+  // **AND THE SHOOTOUT'S WINNING GOAL IS NOT A GOAL.**
+  //
+  // It used to be added to the scoreline so that `won` and the score agreed,
+  // and then taken back out again in three separate places — the feed, the
+  // bracket, and the summary — each with a comment about why the number it had
+  // been handed was a lie. A 0-0 settled 4-3 on penalties was stored as 1-0 and
+  // printed as 1-0, which is not what happened in the tie.
+  //
+  // The score is the ninety minutes, full stop. `won` travels beside it and the
+  // shootout carries its own pair, which is what lets a scoreline read
+  // `0 (3) - (4) 0` and mean it. Nothing folds and nothing unfolds.
+  final won = penaltyShootout?.playerWins ?? homeGoals > awayGoals;
   final earned = _roundPrize(state, cup, round, won);
 
   return (

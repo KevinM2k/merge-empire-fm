@@ -314,6 +314,20 @@ const Map<String, String> enCopy = <String, String>{
       '{left} seasons left, so this is the moment to cash out.',
   'squad.badge.sell_now': '⚠️ Sell Now — Falling Fast',
   'squad.stat.age': 'Age',
+
+  // ── The shootout, played out ─────────────────────────────────────────────
+  //
+  // A level cup tie always went to penalties and the kicks were always on the
+  // result; what there was no copy for was the MOMENT. The tie was decided
+  // between the whistle and the summary with nothing on screen to watch, and
+  // the marks that explained it sat under the fold of the report.
+  //
+  // `{club}` is the side taking it, so the line reads for either of them.
+  'cup.shootout.title': 'PENALTIES',
+  'cup.shootout.steps_up': '{club} step up…',
+  'cup.shootout.scored': 'GOAL!',
+  'cup.shootout.missed': 'MISSED!',
+  'cup.shootout.sudden_death': 'SUDDEN DEATH',
   // What the years are costing him, as a figure. The badge below it already
   // says "Declining" and the card has dropped a colour by then; neither says
   // how much, and this is the sheet a player opens to find out what a mark on

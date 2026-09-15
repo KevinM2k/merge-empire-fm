@@ -97,15 +97,13 @@ CupTie? beginCupRound(Map<String, dynamic> state) {
   final cup = getCupById(prepared.cupId);
   final rounds = cup?.rounds.length ?? 1;
 
-  // The shootout's winning goal is folded into the scoreline by the engine, so
-  // `won` and the recorded score agree. The FEED must play the ninety minutes
-  // only — a shootout is not a goal in the ninetieth minute — so it is taken back
-  // out here and the shootout is reported at the final whistle instead.
+  // **NOTHING TO UNFOLD ANY MORE.** The engine used to add the shootout's
+  // winning goal to the scoreline and this took it back out so the feed could
+  // play the ninety minutes — a shootout is not a goal in the ninetieth minute.
+  // The score IS the ninety minutes now; see `prepareCupRound`.
   final shootout = prepared.penaltyShootout;
-  final regulationHome =
-      prepared.homeGoals - (shootout != null && prepared.won ? 1 : 0);
-  final regulationAway =
-      prepared.awayGoals - (shootout != null && !prepared.won ? 1 : 0);
+  final regulationHome = prepared.homeGoals;
+  final regulationAway = prepared.awayGoals;
 
   // Hoisted for `addedTime`: unasked, the generator rolls its own stoppage time
   // and puts goals behind it, which a clock stopping at 90 never reached.
@@ -263,6 +261,10 @@ CupSponsorDrop? settleCupRound(Map<String, dynamic> state, CupTie tie) {
   // league a draw is a result. The shootout that was rolled for exactly this
   // case decides it; re-rolling one here would be a second draw from the same
   // hat and could disagree with the kicks already on the save.
+  //
+  // A tie that went to penalties is ALWAYS level at this point now — the
+  // winning kick is no longer folded into the score — so this is the normal
+  // path for a shootout rather than the odd one.
   if (finalHome == finalAway) {
     final shootout = _map(tie.result['penaltyShootout']);
     won = shootout != null
@@ -286,18 +288,16 @@ CupSponsorDrop? settleCupRound(Map<String, dynamic> state, CupTie tie) {
   tie.result['won'] = won;
   tie.result['drawn'] = false;
 
-  // **AND THE SHOOTOUT'S GOAL COMES BACK OUT OF WHAT IS RECORDED.**
+  // **WHAT IS RECORDED IS WHAT WAS PLAYED.**
   //
-  // `prepareCupRound` folds it into the scoreline so the engine's `won` and its
-  // own score agree — the JS does the same and the parity harness pins the
-  // field — while the FEED is built from the ninety minutes without it. So the
-  // player watched a 1-1 and the bracket stored a 2-1, which is what the cup
-  // fixtures sheet then printed. Same fault the summary has `regulationScore`
-  // for, one screen along, and unfolded here for the same reason: `won` travels
-  // separately, so the score is free to be the ninety minutes that were played.
-  final shootout = _map(tie.result['penaltyShootout']);
-  final recordedHome = finalHome - (shootout != null && won ? 1 : 0);
-  final recordedAway = finalAway - (shootout != null && !won ? 1 : 0);
+  // This used to subtract the shootout's winning goal, because the engine had
+  // added it — so the player watched a 1-1 and the bracket stored a 2-1, and
+  // the two disagreed about the same tie. Nothing adds it now, so nothing has
+  // to remember to take it away: `won` travels separately and the bracket
+  // stores the ninety minutes, which is what the cup sheet prints beside the
+  // shootout's own pair.
+  final recordedHome = finalHome;
+  final recordedAway = finalAway;
 
   final drop = commitCupRound(
     state,

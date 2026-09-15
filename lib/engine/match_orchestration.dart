@@ -1870,13 +1870,9 @@ List<Map<String, dynamic>> reSimulateRemainder(
       'homeScore': shootout.homeScore,
       'awayScore': shootout.awayScore,
     };
-    if (shootout.playerWins) {
-      result['homeGoals'] = (result['homeGoals'] as int) + 1;
-      result['won'] = true;
-    } else {
-      result['awayGoals'] = (result['awayGoals'] as int) + 1;
-      result['won'] = false;
-    }
+    // **THE WINNING PENALTY IS NOT A GOAL** — see `prepareCupRound`. The score
+    // stays as the ninety minutes were played; only `won` moves.
+    result['won'] = shootout.playerWins;
     result['drawn'] = false;
   }
 
