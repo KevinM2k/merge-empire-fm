@@ -4497,18 +4497,18 @@ void main() {
     });
 
     testWidgets('A CUP TIE SETTLED ON PENALTIES', (tester) async {
-      // The shootout's winning goal is folded into `homeGoals` so the engine's
-      // `won` and its scoreline agree, and taken back OUT of the feed because a
-      // shootout is not a goal in the ninetieth minute. `regulationScore` is
-      // what unfolds it for the screen, and it has to land back on the ninety
-      // minutes the board counted.
+      // **THE TIE IS LEVEL AND STAYS LEVEL.** The engine used to fold the
+      // shootout's winning goal into `homeGoals` so its `won` and its scoreline
+      // agreed, and the feed then played the ninety minutes without it — so the
+      // board and the score were two different ties and `regulationScore` had
+      // to put them back together. Nothing folds now: the board, the result and
+      // the printed score are the same 2-2, and `won` is what says we went
+      // through.
       await pumpMatch(
         tester,
         {
           ...scored(fixtureKey: 's1_m44', isHome: true, ours: 2, theirs: 2),
           'isCup': true,
-          // Folded: the engine's 3-2 is a 2-2 that was won on penalties.
-          'homeGoals': 3,
           'won': true,
           'drawn': false,
           'penaltyShootout': <String, dynamic>{
@@ -4532,8 +4532,67 @@ void main() {
       // The board played the ninety minutes and nothing else.
       expect(state.frame.ourGoals, 2);
       expect(state.frame.theirGoals, 2);
-      // And the summary prints those, not the folded 3-2.
       expect(regulationScore(state.widget.result), (2, 2));
+      await settleSave(tester);
+    });
+
+    testWidgets('AND THE PENALTIES ARE TAKEN ON THE PITCH', (tester) async {
+      // Asked for from the couch: a player steps up, a pause, then it is a goal
+      // or it is not, and that repeats until the kicks run out. The tie used to
+      // be decided between the whistle and the summary with nothing on screen.
+      await pumpMatch(
+        tester,
+        {
+          ...scored(fixtureKey: 's1_m44', isHome: true, ours: 1, theirs: 1),
+          'isCup': true,
+          'won': false,
+          'drawn': false,
+          'penaltyShootout': <String, dynamic>{
+            'playerWins': false,
+            'homeScore': 3,
+            'awayScore': 4,
+            'kicks': <Map<String, dynamic>>[
+              {'team': 'home', 'scored': true},
+              {'team': 'away', 'scored': true},
+              {'team': 'home', 'scored': false},
+              {'team': 'away', 'scored': true},
+            ],
+          },
+        },
+        save: squadSave(),
+      );
+      final state = stateOf(tester);
+      state.skipToEnd();
+      await tester.pump();
+
+      // It owns the pitch while it runs, and there is nothing to press.
+      expect(state.shootoutPlaying, isTrue);
+      expect(find.byKey(const ValueKey('shootout-sequence')), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('match-continue')),
+        findsNothing,
+        reason: 'a shootout you can press past is one you did not watch',
+      );
+
+      // And the running score counts UP off the kicks shown rather than
+      // starting at the final pair, which would give the ending away.
+      expect(
+        tester
+            .widget<Text>(find.byKey(const ValueKey('shootout-running-score')))
+            .data,
+        '0 - 0',
+      );
+
+      // **PUMPED, not settled.** The sequence runs on plain timers and a
+      // pending timer schedules no frame, so `pumpAndSettle` returns at once
+      // without advancing the clock a millisecond. The kicks have to be waited
+      // out.
+      for (var i = 0; i < 40 && state.shootoutPlaying; i++) {
+        await tester.pump(const Duration(milliseconds: 500));
+      }
+      expect(state.shootoutPlaying, isFalse);
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('match-continue')), findsOneWidget);
       await settleSave(tester);
     });
 

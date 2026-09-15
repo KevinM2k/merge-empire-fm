@@ -954,7 +954,10 @@ void main() {
     built['isHome'] = true;
     await pumpSummary(tester, built);
     expect(
-      tester.widget<Text>(find.byKey(const ValueKey('summary-score'))).data,
+      tester
+          .widget<Text>(find.byKey(const ValueKey('summary-score')))
+          .textSpan!
+          .toPlainText(),
       '3-1',
       reason: 'the screen could not read the engine\'s own score',
     );
@@ -1019,11 +1022,14 @@ void main() {
 /// drew 1-1 in a cup game, it should have went to pens, but instead it didnt, it
 /// came up defeat and said they won 1-2".
 group('a tie decided on penalties', () {
+  /// A tie the engine sent to penalties: **LEVEL after ninety**, with `won`
+  /// carrying the outcome on its own. It used to be built one goal apart,
+  /// because the engine folded the winning penalty into the scoreline.
   Map<String, dynamic> tie({required bool playerWins}) => {
     ...result(won: playerWins),
     'isCup': true,
-    'homeGoals': playerWins ? 2 : 1,
-    'awayGoals': playerWins ? 1 : 2,
+    'homeGoals': 1,
+    'awayGoals': 1,
     'penaltyShootout': <String, dynamic>{
       'playerWins': playerWins,
       'homeScore': playerWins ? 4 : 3,
@@ -1035,23 +1041,48 @@ group('a tie decided on penalties', () {
     },
   };
 
-  test('the printed score has the shootout goal taken back out', () {
+  test('the printed score is the ninety minutes, level and all', () {
+    // It used to have a goal to take back out. Nothing folds one in now, so
+    // this is simply the engine's pair — and a level cup tie is level.
     expect(regulationScore(tie(playerWins: false)), (1, 1));
     expect(regulationScore(tie(playerWins: true)), (1, 1));
     // A tie that was NOT level is left exactly alone.
     expect(regulationScore(result(won: true)), (2, 0));
   });
 
-  testWidgets('so a shootout defeat reads 1-1 and says how it was lost', (
-    tester,
-  ) async {
+  testWidgets('so a shootout defeat reads 1 (3) - (4) 1', (tester) async {
     await pumpSummary(tester, tie(playerWins: false));
     expect(find.text(t('match.defeat').toUpperCase()), findsOneWidget);
-    // The scoreline the player complained about read `1–2`.
-    expect(
-      tester.widget<Text>(find.byKey(const ValueKey('summary-score'))).data,
-      '1-1',
+    // **THE SHOOTOUT IS IN THE SCORELINE, in brackets.** The scoreline the
+    // player complained about read `1-2`; then it read `1-1`, which is true and
+    // says nothing about how the tie was settled. This is the way a scoreline
+    // says it.
+    final score = tester.widget<Text>(
+      find.byKey(const ValueKey('summary-score')),
     );
+    expect(
+      score.textSpan!.toPlainText(),
+      '1 (3)-(4) 1',
+      reason: 'the tiebreak belongs in the scoreline, beside the club it won',
+    );
+  });
+
+  testWidgets('and a shootout WIN reads the same way round', (tester) async {
+    await pumpSummary(tester, tie(playerWins: true));
+    final score = tester.widget<Text>(
+      find.byKey(const ValueKey('summary-score')),
+    );
+    expect(score.textSpan!.toPlainText(), '1 (4)-(3) 1');
+  });
+
+  testWidgets('and a tie with no penalties carries no brackets', (
+    tester,
+  ) async {
+    await pumpSummary(tester, result(won: true));
+    final score = tester.widget<Text>(
+      find.byKey(const ValueKey('summary-score')),
+    );
+    expect(score.textSpan!.toPlainText(), '2-0');
   });
 
   testWidgets('AND THE PENS ARE UNDER THE SCORE, not below the fold', (

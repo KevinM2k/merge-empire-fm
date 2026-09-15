@@ -110,7 +110,25 @@ class ShootoutSequenceState extends State<ShootoutSequence> {
   @override
   void initState() {
     super.initState();
-    _next();
+    // **NOT `_next()` — that calls `setState` and this is `initState`.** The
+    // first taker is already walking when the widget appears, so the state it
+    // would set is the state it starts in; only the timer needs scheduling.
+    if (widget.kicks.isEmpty) {
+      _after(widget.settle, widget.onDone);
+      return;
+    }
+    _waiting = true;
+    _after(widget.stepUp, _resolve);
+  }
+
+  /// The ball is struck: the outcome goes up, and the next taker walks after it
+  /// has been held.
+  void _resolve() {
+    setState(() {
+      _waiting = false;
+      _taken++;
+    });
+    _after(widget.hold, _next);
   }
 
   @override
@@ -136,13 +154,7 @@ class ShootoutSequenceState extends State<ShootoutSequence> {
       return;
     }
     setState(() => _waiting = true);
-    _after(widget.stepUp, () {
-      setState(() {
-        _waiting = false;
-        _taken++;
-      });
-      _after(widget.hold, _next);
-    });
+    _after(widget.stepUp, _resolve);
   }
 
   /// The running score, counted off the kicks already taken — not read off the

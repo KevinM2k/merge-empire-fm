@@ -178,19 +178,41 @@ void main() {
       expect(_cupResults(s), isEmpty);
     });
 
-    test('the feed plays the ninety minutes, not the shootout', () {
-      // The engine folds the shootout winner's goal into the scoreline so `won`
-      // and the score agree. A feed that played it would have a goal in the
-      // ninetieth minute that never happened.
+    test('the feed plays the ninety minutes, and so does the scoreline', () {
+      // **THERE IS NOTHING TO TAKE OUT ANY MORE.** The engine used to fold the
+      // shootout winner's goal into the scoreline so `won` and the score
+      // agreed, and this asserted the feed had one goal FEWER than the score —
+      // a ninetieth-minute goal that never happened. The score is the ninety
+      // minutes now, so the two simply match.
       final s = cupState();
       final tie = beginCupRound(s)!;
       final events = (tie.result['events'] as List)
           .cast<Map<String, dynamic>>();
       final goals = events.where((e) => e['type'] == 'goal').length;
-      final shootout = _map(tie.result['penaltyShootout']);
       final scored =
           (tie.result['homeGoals'] as num) + (tie.result['awayGoals'] as num);
-      expect(goals, shootout == null ? scored : scored - 1);
+      expect(goals, scored);
+    });
+
+    test('and a tie that went to penalties is LEVEL on the result', () {
+      // The whole reason the fold existed, inverted: `won` carries the outcome
+      // and the score is free to be what was played.
+      var seen = 0;
+      for (var seed = 0; seed < 80 && seen < 3; seed++) {
+        setSeed(seed);
+        final s = cupState();
+        final tie = beginCupRound(s)!;
+        final shootout = _map(tie.result['penaltyShootout']);
+        if (shootout == null) continue;
+        seen++;
+        expect(
+          tie.result['homeGoals'],
+          tie.result['awayGoals'],
+          reason: 'seed $seed',
+        );
+        expect(tie.result['won'], shootout['playerWins'], reason: 'seed $seed');
+      }
+      expect(seen, greaterThan(0), reason: 'no seed produced a shootout');
     });
 
     test('THE BOARD GETS A RATING FOR BOTH SIDES, which it did not', () {
@@ -480,15 +502,14 @@ void main() {
     });
 
     test('AND THE FEED ADDS UP TO THE SCORELINE IT IS SHOWN WITH', () {
-      // The shootout's winning goal is folded into `homeGoals` and taken back
-      // out of the feed on purpose, so it is the ninety minutes being compared.
+      // **NOTHING IS FOLDED, so the feed and the scoreline are the same pair.**
+      // This used to subtract the shootout's winning goal from the score before
+      // comparing, because the engine had added it and the feed had not.
       for (var seed = 0; seed < 60; seed++) {
         setSeed(seed);
         final tie = beginCupRound(cupState());
         if (tie == null) continue;
         final result = tie.result;
-        final shootout = _map(result['penaltyShootout']);
-        final won = result['won'] == true;
         final end = 90 + ((result['addedTime'] as num?)?.toInt() ?? 0);
         var ours = 0;
         var theirs = 0;
@@ -505,10 +526,8 @@ void main() {
         expect(
           [ours, theirs],
           [
-            (result['homeGoals'] as num).toInt() -
-                (shootout != null && won ? 1 : 0),
-            (result['awayGoals'] as num).toInt() -
-                (shootout != null && !won ? 1 : 0),
+            (result['homeGoals'] as num).toInt(),
+            (result['awayGoals'] as num).toInt(),
           ],
           reason: 'seed $seed: the feed and the scoreline are different ties',
         );
@@ -517,20 +536,21 @@ void main() {
   });
 
   group('A TIE WON ON PENALTIES IS RECORDED AS THE DRAW IT WAS', () {
-    // `prepareCupRound` folds the shootout's winning goal into the scoreline so
-    // the engine's `won` and its own score agree — the JS does the same, and
-    // the parity harness compares the field. The FEED is built without it, so
-    // the player watches 1-1; the bracket then stored 2-1 and the fixtures
-    // sheet printed it. Same fault as the summary's, one screen along, and it
-    // is unfolded in the same place the port unfolds every other divergence.
+    // It used to be recorded as a one-goal win. `prepareCupRound` folded the
+    // shootout's winning goal into the scoreline so the engine's `won` and its
+    // own score agreed, while the FEED was built without it — so the player
+    // watched a 1-1 and the bracket stored a 2-1, which is what the fixtures
+    // sheet then printed.
+    //
+    // Nothing folds now, so what this group guards has moved: it is no longer
+    // "the unfold works", it is "a level tie is level all the way through".
 
-    /// A tie that really did go to penalties, built the way the screen does.
+    /// A tie that really did go to penalties, built the way the engine does:
+    /// LEVEL after ninety, with `won` carrying the outcome on its own.
     CupTie penaltyTie(Map<String, dynamic> s, {required bool weWin}) {
       final tie = beginCupRound(s)!;
-      // Level after ninety, decided from the spot — the shape `prepareCupRound`
-      // produces, written out so the test does not hunt for a seed.
-      tie.result['homeGoals'] = weWin ? 2 : 1;
-      tie.result['awayGoals'] = weWin ? 1 : 2;
+      tie.result['homeGoals'] = 1;
+      tie.result['awayGoals'] = 1;
       tie.result['won'] = weWin;
       tie.result['penaltyShootout'] = <String, dynamic>{
         'playerWins': weWin,
@@ -566,7 +586,7 @@ void main() {
     });
 
     test('but a tie won in NORMAL time keeps its winning goal', () {
-      // The control: no shootout, nothing to unfold.
+      // The control: a tie that never went to penalties is stored as played.
       final s = cupState();
       final tie = beginCupRound(s)!;
       tie.result['homeGoals'] = 2;
