@@ -605,6 +605,21 @@ class MatchScreenState extends ConsumerState<MatchScreen>
   /// The clock waits while the panel is open — choosing is not watching.
   bool _paused = false;
 
+  /// A casualty who went down while the screen was busy with another card.
+  ///
+  /// **[_onInjuryShown]'s `_paused` guard used to be a silent `return`**, and
+  /// that is the whole of the bug: the red-card tip, the subs panel and a
+  /// previous injury all hold the match, and an injury arriving under any of
+  /// them was dropped on the floor — no card, no trip to the bench, nothing but
+  /// a line in a scrolling feed. The manager found out by opening the bench
+  /// later and seeing a man in the treatment room. Reported from the couch as
+  /// an injury with no notification at all, which is the same sentence the
+  /// function's own doc comment already carried for a different guard.
+  ///
+  /// Held here instead and drained by [_drainPendingInjury] the moment the
+  /// screen is its own again.
+  String? _pendingInjury;
+
   /// The arrow's own figure, handed to the idle pitch so the shape it holds and
   /// the arrow over it are the same reading rather than two.
   final ValueNotifier<double> _momentum = ValueNotifier<double>(0);
@@ -1817,6 +1832,8 @@ class MatchScreenState extends ConsumerState<MatchScreen>
     _physioSpent.addAll(_physioCandidates());
     _quietSpent.addAll(_quietCandidates());
     if (mounted) setState(() => _paused = false);
+    // A man can go down while the bench is open — see [_pendingInjury].
+    _drainPendingInjury();
   }
 
   /// The statistics, on demand, from the board's own chart button.
@@ -1952,7 +1969,13 @@ class MatchScreenState extends ConsumerState<MatchScreen>
     // **HELD, so the card is not read over a match still running.** A
     // substitution is the manager's answer to this and `openSubs` holds it
     // anyway; the difference is that the question now holds it too.
-    if (_paused) return;
+    //
+    // And when something else is already holding it, the casualty WAITS rather
+    // than being forgotten — see [_pendingInjury].
+    if (_paused) {
+      _pendingInjury = player ?? _pendingInjury ?? t('common.player');
+      return;
+    }
     setState(() => _paused = true);
     await showCoachCard<void>(
       context,
@@ -1982,9 +2005,25 @@ class MatchScreenState extends ConsumerState<MatchScreen>
     // pointless, which is why this guard exists — and with a sponge in hand it
     // is the one place the boost can be taken, so the guard would have hidden
     // it in the exact case it is worth most.
-    if ((spent || nobody) && physioTarget == null) return;
+    if ((spent || nobody) && physioTarget == null) {
+      _drainPendingInjury();
+      return;
+    }
     if (frame.finished) return;
     await openSubs(openOn: holes.length == 1 ? holes.first : null);
+    _drainPendingInjury();
+  }
+
+  /// Show a casualty who went down while the screen was busy, if one did.
+  ///
+  /// Called at the end of every flow that holds the match — see
+  /// [_pendingInjury]. Cleared BEFORE the call so a second injury arriving
+  /// under this one queues again rather than re-entering the same name.
+  void _drainPendingInjury() {
+    final waiting = _pendingInjury;
+    if (waiting == null || !mounted || frame.finished) return;
+    _pendingInjury = null;
+    unawaited(_onInjuryShown(waiting));
   }
 
   /// **THE CARD IS EXPLAINED, then the bench is opened.**
@@ -2753,6 +2792,7 @@ class MatchScreenState extends ConsumerState<MatchScreen>
     }
     if (!mounted || frame.finished) return;
     await openSubs();
+    _drainPendingInjury();
   }
 
   /// The ledger id the red-card explanation is spent from.
