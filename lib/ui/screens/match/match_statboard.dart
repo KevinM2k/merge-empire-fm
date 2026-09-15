@@ -448,6 +448,13 @@ class MatchStatboard extends StatelessWidget {
                 duration: const Duration(milliseconds: 350),
                 switchInCurve: Curves.easeOut,
                 switchOutCurve: Curves.easeIn,
+                // The switcher's own stack centres, which centred a short
+                // row of cards; the list starts at the left like every row
+                // above it. Reported from the couch.
+                layoutBuilder: (current, previous) => Stack(
+                  alignment: Alignment.topLeft,
+                  children: [...previous, ?current],
+                ),
                 transitionBuilder: (child, anim) => FadeTransition(
                   opacity: anim,
                   child: ScaleTransition(scale: Tween(begin: 0.92, end: 1.0).animate(anim), child: child),

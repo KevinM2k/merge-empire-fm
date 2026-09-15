@@ -327,6 +327,13 @@ void main() {
       expect(find.byKey(const ValueKey('match-active-cards')), findsOneWidget);
       expect(find.byKey(const ValueKey('match-active-ten_man_wall-c3')), findsNothing);
       expect(find.byKey(const ValueKey('match-active-ten_man_wall-c7')), findsOneWidget);
+      // Ten cards over three columns leave a short last row; it starts at the
+      // left like the rows above it, not centred.
+      final heading = tester.getRect(find.byKey(const ValueKey('match-active')));
+      final first = tester.getRect(find.byKey(const ValueKey('match-active-ten_man_wall-c0')));
+      final last = tester.getRect(find.byKey(const ValueKey('match-active-ten_man_wall-c10')));
+      expect(first.left, closeTo(heading.left, 0.5));
+      expect(last.left, closeTo(heading.left, 0.5));
       await tester.tapAt(const Offset(5, 5));
       await tester.pumpAndSettle();
       await _finish(tester, state);

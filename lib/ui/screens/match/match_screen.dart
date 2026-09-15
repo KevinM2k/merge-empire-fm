@@ -1606,7 +1606,6 @@ class MatchScreenState extends ConsumerState<MatchScreen>
     if (_liveGlow.isAnimating) _liveGlow.stop();
     if (_reported) return;
     _reported = true;
-    _closeStats();
     _catchUpSendingsOff();
     // **AND THE BANS ARE WRITTEN AT THE WHISTLE.** A sending-off costs the next
     // match as well as the rest of this one — see `applySuspensions`. It goes
@@ -1830,26 +1829,20 @@ class MatchScreenState extends ConsumerState<MatchScreen>
   /// rebuilds never reached it: the numbers it opened with were the numbers
   /// it showed until it closed. Reported from the couch. It listens to the
   /// clock now and re-reads the same figures the board reads, every tick.
-  /// The stats sheet's route while it is up, so the whistle can close it:
-  /// the statistics are on the pitch at full time, and the sheet's own
-  /// "Active" list is about a match that is over. Asked for from the couch.
-  NavigatorState? _statsOpenOn;
-
-  void _closeStats() {
-    final nav = _statsOpenOn;
-    _statsOpenOn = null;
-    if (nav != null && nav.mounted && nav.canPop()) nav.pop();
+  /// The sheet closes itself at the whistle: the statistics are on the pitch
+  /// at full time, and its own "Active" list is about a match that is over.
+  /// Asked for from the couch. By ROUTE, not by `pop`, so a card that has
+  /// landed on top of it is left alone.
+  void _closeStatsAtWhistle(BuildContext ctx) {
+    if (!frame.finished) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!ctx.mounted) return;
+      final route = ModalRoute.of(ctx);
+      if (route != null && route.isActive) Navigator.of(ctx).removeRoute(route);
+    });
   }
 
-  Future<void> _showStats(bool home) async {
-    if (frame.finished) return _openStats(home);
-    _statsOpenOn = Navigator.of(context);
-    try {
-      await _openStats(home);
-    } finally {
-      _statsOpenOn = null;
-    }
-  }
+  Future<void> _showStats(bool home) => _openStats(home);
 
   Future<void> _openStats(bool home) => showBottomSheetPopup<void>(
     context,
@@ -1859,16 +1852,19 @@ class MatchScreenState extends ConsumerState<MatchScreen>
       padding: const EdgeInsets.fromLTRB(18, 16, 18, 24),
       child: AnimatedBuilder(
         animation: _ticked,
-        builder: (context, _) => MatchStatboard(
-          stats: liveStatsFor(
-            frame: frame,
-            result: widget.result,
+        builder: (context, _) {
+          _closeStatsAtWhistle(context);
+          return MatchStatboard(
+            stats: liveStatsFor(
+              frame: frame,
+              result: widget.result,
+              isHome: home,
+              strategyId: _strategy,
+            ),
             isHome: home,
-            strategyId: _strategy,
-          ),
-          isHome: home,
-          active: _activeLifts(),
-        ),
+            active: _activeLifts(),
+          );
+        },
       ),
     ),
   );
