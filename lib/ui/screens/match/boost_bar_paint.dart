@@ -180,7 +180,7 @@ class _AuraPainter extends CustomPainter {
       final left = shownOf(id).clamp(0.0, 1.0);
       final breathe = 0.5 + 0.5 * math.sin(phase + i * 1.3);
       final inset = 4.0 + i * 10.0;
-      final band = 30.0 + 10.0 * breathe;
+      final band = 18.0 + 6.0 * breathe;
       final rect = Rect.fromLTWH(
         inset,
         inset,
@@ -215,10 +215,12 @@ class _AuraPainter extends CustomPainter {
       // The wide wash, everywhere the ring is lit, at a strength that reads
       // on grass — it was faint enough that only its brightest stretch
       // showed and the ring looked lit in patches. Reported from the couch.
+      // Even along the ring, but a halo rather than a flood: it was wide
+      // enough to wash a third of the pitch. Reported from the couch.
       canvas.drawPath(
         drawn,
         Paint()
-          ..color = colour.withValues(alpha: 0.55 + 0.20 * breathe)
+          ..color = colour.withValues(alpha: 0.30 + 0.12 * breathe)
           ..style = PaintingStyle.stroke
           ..strokeWidth = band
           ..maskFilter = MaskFilter.blur(BlurStyle.normal, band * 0.5),
@@ -226,10 +228,10 @@ class _AuraPainter extends CustomPainter {
       canvas.drawPath(
         drawn,
         Paint()
-          ..color = colour.withValues(alpha: 0.75)
+          ..color = colour.withValues(alpha: 0.6)
           ..style = PaintingStyle.stroke
-          ..strokeWidth = 10
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5),
+          ..strokeWidth = 7
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
       );
       if (len > 0) {
         const segments = 36;
@@ -257,12 +259,12 @@ class _AuraPainter extends CustomPainter {
           canvas.drawPath(
             piece,
             Paint()
-              ..color = Color.lerp(colour, Colors.white, 0.15 + 0.45 * wave)!
-                  .withValues(alpha: 0.85)
+              ..color = Color.lerp(colour, Colors.white, 0.1 + 0.35 * wave)!
+                  .withValues(alpha: 0.8)
               ..style = PaintingStyle.stroke
-              ..strokeWidth = 6
+              ..strokeWidth = 4
               ..strokeCap = StrokeCap.round
-              ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
+              ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2),
           );
         }
       }
