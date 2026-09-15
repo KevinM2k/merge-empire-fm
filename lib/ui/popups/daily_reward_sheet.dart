@@ -521,7 +521,10 @@ class _CycleStrip extends StatelessWidget {
                           // it would be a big empty box with small print.
                           // Two halves on a normal day, thirds on the one that
                           // pays three wallets.
-                          slots: grand ? 3 : 2,
+                          // Three on a day, four on the grand tile: a boost
+                          // rides beside the energy on day 2 and beside the
+                          // gems on day 7. The chips scale down to fit.
+                          slots: grand ? 4 : 3,
                         ),
                       ),
                     ),

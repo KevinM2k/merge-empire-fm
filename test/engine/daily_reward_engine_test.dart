@@ -19,6 +19,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:merge_empire_fc/data/boosts.dart' show getBoost;
 import 'package:merge_empire_fc/engine/boost_engine.dart';
 import 'package:merge_empire_fc/engine/daily_reward_engine.dart';
 import 'package:merge_empire_fc/util/event_bus.dart';
@@ -254,14 +255,21 @@ void main() {
   //
   // The JS calendar has no boosts, and the parity checks above and below read
   // the five fields it does have — so this rides beside them, never in them.
-  group('the day-4 boost', () {
-    test('DAY 4 PAYS A CROWD ROAR AS WELL AS ITS COINS', () {
-      // The engine's own comment called day 4 flat since the Scout Voucher
-      // left it. Its coins are untouched.
+  group('the boosts on the calendar', () {
+    test('FIVE DAYS PAY A BOOST AS WELL AS THEIR COINS, and two pay none', () {
+      expect(dailyRewards[1]!.boost, 'physio_sponge');
+      expect(dailyRewards[2]!.boost, 'park_the_bus');
       expect(dailyRewards[4]!.boost, 'crowd_roar');
+      expect(dailyRewards[6]!.boost, 'sharp_shooting');
+      expect(dailyRewards[7]!.boost, 'var_review');
+      // The coins are untouched by any of them.
       expect(dailyRewards[4]!.coinsMult, 3);
-      for (final d in [1, 2, 3, 5, 6, 7]) {
+      for (final d in [3, 5]) {
         expect(dailyRewards[d]!.boost, isNull, reason: 'day $d');
+      }
+      // Every one named is a real boost.
+      for (final r in dailyRewards.values) {
+        if (r.boost case final b?) expect(getBoost(b), isNotNull, reason: b);
       }
     });
 

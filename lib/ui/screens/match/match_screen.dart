@@ -3393,8 +3393,13 @@ class MatchScreenState extends ConsumerState<MatchScreen>
                                     if (!f.finished &&
                                         _boosts.activeAt(f.minute).isNotEmpty)
                                       BoostAura(
-                                        ids: [
-                                          for (final b in _boosts.activeAt(f.minute)) b.id,
+                                        rings: [
+                                          for (final b in _boosts.activeAt(f.minute))
+                                            (
+                                              id: b.id,
+                                              left: (b.toMinute - f.minute) /
+                                                  (b.toMinute - b.fromMinute),
+                                            ),
                                         ],
                                         on: _liveGlow.isAnimating,
                                       ),
@@ -4554,43 +4559,23 @@ class _Scoreboard extends StatelessWidget {
                 ),
               ),
             const SizedBox(height: 8),
-            // **THE BAR BURNS WHILE A WINDOW IS OPEN.** It already means
-            // match time. A Roar turns the WHOLE bar flame with fire running
-            // over it until the window closes — see `FlameOverlay`; a Bus is
-            // a grey band across its own minutes. Taller while anything is
-            // live, so the fire has somewhere to burn.
+            // **THE BAR IS THE CLOCK AND NOTHING ELSE.** It burned in a
+            // window's colour for a while; the aura on the pitch says that
+            // now, and says how long is left, so the bar went back to being
+            // the bar. Asked for from the couch.
             ClipRRect(
               borderRadius: const BorderRadius.only(
                 bottomLeft: Radius.circular(14),
                 bottomRight: Radius.circular(14),
               ),
               child: SizedBox(
-                height: bands.isEmpty ? 3 : (barBurn(bands) != null ? 8 : 6),
-                child: Stack(
-                  fit: StackFit.expand,
-                  children: [
-                    LinearProgressIndicator(
-                      value: (minute / 90).clamp(0.0, 1.0),
-                      backgroundColor: switch (barBurn(bands)) {
-                        final b? => burnColours(b).ground,
-                        null => kit.border,
-                      },
-                      valueColor: AlwaysStoppedAnimation(
-                        switch (barBurn(bands)) {
-                          final b? => burnColours(b).fill,
-                          null => glassAccent(context, kit.accentBright),
-                        },
-                      ),
-                    ),
-                    if (bands.isNotEmpty)
-                      BoostBands(windows: bands, glow: glow, burn: barBurn(bands)),
-                    if (barBurn(bands) case final burn?)
-                      FlameOverlay(
-                        on: glow != null,
-                        progress: (minute / 90).clamp(0.0, 1.0),
-                        burn: burn,
-                      ),
-                  ],
+                height: 3,
+                child: LinearProgressIndicator(
+                  value: (minute / 90).clamp(0.0, 1.0),
+                  backgroundColor: kit.border,
+                  valueColor: AlwaysStoppedAnimation(
+                    glassAccent(context, kit.accentBright),
+                  ),
                 ),
               ),
             ),

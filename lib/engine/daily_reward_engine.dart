@@ -84,17 +84,19 @@ DailyReward _day({
 ///
 /// `freeScout` and `healOne` are still supported by every function here and are
 /// simply unused above, so a day can pick either back up with no new plumbing.
+// **FIVE OF THE SIX BOOSTS RIDE THE WEEK**, one a day on days 1, 2, 4, 6 and
+// 7 — a taste of each gem product, the theory the Scout Voucher was on day 4
+// for. Quiet Word is the one left out: a week is seven days and the bag is
+// meant to be topped up in the shop, not filled by the calendar. Day 4's
+// Roar was the first; the rest were asked for from the couch.
 final Map<int, DailyReward> dailyRewards = {
-  1: _day(coinsMult: 2),
-  2: _day(coinsMult: 1, energy: 2),
+  1: _day(coinsMult: 2, boost: 'physio_sponge'),
+  2: _day(coinsMult: 1, energy: 2, boost: 'park_the_bus'),
   3: _day(coinsMult: 4),
-  // Day 4 lost the Scout Voucher and has read flat since. It gets a Crowd
-  // Roar beside its coins — a taste of a gem product, the same theory the
-  // voucher was there on.
   4: _day(coinsMult: 3, boost: 'crowd_roar'),
   5: _day(coinsMult: 2, energy: 3),
-  6: _day(coinsMult: 6),
-  7: _day(coinsMult: 10, energy: 4, gems: 2),
+  6: _day(coinsMult: 6, boost: 'sharp_shooting'),
+  7: _day(coinsMult: 10, energy: 4, gems: 2, boost: 'var_review'),
 };
 
 const int cycleDays = 7;

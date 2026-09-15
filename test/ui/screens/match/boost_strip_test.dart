@@ -192,7 +192,8 @@ void main() {
       expect(state.boostWindows.single.id, 'crowd_roar');
       expect(state.boostWindows.single.toMinute, state.frame.minute + 25);
       expect(state.resimCount, 1);
-      expect(find.byKey(const ValueKey('match-boost-band-crowd_roar')), findsOneWidget);
+      // On the pitch, not the bar: the aura is what says it is live.
+      expect(find.byKey(const ValueKey('match-boost-aura')), findsOneWidget);
       expect(find.byKey(const ValueKey('match-live-glow')), findsOneWidget);
       expect(find.byKey(const ValueKey('match-live-source-pill')), findsOneWidget);
       expect(state.notes.any((n) => n.key == 'boost.roar.live'), isTrue);
@@ -217,7 +218,7 @@ void main() {
             'resims ${state.resimCount}, pending ${state.pendingResims}',
       );
       expect(state.resimCount, 2);
-      expect(find.byKey(const ValueKey('match-boost-band-crowd_roar')), findsNothing);
+      expect(find.byKey(const ValueKey('match-boost-aura')), findsNothing);
       expect(state.notes.any((n) => n.key == 'boost.roar.over'), isTrue);
       expect(liftedAtk, greaterThan(state.liveRatings['liveAttackRating'] as num));
       expect(liftedDef, greaterThan(state.liveRatings['liveDefenceRating'] as num));
@@ -232,7 +233,7 @@ void main() {
       await tester.pump(minuteDurationFor(40));
       await _call(tester, 'park_the_bus');
       expect(state.boostWindows.single.id, 'park_the_bus');
-      expect(find.byKey(const ValueKey('match-boost-band-park_the_bus')), findsOneWidget);
+      expect(find.byKey(const ValueKey('match-boost-aura')), findsOneWidget);
       expect(state.notes.any((n) => n.key == 'boost.bus.live'), isTrue);
       final busAtk = state.liveRatings['liveAttackRating'] as num;
       final busOpp = state.liveRatings['liveOppAttackRating'] as num;
@@ -250,7 +251,7 @@ void main() {
       await _finish(tester, plain);
     });
 
-    testWidgets('SHARP SHOOTING lifts our ATK alone, and the bar wears gold', (
+    testWidgets('SHARP SHOOTING lifts our ATK alone, and the pitch says so', (
       tester,
     ) async {
       await pumpMatch(
@@ -263,8 +264,7 @@ void main() {
       await tester.pump(minuteDurationFor(40));
       await _call(tester, 'sharp_shooting');
       expect(state.boostWindows.single.id, 'sharp_shooting');
-      expect(find.byKey(const ValueKey('match-boost-band-sharp_shooting')), findsOneWidget);
-      expect(find.byKey(const ValueKey('match-boost-band-crowd_roar')), findsNothing);
+      expect(find.byKey(const ValueKey('match-boost-aura')), findsOneWidget);
       expect(state.notes.any((n) => n.key == 'boost.sharp.live'), isTrue);
       // ATK up on the board, DEF where it was: the lift is one stat only.
       final sharpAtk = state.liveRatings['liveAttackRating'] as num;
