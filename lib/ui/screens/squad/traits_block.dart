@@ -122,6 +122,7 @@ class TraitBlockState extends ConsumerState<TraitBlock> {
       body: null,
       glyph: 'gem',
       currency: SpendCurrency.gems,
+      glyphColor: null,
       cost: matchSlotGemCost,
       buy: () => game.update((s) => unlockMatchSlot(s, widget.instanceId)).reason,
     ));

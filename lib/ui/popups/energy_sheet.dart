@@ -293,6 +293,7 @@ class _RefillButton extends ConsumerWidget {
                   body: null,
                   glyph: gemItemIcons[_itemId] ?? 'gem',
                   currency: SpendCurrency.gems,
+                  glyphColor: null,
                   cost: item.cost,
                   buy: () => callerRef
                       .read(gameProvider)

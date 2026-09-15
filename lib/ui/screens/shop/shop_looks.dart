@@ -176,6 +176,7 @@ class LooksSection extends ConsumerWidget {
                           body: PackContents(packId: tile.packId),
                           glyph: 'shirt',
                           currency: SpendCurrency.gems,
+                          glyphColor: null,
                           cost: tile.tile.cost,
                           buy: () => ref
                               .read(gameProvider)

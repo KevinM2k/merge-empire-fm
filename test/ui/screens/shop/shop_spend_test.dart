@@ -15,6 +15,7 @@ import 'package:merge_empire_fc/ui/screens/shop/shop_spend.dart';
 
 import 'shop_helpers.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
+import 'package:merge_empire_fc/ui/screens/match/boost_bar_paint.dart' show flameDeep;
 import 'package:merge_empire_fc/ui/widgets/store_button.dart';
 
 /// Tap a priced row and say yes. Spending is a two-beat flow now — see
@@ -62,7 +63,8 @@ void main() {
           matching: find.byType(GameIcon),
         ),
       );
-      expect(glyphs.any((g) => g.name == 'megaphone'), isTrue);
+      // And in the tile's red, not the accent.
+      expect(glyphs.any((g) => g.name == 'megaphone' && g.color == flameDeep), isTrue);
       await tester.tap(find.byKey(const ValueKey('spend-cancel-boost-crowd_roar')));
       await tester.pumpAndSettle();
       await buyRow(tester, 'boost-crowd_roar');

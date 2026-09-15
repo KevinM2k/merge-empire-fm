@@ -191,6 +191,8 @@ class _SpendShelf extends ConsumerWidget {
                       body: null,
                       glyph: consumableIcons[row.id] ?? 'coin',
                       currency: SpendCurrency.coins,
+                      // The tile's own ink, so the card and the tile agree.
+                      glyphColor: hudCoinInk,
                       cost: row.cost,
                       buy: () =>
                           game.update((s) => buyConsumable(s, row.id)).reason,
@@ -241,6 +243,7 @@ class _SpendShelf extends ConsumerWidget {
                       body: null,
                       glyph: gemItemIcons[tile.item.id] ?? 'gem',
                       currency: SpendCurrency.gems,
+                      glyphColor: income ? hudCoinInk : hudGemInk,
                       cost: tile.item.cost,
                       buy: () => game
                           .update((s) => buyGemItem(s, tile.item.id))
@@ -331,6 +334,7 @@ class VouchersSection extends ConsumerWidget {
                       body: null,
                       glyph: 'ticket',
                       currency: SpendCurrency.gems,
+                      glyphColor: hudGemInk,
                       cost: item.item.cost,
                       buy: () => game
                           .update((s) => buyGemItem(s, item.item.id))
@@ -402,6 +406,7 @@ class VouchersSection extends ConsumerWidget {
                         body: null,
                         glyph: 'ticket',
                         currency: SpendCurrency.gems,
+                        glyphColor: hudGemInk,
                         cost: tile.cost ?? 0,
                         buy: () => game
                             .update((s) => buyScoutVoucher(s, tile.floor))
@@ -470,9 +475,11 @@ class MatchBoostsSection extends ConsumerWidget {
                               ),
                             )
                           : null,
-                      // Its own icon, not the gem: the gem is on the button.
+                      // Its own icon in the tile's red, not the gem: the
+                      // gem is on the button.
                       glyph: boost.icon,
                       currency: SpendCurrency.gems,
+                      glyphColor: flameDeep,
                       cost: boost.gemCost,
                       buy: () =>
                           game.update((s) => buyBoostPack(s, boost.id)).reason,

@@ -58,6 +58,9 @@ typedef SpendOffer = ({
   /// An icon NAME from `game_icon.dart` — the app's own line art, not an emoji.
   String glyph,
   SpendCurrency currency,
+
+  /// The icon's ink, when the tile drew it in something other than the accent.
+  Color? glyphColor,
   int cost,
 
   /// Anything the offer wants to SHOW rather than say.
@@ -264,7 +267,7 @@ class _ConfirmCard extends StatelessWidget {
       content: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          GameIcon(offer.glyph, size: 40, color: kit.accentBright),
+          GameIcon(offer.glyph, size: 40, color: offer.glyphColor ?? kit.accentBright),
           const SizedBox(height: 8),
           Text(
             offer.title,

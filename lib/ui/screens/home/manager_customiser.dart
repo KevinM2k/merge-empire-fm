@@ -455,6 +455,7 @@ class _ManagerCustomiserState extends ConsumerState<ManagerCustomiser> {
       body: PackContents(packId: packId),
       glyph: 'shirt',
       currency: SpendCurrency.gems,
+      glyphColor: null,
       cost: tile.cost,
       buy: () =>
           ref.read(gameProvider).update((s) => buyLookPack(s, packId)).reason,

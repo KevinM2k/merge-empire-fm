@@ -146,6 +146,7 @@ List<Widget> matchDayTiles(BuildContext context, WidgetRef ref) {
               body: null,
               glyph: 'stopwatch',
               currency: SpendCurrency.gems,
+              glyphColor: hudGemInk,
               cost: matchDayGemCost,
               buy: () => _buy(
                 ref,
@@ -184,6 +185,7 @@ List<Widget> matchDayTiles(BuildContext context, WidgetRef ref) {
               body: null,
               glyph: 'clover',
               currency: SpendCurrency.gems,
+              glyphColor: hudGemInk,
               cost: luckyBootGemCost,
               buy: () => _buy(
                 ref,
