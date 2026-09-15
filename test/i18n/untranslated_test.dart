@@ -61,34 +61,11 @@ const Map<String, String> _allowed = <String, String>{
 
   // A platform name, which is the same in every store.
   'leaderboard.platform_android': 'a proper noun',
-
-  // And the nine nothing can print — see [_noCaller], which both allowlists
-  // fold in, because the reason is the same in either script.
-  ..._noCaller,
 };
 
-/// **NINE STRINGS NOTHING CAN PRINT.**
-///
-/// `coach.tactic_tip.*` has no caller anywhere in `lib/` — not a literal, not a
-/// key built from a prefix — so these are shipped copy for a feature the port
-/// has not built: the pre-match tactical read that names the tactic and the
-/// opponent. Translating them would be translating dead text; see
-/// `docs/REMAINING.md`.
-///
-/// Listed one by one rather than by prefix so that building the feature has to
-/// come back through here, and held apart from the two allowlists so the reason
-/// is written once rather than in both scripts.
-const Map<String, String> _noCaller = <String, String>{
-  'coach.tactic_tip.open_dominant': 'no caller in lib/',
-  'coach.tactic_tip.open_favoured': 'no caller in lib/',
-  'coach.tactic_tip.open_even': 'no caller in lib/',
-  'coach.tactic_tip.open_underdog': 'no caller in lib/',
-  'coach.tactic_tip.exploit_their_def': 'no caller in lib/',
-  'coach.tactic_tip.counter_their_atk': 'no caller in lib/',
-  'coach.tactic_tip.park_underdog': 'no caller in lib/',
-  'coach.tactic_tip.tight_favoured': 'no caller in lib/',
-  'coach.tactic_tip.tight_underdog': 'no caller in lib/',
-};
+// `coach.tactic_tip.*` — nine strings with no caller in `lib/` — sat here as
+// "dead text, not worth translating" until they were translated anyway, so
+// the day the pre-match read is built it arrives in ten languages.
 
 /// The five Latin catalogues, where equality with English is the only tell.
 const List<String> _latin = <String>['it', 'fr', 'de', 'es', 'pt'];
@@ -107,7 +84,6 @@ const Map<String, String> _allowedLatin = <String, String>{
   'settings.tab.audio': 'a loanword',
   'customise.item.hair.afro': 'a loanword',
   'cup.round_short.final': 'the word in es and pt; fr and de override it',
-  ..._noCaller,
   // Placeholders and glyphs, the same as the list above.
   'leaderboard.pill_division_regional': 'two placeholders and a separator',
   'toast.payout_suffix': 'a separator and a placeholder',

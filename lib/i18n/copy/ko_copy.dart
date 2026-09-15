@@ -576,5 +576,17 @@ const Map<String, String> koCopy = <String, String>{
   'matchtrait.name.warrior': "전사",
   'matchtrait.desc.warrior': "통증을 참고 뜀 — 부상을 털어내고 이어갈 수 있음",
   'hud.income.trophy_polish': "트로피 광택 · {mins}분 남음",
-  'play.mod.stagnation': "이 디비전에서 보낸 시즌 – 시즌마다 1점",
+  // Colin's pre-match tactic tips shipped in English in every catalogue.
+  'coach.tactic_tip.counter_their_atk': "{opp}은(는) 공격이 위협적입니다. {tactic} — 버티고 역습으로 응수하세요.",
+  'coach.tactic_tip.exploit_their_def': "{opp}의 수비가 허술합니다. {tactic} — 승리를 노리세요.",
+  'coach.tactic_tip.open_dominant': "양 팀 모두 득점하겠지만 우리가 확실히 강합니다. {tactic} — 승리를 노리세요.",
+  'coach.tactic_tip.open_even': "양 팀 모두 기회를 만들 겁니다. {tactic} — 역습으로 {opp}을(를) 노리세요.",
+  'coach.tactic_tip.open_favoured': "양쪽 모두 기회가 있겠지만 우리가 앞서야 합니다. {tactic}으로 경기를 지배하세요.",
+  'coach.tactic_tip.open_underdog': "{opp}이(가) 더 강하지만 열린 경기가 될 겁니다. {tactic} — 기회가 오면 살리세요.",
+  'coach.tactic_tip.park_underdog': "{opp}은(는) 실제 위협이고 득점이 어려울 겁니다. {tactic} — 피해를 최소화하세요.",
+  'coach.tactic_tip.tight_favoured': "팽팽한 경기지만 우리가 우위입니다. {tactic} — 기회를 만들어내세요.",
+  'coach.tactic_tip.tight_underdog': "양쪽 모두 득점이 어렵습니다. {tactic} — 규율을 지키세요.",
+  'product.starter_pack.desc': "{coins} 코인 + 에너지 10 + 젬 {gems}개 — 코인과 에너지는 리셋마다 다시 지급!",
+  'product.starter_pack.descHard': "{coins} 코인 + 스쿼드 체력 완전 회복 + 젬 {gems}개 — 코인과 체력은 리셋마다 다시 지급!",
+  'product.vip_pass.desc': "{coins} 코인 즉시 지급 · 젬 {gems}개 · 수입 ×2 · 경기 대기 10초(기본 30초) · 30일.",
 };

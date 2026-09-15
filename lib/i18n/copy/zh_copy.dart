@@ -501,5 +501,17 @@ const Map<String, String> zhCopy = <String, String>{
   'matchtrait.name.warrior': "战士",
   'matchtrait.desc.warrior': "咬牙坚持——可能抖掉伤痛继续比赛",
   'hud.income.trophy_polish': "奖杯抛光 · 剩余 {mins} 分钟",
-  'play.mod.stagnation': "在本级别联赛的赛季数 – 每个赛季加 1 分",
+  // Colin's pre-match tactic tips shipped in English in every catalogue.
+  'coach.tactic_tip.counter_their_atk': "{opp}的进攻很有威胁。{tactic}——先顶住，再反击。",
+  'coach.tactic_tip.exploit_their_def': "{opp}的防线有漏洞。{tactic}——全力争胜。",
+  'coach.tactic_tip.open_dominant': "双方都会进球，但我们明显更强。{tactic}——全力争胜。",
+  'coach.tactic_tip.open_even': "双方都会创造机会。{tactic}——用反击打击{opp}。",
+  'coach.tactic_tip.open_favoured': "双方都有机会，但我们应该略占上风。{tactic}来控制比赛。",
+  'coach.tactic_tip.open_underdog': "{opp}更强，但比赛会很开放。{tactic}——机会来了就要把握。",
+  'coach.tactic_tip.park_underdog': "{opp}威胁很大，我们很难进球。{tactic}——把损失降到最低。",
+  'coach.tactic_tip.tight_favoured': "比赛会很紧，但我们略有优势。{tactic}——创造出那个机会。",
+  'coach.tactic_tip.tight_underdog': "双方都很难进球。{tactic}——保持纪律。",
+  'product.starter_pack.desc': "{coins} 金币 + 10 体力 + {gems} 宝石——金币和体力每次重置都会再次发放！",
+  'product.starter_pack.descHard': "{coins} 金币 + 全队体能完全恢复 + {gems} 宝石——金币和体能每次重置都会再次发放！",
+  'product.vip_pass.desc': "立即获得 {coins} 金币 · {gems} 宝石 · 收入 ×2 · 比赛间隔 10 秒（原为 30 秒） · 30 天。",
 };

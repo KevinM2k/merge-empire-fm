@@ -4379,6 +4379,27 @@ void main() {
     expect(rows.right.def, 77);
   });
 
+  testWidgets('AND THE STAGNATION BUFF IS NEVER ON THE BOARD', (tester) async {
+    // It is inside every figure the sim ran on and the player must never see
+    // it — see `next_match_card.dart`. The board takes it off.
+    await pumpMatch(tester, {
+      ...matchResult(),
+      'ourAttackRating': 89,
+      'ourDefenceRating': 96,
+      'homeAdvDisplay': 0,
+      'stagnationBuff': 3,
+      'effOppAttackRating': 75,
+      'effOppDefenceRating': 77,
+      'effectiveSquadRating': 91,
+      'effectiveOppRating': 77,
+      'oppAttackRatio': 0.5,
+    });
+    final rows = tester.widget<MatchStatRows>(find.byType(MatchStatRows));
+    expect(rows.left.atk, 89);
+    expect(rows.left.def, 96);
+    expect(rows.leftRating, 88);
+  });
+
   testWidgets('and a ground with no crowd behind it still reads straight', (
     tester,
   ) async {

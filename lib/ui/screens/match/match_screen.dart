@@ -54,7 +54,7 @@ import 'package:merge_empire_fc/data/match_traits.dart'
 import 'package:merge_empire_fc/ui/screens/match/goal_replay.dart'
     show conceded;
 import 'package:merge_empire_fc/engine/match_orchestration.dart'
-    show ourMatchSplit, recordFixtureResult, reSimulateRemainder, undoInjury;
+    show matchRatingMods, ourMatchSplit, recordFixtureResult, reSimulateRemainder, undoInjury;
 import 'package:merge_empire_fc/ui/screens/home/coach_bubble.dart'
     show coachSuggestedTacticProvider;
 import 'package:merge_empire_fc/ui/screens/home/league_providers.dart'
@@ -2582,11 +2582,13 @@ class MatchScreenState extends ConsumerState<MatchScreen>
         effect: t('boost.${b.id}.effect'),
         until: _boosts.endOf(b.id),
         card: null,
+        mult: 1,
       ));
     }
     final cells = _gridCells();
     final lineup = _lineupSnapshot();
     final ctx = _matchContext();
+    final mults = matchTraitMultipliers(cells, lineup, ctx);
     for (final row in lineup) {
       final id = row['cardInstanceId'];
       if (id is! String) continue;
@@ -2610,6 +2612,7 @@ class MatchScreenState extends ConsumerState<MatchScreen>
           proMode: state != null && isProMode(state),
           definitionRatios: ratios is Map<String, dynamic> ? ratios : const {},
         ),
+        mult: mults[id] ?? 1,
       ));
     }
     return out;
@@ -4489,9 +4492,14 @@ class _Scoreboard extends StatelessWidget {
     // couch with both screens photographed: "soon as I started the game my
     // stats had already dropped."
     final kickoff = ourMatchSplit(result);
+    // **THE STAGNATION BUFF IS NEVER SHOWN.** It is inside every figure the
+    // sim ran on — the kickoff pair, the live pair, the star — and the player
+    // must never see it; see `next_match_card.dart`. Taken off here, at the
+    // board, so the sim's own numbers stay the sim's.
+    final hidden = matchRatingMods(result).stagnation;
     final ourFifa = fifaSplitTactic(
-      asNum(live['liveAttackRating'] ?? kickoff.attack),
-      asNum(live['liveDefenceRating'] ?? kickoff.defence),
+      asNum(live['liveAttackRating'] ?? kickoff.attack) - hidden,
+      asNum(live['liveDefenceRating'] ?? kickoff.defence) - hidden,
       mult.atk,
       mult.def,
     );
@@ -4501,10 +4509,8 @@ class _Scoreboard extends StatelessWidget {
     );
     final ourSplit = (atk: ourFifa.atk, def: ourFifa.def);
     final theirSplit = (atk: theirFifa.atk, def: theirFifa.def);
-    final ourRating = liveOr(
-      'liveSquadRating',
-      'effectiveSquadRating',
-    ).round();
+    final ourRating = (liveOr('liveSquadRating', 'effectiveSquadRating') - hidden)
+        .round();
     final theirRating = liveOr('liveOppRating', 'effectiveOppRating').round();
     // A cup tie or an older save may carry no split at all, and four zeroes
     // would be worse than nothing.

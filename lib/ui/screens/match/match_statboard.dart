@@ -23,7 +23,7 @@ library;
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:merge_empire_fc/ui/screens/match/boost_bar_paint.dart' show liveBoostColour;
+import 'package:merge_empire_fc/ui/screens/match/boost_bar_paint.dart' show goldMid, liveBoostColour;
 import 'package:merge_empire_fc/ui/screens/match/subs_panel.dart' show benchCardAspect;
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 import 'package:merge_empire_fc/ui/widgets/match_stat_rows.dart' show vsGreenOn, vsRedOn;
@@ -278,6 +278,10 @@ typedef ActiveLift = ({
 
   /// The man carrying it, for a trait — drawn as his card. Null for a boost.
   CardView? card,
+
+  /// What the trait multiplies him by this minute, so his card can be rated
+  /// lifted — a 29 with Away Day Hero II on is not a 29. 1 for a boost.
+  double mult,
 });
 
 class MatchStatboard extends StatelessWidget {
@@ -485,7 +489,18 @@ class MatchStatboard extends StatelessWidget {
                                 // A card fills its box, so the bench's shape.
                                 AspectRatio(
                                   aspectRatio: benchCardAspect,
-                                  child: PlayerCard(view: view),
+                                  // Rated as he plays right now: base × the
+                                  // trait's lift, in the trait's gold.
+                                  child: PlayerCard(
+                                    view: view,
+                                    ratingInstead: lift.mult > 1
+                                        ? (
+                                            value: (view.rating * lift.mult).round(),
+                                            ink: Colors.black,
+                                            background: goldMid,
+                                          )
+                                        : null,
+                                  ),
                                 ),
                                 const SizedBox(height: 4),
                                 Row(

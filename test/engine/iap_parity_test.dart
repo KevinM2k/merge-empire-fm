@@ -120,11 +120,16 @@ List<Map<String, dynamic>> _rows(String key) => [
 ];
 
 void main() {
+  // The port's own gems on the two offers are not the JS's — see
+  // `portGemBonus`. Off for the run, so the saves compare as the JS grants.
+  final bonus = portGemBonus;
   setUp(() {
     setClock(() => fixedNow);
     seeded.setSeed(1);
+    portGemBonus = const {};
   });
   tearDown(() {
+    portGemBonus = bonus;
     resetClock();
     clearBus();
   });

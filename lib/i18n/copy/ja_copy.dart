@@ -548,5 +548,17 @@ const Map<String, String> jaCopy = <String, String>{
   'matchtrait.name.warrior': "闘士",
   'matchtrait.desc.warrior': "痛みをこらえる――負傷を振り払って続けることがある",
   'hud.income.trophy_polish': "トロフィー磨き · 残り{mins}分",
-  'play.mod.stagnation': "このディビジョンでの在籍シーズン – 1シーズンごとに1ポイント",
+  // Colin's pre-match tactic tips shipped in English in every catalogue.
+  'coach.tactic_tip.counter_their_atk': "{opp}は攻撃が危険だ。{tactic}――耐えて反撃する。",
+  'coach.tactic_tip.exploit_their_def': "{opp}の守備は穴がある。{tactic}――勝ちに行く。",
+  'coach.tactic_tip.open_dominant': "両チームが点を取るが、こちらが明らかに強い。{tactic}――勝ちに行く。",
+  'coach.tactic_tip.open_even': "両チームにチャンスが生まれる。{tactic}――カウンターで{opp}を仕留める。",
+  'coach.tactic_tip.open_favoured': "互いにチャンスはあるが、こちらが優位のはずだ。{tactic}で試合を支配する。",
+  'coach.tactic_tip.open_underdog': "{opp}の方が強いが、オープンな試合になる。{tactic}――来たチャンスを確実に決める。",
+  'coach.tactic_tip.park_underdog': "{opp}は本物の脅威で、得点は難しい。{tactic}――被害を最小限に。",
+  'coach.tactic_tip.tight_favoured': "締まった試合だが、優位はこちらだ。{tactic}――チャンスを作り出す。",
+  'coach.tactic_tip.tight_underdog': "どちらも点を取りにくい。{tactic}――規律を守る。",
+  'product.starter_pack.desc': "{coins}コイン + 10エナジー + {gems}ジェム――コインとエナジーはリセットごとに再付与！",
+  'product.starter_pack.descHard': "{coins}コイン + チームの体力を全回復 + {gems}ジェム――コインと体力はリセットごとに再付与！",
+  'product.vip_pass.desc': "{coins}コインをすぐに · {gems}ジェム · 収入×2 · 試合間の待ち時間10秒（通常30秒） · 30日間。",
 };

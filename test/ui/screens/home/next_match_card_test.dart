@@ -185,29 +185,32 @@ void main() {
     });
   });
 
-  group('EVERY POINT INSIDE THE FIGURE IS NAMED UNDER IT', () {
-    // A side reading 30 here and 29 on the squad page and in the table looked
-    // as if it had bought a home advantage it had not. It was a season in the
-    // division: the stagnation buff was inside the figure with no badge.
-    testWidgets('the stagnation buff wears a badge', (tester) async {
+  group('THE STAGNATION BUFF IS NEVER SHOWN', () {
+    // It lifts the sim and the player must never see it. It sat inside the
+    // card's figure, so a side reading 30 here and 29 on the squad page and in
+    // the table looked as if it had a home advantage it had not bought.
+    testWidgets('the card reads the base figure, and no badge names it', (
+      tester,
+    ) async {
       final container = await pumpCard(
         tester,
         mutate: (s) {
           final prog = s['progression'] as Map<String, dynamic>;
-          prog['stagnationBuffs'] = {prog['currentDivision']: 1};
-          // Neutralise the other modifiers so the buff is the one badge.
+          prog['stagnationBuffs'] = {prog['currentDivision']: 3};
           (s['clubAssets'] as Map<String, dynamic>).remove('FANZONE');
           prog['playerTablePosition'] = 1;
         },
       );
       final preview = previewFixture(container.read(gameProvider).state)!;
-      expect(preview.stagnationBuff, 1);
+      expect(preview.stagnationBuff, 3);
+      expect(preview.effectiveSquadRating, preview.squadRating + 3,
+          reason: 'the sim still carries it');
       final card = container.read(nextMatchProvider)!;
       final us = card.left.ours ? card.left : card.right;
-      final badge = us.mods.where((m) => m.icon == 'calendar');
-      expect(badge, hasLength(1));
-      expect(badge.single.amount, 1);
-      expect(us.mods.fold<int>(0, (n, m) => n + m.amount), us.rating! - preview.squadRating);
+      expect(us.mods, isEmpty);
+      expect(us.rating, preview.squadRating);
+      expect(us.split.atk, preview.ourAttackRating);
+      expect(us.split.def, preview.ourDefenceRating);
       await tester.pump(const Duration(milliseconds: saveDebounceMs + 100));
     });
   });

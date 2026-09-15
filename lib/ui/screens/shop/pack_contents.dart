@@ -42,8 +42,8 @@ typedef PackItem = ({String icon, Color ink, String? count});
 List<PackItem> packContents(IapProduct product, Map<String, dynamic>? state) {
   final coins = getProductGrantCoins(state, product);
   return [
-    if ((product.gems ?? 0) > 0)
-      (icon: 'gem', ink: hudGemInk, count: '${product.gems}'),
+    if (productGems(product) > 0)
+      (icon: 'gem', ink: hudGemInk, count: '${productGems(product)}'),
     if (coins > 0)
       (icon: 'coin', ink: hudCoinInk, count: formatCoinsCompact(coins)),
     if ((product.energyAdd ?? 0) > 0)
