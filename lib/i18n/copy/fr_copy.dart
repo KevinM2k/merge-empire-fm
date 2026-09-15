@@ -371,7 +371,7 @@ const Map<String, String> frCopy = <String, String>{
   'shop.section.looks': 'Style d\'entraîneur',
 
   // Colin relays an offer and calls it; then his tour after the tutorial.
-  'coach.bid.relay': '{club} ont appelé, coach. Ils veulent {player} et mettent {price} sur la table.',
+  'coach.bid.relay': '{club} ont appelé, coach. Ils veulent {player} et mettent {price} sur la table. Tu perds ses revenus de +{rate}.',
   'coach.sponsor.title': "Contrat de sponsoring",
   'coach.sponsor.catch': "Le hic : {terms}.",
   'coach.sponsor.clean': "Aucun piège sur celui-là.",

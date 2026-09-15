@@ -667,6 +667,7 @@ class CoachTypewriter extends ConsumerStatefulWidget {
     this.speaks = false,
     this.speaksKey = '',
     this.strong,
+    this.strongs = const [],
     super.key,
   });
 
@@ -677,6 +678,9 @@ class CoachTypewriter extends ConsumerStatefulWidget {
   /// A run of [text] set heavy — the club's name in a bid, the company's
   /// in a sponsor's offer. The first occurrence, typed like the rest.
   final String? strong;
+
+  /// More of them: a bid names the club, the man and what he earns.
+  final List<String> strongs;
 
   /// The CATALOGUE key this line came from, which is what a clip is named after
   /// — see `services/voice_service.dart`. Empty for a line the catalogue cannot
@@ -881,24 +885,31 @@ class _CoachTypewriterState extends ConsumerState<CoachTypewriter>
           _glyphs.length,
         );
         final typed = _glyphs.take(shown).join();
-        final strong = widget.strong;
-        final at = strong == null || strong.isEmpty ? -1 : typed.indexOf(strong);
+        // Every heavy run that has started typing, in order, non-overlapping.
+        final runs = <(int, int)>[];
+        for (final strong in [?widget.strong, ...widget.strongs]) {
+          if (strong.isEmpty) continue;
+          final at = typed.indexOf(strong);
+          if (at < 0 || runs.any((r) => at < r.$2 && at + strong.length > r.$1)) continue;
+          runs.add((at, math.min(typed.length, at + strong.length)));
+        }
+        runs.sort((a, b) => a.$1.compareTo(b.$1));
+        final heavy = TextStyle(
+          fontWeight: FontWeight.w900,
+          color: Theme.of(context).colorScheme.onSurface,
+        );
+        var cursor = 0;
+        final spans = <TextSpan>[];
+        for (final (from, to) in runs) {
+          if (from > cursor) spans.add(TextSpan(text: typed.substring(cursor, from)));
+          spans.add(TextSpan(text: typed.substring(from, to), style: heavy));
+          cursor = to;
+        }
+        if (cursor < typed.length) spans.add(TextSpan(text: typed.substring(cursor)));
         return Text.rich(
           TextSpan(
             children: [
-              if (at < 0)
-                TextSpan(text: typed)
-              else ...[
-                TextSpan(text: typed.substring(0, at)),
-                TextSpan(
-                  text: typed.substring(at, math.min(typed.length, at + strong!.length)),
-                  style: TextStyle(
-                    fontWeight: FontWeight.w900,
-                    color: Theme.of(context).colorScheme.onSurface,
-                  ),
-                ),
-                TextSpan(text: typed.substring(math.min(typed.length, at + strong.length))),
-              ],
+              ...spans,
               TextSpan(
                 text: _glyphs.skip(shown).join(),
                 style: const TextStyle(color: Colors.transparent),

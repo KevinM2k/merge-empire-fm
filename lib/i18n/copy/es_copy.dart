@@ -360,7 +360,7 @@ const Map<String, String> esCopy = <String, String>{
   'shop.section.looks': 'Estilo del entrenador',
 
   // Colin relays an offer and calls it; then his tour after the tutorial.
-  'coach.bid.relay': '{club} han llamado, míster. Quieren a {player} y ponen {price} sobre la mesa.',
+  'coach.bid.relay': '{club} han llamado, míster. Quieren a {player} y ponen {price} sobre la mesa. Pierdes sus ingresos de +{rate}.',
   'coach.sponsor.title': "Acuerdo de patrocinio",
   'coach.sponsor.catch': "La pega: {terms}.",
   'coach.sponsor.clean': "Este no tiene pega.",

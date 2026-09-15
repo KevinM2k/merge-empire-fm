@@ -353,7 +353,7 @@ const Map<String, String> ptCopy = <String, String>{
   'shop.section.looks': 'Estilo do treinador',
 
   // Colin relays an offer and calls it; then his tour after the tutorial.
-  'coach.bid.relay': 'O {club} ligou, chefe. Eles querem {player} e estão colocando {price} na mesa.',
+  'coach.bid.relay': 'O {club} ligou, chefe. Eles querem {player} e estão colocando {price} na mesa. Você perde a renda de +{rate} dele.',
   'coach.sponsor.title': "Acordo de patrocínio",
   'coach.sponsor.catch': "O senão: {terms}.",
   'coach.sponsor.clean': "Este não tem senão.",

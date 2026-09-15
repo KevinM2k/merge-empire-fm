@@ -317,7 +317,7 @@ const Map<String, String> koCopy = <String, String>{
   'shop.section.looks': '감독 스타일',
 
   // Colin relays an offer and calls it; then his tour after the tutorial.
-  'coach.bid.relay': '{club}에서 전화가 왔습니다, 감독. {player}를 원하고 {price}를 제시했습니다.',
+  'coach.bid.relay': '{club}에서 전화가 왔습니다, 감독. {player}를 원하고 {price}를 제시했습니다. 그의 +{rate} 수입을 잃게 됩니다.',
   'coach.sponsor.title': "스폰서 계약",
   'coach.sponsor.catch': "조건: {terms}.",
   'coach.sponsor.clean': "이건 함정이 없습니다.",

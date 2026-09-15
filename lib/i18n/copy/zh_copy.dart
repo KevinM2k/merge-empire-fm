@@ -242,7 +242,7 @@ const Map<String, String> zhCopy = <String, String>{
   'shop.section.looks': '主教练风格',
 
   // Colin relays an offer and calls it; then his tour after the tutorial.
-  'coach.bid.relay': '{club}来电话了，老板。他们想要{player}，出价{price}。',
+  'coach.bid.relay': '{club}来电话了，老板。他们想要{player}，出价{price}。你将失去他 +{rate} 的收入。',
   'coach.sponsor.title': "赞助协议",
   'coach.sponsor.catch': "代价：{terms}。",
   'coach.sponsor.clean': "这个没有代价。",

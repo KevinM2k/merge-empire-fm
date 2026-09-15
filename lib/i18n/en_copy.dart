@@ -947,9 +947,7 @@ const Map<String, String> enCopy = <String, String>{
   // grey line at the foot. Asked for from the couch: he should be TELLING us an
   // offer has come in, and saying whether to take it. No pronoun for the
   // player, who may be either gender.
-  'coach.bid.relay':
-      '{club} have been on the phone, gaffer. They want {player}, and they\'re '
-      'putting {price} on the table.',
+  'coach.bid.relay': '{club} have been on the phone, gaffer. They want {player}, and they\'re putting {price} on the table. You\'d lose their +{rate} income.',
   'coach.sponsor.title': 'Sponsorship Deal',
   'coach.sponsor.catch': 'The catch: {terms}.',
   'coach.sponsor.clean': 'No catch on this one.',

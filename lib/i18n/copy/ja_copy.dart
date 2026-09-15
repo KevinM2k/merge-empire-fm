@@ -289,7 +289,7 @@ const Map<String, String> jaCopy = <String, String>{
   'shop.section.looks': '監督のスタイル',
 
   // Colin relays an offer and calls it; then his tour after the tutorial.
-  'coach.bid.relay': '{club}から電話があった、ボス。{player}が欲しいそうで、{price}を提示している。',
+  'coach.bid.relay': '{club}から電話があった、ボス。{player}が欲しいそうで、{price}を提示している。彼の +{rate} の収入を失う。',
   'coach.sponsor.title': "スポンサー契約",
   'coach.sponsor.catch': "条件は {terms}。",
   'coach.sponsor.clean': "こちらに落とし穴はなし。",

@@ -313,7 +313,7 @@ const Map<String, String> arCopy = <String, String>{
   'shop.section.looks': 'أسلوب المدير',
 
   // Colin relays an offer and calls it; then his tour after the tutorial.
-  'coach.bid.relay': 'اتصل بنا {club} أيها المدرب. يريدون {player} ويعرضون {price} على الطاولة.',
+  'coach.bid.relay': 'اتصل بنا {club} أيها المدرب. يريدون {player} ويعرضون {price} على الطاولة. ستفقد دخله البالغ +{rate}.',
   'coach.sponsor.title': "صفقة رعاية",
   'coach.sponsor.catch': "الثمن: {terms}.",
   'coach.sponsor.clean': "لا ثمن في هذا.",

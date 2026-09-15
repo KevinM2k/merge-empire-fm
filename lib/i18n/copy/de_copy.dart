@@ -372,7 +372,7 @@ const Map<String, String> deCopy = <String, String>{
   'shop.section.looks': 'Manager-Stil',
 
   // Colin relays an offer and calls it; then his tour after the tutorial.
-  'coach.bid.relay': '{club} haben angerufen, Chef. Sie wollen {player} und legen {price} auf den Tisch.',
+  'coach.bid.relay': '{club} haben angerufen, Chef. Sie wollen {player} und legen {price} auf den Tisch. Du verlierst seine +{rate} Einnahmen.',
   'coach.sponsor.title': "Sponsoring-Deal",
   'coach.sponsor.catch': "Der Haken: {terms}.",
   'coach.sponsor.clean': "Kein Haken dabei.",

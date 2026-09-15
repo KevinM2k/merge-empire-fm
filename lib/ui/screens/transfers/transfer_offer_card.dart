@@ -23,7 +23,6 @@ import 'package:flutter/material.dart';
 import 'package:merge_empire_fc/ui/widgets/match_stat_rows.dart'
     show vsGreenOn, vsRedOn;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:merge_empire_fc/data/art_paths.dart';
 import 'package:merge_empire_fc/data/divisions.dart';
 import 'package:merge_empire_fc/data/players.dart';
 import 'package:merge_empire_fc/engine/coach_tip_engine.dart';
@@ -35,11 +34,8 @@ import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/state/card_instance.dart';
 import 'package:merge_empire_fc/ui/popups/coach_card.dart';
 import 'package:merge_empire_fc/ui/screens/transfers/coach_verdict.dart';
-import 'package:merge_empire_fc/ui/theme/glass.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
-import 'package:merge_empire_fc/ui/widgets/art_image.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
-import 'package:merge_empire_fc/ui/widgets/player_portrait.dart';
 import 'package:merge_empire_fc/util/format.dart';
 
 Map<String, dynamic>? _map(Object? v) => v is Map<String, dynamic> ? v : null;
@@ -259,11 +255,6 @@ class _TransferOfferCard extends ConsumerWidget {
         '${offer['playerName'] ?? ''}';
 
     final price = _num(offer['price']);
-    final sellValue = _num(
-      offer['marketBasePrice'] ?? offer['sellValue'] ?? def?.sellValue,
-    );
-    final premiumPct = ((price / (sellValue < 1 ? 1 : sellValue) - 1) * 100)
-        .round();
 
     // What the sale costs per second, sponsor multiplier included — the figure
     // the income bar visibly slows by.
@@ -278,15 +269,8 @@ class _TransferOfferCard extends ConsumerWidget {
     // coin, a size and the band it falls in.
     // Who they want is in Colin's own mouth now — see the relay below — so
     // the pane keeps only the figure it exists to set beside the fee.
-    final pitch =
-        '${t('transfer.income_lost', {'rate': incomePerSec.toStringAsFixed(2)})}.';
+    final rate = incomePerSec.toStringAsFixed(2);
     final read = transferRead(state, offer, card);
-    final band = transferBand(premiumPct, context);
-    // **The band's DARK-MODE colour, because the plate under it is dark.**
-    // `transferBand` takes a context so its two ends darken on a light card;
-    // on the plate that darkening is exactly wrong, so this asks for the
-    // context-free pair.
-    final plateBand = transferBand(premiumPct).colour;
 
     return CoachCardFrame(
       key: const ValueKey('transfer-offer'),
@@ -330,145 +314,26 @@ class _TransferOfferCard extends ConsumerWidget {
           // an offer having come in and him telling us about it, then saying
           // whether to go ahead. So the first thing on the card is his voice,
           // typed the way every card's body is, and the last is his call.
+          // **AND EVERYTHING HE NEEDS TO SAY IS IN THE ONE PARAGRAPH.** The
+          // card carried a portrait, a pane for what you lose and a pane for
+          // the fee with its band under it, and stood as tall as the pitch.
+          // Asked for from the couch: no picture, the loss in his own words,
+          // and no fee plate — the price is on the Accept button. The club,
+          // the man and what he earns are set heavy so they can be found at
+          // a glance.
           CoachTypewriter(
             text: t('coach.bid.relay', {
               'club': offer['fromTeam'] ?? '',
               'player': name,
               'price': formatCoins(price),
+              'rate': rate,
             }),
             textKey: const ValueKey('transfer-relay'),
-            // The club's name heavy, the way the sponsor's is; left, like
-            // everything he says.
             strong: offer['fromTeam'] as String?,
+            strongs: [name, '+$rate'],
             style: TextStyle(color: kit.textMuted, fontSize: 13.5, height: 1.5),
           ),
           const SizedBox(height: 10),
-          if (def != null)
-            SizedBox(
-              height: 110,
-              child: ArtImage(
-                path: playerImagePath(
-                  def.position,
-                  def.tier,
-                  _num(offer['variant']).toInt(),
-                ),
-                fit: BoxFit.contain,
-                fallback: PlayerPortrait(
-                  variantIndex: _num(offer['variant']).toInt(),
-                  kitColor: kit.accent,
-                ),
-              ),
-            ),
-          const SizedBox(height: 10),
-          // **THE TWO HALVES OF THE QUESTION, SIDE BY SIDE, ON GLASS.**
-          //
-          // They were a centred paragraph and then a plate under it, stacked —
-          // so the card was read top to bottom and the thing being weighed (what
-          // you lose against what you are offered) was never in one glance. Two
-          // panels of equal height put the loss beside the fee, which is the
-          // comparison the player is actually being asked to make.
-          //
-          // Glass rather than a painted plate: the reference shot for this card
-          // is the full material — panes over a blurred page, each with its own
-          // gold edge — and the port had the layout without it. `GlassPanel`
-          // carries `darkGlass: true` for the same reason the price plate was a
-          // dark plate: the gold and the band colours are the shipped ones and
-          // they need a dark ground in BOTH themes, which is the light-mode
-          // legibility report this card was already fixed for once.
-          IntrinsicHeight(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Expanded(
-                  child: _GoldPane(
-                    child: Center(
-                      child: Text(
-                        pitch,
-                        key: const ValueKey('transfer-pitch'),
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontSize: 13,
-                          height: 1.45,
-                          color: Colors.white,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: _GoldPane(
-                    child: Column(
-                      key: const ValueKey('transfer-price'),
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        // The plate's own ink: the light-mode coin is
-                        // deliberately dark and would vanish here.
-                        const CoinIcon(size: 22, solid: true, color: gameGold),
-                        const SizedBox(height: 4),
-                        FittedBox(
-                          child: Text(
-                            formatCoins(price),
-                            maxLines: 1,
-                            style: const TextStyle(
-                              fontSize: 30,
-                              fontWeight: FontWeight.w900,
-                              height: 1,
-                              color: gameGold,
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        // What the figure MEANS, named and coloured: five bands
-                        // the catalogues have carried all along with nothing
-                        // able to reach one of them.
-                        Container(
-                          key: ValueKey('transfer-band-${band.key}'),
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 7,
-                            vertical: 3,
-                          ),
-                          decoration: BoxDecoration(
-                            color: plateBand.withValues(alpha: 0.18),
-                            borderRadius: BorderRadius.circular(7),
-                            border: Border.all(
-                              color: plateBand.withValues(alpha: 0.5),
-                            ),
-                          ),
-                          child: Text(
-                            t(band.key),
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w900,
-                              color: plateBand,
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 10),
-          // **THE PERCENTAGE AND THE GRUDGE WARNING ARE BOTH GONE, and that is
-          // a decision rather than an oversight.** "367% over fair market
-          // value" is a figure nobody can act on — the price is the price — and
-          // making it legible (which is what the pass that built the band chip
-          // did) does not make it useful. The CHIP stays: "JACKPOT" is a
-          // judgement, which is what the player actually wanted off that line.
-          //
-          // "Declining will make {club} play harder" went with it for the same
-          // reason. Colin's read below says what to do; a second sentence
-          // warning about the answer he did not recommend is the card arguing
-          // with itself.
-          //
-          // The consequence is deliberate and is recorded in `docs/REMAINING.md`:
-          // `transfer.over_fair_market`, `transfer.at_fair_market` and
-          // `transfer.decline_warning` are now shipped copy with no caller,
-          // which anywhere else in this port is a bug. Here it is the point.
           CoachVerdictLine(
             read: read,
             textKey: const ValueKey('transfer-advice'),
@@ -477,33 +342,6 @@ class _TransferOfferCard extends ConsumerWidget {
       ),
     );
   }
-}
-
-/// One of the bid card's two panes: glass, with the gold edge the reference
-/// shot draws round both of them.
-///
-/// `GlassPanel` has no border of its own — every other caller sits it on a page
-/// that gives it one — so the edge goes on as a `foregroundDecoration`, over the
-/// blur rather than under it.
-class _GoldPane extends StatelessWidget {
-  const _GoldPane({required this.child});
-
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) => Container(
-    foregroundDecoration: BoxDecoration(
-      borderRadius: BorderRadius.circular(12),
-      border: Border.all(color: gameGold.withValues(alpha: 0.55), width: 1.5),
-    ),
-    child: GlassPanel(
-      radius: 12,
-      darkGlass: true,
-      density: GlassDensity.deep,
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
-      child: child,
-    ),
-  );
 }
 
 /// The way back to a bid that was parked.
