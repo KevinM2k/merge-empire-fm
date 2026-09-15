@@ -206,6 +206,38 @@ Future<void> _runTo(
   fail('never reached the $waitFor card');
 }
 
+/// Run the clock until [done], answering anything Colin says on the way.
+///
+/// [_runTo] anchors on a card the match PAUSES for, and a plain yellow is a
+/// remark rather than a card — `_onBooked` says its line over a running pitch.
+/// So the quiet word's own tests wait on the state instead.
+Future<void> _runUntil(
+  WidgetTester tester,
+  MatchScreenState state,
+  bool Function() done,
+) async {
+  for (var i = 0; i < 600 && !state.frame.finished; i++) {
+    if (done()) return;
+    if (state.paused && _coachSpeaks.evaluate().isEmpty) {
+      await tester.pumpAndSettle();
+    }
+    if (_coachSpeaks.evaluate().isNotEmpty) {
+      await tester.tap(_coachSpeaks.first);
+      await tester.pumpAndSettle();
+      continue;
+    }
+    if (state.clipPlaying) {
+      tester.widget<CutawayStage>(find.byType(CutawayStage)).onDone!(
+        CutawayOutcome.goal,
+      );
+      await tester.pump();
+      continue;
+    }
+    await tester.pump(minuteDurationFor(1));
+  }
+  if (!done()) fail('the run never reached the state the test wanted');
+}
+
 Future<void> _finish(WidgetTester tester, MatchScreenState state) async {
   if (state.paused) {
     await tester.tapAt(const Offset(5, 5));
@@ -644,6 +676,65 @@ void main() {
         t('boost.physio_sponge.idle'),
       );
       await _finish(tester, state);
+    });
+  });
+
+  group('QUIET WORD', () {
+    /// `s1_m19` books c3 in the 23rd and shows him a SECOND yellow in the 55th,
+    /// and nothing else all afternoon — so the only thing the run can prove is
+    /// what the word did to the pair.
+    Map<String, dynamic> twoCards() => {
+      ...matchResult(fixtureKey: 's1_m19', addedTime: 0),
+      ..._ratings(),
+    };
+
+    /// **WIPING THE FIRST DEMOTES THE SECOND.** Reported from the couch: "I
+    /// used the quiet word to remove it, but then it said they got a second
+    /// yellow and got red carded — I removed the first yellow, so the second
+    /// yellow should have been the first."
+    testWidgets('DEMOTES THE SECOND YELLOW TO A FIRST, so he stays on', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(420 * 3, 2000 * 3);
+      tester.view.devicePixelRatio = 3;
+      addTearDown(tester.view.reset);
+      final c = await pumpMatch(
+        tester,
+        twoCards(),
+        save: _save(boosts: const {'quiet_word': 1}),
+        instance: 'quiet-demote',
+      );
+      final state = stateOf(tester);
+      expect(
+        _ourCards(state),
+        ['23:c3:yellow', '55:c3:second_yellow'],
+        reason: 'the fixture chosen no longer shows those two cards',
+      );
+
+      await _runUntil(tester, state, () => state.cautionedIds.contains('c3'));
+      expect(state.quietTarget, 'c3');
+      state.applyQuietWord('c3');
+      await tester.pump();
+
+      expect(state.cautionedIds, isNot(contains('c3')));
+      expect(
+        _ourCards(state),
+        ['55:c3:yellow'],
+        reason: 'the second caution is now his first, not a sending-off',
+      );
+
+      await _finish(tester, state);
+      expect(state.sentOffIds, isNot(contains('c3')));
+      expect(
+        state.cautionedIds,
+        contains('c3'),
+        reason: 'he is still booked in the 55th — the word was spent on the 23rd',
+      );
+      // One yellow on his card, no red, and no ban for the next fixture.
+      final stats = _cell(c, 'c3')['stats'] as Map?;
+      expect(stats?['yellows'] ?? 0, 1);
+      expect(stats?['reds'] ?? 0, 0);
+      expect(_cell(c, 'c3')['suspendedUntilMatch'], isNull);
     });
   });
 }

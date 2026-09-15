@@ -2373,6 +2373,18 @@ class MatchScreenState extends ConsumerState<MatchScreen>
 
   /// Wipe his yellow: off the caution list, so he plays at full rating and
   /// the whistle writes no ban for it. Off BOTH booking lists, as VAR is.
+  ///
+  /// **AND A SECOND CAUTION STILL TO COME BECOMES HIS FIRST.** The whole
+  /// match's cards are rolled at kickoff, so the second yellow is already in
+  /// the list pointing at the one being wiped — and left alone it sent him off
+  /// in the 55th for a caution he no longer had, and banned him from the next
+  /// fixture for it. Reported from the couch: "I removed the first yellow with
+  /// the quiet word, so the second yellow should have been the first."
+  ///
+  /// It is the mirror of what VAR does to the same pair — rescind the second
+  /// and the first stands — and either way he is still booked, which is what
+  /// keeps a word from being a clean slate. A straight red is untouched: that
+  /// is not a caution that escalated, and overturning it is VAR's job.
   void applyQuietWord(String instanceId) {
     if (!canQuietWord(instanceId)) return;
     final game = ref.read(gameProvider);
@@ -2383,9 +2395,25 @@ class MatchScreenState extends ConsumerState<MatchScreen>
           b['playerInstanceId'] == instanceId &&
           !cardSendsOff('${b['card'] ?? cardYellow}'),
     );
+    for (final b in _bookings) {
+      if (b['playerInstanceId'] == instanceId &&
+          b['card'] == cardSecondYellow) {
+        b['card'] = cardYellow;
+      }
+    }
     _bookingRecords = [
       for (final b in _bookingRecords)
-        if (b.instanceId != instanceId || cardSendsOff(b.card)) b,
+        if (b.instanceId != instanceId)
+          b
+        else if (b.card == cardSecondYellow)
+          (
+            minute: b.minute,
+            instanceId: b.instanceId,
+            name: b.name,
+            card: cardYellow,
+          )
+        else if (cardSendsOff(b.card))
+          b,
     ];
     _cautioned.remove(instanceId);
     _note(
