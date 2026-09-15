@@ -2373,6 +2373,9 @@ class MatchScreenState extends ConsumerState<MatchScreen>
   /// same rule the trait reel plays by.
   final MatchBoostState _boosts = MatchBoostState();
 
+  /// The aura's lanes and glides, outliving the painter — see `AuraMemory`.
+  final AuraMemory _aura = AuraMemory();
+
   /// The feed line a window opens and closes with.
   static String _boostNoteKey(String id, {required bool live}) {
     final short = switch (id) {
@@ -3412,6 +3415,7 @@ class MatchScreenState extends ConsumerState<MatchScreen>
                                         ],
                                         on: _liveGlow.isAnimating,
                                         minute: pace.minute,
+                                        memory: _aura,
                                       ),
                                     MomentumArrow(
                                     arrow: !f.finished,

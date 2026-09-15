@@ -55,13 +55,49 @@ Color liveBoostColour(String id) => switch (id) {
 /// One ring: the window's id and how much of it is left, 1 → 0.
 typedef AuraRing = ({String id, double left});
 
+/// **WHAT THE AURA REMEMBERS BETWEEN MOUNTS.** The painter comes and goes —
+/// a clip owns the grass and takes it down — and a fresh one started every
+/// ring whole and glided it down, and dealt the lanes out again so a ring
+/// jumped outward when the one outside it ended. Reported from the couch,
+/// both. The screen owns one of these for the match; the widget reads and
+/// writes it, so a ring keeps its lane and its place.
+class AuraMemory {
+  /// Which lane each window holds, outermost first. Held until it ends.
+  final Map<String, int> lanes = {};
+
+  /// Where each ring is gliding from and to, and when it set off.
+  final Map<String, ({double from, double to, DateTime at})> glide = {};
+
+  /// The lane for [id]: the one it already holds, or the lowest free one.
+  int laneFor(String id, Iterable<String> live) {
+    final held = lanes[id];
+    if (held != null) return held;
+    final taken = {for (final l in live) ?lanes[l]};
+    var lane = 0;
+    while (taken.contains(lane)) {
+      lane++;
+    }
+    return lanes[id] = lane;
+  }
+
+  /// Forget windows that have ended, so their lanes are free again.
+  void keepOnly(Iterable<String> live) {
+    lanes.removeWhere((id, _) => !live.contains(id));
+    glide.removeWhere((id, _) => !live.contains(id));
+  }
+}
+
 class BoostAura extends StatefulWidget {
   const BoostAura({
     super.key,
     required this.rings,
     required this.on,
     required this.minute,
+    required this.memory,
   });
+
+  /// See [AuraMemory]: the screen's, for the whole match.
+  final AuraMemory memory;
 
   /// How long a match minute takes on the wall clock, so the ring can empty
   /// SMOOTHLY between ticks rather than stepping once a minute. The clock
@@ -88,8 +124,8 @@ class _BoostAuraState extends State<BoostAura>
     duration: const Duration(milliseconds: 1800),
   );
 
-  /// Where each ring is gliding from and to, and when it set off.
-  final Map<String, ({double from, double to, DateTime at})> _glide = {};
+  Map<String, ({double from, double to, DateTime at})> get _glide =>
+      widget.memory.glide;
 
   @override
   void initState() {
@@ -115,12 +151,15 @@ class _BoostAuraState extends State<BoostAura>
       if (seen.contains(r.id)) continue;
       seen.add(r.id);
       final g = _glide[r.id];
+      // A ring the memory has never seen starts whole; one it has — a
+      // remount after a clip — carries on from where it was.
       final current = g == null ? 1.0 : _shownOf(g, now);
       if (g == null || g.to != r.left) {
         _glide[r.id] = (from: current, to: r.left, at: now);
       }
+      widget.memory.laneFor(r.id, seen);
     }
-    _glide.removeWhere((id, _) => !seen.contains(id));
+    widget.memory.keepOnly(seen);
   }
 
   double _shownOf(({double from, double to, DateTime at}) g, DateTime now) {
@@ -148,6 +187,7 @@ class _BoostAuraState extends State<BoostAura>
             final g? => _shownOf(g, DateTime.now()),
             null => 1.0,
           },
+          (id) => widget.memory.lanes[id] ?? 0,
         ),
         child: const SizedBox.expand(),
       ),
@@ -156,13 +196,16 @@ class _BoostAuraState extends State<BoostAura>
 }
 
 class _AuraPainter extends CustomPainter {
-  _AuraPainter(this.t, this.rings, this.shownOf) : super(repaint: t);
+  _AuraPainter(this.t, this.rings, this.shownOf, this.laneOf) : super(repaint: t);
 
   final Animation<double> t;
   final List<AuraRing> rings;
 
   /// The ring's fraction as it is being SHOWN — gliding, not stepped.
   final double Function(String id) shownOf;
+
+  /// Which lane the ring holds, 0 outermost — see [AuraMemory].
+  final int Function(String id) laneOf;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -173,13 +216,16 @@ class _AuraPainter extends CustomPainter {
     for (final r in rings) {
       if (!order.contains(r.id)) order.add(r.id);
     }
-    // Each ring sits inside the last, so stacked windows read as stacked.
+    // Each ring on its own lane, held for the window's life — see
+    // [AuraMemory] — so stacked windows read as stacked and nothing jumps
+    // when one ends.
     for (var i = 0; i < order.length; i++) {
       final id = order[i];
+      final lane = laneOf(id);
       final colour = liveBoostColour(id);
       final left = shownOf(id).clamp(0.0, 1.0);
-      final breathe = 0.5 + 0.5 * math.sin(phase + i * 1.3);
-      final inset = 4.0 + i * 10.0;
+      final breathe = 0.5 + 0.5 * math.sin(phase + lane * 1.3);
+      final inset = 4.0 + lane * 10.0;
       final band = 18.0 + 6.0 * breathe;
       final rect = Rect.fromLTWH(
         inset,

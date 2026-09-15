@@ -19,6 +19,7 @@ import 'package:merge_empire_fc/state/save_store.dart';
 import 'package:merge_empire_fc/ui/screens/match/cutaway/cutaway_game.dart'
     show CutawayOutcome;
 import 'package:merge_empire_fc/ui/screens/match/cutaway/cutaway_stage.dart';
+import 'package:merge_empire_fc/ui/screens/match/boost_bar_paint.dart' show AuraMemory;
 import 'package:merge_empire_fc/ui/screens/match/match_screen.dart';
 import 'package:merge_empire_fc/ui/shell/shell_controller.dart';
 import 'package:merge_empire_fc/util/random.dart' show setSeed;
@@ -297,6 +298,21 @@ void main() {
         contains("${state.boostWindows.last.toMinute}'"),
       );
       await _finish(tester, state);
+    });
+  });
+
+  group('THE AURA REMEMBERS', () {
+    test('a ring keeps its lane when the one outside it ends', () {
+      final m = AuraMemory();
+      expect(m.laneFor('crowd_roar', ['crowd_roar']), 0);
+      expect(m.laneFor('park_the_bus', ['crowd_roar', 'park_the_bus']), 1);
+      expect(m.laneFor('sharp_shooting', ['crowd_roar', 'park_the_bus', 'sharp_shooting']), 2);
+      // The Roar ends: the other two stay where they were.
+      m.keepOnly(['park_the_bus', 'sharp_shooting']);
+      expect(m.laneFor('park_the_bus', ['park_the_bus', 'sharp_shooting']), 1);
+      expect(m.laneFor('sharp_shooting', ['park_the_bus', 'sharp_shooting']), 2);
+      // A new Roar takes the freed outer lane.
+      expect(m.laneFor('crowd_roar', ['park_the_bus', 'sharp_shooting', 'crowd_roar']), 0);
     });
   });
 
