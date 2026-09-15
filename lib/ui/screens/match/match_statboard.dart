@@ -737,9 +737,6 @@ class PitchStatOverlay extends StatelessWidget {
   /// Which column is OURS, so the accent goes on the right side of the row.
   final bool isHome;
 
-  /// The bar's own share of the row, per side. The label sits between them.
-  static const double _barFlex = 3;
-
   @override
   Widget build(BuildContext context) {
     final rows = <({String label, int home, int away, String? suffix})>[
@@ -794,7 +791,7 @@ class PitchStatOverlay extends StatelessWidget {
         // labels come through, and then ten back the other way once they did.
         // The vertical went up with it, because a panel that has stopped being
         // full-width should not still be full-height.
-        padding: const EdgeInsets.symmetric(horizontal: 36, vertical: 18),
+        padding: const EdgeInsets.symmetric(horizontal: 36, vertical: 10),
         child: LayoutBuilder(
           builder: (context, box) => Center(
             child: FittedBox(
@@ -810,7 +807,7 @@ class PitchStatOverlay extends StatelessWidget {
                   key: const ValueKey('pitch-stats'),
                   padding: const EdgeInsets.symmetric(
                     horizontal: 10,
-                    vertical: 12,
+                    vertical: 8,
                   ),
                   decoration: BoxDecoration(
                     color: pitchStatPlate,
@@ -825,14 +822,13 @@ class PitchStatOverlay extends StatelessWidget {
                           // A bit more air between the rows than the first
                           // cut had: asked for from the couch, and the panel
                           // has the room now that it is one card.
-                          padding: const EdgeInsets.symmetric(vertical: 5),
+                          padding: const EdgeInsets.symmetric(vertical: 3),
                           child: _PitchStatRow(
                             label: row.label,
                             home: row.home,
                             away: row.away,
                             suffix: row.suffix,
                             isHome: isHome,
-                            barFlex: _barFlex,
                           ),
                         ),
                     ],
@@ -861,15 +857,16 @@ class PitchStatOverlay extends StatelessWidget {
 /// over it: enough ground to hold white figures and no more.
 const Color pitchStatPlate = Color(0x733A4A42);
 
-/// The slot the stat's NAME sits in, so the bars either side of it start at the
-/// same place on every row.
-///
-/// Wide enough for the longest label in the set at [minFontSize] — the block's
-/// own `FittedBox` takes care of a language where it is not, by scaling every
-/// row together rather than this one on its own.
-const double pitchStatLabelWidth = 96;
-
 /// One row of [PitchStatOverlay].
+///
+/// **THE SHEET'S SHAPE, NOT A ROW OF ITS OWN.** It was `home · bar · STAT ·
+/// bar · away` on one line, two bars growing away from a label; the stats
+/// sheet draws a figure each side of a centred label with ONE two-tone bar
+/// under them, and that is the shape asked for from the couch. What stays is
+/// the colour: OUR half of the bar is green where we came out ahead, red
+/// where we did not, and blue where the pair is level; theirs is a quiet
+/// white. Fixed members rather than `vsGreenOn`/`vsRedOn`, because this is
+/// laid over grass, which is a mid green in both themes.
 class _PitchStatRow extends StatelessWidget {
   const _PitchStatRow({
     required this.label,
@@ -877,7 +874,6 @@ class _PitchStatRow extends StatelessWidget {
     required this.away,
     required this.suffix,
     required this.isHome,
-    required this.barFlex,
   });
 
   final String label;
@@ -885,51 +881,35 @@ class _PitchStatRow extends StatelessWidget {
   final int away;
   final String? suffix;
   final bool isHome;
-  final double barFlex;
+
+  static const Color won = Color(0xFF4ADE80);
+  static const Color lost = Color(0xFFF87171);
+  static const Color level = Color(0xFF60A5FA);
+  static const Color theirs = Color(0x66FFFFFF);
 
   @override
   Widget build(BuildContext context) {
     const ink = Color(0xFFF2F5F3);
-
-    // A share of the pair, so the two bars are one comparison. Nil-nil gives
-    // both of them nothing rather than half each, which is honest: neither side
-    // did anything.
+    final us = isHome ? home : away;
+    final them = isHome ? away : home;
+    final mine = us == them ? level : (us > them ? won : lost);
+    // An empty pair is a bar at rest, half each: nothing to compare is not
+    // the same as one side ahead.
     final total = home + away;
-    final homeShare = total == 0 ? 0.0 : home / total;
-    final awayShare = total == 0 ? 0.0 : away / total;
+    final h = total == 0 ? 1 : home;
+    final a = total == 0 ? 1 : away;
 
-    // **THE BIGGER BAR IS GREEN AND THE SMALLER ONE RED**, whoever they belong
-    // to. It was the club's accent against a white wash — which says whose row
-    // it is, and this row already says that: the figures sit under the score,
-    // home on the left. What a manager is reading here is who WON each of these
-    // contests, and the app has a green and a red for exactly that. Asked for
-    // from the couch. Level is neither, because level is not a win.
-    //
-    // Fixed members rather than `vsGreenOn`/`vsRedOn`: this is laid over grass,
-    // which is a mid green in both themes, so the pair is chosen against the
-    // pitch rather than against the page.
-    const won = Color(0xFF4ADE80);
-    const lost = Color(0xFFF87171);
-    const level = Color(0x8AFFFFFF);
-    final mine = home == away
-        ? level
-        : home > away
-        ? won
-        : lost;
-    final theirs = home == away
-        ? level
-        : away > home
-        ? won
-        : lost;
-
-    Widget figure(int n, TextAlign align) => SizedBox(
-      width: 34,
+    Widget figure(int n, TextAlign align) => Expanded(
       child: Text(
         '$n${suffix ?? ''}',
+        key: ValueKey('pitch-stat-${align == TextAlign.left ? 'home' : 'away'}-$label'),
         textAlign: align,
         maxLines: 1,
+        // 13, not 16: six rows have to stand on the grass at FULL size, and
+        // the block's `FittedBox` is an escape hatch, not a layout. Asked for
+        // from the couch: never small type in the stats.
         style: const TextStyle(
-          fontSize: minFontSize,
+          fontSize: 13,
           height: 1.1,
           fontWeight: FontWeight.w900,
           color: ink,
@@ -938,83 +918,59 @@ class _PitchStatRow extends StatelessWidget {
       ),
     );
 
-    // **THE TRACK IS THE WHOLE HALF, and the fill is this side's share of the
-    // pair.** Eight shots to two is a bar at 80% and one at 20%, each in an
-    // outline the size it COULD have been — asked for from the couch in exactly
-    // those terms, and the outline is what makes the empty part of a bar mean
-    // something: a side that had one shot to nine reads as nearly empty rather
-    // than as a short mark floating in space.
-    //
-    // Each bar grows AWAY from the label, so the pair reads out from the middle
-    // rather than both running the same way.
-    Widget bar(double share, Color colour, {required bool fromRight}) =>
-        Expanded(
-          flex: barFlex.round(),
-          child: Container(
-            height: 7,
-            decoration: BoxDecoration(
-              border: Border.all(color: const Color(0x33FFFFFF)),
-              borderRadius: BorderRadius.circular(3),
-            ),
-            child: Align(
-              alignment: fromRight
-                  ? Alignment.centerRight
-                  : Alignment.centerLeft,
-              child: FractionallySizedBox(
-                widthFactor: share.clamp(0.0, 1.0),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: colour,
-                    borderRadius: BorderRadius.circular(2),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 2),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              figure(home, TextAlign.left),
+              Expanded(
+                flex: 3,
+                child: Text(
+                  label,
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    fontSize: minFontSize,
+                    height: 1.1,
+                    fontWeight: FontWeight.w700,
+                    color: Color(0xCCF2F5F3),
                   ),
                 ),
               ),
-            ),
+              figure(away, TextAlign.right),
+            ],
           ),
-        );
-
-    // No plate of its own any more: the panel above is one card and this is a
-    // row inside it.
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 2),
-      child: Row(
-        children: [
-          figure(home, TextAlign.left),
-          const SizedBox(width: 6),
-          bar(homeShare, mine, fromRight: true),
-          const SizedBox(width: 6),
-          // **THE LABEL AS THE CATALOGUE WRITES IT, at the row's own size, in a
-          // column of its own WIDTH.**
-          //
-          // It was uppercased and wrapped in a `FittedBox` of its own, so a
-          // long stat shrank while a short one beside it did not — three rows
-          // at three sizes down one panel. Asked for from the couch: no caps,
-          // and no changing sizes.
-          //
-          // And then the bars still started somewhere different on every row,
-          // because a centred label sized to its own text is what decides where
-          // they begin — "Shots" and "Big Chances" are not the same width, so
-          // the two columns of bars were not columns. Reported next, and
-          // [pitchStatLabelWidth] is the answer: one slot, so the bars line up
-          // down the panel whatever the words are.
-          SizedBox(
-            width: pitchStatLabelWidth,
-            child: Text(
-              label,
-              maxLines: 1,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                fontSize: minFontSize,
-                height: 1.1,
-                fontWeight: FontWeight.w900,
-                color: ink,
+          const SizedBox(height: 4),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(3),
+            child: SizedBox(
+              height: 5,
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(
+                    flex: h,
+                    child: ColoredBox(
+                      key: ValueKey('pitch-stat-bar-home-$label'),
+                      color: isHome ? mine : theirs,
+                    ),
+                  ),
+                  const SizedBox(width: 2),
+                  Expanded(
+                    flex: a,
+                    child: ColoredBox(
+                      key: ValueKey('pitch-stat-bar-away-$label'),
+                      color: isHome ? theirs : mine,
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
-          const SizedBox(width: 6),
-          bar(awayShare, theirs, fromRight: false),
-          const SizedBox(width: 6),
-          figure(away, TextAlign.right),
         ],
       ),
     );

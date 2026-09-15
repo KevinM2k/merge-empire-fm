@@ -4130,6 +4130,23 @@ void main() {
       ),
       findsOneWidget,
     );
+    // The sheet's shape: a figure each side, one two-tone bar under them,
+    // and OUR half says how the contest went — green, red or level blue.
+    final label = t('match.stat.possession');
+    expect(find.byKey(ValueKey('pitch-stat-home-$label')), findsOneWidget);
+    expect(find.byKey(ValueKey('pitch-stat-away-$label')), findsOneWidget);
+    final home = tester.widget<ColoredBox>(find.byKey(ValueKey('pitch-stat-bar-home-$label')));
+    final away = tester.widget<ColoredBox>(find.byKey(ValueKey('pitch-stat-bar-away-$label')));
+    final isHome = stateOf(tester).widget.result['isHome'] == true;
+    final ours = isHome ? home.color : away.color;
+    final theirs = isHome ? away.color : home.color;
+    expect(ours, isIn([const Color(0xFF4ADE80), const Color(0xFFF87171), const Color(0xFF60A5FA)]));
+    expect(theirs, const Color(0x66FFFFFF));
+    // And at FULL size on a phone: the block's `FittedBox` is the escape
+    // hatch for a language or a screen it was not drawn for, not the layout.
+    final card = find.byKey(const ValueKey('pitch-stats'));
+    final laidOut = tester.renderObject<RenderBox>(card).size;
+    expect(tester.getRect(card).height, closeTo(laidOut.height, 0.5));
   });
 
   testWidgets('THE STATISTICS ARE BEHIND THE BOARD, and nowhere else', (
