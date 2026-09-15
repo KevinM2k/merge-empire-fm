@@ -363,7 +363,9 @@ class _CycleStrip extends StatelessWidget {
           (box.maxWidth - grandWidth - spacing * 3) / 3;
       // The two rows plus the gap between them, so the tall tile lines up top
       // and bottom with the block beside it rather than approximately.
-      const rowHeight = 118.0;
+      // Tall enough for three chips at full size: the boost on days 2 and 7
+      // made a third, and scaling the row down made every figure tiny.
+      const rowHeight = 152.0;
       const grandHeight = rowHeight * 2 + spacing;
 
       Widget row(Iterable<int> days) => Row(

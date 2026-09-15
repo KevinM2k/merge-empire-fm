@@ -258,13 +258,13 @@ void main() {
   group('the boosts on the calendar', () {
     test('FIVE DAYS PAY A BOOST AS WELL AS THEIR COINS, and two pay none', () {
       expect(dailyRewards[1]!.boost, 'physio_sponge');
-      expect(dailyRewards[2]!.boost, 'park_the_bus');
+      expect(dailyRewards[3]!.boost, 'park_the_bus');
       expect(dailyRewards[4]!.boost, 'crowd_roar');
       expect(dailyRewards[6]!.boost, 'sharp_shooting');
       expect(dailyRewards[7]!.boost, 'var_review');
       // The coins are untouched by any of them.
       expect(dailyRewards[4]!.coinsMult, 3);
-      for (final d in [3, 5]) {
+      for (final d in [2, 5]) {
         expect(dailyRewards[d]!.boost, isNull, reason: 'day $d');
       }
       // Every one named is a real boost.
@@ -275,7 +275,7 @@ void main() {
 
     test('the preview carries it, and the other days carry nothing', () {
       expect(getDailyRewardPreview(_state(), 4)!.boost, 'crowd_roar');
-      expect(getDailyRewardPreview(_state(), 3)!.boost, isNull);
+      expect(getDailyRewardPreview(_state(), 5)!.boost, isNull);
     });
 
     test('CLAIMING DAY 4 PUTS ONE IN THE BAG, doubled or not', () {
@@ -299,15 +299,16 @@ void main() {
 
     test('a day with no boost grants none and reports none', () {
       final at = _at();
+      // One claim in, yesterday's the last: today is day two, which pays none.
       final s = _state(
         dailyReward: _dr(
-          cycleDay: 2,
+          cycleDay: 1,
           lastClaimDayKey: _key(at - _day),
-          streak: 2,
+          streak: 1,
         ),
       );
       final claim = claimDailyReward(s, ts: at);
-      expect(claim.day, 3);
+      expect(claim.day, 2);
       expect(claim.boost, isNull);
       expect(s.containsKey('matchBoosts'), isFalse);
     });

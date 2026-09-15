@@ -116,14 +116,14 @@ void main() {
     });
 
     test('and only mentions the extras a day actually has', () {
-      // Day three is coins alone; day seven is the gem day, with a VAR
-      // Review beside them. The rewards are typed now rather than joined into
-      // a string, so the day is asked which WALLETS it pays into.
-      final plain = getDailyRewardPreview(save(), 3)!;
+      // Day five is coins and energy alone; day seven is the gem day, with a
+      // VAR Review beside them. The rewards are typed now rather than joined
+      // into a string, so the day is asked which WALLETS it pays into.
+      final plain = getDailyRewardPreview(save(), 5)!;
       final seventh = getDailyRewardPreview(save(), 7)!;
       List<String?> icons(DailyRewardPreview r) =>
           [for (final p in dayRewardParts(r)) p.icon];
-      expect(icons(plain), ['coin']);
+      expect(icons(plain), ['coin', 'bolt']);
       expect(icons(seventh), containsAll(<String>['coin', 'bolt', 'gem', 'tv']));
     });
   });
