@@ -1330,7 +1330,14 @@ class MatchScreenState extends ConsumerState<MatchScreen>
   void _sayFullTimeWord() {
     if (!mounted) return;
     final f = frame;
-    final key = fullTimeReactionKey(ours: f.ourGoals, theirs: f.theirGoals);
+    // **AND THE SHOOTOUT IS ASKED HERE TOO.** The sting 650ms earlier already
+    // does — see `_finish` — and this line did not, so a cup tie won on
+    // penalties chimed for a victory and was then told it was a draw.
+    final key = fullTimeReactionKey(
+      ours: f.ourGoals,
+      theirs: f.theirGoals,
+      wonOnPens: shootoutFrom(widget.result)?.won,
+    );
     if (key == null) return;
     final opponent = '${widget.result['opponentName'] ?? ''}';
     // **THE OPPONENT IS IN THE SEED, not just the score.** `fullTimeReactionKey`

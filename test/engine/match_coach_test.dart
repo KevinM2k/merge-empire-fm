@@ -341,6 +341,51 @@ void main() {
       expect(fullTimeReactionKey(ours: 1, theirs: 2), 'commentary.thriller_loss');
     });
 
+    test('A TIE SETTLED ON PENALTIES IS NOT A DRAW TO HIM', () {
+      // Reported from the couch: a cup tie that finished 2-2 got his draw line
+      // — "we come back with only one point" — and then the "through to the
+      // next round" card. The feed carries the NINETY MINUTES, so a shootout
+      // reaches this level and picked a draw pool. `match_summary` writes the
+      // rule down: his reaction is about who went through.
+      expect(
+        fullTimeReactionKey(ours: 2, theirs: 2, wonOnPens: true),
+        'commentary.thriller_win',
+      );
+      expect(
+        fullTimeReactionKey(ours: 2, theirs: 2, wonOnPens: false),
+        'commentary.thriller_loss',
+      );
+      expect(
+        fullTimeReactionKey(ours: 3, theirs: 3, wonOnPens: true),
+        'commentary.thriller_win',
+      );
+    });
+
+    test('and he says nothing at all about a low-scoring shootout', () {
+      // There is no shipped line for going through on a 0-0, and none can be
+      // minted — the catalogues are generated from the JS, which has no `t()`
+      // key for any of this. Quiet beats a sentence that is not true.
+      for (final (o, t) in const [(0, 0), (1, 1)]) {
+        for (final won in const [true, false]) {
+          expect(
+            fullTimeReactionKey(ours: o, theirs: t, wonOnPens: won),
+            isNull,
+            reason: '$o-$t on pens',
+          );
+        }
+      }
+    });
+
+    test('and a tie that never went to penalties is unchanged', () {
+      // The parameter is null for every league match and for a cup tie settled
+      // inside the ninety, which is the overwhelming majority of callers.
+      expect(fullTimeReactionKey(ours: 2, theirs: 2), 'commentary.thriller_draw');
+      expect(
+        fullTimeReactionKey(ours: 2, theirs: 2, wonOnPens: null),
+        'commentary.thriller_draw',
+      );
+    });
+
     test('and only a two-goal margin reaches the high-scoring pair', () {
       expect(
         fullTimeReactionKey(ours: 4, theirs: 2),

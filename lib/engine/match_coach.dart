@@ -139,7 +139,34 @@ String coachReadKey({
 ///
 /// [ours] and [theirs] are goals in OUR order whatever the venue, which is what
 /// the engine's `homeGoals`/`awayGoals` already mean.
-String? fullTimeReactionKey({required int ours, required int theirs}) {
+String? fullTimeReactionKey({
+  required int ours,
+  required int theirs,
+  bool? wonOnPens,
+}) {
+  // **A TIE SETTLED ON PENALTIES IS NOT A DRAW TO HIM**, and it reaches here
+  // level because the feed carries the ninety minutes — the shootout's winning
+  // goal is taken back out of it, see `cup_launcher`. So a 2-2 won on penalties
+  // picked `thriller_draw`, whose copy is "we come back with only one point",
+  // said seconds before the card telling the player they were through.
+  // Reported from the couch as a cup tie that said draw and then said through.
+  //
+  // `match_summary` writes the rule down beside `regulationScore`: the score to
+  // PRINT is the ninety minutes, and the manager's reaction is about who went
+  // through. The whistle STING already asks the shootout — see `_finish` — and
+  // this was the half that never did.
+  //
+  // Mapped onto the pools that already ship rather than minting a shootout
+  // line: the catalogues are generated from the JS, whose reveal is hardcoded
+  // English with no `t()` key behind it, so there is no translated copy to port
+  // and none can be made here. Below three goals nothing shipped fits going
+  // through on penalties, and he keeps quiet instead — which is what he does
+  // after most matches anyway.
+  if (wonOnPens != null) {
+    if (ours + theirs < 3) return null;
+    return wonOnPens ? 'commentary.thriller_win' : 'commentary.thriller_loss';
+  }
+
   // The two exact scorelines the copy names outright. They come first because
   // both are also "not many goals", and a general rule would swallow them.
   if (ours == 0 && theirs == 0) return 'commentary.nil_nil';

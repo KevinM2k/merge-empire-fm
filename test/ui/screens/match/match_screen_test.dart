@@ -4616,6 +4616,64 @@ void main() {
       await settleSave(tester);
     });
 
+    testWidgets('AND HE DOES NOT CALL A SHOOTOUT A DRAW', (tester) async {
+      // **Reported from the couch: "it ended 2-2, it said it was a draw, but
+      // then I got the you-are-through box up."** The whistle sting already
+      // asks the shootout — see `_finish` — and his line did not, so the same
+      // screen chimed for a victory and then told the player it was a draw,
+      // seconds before the cup card said they were through.
+      //
+      // The feed is the ninety minutes, so this reaches `fullTimeReactionKey`
+      // as a level 2-2 and used to pick `thriller_draw`, whose copy is "we come
+      // back with only one point".
+      await pumpMatch(
+        tester,
+        {
+          ...scored(fixtureKey: 's1_m44', isHome: true, ours: 2, theirs: 2),
+          'isCup': true,
+          'homeGoals': 3,
+          'won': true,
+          'drawn': false,
+          'penaltyShootout': <String, dynamic>{
+            'playerWins': true,
+            'homeScore': 4,
+            'awayScore': 3,
+            'kicks': <Map<String, dynamic>>[
+              for (var i = 0; i < 4; i++) {'team': 'home', 'scored': true},
+              for (var i = 0; i < 3; i++) {'team': 'away', 'scored': true},
+              {'team': 'away', 'scored': false},
+            ],
+          },
+        },
+        save: squadSave(),
+      );
+      stateOf(tester).skipToEnd();
+      await tester.pump(const Duration(milliseconds: 1200));
+      await tester.pump();
+      // He speaks, and what he says is that we won it.
+      expect(find.byKey(const ValueKey('match-coach-line')), findsOneWidget);
+      expect(
+        findPooled('commentary.thriller_draw', {
+          'us': 2,
+          'them': 2,
+          'opp': 'Ayton',
+        }),
+        findsNothing,
+        reason: 'a tie won on penalties is not a draw to him',
+      );
+      expect(
+        findPooled('commentary.thriller_win', {
+          'us': 2,
+          'them': 2,
+          'opp': 'Ayton',
+        }),
+        findsOneWidget,
+      );
+      await tester.tapAt(const Offset(20, 20));
+      await tester.pumpAndSettle();
+      await settleSave(tester);
+    });
+
     testWidgets('AND AN AWAY WIN READS THE RIGHT WAY ROUND', (tester) async {
       await pumpMatch(
         tester,
