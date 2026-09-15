@@ -185,6 +185,33 @@ void main() {
     });
   });
 
+  group('EVERY POINT INSIDE THE FIGURE IS NAMED UNDER IT', () {
+    // A side reading 30 here and 29 on the squad page and in the table looked
+    // as if it had bought a home advantage it had not. It was a season in the
+    // division: the stagnation buff was inside the figure with no badge.
+    testWidgets('the stagnation buff wears a badge', (tester) async {
+      final container = await pumpCard(
+        tester,
+        mutate: (s) {
+          final prog = s['progression'] as Map<String, dynamic>;
+          prog['stagnationBuffs'] = {prog['currentDivision']: 1};
+          // Neutralise the other modifiers so the buff is the one badge.
+          (s['clubAssets'] as Map<String, dynamic>).remove('FANZONE');
+          prog['playerTablePosition'] = 1;
+        },
+      );
+      final preview = previewFixture(container.read(gameProvider).state)!;
+      expect(preview.stagnationBuff, 1);
+      final card = container.read(nextMatchProvider)!;
+      final us = card.left.ours ? card.left : card.right;
+      final badge = us.mods.where((m) => m.icon == 'calendar');
+      expect(badge, hasLength(1));
+      expect(badge.single.amount, 1);
+      expect(us.mods.fold<int>(0, (n, m) => n + m.amount), us.rating! - preview.squadRating);
+      await tester.pump(const Duration(milliseconds: saveDebounceMs + 100));
+    });
+  });
+
   group('what the card ANSWERS', () {
     testWidgets('THE POSITION CHIP OPENS THE TABLE', (tester) async {
       // A position is a claim about a table, and the only route to the table was

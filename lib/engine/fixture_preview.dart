@@ -87,6 +87,7 @@ class FixturePreview {
     this.ourHomeAdv = 0,
     this.theirHomeAdv = 0,
     this.playerInRelegationZone = false,
+    this.stagnationBuff = 0,
     this.oppInRelegationZone = false,
     this.bootApplied = false,
     this.bootCut = 0,
@@ -143,6 +144,10 @@ class FixturePreview {
   final int theirHomeAdv;
   final bool playerInRelegationZone;
   final bool oppInRelegationZone;
+
+  /// A point of ATK and DEF a season spent in this division — see
+  /// `season_end.dart`. Inside the effective figures; the card names it.
+  final int stagnationBuff;
 
   /// The Lucky Boot actually weakened this opponent.
   final bool bootApplied;
@@ -254,6 +259,7 @@ FixturePreview? previewFixture(
       theirHomeAdv: theirHomeAdv,
       playerInRelegationZone: playerInRelegationZone,
       oppInRelegationZone: oppInRelegationZone,
+      stagnationBuff: stagnationBuff,
     );
   }
 
@@ -314,6 +320,7 @@ FixturePreview? previewFixture(
     theirHomeAdv: theirHomeAdv,
     playerInRelegationZone: playerInRelegationZone,
     oppInRelegationZone: oppInRelegationZone,
+    stagnationBuff: stagnationBuff,
     bootApplied: bootApplied,
     bootCut: bootCut,
   );

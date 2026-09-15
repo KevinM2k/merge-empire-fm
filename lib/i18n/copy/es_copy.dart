@@ -658,4 +658,5 @@ const Map<String, String> esCopy = <String, String>{
   'matchtrait.name.warrior': "Guerrero",
   'matchtrait.desc.warrior': "Aguanta el golpe: puede sacudirse un percance y seguir",
   'hud.income.trophy_polish': "Pulido de Trofeos · faltan {mins} min",
+  'play.mod.stagnation': "Temporadas en esta división: un punto por cada una",
 };
