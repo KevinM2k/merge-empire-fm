@@ -356,7 +356,7 @@ void main() {
         'x0',
       );
       expect(
-        tester.widget<Text>(find.byKey(const ValueKey('bench-boost-reason-var_review'))).data,
+        tester.widget<Tooltip>(find.byKey(const ValueKey('bench-boost-reason-var_review'))).message,
         t('boost.bench.none'),
       );
       await _finish(tester, state);
@@ -378,7 +378,7 @@ void main() {
       // FOR him, by name — a tile that is live says who it is for.
       final him = CardInstance.from(_cell(c, 'c3'))!.name();
       expect(
-        tester.widget<Text>(reason).data,
+        tester.widget<Tooltip>(reason).message,
         t('boost.bench.for', {'player': him}),
       );
       await tester.tap(find.byKey(const ValueKey('bench-boost-var_review')));
@@ -386,7 +386,7 @@ void main() {
       expect(_slotOf(c, 's3'), 'c3');
       expect(state.sentOffIds, isNot(contains('c3')));
       // Taken: the tile now says there is nothing left to review.
-      expect(tester.widget<Text>(reason).data, t('boost.var_review.idle'));
+      expect(tester.widget<Tooltip>(reason).message, t('boost.var_review.idle'));
       await _finish(tester, state);
     });
 
@@ -402,7 +402,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byType(SubsPanel), findsOneWidget);
       expect(
-        tester.widget<Text>(find.byKey(const ValueKey('bench-boost-reason-var_review'))).data,
+        tester.widget<Tooltip>(find.byKey(const ValueKey('bench-boost-reason-var_review'))).message,
         t('boost.locked.too_late'),
       );
       await tester.tap(find.byKey(const ValueKey('bench-boost-var_review')));
@@ -549,7 +549,7 @@ void main() {
       expect(_slotOf(c, 's3'), 'c3');
       expect(boostCount(c.read(gameProvider).state, 'physio_sponge'), 1);
       expect(
-        tester.widget<Text>(find.byKey(const ValueKey('bench-boost-reason-physio_sponge'))).data,
+        tester.widget<Tooltip>(find.byKey(const ValueKey('bench-boost-reason-physio_sponge'))).message,
         t('boost.physio_sponge.idle'),
       );
       await _finish(tester, state);

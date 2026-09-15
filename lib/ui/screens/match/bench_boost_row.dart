@@ -18,6 +18,7 @@ import 'package:flutter/material.dart';
 import 'package:merge_empire_fc/data/boosts.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
+import 'package:merge_empire_fc/ui/screens/match/boost_bar_paint.dart' show flameDeep;
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 
 /// One retrospective boost as the bench offers it right now.
@@ -43,13 +44,17 @@ class BenchBoostRow extends StatelessWidget {
     return Padding(
       key: const ValueKey('bench-boosts'),
       padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-      child: Row(
-        children: [
-          for (var i = 0; i < offers.length; i++) ...[
-            if (i > 0) const SizedBox(width: 8),
-            Expanded(child: _OfferTile(offer: offers[i], kit: kit)),
+      // All three the same size, whatever their names wrap to.
+      child: IntrinsicHeight(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (var i = 0; i < offers.length; i++) ...[
+              if (i > 0) const SizedBox(width: 8),
+              Expanded(child: _OfferTile(offer: offers[i], kit: kit)),
+            ],
           ],
-        ],
+        ),
       ),
     );
   }
@@ -65,72 +70,72 @@ class _OfferTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final boost = getBoost(offer.id);
     final live = offer.onUse != null;
-    final ink = live ? kit.accentBright : kit.textMuted;
-    return Semantics(
-      button: live,
-      child: GestureDetector(
-        key: ValueKey('bench-boost-${offer.id}'),
-        behavior: HitTestBehavior.opaque,
-        onTap: offer.onUse,
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            color: live ? kit.accent.withValues(alpha: 0.16) : kit.surface2,
-            border: Border.all(
-              color: live ? kit.accent : kit.border,
-              width: live ? 1.6 : 1,
-            ),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
+    // **THE ICON IN THE CALENDAR'S RED, THE NAME UNDER IT, AND NOTHING
+    // ELSE.** The tile carried a truncated name beside the icon and a line
+    // of prose under it — "No sending-off to review" — which read as three
+    // different tiles. It is one shape now, greyed whole when it cannot be
+    // used; WHY it cannot is a long-press away. Asked for from the couch.
+    final reason = offer.reason ??
+        (offer.targetName == null
+            ? ''
+            : t('boost.bench.for', {'player': offer.targetName!}));
+    return Tooltip(
+      key: ValueKey('bench-boost-reason-${offer.id}'),
+      message: reason,
+      child: Semantics(
+        button: live,
+        label: '${t('boost.${offer.id}.name')}. $reason',
+        child: GestureDetector(
+          key: ValueKey('bench-boost-${offer.id}'),
+          behavior: HitTestBehavior.opaque,
+          onTap: offer.onUse,
+          child: Opacity(
+            opacity: live ? 1 : 0.45,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 8),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                color: live ? kit.accent.withValues(alpha: 0.16) : kit.surface2,
+                border: Border.all(
+                  color: live ? kit.accent : kit.border,
+                  width: live ? 1.6 : 1,
+                ),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  GameIcon(boost?.icon ?? '', size: 17, color: ink),
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Text(
-                      t('boost.${offer.id}.name'),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w900,
-                        color: ink,
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      GameIcon(boost?.icon ?? '', size: 22, color: flameDeep),
+                      const SizedBox(width: 5),
+                      Text(
+                        'x${offer.count}',
+                        key: ValueKey('bench-boost-count-${offer.id}'),
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w900,
+                          color: live ? kit.accentBright : kit.textMuted,
+                        ),
                       ),
-                    ),
+                    ],
                   ),
-                  // The count, even at nought: nothing is for sale here.
+                  const SizedBox(height: 4),
                   Text(
-                    'x${offer.count}',
-                    key: ValueKey('bench-boost-count-${offer.id}'),
+                    t('boost.${offer.id}.name'),
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       fontSize: 12,
+                      height: 1.15,
                       fontWeight: FontWeight.w900,
-                      color: ink,
+                      color: live ? kit.accentBright : kit.textMuted,
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 3),
-              // Who it is for, or why it cannot be taken. Never blank.
-              Text(
-                live
-                    ? t('boost.bench.for', {'player': offer.targetName ?? ''})
-                    : (offer.reason ?? ''),
-                key: ValueKey('bench-boost-reason-${offer.id}'),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  fontSize: 12,
-                  height: 1.25,
-                  fontWeight: FontWeight.w700,
-                  color: live ? kit.accentBright : kit.textMuted,
-                ),
-              ),
-            ],
+            ),
           ),
         ),
       ),
