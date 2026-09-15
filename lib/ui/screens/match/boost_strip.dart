@@ -62,7 +62,7 @@ class BoostPitchButtons extends ConsumerWidget {
             enabled: enabled,
             onUse: () => onUse(boost.id),
           ),
-          if (boost != proactiveBoosts.last) const SizedBox(width: 8),
+          if (boost != proactiveBoosts.last) const SizedBox(width: 6),
         ],
       ],
     );
@@ -88,29 +88,28 @@ class _PitchChip extends StatelessWidget {
   Widget build(BuildContext context) {
     final live = until != null;
     final owned = count > 0;
-    final hue = live ? liveBoostColour(boost.id) : null;
-    final ink = live || owned ? Colors.white : Colors.white54;
+    // **ONE PILL PER BOOST, IN ITS OWN COLOUR.** Three dark pills with three
+    // white names under them ran together into one thing; the eye had to
+    // pair a name with the pill above it. Each is one object now — icon,
+    // name and count inside a pill outlined in the boost's colour, filled
+    // with it while its window runs. Reported from the couch.
+    final hue = liveBoostColour(boost.id);
+    final ink = live ? Colors.white : (owned ? hue : hue.withValues(alpha: 0.55));
     return Semantics(
       button: owned,
       child: GestureDetector(
         key: ValueKey('match-boost-${boost.id}'),
         behavior: HitTestBehavior.opaque,
         onTap: owned && enabled ? onUse : null,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-        Container(
-          height: 24,
-          padding: const EdgeInsets.fromLTRB(6, 0, 7, 0),
+        child: Container(
+          height: 26,
+          padding: const EdgeInsets.fromLTRB(7, 0, 8, 0),
           decoration: BoxDecoration(
-            // Over grass, so it wears the glass the HUD wears rather than a
-            // card: dark enough to read on the turf, the window's colour
-            // while it burns.
-            color: hue ?? Color(owned ? 0xCC12261A : 0x8812261A),
+            color: live ? hue : const Color(0xCC12261A),
             borderRadius: BorderRadius.circular(999),
             border: Border.all(
-              color: hue != null ? Colors.white.withValues(alpha: 0.7) : Colors.white24,
-              width: 1.2,
+              color: live ? Colors.white.withValues(alpha: 0.7) : hue.withValues(alpha: owned ? 0.9 : 0.4),
+              width: 1.4,
             ),
             boxShadow: const [
               BoxShadow(color: Color(0x55000000), blurRadius: 6, offset: Offset(0, 2)),
@@ -120,14 +119,19 @@ class _PitchChip extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               GameIcon(boost.icon, size: 12, color: ink),
-              const SizedBox(width: 3),
+              const SizedBox(width: 4),
+              Text(
+                t('boost.${boost.id}.name'),
+                maxLines: 1,
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: ink),
+              ),
+              const SizedBox(width: 5),
               if (live)
-                // Where the window ends, in match minutes — the same unit
-                // the bar burns in.
+                // Where the window ends, in match minutes.
                 Text(
                   "$until'",
                   key: ValueKey('match-boost-until-${boost.id}'),
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: ink),
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: ink),
                 )
               else
                 Text(
@@ -137,23 +141,6 @@ class _PitchChip extends StatelessWidget {
                 ),
             ],
           ),
-        ),
-        const SizedBox(height: 2),
-        // Its name on the grass: an icon alone is a guess for a player who
-        // has not learned the three yet. Own case and a lighter weight — in
-        // caps at w900 the three read as signage over the pitch. Asked for
-        // from the couch, both times.
-        Text(
-          t('boost.${boost.id}.name'),
-          maxLines: 1,
-          style: TextStyle(
-            fontSize: 12,
-            fontWeight: FontWeight.w700,
-            color: hue ?? Colors.white,
-            shadows: const [Shadow(color: Color(0xAA000000), blurRadius: 3)],
-          ),
-        ),
-          ],
         ),
       ),
     );

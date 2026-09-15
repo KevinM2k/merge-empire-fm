@@ -346,6 +346,9 @@ const Map<String, String> enCopy = <String, String>{
   'boost.physio_sponge.desc':
       'Patch up an injury — the player gets up and carries on',
   'boost.feed.action': 'Boost',
+  'boost.crowd_roar.effect': '+10% rating, whole side',
+  'boost.sharp_shooting.effect': '+25% ATK',
+  'boost.park_the_bus.effect': '-25% ATK, both sides',
   'boost.roar.live':
       'The manager turns to the crowd, and the ground erupts.|'
       'A wall of noise comes down off the stands. Every challenge is a cheer.',

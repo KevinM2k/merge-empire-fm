@@ -48,9 +48,9 @@ import 'package:merge_empire_fc/engine/tutorial_engine.dart' show tutorialFinish
 import 'package:merge_empire_fc/ui/screens/match/boost_strip.dart';
 import 'package:merge_empire_fc/ui/screens/match/bench_boost_row.dart';
 import 'package:merge_empire_fc/ui/screens/match/boost_bar_paint.dart';
-import 'package:merge_empire_fc/ui/widgets/trait_copy.dart' show matchTraitName;
+import 'package:merge_empire_fc/ui/widgets/trait_copy.dart' show matchTraitEffect, matchTraitName;
 import 'package:merge_empire_fc/data/match_traits.dart'
-    show MatchTraitCondition, getMatchTrait, matchTraitList;
+    show MatchTraitCondition, getMatchTrait, getMatchTraitLevel, matchTraitList;
 import 'package:merge_empire_fc/ui/screens/match/goal_replay.dart'
     show conceded;
 import 'package:merge_empire_fc/engine/match_orchestration.dart'
@@ -2471,6 +2471,7 @@ class MatchScreenState extends ConsumerState<MatchScreen>
         id: b.id,
         icon: boost?.icon ?? '',
         label: t('boost.${b.id}.name'),
+        effect: t('boost.${b.id}.effect'),
         until: _boosts.endOf(b.id),
       ));
     }
@@ -2484,7 +2485,15 @@ class MatchScreenState extends ConsumerState<MatchScreen>
       final trait = getMatchTrait(matchTraitOf(card)?['id'] as String?);
       if (trait == null || out.any((a) => a.id == trait.id)) continue;
       if (!isMatchTraitLit(cells, lineup, ctx, id)) continue;
-      out.add((id: trait.id, icon: trait.icon, label: matchTraitName(trait), until: null));
+      final ref = matchTraitOf(card);
+      final level = getMatchTraitLevel(trait, (ref?['level'] as num?)?.toInt() ?? 1);
+      out.add((
+        id: trait.id,
+        icon: trait.icon,
+        label: matchTraitName(trait),
+        effect: level == null ? '' : matchTraitEffect(trait, level),
+        until: null,
+      ));
     }
     return out;
   }

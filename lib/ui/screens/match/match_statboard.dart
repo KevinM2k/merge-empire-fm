@@ -23,6 +23,7 @@ library;
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:merge_empire_fc/ui/screens/match/boost_bar_paint.dart' show liveBoostColour;
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 import 'package:merge_empire_fc/engine/match_tactics.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
@@ -263,7 +264,9 @@ LiveStats liveStatsFor({
 
 /// One thing lifting the side right now — a boost window or a lit match
 /// trait. [until] is the minute a window closes, null for a trait.
-typedef ActiveLift = ({String id, String icon, String label, int? until});
+/// One thing lifting the side, and — the part the list did not say — WHAT
+/// it does: a boost's copy, a trait's own figure at its level.
+typedef ActiveLift = ({String id, String icon, String label, String effect, int? until});
 
 class MatchStatboard extends StatelessWidget {
   const MatchStatboard({
@@ -287,23 +290,22 @@ class MatchStatboard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final kit = Theme.of(context).extension<KitTheme>()!;
+    // **EVERY ROW IS A BAR, not a pair of numbers with a word between.** The
+    // board was three columns of 12pt text, which is a spreadsheet; a match
+    // stat is a SHARE of one afternoon, and the possession bar was the only
+    // row that said so. Each row now runs a two-tone bar under its figures,
+    // ours in the kit, theirs in the quiet ink — so 4 shots to 2 is read as
+    // a shape before it is read as a sum. Reported from the couch as ugly.
     return Container(
       key: const ValueKey('match-statboard'),
-      padding: const EdgeInsets.fromLTRB(10, 8, 10, 11),
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(10),
-        gradient: LinearGradient(
-          begin: const Alignment(-0.5, -1),
-          end: const Alignment(0.5, 1),
-          colors: [
-            kit.surface2.withValues(alpha: 0.96),
-            kit.bg.withValues(alpha: 0.96),
-          ],
-        ),
+        borderRadius: BorderRadius.circular(14),
+        color: kit.surface2.withValues(alpha: 0.9),
         border: Border.all(color: kit.border),
       ),
       child: Column(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
             children: [
@@ -315,11 +317,11 @@ class MatchStatboard extends StatelessWidget {
                 ),
               ),
               Text(
-                t('match.stats_label'),
+                t('match.stats_label').toUpperCase(),
                 style: TextStyle(
                   fontSize: 12,
                   fontWeight: FontWeight.w900,
-                  letterSpacing: 1,
+                  letterSpacing: 1.2,
                   color: kit.textMuted,
                 ),
               ),
@@ -332,94 +334,102 @@ class MatchStatboard extends StatelessWidget {
               ),
             ],
           ),
-          // Possession leads, and it is the one row with a bar: it is a SHARE of
-          // one quantity, where the others are two independent counts.
+          const SizedBox(height: 10),
           _StatRow(
             label: t('match.stat.possession'),
             home: '${stats.possHome}%',
             away: '${stats.possAway}%',
-          ),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(2),
-            child: SizedBox(
-              height: 3,
-              child: Row(
-                children: [
-                  Expanded(
-                    flex: stats.possHome,
-                    child: ColoredBox(color: kit.accentBright),
-                  ),
-                  Expanded(
-                    flex: stats.possAway,
-                    child: ColoredBox(color: kit.border),
-                  ),
-                ],
-              ),
-            ),
+            homeShare: stats.possHome,
+            awayShare: stats.possAway,
+            homeOurs: isHome,
           ),
           for (final row in stats.rows)
             _StatRow(
               label: t(row.labelKey),
               home: '${row.home}',
               away: '${row.away}',
+              homeShare: row.home,
+              awayShare: row.away,
+              homeOurs: isHome,
             ),
           if (active.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            Padding(
+            const SizedBox(height: 12),
+            Text(
+              t('match.active.title').toUpperCase(),
               key: const ValueKey('match-active'),
-              padding: const EdgeInsets.only(top: 6),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    t('match.active.title').toUpperCase(),
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 1,
-                      color: kit.textMuted,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  for (final lift in active)
-                    Padding(
-                      key: ValueKey('match-active-${lift.id}'),
-                      padding: const EdgeInsets.symmetric(vertical: 2),
-                      child: Row(
-                        children: [
-                          GlyphOrIcon(lift.icon, size: 14, color: kit.accentBright),
-                          const SizedBox(width: 6),
-                          Expanded(
-                            child: Text(
-                              lift.label,
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w800,
-                                color: kit.accentBright,
-                              ),
-                            ),
-                          ),
-                          if (lift.until != null)
-                            Text(
-                              t('match.active.until', {'minute': '${lift.until}'}),
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w700,
-                                color: kit.textMuted,
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                ],
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w900,
+                letterSpacing: 1.2,
+                color: kit.textMuted,
               ),
             ),
+            const SizedBox(height: 6),
+            // **EACH LIFT SAYS WHAT IT DOES.** A row that read "🎩 Big Game
+            // Player" named the thing and not the effect — reported from
+            // the couch. The figure sits beside the name, in the colour of
+            // whatever is lifting, with the window's end where there is one.
+            for (final lift in active)
+              Container(
+                key: ValueKey('match-active-${lift.id}'),
+                margin: const EdgeInsets.only(bottom: 6),
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(10),
+                  color: liftColour(kit, lift.id).withValues(alpha: 0.14),
+                  border: Border.all(color: liftColour(kit, lift.id).withValues(alpha: 0.6)),
+                ),
+                child: Row(
+                  children: [
+                    GlyphOrIcon(lift.icon, size: 16, color: liftColour(kit, lift.id)),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        lift.label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w900,
+                          color: Theme.of(context).colorScheme.onSurface,
+                        ),
+                      ),
+                    ),
+                    if (lift.effect.isNotEmpty)
+                      Text(
+                        lift.effect,
+                        key: ValueKey('match-active-effect-${lift.id}'),
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w900,
+                          color: liftColour(kit, lift.id),
+                        ),
+                      ),
+                    if (lift.until != null) ...[
+                      const SizedBox(width: 8),
+                      Text(
+                        t('match.active.until', {'minute': '${lift.until}'}),
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: kit.textMuted,
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
           ],
         ],
       ),
     );
   }
+
+  /// A boost's own colour; a trait takes the kit's.
+  static Color liftColour(KitTheme kit, String id) => switch (id) {
+    'crowd_roar' || 'sharp_shooting' || 'park_the_bus' => liveBoostColour(id),
+    _ => kit.accentBright,
+  };
 }
 
 class _TeamLabel extends StatelessWidget {
@@ -449,42 +459,91 @@ class _TeamLabel extends StatelessWidget {
   }
 }
 
-/// One row: a figure each side of a centred label. A figure that has gone UP
-/// since the last paint pulses, which is the whole of the movement on this
-/// board.
+/// One row: a figure each side of a centred label, and a two-tone bar under
+/// them sharing the row by the two figures. A figure that has gone UP since
+/// the last paint pulses.
 class _StatRow extends StatelessWidget {
-  const _StatRow({required this.label, required this.home, required this.away});
+  const _StatRow({
+    required this.label,
+    required this.home,
+    required this.away,
+    required this.homeShare,
+    required this.awayShare,
+    required this.homeOurs,
+  });
 
   final String label;
   final String home;
   final String away;
+  final int homeShare;
+  final int awayShare;
+  final bool homeOurs;
 
   @override
   Widget build(BuildContext context) {
     final kit = Theme.of(context).extension<KitTheme>()!;
+    final total = homeShare + awayShare;
+    // An empty row — no shots yet either side — is a bar at rest, half each,
+    // in the quiet ink: nothing to compare is not the same as home ahead.
+    final h = total == 0 ? 1 : homeShare;
+    final a = total == 0 ? 1 : awayShare;
+    final ours = kit.accentBright;
+    final theirs = kit.textMuted.withValues(alpha: 0.45);
     Widget figure(String v, TextAlign align) => Expanded(
       child: _Pulsing(value: v, align: align),
     );
 
-    return Row(
-      children: [
-        figure(home, TextAlign.left),
-        Expanded(
-          flex: 3,
-          child: Text(
-            label,
-            textAlign: TextAlign.center,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
-              color: kit.textMuted,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 9),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              figure(home, TextAlign.left),
+              Expanded(
+                flex: 3,
+                child: Text(
+                  label,
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: kit.textMuted,
+                  ),
+                ),
+              ),
+              figure(away, TextAlign.right),
+            ],
+          ),
+          const SizedBox(height: 4),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(3),
+            child: SizedBox(
+              height: 5,
+              // Stretched, or a `ColoredBox` with nothing in it is laid out
+              // at no height and the bar is invisible — which is what the
+              // old possession bar had been all along.
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(
+                    flex: h,
+                    child: ColoredBox(color: total == 0 ? theirs : (homeOurs ? ours : theirs)),
+                  ),
+                  const SizedBox(width: 2),
+                  Expanded(
+                    flex: a,
+                    child: ColoredBox(color: total == 0 ? theirs : (homeOurs ? theirs : ours)),
+                  ),
+                ],
+              ),
             ),
           ),
-        ),
-        figure(away, TextAlign.right),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -539,7 +598,7 @@ class _PulsingState extends State<_Pulsing>
         widget.value,
         textAlign: widget.align,
         style: TextStyle(
-          fontSize: 13,
+          fontSize: 16,
           height: 1.1,
           fontWeight: FontWeight.w900,
           color: Color.lerp(
