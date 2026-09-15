@@ -337,7 +337,9 @@ class _TransferOfferCard extends ConsumerWidget {
               'price': formatCoins(price),
             }),
             textKey: const ValueKey('transfer-relay'),
-            textAlign: TextAlign.center,
+            // The club's name heavy, the way the sponsor's is; left, like
+            // everything he says.
+            strong: offer['fromTeam'] as String?,
             style: TextStyle(color: kit.textMuted, fontSize: 13.5, height: 1.5),
           ),
           const SizedBox(height: 10),

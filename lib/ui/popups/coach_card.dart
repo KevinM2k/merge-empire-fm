@@ -666,12 +666,17 @@ class CoachTypewriter extends ConsumerStatefulWidget {
     this.textKey,
     this.speaks = false,
     this.speaksKey = '',
+    this.strong,
     super.key,
   });
 
   final String text;
   final TextStyle? style;
   final TextAlign textAlign;
+
+  /// A run of [text] set heavy — the club's name in a bid, the company's
+  /// in a sponsor's offer. The first occurrence, typed like the rest.
+  final String? strong;
 
   /// The CATALOGUE key this line came from, which is what a clip is named after
   /// — see `services/voice_service.dart`. Empty for a line the catalogue cannot
@@ -875,10 +880,25 @@ class _CoachTypewriterState extends ConsumerState<CoachTypewriter>
           0,
           _glyphs.length,
         );
+        final typed = _glyphs.take(shown).join();
+        final strong = widget.strong;
+        final at = strong == null || strong.isEmpty ? -1 : typed.indexOf(strong);
         return Text.rich(
           TextSpan(
             children: [
-              TextSpan(text: _glyphs.take(shown).join()),
+              if (at < 0)
+                TextSpan(text: typed)
+              else ...[
+                TextSpan(text: typed.substring(0, at)),
+                TextSpan(
+                  text: typed.substring(at, math.min(typed.length, at + strong!.length)),
+                  style: TextStyle(
+                    fontWeight: FontWeight.w900,
+                    color: Theme.of(context).colorScheme.onSurface,
+                  ),
+                ),
+                TextSpan(text: typed.substring(math.min(typed.length, at + strong.length))),
+              ],
               TextSpan(
                 text: _glyphs.skip(shown).join(),
                 style: const TextStyle(color: Colors.transparent),

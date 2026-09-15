@@ -318,6 +318,7 @@ const Map<String, String> koCopy = <String, String>{
 
   // Colin relays an offer and calls it; then his tour after the tutorial.
   'coach.bid.relay': '{club}에서 전화가 왔습니다, 감독. {player}를 원하고 {price}를 제시했습니다.',
+  'coach.sponsor.title': "스폰서 계약",
   'coach.sponsor.catch': "조건: {terms}.",
   'coach.sponsor.clean': "이건 함정이 없습니다.",
   'coach.sponsor.relay': '{company}에서 연락이 왔습니다, 감독. {player}를 브랜드의 얼굴로 원합니다. 계약 기간 동안 그 선수의 수입이 {n}% 늘어납니다.',

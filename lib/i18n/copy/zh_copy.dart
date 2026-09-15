@@ -243,6 +243,7 @@ const Map<String, String> zhCopy = <String, String>{
 
   // Colin relays an offer and calls it; then his tour after the tutorial.
   'coach.bid.relay': '{club}来电话了，老板。他们想要{player}，出价{price}。',
+  'coach.sponsor.title': "赞助协议",
   'coach.sponsor.catch': "代价：{terms}。",
   'coach.sponsor.clean': "这个没有代价。",
   'coach.sponsor.relay': '{company}联系了我们，老板。他们想让{player}做品牌代言人：合约期间这名球员的收入增加{n}%。',

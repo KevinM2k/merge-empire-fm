@@ -161,7 +161,9 @@ class _SponsorOfferCard extends StatelessWidget {
 
     return CoachCardFrame(
       key: const ValueKey('sponsor-offer'),
-      title: t('sponsor.title', {'company': company.name}),
+      // "Sponsorship Deal", not "{company} Offer": the sentence under it
+      // opens with the company's name in bold, and the title said it twice.
+      title: t('coach.sponsor.title'),
       // **Colin relays the call, in the child rather than in `body`.** The
       // frame draws the body UNDER the child, and the offer has to be heard
       // before the terms are read: "they've been in touch, they want him" and
@@ -215,6 +217,7 @@ class _SponsorOfferCard extends StatelessWidget {
                 }),
             ].join(' '),
             textKey: const ValueKey('sponsor-relay'),
+            strong: company.name,
             style: TextStyle(color: kit.textMuted, fontSize: 13.5, height: 1.5),
           ),
           const SizedBox(height: 10),

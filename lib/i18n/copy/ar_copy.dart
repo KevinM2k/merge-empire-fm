@@ -314,6 +314,7 @@ const Map<String, String> arCopy = <String, String>{
 
   // Colin relays an offer and calls it; then his tour after the tutorial.
   'coach.bid.relay': 'اتصل بنا {club} أيها المدرب. يريدون {player} ويعرضون {price} على الطاولة.',
+  'coach.sponsor.title': "صفقة رعاية",
   'coach.sponsor.catch': "الثمن: {terms}.",
   'coach.sponsor.clean': "لا ثمن في هذا.",
   'coach.sponsor.relay': 'تواصلت معنا {company} أيها المدرب. يريدون {player} وجهاً لعلامتهم: {n}% دخل إضافي من هذا اللاعب ما دامت الصفقة سارية.',
