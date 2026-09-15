@@ -460,7 +460,6 @@ const Map<String, String> jaCopy = <String, String>{
   'squad.traits': "特性",
   'squad.trait.slot.player': "選手",
   'squad.trait.slot.match': "試合",
-  'squad.trait.slot.locked': "ロック中",
   'squad.traits.all': "全特性を見る",
   'squad.traits.all.title': "すべての特性",
   'squad.traits.match_blurb':
@@ -483,10 +482,6 @@ const Map<String, String> jaCopy = <String, String>{
   'matchtrait.effect.squad': "チーム全体+{n}%",
   'matchtrait.effect.booked': "警告時-{n}%（通常-10%）",
   'matchtrait.effect.shrug': "{n}%の確率で続行",
-  'squad.detail.matchslot.locked': "試合中だけ働く二つ目の特性。ジェム1個で開放。",
-  'squad.detail.matchslot.unlock': "ジェム{gems}個でスロットを開放",
-  'squad.detail.matchslot.need_gem': "このスロットを開くにはジェムが必要です。",
-  'squad.detail.sell_burns_slot': "二つ目の特性スロットは選手とともに失われます。ジェムは返金されません。",
   'boost.crowd_roar.name': "大歓声",
   'boost.crowd_roar.desc': "スタジアムが爆発――25分間、チーム全体が奮い立つ",
   'boost.park_the_bus.name': "バスを止める",

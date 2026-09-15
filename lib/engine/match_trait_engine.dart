@@ -18,7 +18,6 @@ import 'dart:math' as math;
 
 import 'package:merge_empire_fc/data/match_traits.dart';
 import 'package:merge_empire_fc/data/players.dart';
-import 'package:merge_empire_fc/engine/gem_engine.dart';
 import 'package:merge_empire_fc/engine/trait_engine.dart';
 import 'package:merge_empire_fc/state/card_instance.dart';
 import 'package:merge_empire_fc/util/event_bus.dart';
@@ -50,24 +49,6 @@ typedef MatchContext = ({
   Set<String> cautioned,
 });
 
-/// The gem is spent. `matchTrait` may still be absent: opening the slot and
-/// rolling into it are two acts, and a player can afford one and not the other.
-bool hasMatchSlot(CardInstance? card) => card?.raw['matchSlot'] == true;
-
-/// The `{id, level}` in the second slot, or null when the slot is locked or
-/// empty. A locked slot with a stale trait in it is still null — the gem is
-/// what makes the trait real.
-Map<String, dynamic>? matchTraitOf(CardInstance? card) {
-  if (!hasMatchSlot(card)) return null;
-  final ref = card!.raw['matchTrait'];
-  return ref is Map<String, dynamic> ? ref : null;
-}
-
-/// One gem, per player. A full XI is eleven — about five weeks of the day-7
-/// daily, or a pack — which is what makes the slot a decision about WHICH
-/// player rather than a box everyone ticks.
-const int matchSlotGemCost = 1;
-
 CardInstance? _cardIn(Map<String, dynamic> state, String? instanceId) {
   if (instanceId == null) return null;
   final grid = state['grid'];
@@ -80,29 +61,16 @@ CardInstance? _cardIn(Map<String, dynamic> state, String? instanceId) {
   return null;
 }
 
-/// Spend the gem and open the slot.
+/// The `{id, level}` in the second slot, or null when it is empty.
 ///
-/// Refuses, in order: `unknown_card`, `unavailable` (a loanee is not ours to
-/// improve, the same rule the first slot applies), `already_unlocked` (a
-/// second tap must never take a second gem for a slot that is already open),
-/// `insufficient_gems`. The check and the debit are one step, so a double tap
-/// cannot slip between them.
-({bool ok, String? reason}) unlockMatchSlot(
-  Map<String, dynamic> state,
-  String? instanceId,
-) {
-  final card = _cardIn(state, instanceId);
-  if (card == null) return (ok: false, reason: 'unknown_card');
-  if (card.isUnavailable || card.raw['loanMatchesLeft'] != null) {
-    return (ok: false, reason: 'unavailable');
-  }
-  if (hasMatchSlot(card)) return (ok: false, reason: 'already_unlocked');
-  if (!spendGems(state, matchSlotGemCost, 'match_slot')) {
-    return (ok: false, reason: 'insufficient_gems');
-  }
-  card.raw['matchSlot'] = true;
-  emit('match_trait:unlocked', {'instanceId': card.instanceId});
-  return (ok: true, reason: null);
+/// **THE SLOT IS OPEN ON EVERY CARD.** It cost a gem for a round, once per
+/// card — and a merge builds a fresh card, so the gem died with the old one.
+/// Asked for from the couch: no gate. The rolls stay coin-priced, like the
+/// first slot's, so the second is a coin sink rather than a gem one. A save
+/// that carries the old `matchSlot` flag reads the same either way.
+Map<String, dynamic>? matchTraitOf(CardInstance? card) {
+  final ref = card?.raw['matchTrait'];
+  return ref is Map<String, dynamic> ? ref : null;
 }
 
 /// The same I / II / III odds as the first slot — about one roll in thirty
@@ -169,7 +137,6 @@ MatchTraitRollResult rollMatchTraitForCard(
   if (card.isUnavailable || card.raw['loanMatchesLeft'] != null) {
     return _fail('unavailable');
   }
-  if (!hasMatchSlot(card)) return _fail('locked');
 
   final def = getPlayerDef(card.definitionId);
   if (def == null) return _fail('unknown_card');

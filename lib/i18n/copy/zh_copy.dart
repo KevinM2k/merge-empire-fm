@@ -413,7 +413,6 @@ const Map<String, String> zhCopy = <String, String>{
   'squad.traits': "特性",
   'squad.trait.slot.player': "球员",
   'squad.trait.slot.match': "比赛",
-  'squad.trait.slot.locked': "已锁定",
   'squad.traits.all': "查看全部特性",
   'squad.traits.all.title': "全部特性",
   'squad.traits.match_blurb':
@@ -436,10 +435,6 @@ const Map<String, String> zhCopy = <String, String>{
   'matchtrait.effect.squad': "全队+{n}%",
   'matchtrait.effect.booked': "黄牌后-{n}%（而非-10%）",
   'matchtrait.effect.shrug': "{n}%几率继续比赛",
-  'squad.detail.matchslot.locked': "第二个特性，只在比赛中生效。花1颗宝石开启。",
-  'squad.detail.matchslot.unlock': "花{gems}颗宝石开启栏位",
-  'squad.detail.matchslot.need_gem': "你需要一颗宝石才能开启此栏位。",
-  'squad.detail.sell_burns_slot': "第二个特性栏位将随球员一起失去。宝石不予退还。",
   'boost.crowd_roar.name': "球迷怒吼",
   'boost.crowd_roar.desc': "全场沸腾——全队士气提升二十五分钟",
   'boost.park_the_bus.name': "摆大巴",

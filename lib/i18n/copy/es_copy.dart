@@ -570,7 +570,6 @@ const Map<String, String> esCopy = <String, String>{
   'squad.traits': "Rasgos",
   'squad.trait.slot.player': "Jugador",
   'squad.trait.slot.match': "Partido",
-  'squad.trait.slot.locked': "Bloqueado",
   'squad.traits.all': "Ver todos los rasgos",
   'squad.traits.all.title': "Todos los rasgos",
   'squad.traits.match_blurb':
@@ -593,10 +592,6 @@ const Map<String, String> esCopy = <String, String>{
   'matchtrait.effect.squad': "+{n}% para todo el equipo",
   'matchtrait.effect.booked': "-{n}% amonestado, no -10%",
   'matchtrait.effect.shrug': "{n}% de seguir jugando",
-  'squad.detail.matchslot.locked': "Un segundo rasgo, para el partido en sí. Se abre por una gema.",
-  'squad.detail.matchslot.unlock': "Abrir hueco por {gems} gema",
-  'squad.detail.matchslot.need_gem': "Necesitas una gema para abrir este hueco.",
-  'squad.detail.sell_burns_slot': "El segundo hueco de rasgo se va con el jugador. La gema no se devuelve.",
   'boost.crowd_roar.name': "Rugido de la grada",
   'boost.crowd_roar.desc': "El estadio estalla: todo el equipo se eleva durante veinticinco minutos",
   'boost.park_the_bus.name': "Autobús aparcado",

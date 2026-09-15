@@ -299,7 +299,6 @@ const Map<String, String> enCopy = <String, String>{
   'squad.traits': 'Traits',
   'squad.trait.slot.player': 'Player',
   'squad.trait.slot.match': 'Match',
-  'squad.trait.slot.locked': 'Locked',
   'squad.traits.all': 'See all traits',
   'squad.traits.all.title': 'Every trait',
   'squad.traits.match_blurb':
@@ -322,12 +321,6 @@ const Map<String, String> enCopy = <String, String>{
   'matchtrait.effect.squad': '+{n}% for the whole side',
   'matchtrait.effect.booked': '-{n}% booked, not -10%',
   'matchtrait.effect.shrug': '{n}% chance to play on',
-  'squad.detail.matchslot.locked':
-      'A second trait, for the match itself. Opens for one gem.',
-  'squad.detail.matchslot.unlock': 'Open slot for {gems} gem',
-  'squad.detail.matchslot.need_gem': 'You need a gem to open this slot.',
-  'squad.detail.sell_burns_slot':
-      'The second trait slot goes with the player. The gem is not refunded.',
   // ── Manager boosts ───────────────────────────────────────────────────────
   //
   // The port's own. Two are tapped from the match screen while watching, two

@@ -7,10 +7,8 @@
 /// you are rolling for by tapping it. The reel and the button underneath
 /// belong to whichever tile is lit.
 ///
-/// The two slots still pay differently — see `match_trait_engine.dart` for
-/// why the second is a gem, per player, and why every trait in its pool is
-/// conditional. A locked MATCH tile shows the gem it costs; tapping it runs
-/// the shop's own confirm-and-receipt flow, and the tile opens as a `?`.
+/// Both slots roll for coins — see `match_trait_engine.dart` for why the
+/// second's gem gate went, and why every trait in its pool is conditional.
 ///
 /// **The outcome is decided and PAID before the reel moves** — a spin that
 /// decided at the end would have to be unwound when the debit was refused. So
@@ -34,7 +32,6 @@ import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/ui/popups/feature_unlock.dart';
 import 'package:merge_empire_fc/ui/screens/grid/grid_providers.dart' show proModeProvider;
-import 'package:merge_empire_fc/ui/screens/shop/purchase_flow.dart';
 import 'package:merge_empire_fc/ui/screens/squad/detail_controls.dart';
 import 'package:merge_empire_fc/ui/screens/squad/trait_catalogue_sheet.dart';
 import 'package:merge_empire_fc/ui/screens/squad/trait_reel.dart';
@@ -109,27 +106,6 @@ class TraitBlockState extends ConsumerState<TraitBlock> {
   void _select(TraitSlot slot) {
     if (_spinning || slot == _slot) return;
     setState(() => _slot = slot);
-  }
-
-  /// The gem, through the shop's own three beats: confirm, debit, receipt.
-  Future<void> _unlock() async {
-    if (_spinning) return;
-    final game = ref.read(gameProvider);
-    await offerToBuy(context, ref, (
-      key: 'matchslot',
-      title: t('squad.matchtrait'),
-      subtitle: t('squad.detail.matchslot.locked'),
-      body: null,
-      glyph: 'gem',
-      currency: SpendCurrency.gems,
-      glyphColor: null,
-      cost: matchSlotGemCost,
-      buy: () => game.update((s) => unlockMatchSlot(s, widget.instanceId)).reason,
-    ));
-    if (!mounted) return;
-    if (hasMatchSlot(findOurCard(game.state, widget.instanceId))) {
-      setState(() => _slot = TraitSlot.match);
-    }
   }
 
   Future<void> _roll(List<Trait> pool) async {
@@ -230,7 +206,6 @@ class TraitBlockState extends ConsumerState<TraitBlock> {
         ? widget.hold!.trait
         : _map(card?.raw['trait']);
     final playerHeld = getTrait(playerTrait?['id'] as String?);
-    final open = hasMatchSlot(card);
     final shownMatch = _shownMatch ?? matchTraitOf(card);
     final matchTrait = shownMatch == null || shownMatch.isEmpty ? null : shownMatch;
     final matchHeld = getMatchTrait(matchTrait?['id'] as String?);
@@ -339,20 +314,15 @@ class TraitBlockState extends ConsumerState<TraitBlock> {
                   tileKey: const ValueKey('detail-trait-slot-match'),
                   label: t('squad.trait.slot.match'),
                   selected: matchSelected,
-                  // A padlock until the gem is spent — and still a tile you
-                  // can pick, so the pane under it is where the gem is asked
-                  // for. Asked for from the couch: it should look locked, and
-                  // the price belongs on the button.
-                  glyph: open ? (matchHeld?.icon ?? '?') : '🔒',
-                  locked: !open,
+                  // Open on every card — the gem gate went; see
+                  // `matchTraitOf`.
+                  glyph: matchHeld?.icon ?? '?',
                   lit: matchHeld != null,
-                  level: open ? _roman(matchTrait) : null,
+                  level: _roman(matchTrait),
                   levelKey: const ValueKey('detail-matchtrait-level'),
-                  caption: !open
-                      ? t('squad.trait.slot.locked')
-                      : matchHeld == null
-                          ? t('trait.name.none')
-                          : matchTraitTitle(matchTrait!),
+                  caption: matchHeld == null
+                      ? t('trait.name.none')
+                      : matchTraitTitle(matchTrait!),
                   onTap: () => _select(TraitSlot.match),
                 ),
               ),
@@ -395,7 +365,7 @@ class TraitBlockState extends ConsumerState<TraitBlock> {
             ],
             if (matchSelected)
               Opacity(
-                opacity: open ? 1 : 0.45,
+                opacity: 1,
                 child: TraitReel(
                 key: _matchReel,
                 keyPrefix: 'matchtrait-reel',
@@ -433,20 +403,7 @@ class TraitBlockState extends ConsumerState<TraitBlock> {
               ),
             const SizedBox(height: 10),
             // The cost rides on the button: this is the only gamble on the
-            // sheet, so the thing you press says what it takes. A locked
-            // slot's button is the gem that opens it, in the shop's blue.
-            if (matchSelected && !open)
-              HeroPill(
-                buttonKey: const ValueKey('matchslot-unlock'),
-                glyph: 'gem',
-                label: t('squad.detail.matchslot.unlock', {
-                  'gems': '$matchSlotGemCost',
-                }),
-                gold: false,
-                gem: true,
-                onTap: _spinning ? null : _unlock,
-              )
-            else
+            // sheet, so the thing you press says what it takes.
             HeroPill(
               buttonKey: const ValueKey('detail-trait-roll'),
               glyph: 'star',
@@ -454,7 +411,7 @@ class TraitBlockState extends ConsumerState<TraitBlock> {
               gold: true,
               onTap: _spinning || coins < cost ? null : () => _roll(pool),
             ),
-            if (coins < cost && (open || !matchSelected))
+            if (coins < cost)
               Padding(
                 padding: const EdgeInsets.only(top: 6),
                 child: Text(
@@ -493,11 +450,7 @@ class _SlotTile extends StatelessWidget {
     required this.levelKey,
     required this.caption,
     required this.onTap,
-    this.locked = false,
   });
-
-  /// Not yet open: the medal and the label go quiet, whatever is lit.
-  final bool locked;
 
   final Key tileKey;
   final String label;
@@ -538,12 +491,8 @@ class _SlotTile extends StatelessWidget {
               const SizedBox(height: 3),
               TraitDisc(
                 glyph: glyph,
-                colour: locked ? kit.textMuted.withValues(alpha: 0.7) : ink,
-                fill: locked
-                    ? kit.surface2.withValues(alpha: 0.6)
-                    : lit
-                        ? kit.accent.withValues(alpha: 0.18)
-                        : kit.surface2,
+                colour: ink,
+                fill: lit ? kit.accent.withValues(alpha: 0.18) : kit.surface2,
                 level: level,
                 levelInk: kit.accentInk,
                 levelKey: levelKey,

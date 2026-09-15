@@ -516,7 +516,6 @@ const Map<String, String> arCopy = <String, String>{
   'squad.traits': "السمات",
   'squad.trait.slot.player': "اللاعب",
   'squad.trait.slot.match': "المباراة",
-  'squad.trait.slot.locked': "مقفل",
   'squad.traits.all': "عرض كل السمات",
   'squad.traits.all.title': "كل السمات",
   'squad.traits.match_blurb':
@@ -539,10 +538,6 @@ const Map<String, String> arCopy = <String, String>{
   'matchtrait.effect.squad': "+{n}% للفريق كله",
   'matchtrait.effect.booked': "-{n}% مع الإنذار بدلاً من -10%",
   'matchtrait.effect.shrug': "{n}% فرصة لمواصلة اللعب",
-  'squad.detail.matchslot.locked': "سمة ثانية تعمل في المباراة فقط. تُفتح بجوهرة واحدة.",
-  'squad.detail.matchslot.unlock': "افتح الخانة بـ{gems} جوهرة",
-  'squad.detail.matchslot.need_gem': "تحتاج إلى جوهرة لفتح هذه الخانة.",
-  'squad.detail.sell_burns_slot': "خانة السمة الثانية تذهب مع اللاعب. لا تُرد الجوهرة.",
   'boost.crowd_roar.name': "هدير الجماهير",
   'boost.crowd_roar.desc': "يشتعل الملعب — يرتفع مستوى الفريق كله لخمس وعشرين دقيقة",
   'boost.park_the_bus.name': "إيقاف الحافلة",

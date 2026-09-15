@@ -580,7 +580,6 @@ const Map<String, String> itCopy = <String, String>{
   'squad.traits': "Tratti",
   'squad.trait.slot.player': "Giocatore",
   'squad.trait.slot.match': "Partita",
-  'squad.trait.slot.locked': "Bloccato",
   'squad.traits.all': "Vedi tutti i tratti",
   'squad.traits.all.title': "Tutti i tratti",
   'squad.traits.match_blurb':
@@ -603,10 +602,6 @@ const Map<String, String> itCopy = <String, String>{
   'matchtrait.effect.squad': "+{n}% per tutta la squadra",
   'matchtrait.effect.booked': "-{n}% ammonito, non -10%",
   'matchtrait.effect.shrug': "{n}% di continuare",
-  'squad.detail.matchslot.locked': "Un secondo tratto, per la partita stessa. Si apre con una gemma.",
-  'squad.detail.matchslot.unlock': "Apri lo slot per {gems} gemma",
-  'squad.detail.matchslot.need_gem': "Ti serve una gemma per aprire questo slot.",
-  'squad.detail.sell_burns_slot': "Il secondo slot del tratto va via con il giocatore. La gemma non viene rimborsata.",
   'boost.crowd_roar.name': "Boato della curva",
   'boost.crowd_roar.desc': "Lo stadio esplode: tutta la squadra si alza per venticinque minuti",
   'boost.park_the_bus.name': "Pullman parcheggiato",

@@ -83,14 +83,14 @@ void main() {
       expect(out['a'], closeTo(1.07, 1e-9));
     });
 
-    test('a locked slot pays nothing even with a trait in the map', () {
+    test('a trait pays with or without the old slot flag', () {
       final raw = _card('a', trait: 'fortress')..remove('matchSlot');
       final out = matchTraitMultipliers(
         _cells([raw]),
         _lineup(['a']),
         _ctx(isHome: true),
       );
-      expect(out, isEmpty);
+      expect(out['a'], greaterThan(1));
     });
 
     // **ONLY THE ELEVEN.** A Cup Fighter sat on the bench does not fight.
@@ -273,55 +273,20 @@ void main() {
       expect(warriorShrugChance(null), 0);
     });
 
-    test('is zero for a locked slot', () {
+    test('reads the same without the old slot flag', () {
       final raw = _card('a', trait: 'warrior')..remove('matchSlot');
-      expect(warriorShrugChance(CardInstance.from(raw)), 0);
+      expect(warriorShrugChance(CardInstance.from(raw)), greaterThan(0));
     });
   });
 
-  group('unlockMatchSlot', () {
-    test('DEBITS EXACTLY ONE GEM AND OPENS THE SLOT', () {
-      final s = _state([_card('a')]);
-      final r = unlockMatchSlot(s, 'a');
-      expect(r.ok, isTrue);
-      expect(r.reason, isNull);
-      expect((s['resources'] as Map)['gems'], 2);
-      expect(_cellOf(s, 'a')['matchSlot'], isTrue);
-      expect(hasMatchSlot(CardInstance.from(_cellOf(s, 'a'))), isTrue);
-    });
-
-    test('refuses without the gem, and takes nothing', () {
-      final s = _state([_card('a')], gems: 0);
-      expect(unlockMatchSlot(s, 'a').reason, 'insufficient_gems');
-      expect(_cellOf(s, 'a')['matchSlot'], isNull);
-    });
-
-    test('refuses a second unlock rather than charging twice', () {
-      final s = _state([_card('a')]);
-      unlockMatchSlot(s, 'a');
-      expect(unlockMatchSlot(s, 'a').reason, 'already_unlocked');
-      expect((s['resources'] as Map)['gems'], 2);
-    });
-
-    test('refuses an unknown card', () {
-      expect(unlockMatchSlot(_state([_card('a')]), 'nope').reason,
-          'unknown_card');
-      expect(unlockMatchSlot(_state([_card('a')]), null).reason,
-          'unknown_card');
-    });
-
-    // A loanee is not ours to improve — the same rule the first slot applies.
-    test('refuses a card that is not ours', () {
-      final s = _state([_card('a')..['loanMatchesLeft'] = 3]);
-      expect(unlockMatchSlot(s, 'a').reason, 'unavailable');
-      expect((s['resources'] as Map)['gems'], 3);
-    });
-
-    test('announces the unlock', () {
-      Object? got;
-      on('match_trait:unlocked', (a) => got = a);
-      unlockMatchSlot(_state([_card('a')]), 'a');
-      expect(got, {'instanceId': 'a'});
+  // The gem gate went: the slot is open on every card, and an old save's
+  // `matchSlot` flag changes nothing.
+  group('the slot is open', () {
+    test('a trait reads with or without the old flag', () {
+      final s = _state([_card('a')..['matchTrait'] = {'id': 'fortress', 'level': 2}]);
+      expect(matchTraitOf(CardInstance.from(_cellOf(s, 'a')))?['id'], 'fortress');
+      _cellOf(s, 'a')['matchSlot'] = true;
+      expect(matchTraitOf(CardInstance.from(_cellOf(s, 'a')))?['id'], 'fortress');
     });
   });
 
@@ -342,12 +307,12 @@ void main() {
   });
 
   group('rollMatchTraitForCard', () {
-    test('REFUSES A LOCKED SLOT AND CHARGES NOTHING', () {
+    test('ROLLS INTO A FRESH CARD WITHOUT A GEM', () {
       final s = _state([_card('a')]);
       final r = rollMatchTraitForCard(s, 'a');
-      expect(r.ok, isFalse);
-      expect(r.reason, 'locked');
-      expect((s['resources'] as Map)['fanCoins'], 999999);
+      expect(r.ok, isTrue);
+      expect(matchTraitOf(CardInstance.from(_cellOf(s, 'a'))), isNotNull);
+      expect((s['resources'] as Map)['fanCoins'], lessThan(999999));
     });
 
     test('rolls into an unlocked slot and debits coins', () {

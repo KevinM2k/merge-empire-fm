@@ -476,8 +476,10 @@ void main() {
       expect(iii, greaterThan(0), reason: 'Warrior is not immunity');
     });
 
-    test('and a locked slot shrugs nothing off', () {
-      var withSlot = 0, without = 0;
+    // The gem gate went, so an old save's `matchSlot` flag changes nothing:
+    // a Warrior shrugs with or without it.
+    test('and the old slot flag makes no difference', () {
+      var withFlag = 0, without = 0;
       for (var seed = 0; seed < 200; seed++) {
         seeded.setSeed(seed);
         final s = squad(level: 3);
@@ -485,12 +487,11 @@ void main() {
             .whereType<Map<String, dynamic>>()) {
           c.remove('matchSlot');
         }
-        withSlot += (simulateMatch(s, 'regional_league')['injuryCount'] as num?)?.toInt() ?? 0;
+        without += (simulateMatch(s, 'regional_league')['injuryCount'] as num?)?.toInt() ?? 0;
         seeded.setSeed(seed);
-        without += (simulateMatch(squad(), 'regional_league')['injuryCount'] as num?)?.toInt() ?? 0;
+        withFlag += (simulateMatch(squad(level: 3), 'regional_league')['injuryCount'] as num?)?.toInt() ?? 0;
       }
-      // Same draws, same factor of one: the two runs are the same run.
-      expect(withSlot, without);
+      expect(withFlag, without);
     });
   });
 

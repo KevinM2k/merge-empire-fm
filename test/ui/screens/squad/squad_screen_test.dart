@@ -872,14 +872,19 @@ void main() {
       await openDetailOfFirst(tester, container);
       await scrollSheetTo(tester, 'detail-trait-roll');
       await tester.pumpAndSettle();
+      // The PLAYER tile's caption: the MATCH tile beside it is empty too.
+      final none = find.descendant(
+        of: find.byKey(const ValueKey('detail-trait-slot-player')),
+        matching: find.text(t('trait.name.none')),
+      );
       // He starts with nothing, so that is what the label has to keep saying
       // until the wheel stops.
-      expect(find.text(t('trait.name.none')), findsOneWidget);
+      expect(none, findsOneWidget);
 
       await tester.tap(find.byKey(const ValueKey('detail-trait-roll')));
       await tester.pump();
       expect(
-        find.text(t('trait.name.none')),
+        none,
         findsOneWidget,
         reason: 'the trait was announced while the reels were still turning',
       );
@@ -921,7 +926,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('feature-unlock')), findsNothing);
       expect(
-        find.text(t('trait.name.none')),
+        none,
         findsNothing,
         reason: 'the wheel stopped and never said what it landed on',
       );

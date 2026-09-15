@@ -587,7 +587,6 @@ const Map<String, String> frCopy = <String, String>{
   'squad.traits': "Traits",
   'squad.trait.slot.player': "Joueur",
   'squad.trait.slot.match': "Match",
-  'squad.trait.slot.locked': "Verrouillé",
   'squad.traits.all': "Voir tous les traits",
   'squad.traits.all.title': "Tous les traits",
   'squad.traits.match_blurb':
@@ -610,10 +609,6 @@ const Map<String, String> frCopy = <String, String>{
   'matchtrait.effect.squad': "+{n}% pour toute l'équipe",
   'matchtrait.effect.booked': "-{n}% averti, au lieu de -10%",
   'matchtrait.effect.shrug': "{n}% de chances de continuer",
-  'squad.detail.matchslot.locked': "Un second trait, pour le match lui-même. S'ouvre pour une gemme.",
-  'squad.detail.matchslot.unlock': "Ouvrir l'emplacement pour {gems} gemme",
-  'squad.detail.matchslot.need_gem': "Il vous faut une gemme pour ouvrir cet emplacement.",
-  'squad.detail.sell_burns_slot': "Le second emplacement de trait part avec le joueur. La gemme n'est pas remboursée.",
   'boost.crowd_roar.name': "Rugissement du public",
   'boost.crowd_roar.desc': "Le stade s'embrase — toute l'équipe est portée pendant vingt-cinq minutes",
   'boost.park_the_bus.name': "Bus garé",

@@ -589,7 +589,6 @@ const Map<String, String> deCopy = <String, String>{
   'squad.traits': "Merkmale",
   'squad.trait.slot.player': "Spieler",
   'squad.trait.slot.match': "Spiel",
-  'squad.trait.slot.locked': "Gesperrt",
   'squad.traits.all': "Alle Merkmale",
   'squad.traits.all.title': "Alle Merkmale",
   'squad.traits.match_blurb':
@@ -612,10 +611,6 @@ const Map<String, String> deCopy = <String, String>{
   'matchtrait.effect.squad': "+{n}% fürs ganze Team",
   'matchtrait.effect.booked': "-{n}% mit Gelb statt -10%",
   'matchtrait.effect.shrug': "{n}% Chance weiterzuspielen",
-  'squad.detail.matchslot.locked': "Ein zweites Merkmal, nur für das Spiel selbst. Öffnet sich für einen Edelstein.",
-  'squad.detail.matchslot.unlock': "Platz für {gems} Edelstein öffnen",
-  'squad.detail.matchslot.need_gem': "Du brauchst einen Edelstein, um diesen Platz zu öffnen.",
-  'squad.detail.sell_burns_slot': "Der zweite Merkmalplatz geht mit dem Spieler. Der Edelstein wird nicht erstattet.",
   'boost.crowd_roar.name': "Fangesang",
   'boost.crowd_roar.desc': "Das Stadion bebt – die ganze Mannschaft wächst für fünfundzwanzig Minuten",
   'boost.park_the_bus.name': "Bus parken",

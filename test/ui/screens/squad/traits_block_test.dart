@@ -9,6 +9,7 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/data/match_traits.dart' show matchTraitList;
 import 'package:merge_empire_fc/engine/match_trait_engine.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
@@ -29,69 +30,21 @@ String _idOf(WidgetTester tester) =>
 
 void main() {
   group('THE SECOND SLOT', () {
-    testWidgets('IS LOCKED UNTIL A GEM OPENS IT, through the shop\'s own confirm', (
-      tester,
-    ) async {
-      final container = await pumpSquad(
-        tester,
-        mutate: (s) => (s['resources'] as Map<String, dynamic>)['gems'] = 3,
-      );
-      await openDetailOfFirst(tester, container);
-      await scrollSheetTo(tester, 'detail-trait');
-
-      // Locked: the reel under the box is the PLAYER one until MATCH is picked.
-      expect(find.byKey(const ValueKey('detail-trait-slot-match')), findsOneWidget);
-      expect(find.byKey(const ValueKey('matchtrait-reel-name')), findsNothing);
-      expect(find.byKey(const ValueKey('trait-reel-name')), findsOneWidget);
-      expect(find.byKey(const ValueKey('matchslot-unlock')), findsNothing);
-
-      // Picked: the pane is the match slot's, and its button is the gem.
-      await tester.tap(find.byKey(const ValueKey('detail-trait-slot-match')));
-      await tester.pumpAndSettle();
-      expect(find.byKey(const ValueKey('matchtrait-reel-name')), findsOneWidget);
-      expect(find.byKey(const ValueKey('detail-trait-roll')), findsNothing);
-      await scrollSheetTo(tester, 'matchslot-unlock');
-      await tester.tap(find.byKey(const ValueKey('matchslot-unlock')));
-      await tester.pumpAndSettle();
-      expect(find.byKey(const ValueKey('spend-confirm-matchslot')), findsOneWidget);
-      await tester.tap(find.byKey(const ValueKey('spend-confirm-yes-matchslot')));
-      await tester.pumpAndSettle();
-
-      final state = container.read(gameProvider).state!;
-      expect((state['resources'] as Map)['gems'], 2);
-      expect(_cell(state, _idOf(tester))['matchSlot'], isTrue);
-      // Open, and now the lit slot: the reel swapped to the match pool.
-      expect(
-        tester.state<TraitBlockState>(find.byType(TraitBlock)).slot,
-        TraitSlot.match,
-      );
-      expect(find.byKey(const ValueKey('matchtrait-reel-name')), findsOneWidget);
-      expect(find.byKey(const ValueKey('trait-reel-name')), findsNothing);
-      expect(find.byKey(const ValueKey('detail-trait-roll')), findsOneWidget);
-      await settleSave(tester);
-    });
-
-    testWidgets('and without a gem it stays shut and takes nothing', (
-      tester,
-    ) async {
+    // The gem gate went: MATCH is a tile you pick and roll, like PLAYER.
+    testWidgets('IS OPEN ON EVERY CARD, with no gem asked for', (tester) async {
       final container = await pumpSquad(
         tester,
         mutate: (s) => (s['resources'] as Map<String, dynamic>)['gems'] = 0,
       );
       await openDetailOfFirst(tester, container);
       await scrollSheetTo(tester, 'detail-trait');
-
+      expect(find.byKey(const ValueKey('matchslot-unlock')), findsNothing);
       await tester.tap(find.byKey(const ValueKey('detail-trait-slot-match')));
       await tester.pumpAndSettle();
-      await scrollSheetTo(tester, 'matchslot-unlock');
-      await tester.tap(find.byKey(const ValueKey('matchslot-unlock')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const ValueKey('spend-confirm-yes-matchslot')));
-      await tester.pumpAndSettle();
-      // Short of gems the flow opens the gem shelf and buys nothing.
-      final state = container.read(gameProvider).state!;
-      expect((state['resources'] as Map)['gems'], 0);
-      expect(_cell(state, _idOf(tester))['matchSlot'], isNull);
+      expect(find.byKey(const ValueKey('matchtrait-reel-name')), findsOneWidget);
+      expect(find.byKey(const ValueKey('detail-trait-roll')), findsOneWidget);
+      expect(find.byKey(const ValueKey('matchslot-unlock')), findsNothing);
+      expect(find.text(t('squad.trait.slot.locked')), findsNothing);
     });
 
     testWidgets('AN OPEN SLOT SPINS THE SAME REEL AND WRITES THE ROLL', (

@@ -14,7 +14,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/engine/negotiation_engine.dart'
     show findOurCard;
-import 'package:merge_empire_fc/engine/match_trait_engine.dart' show hasMatchSlot;
 import 'package:merge_empire_fc/engine/sell_card_engine.dart';
 import 'package:merge_empire_fc/engine/sell_engine.dart';
 import 'package:merge_empire_fc/engine/idle_engine.dart'
@@ -256,22 +255,6 @@ Future<void> showSellSheet(
                                 fontSize: 12,
                               ),
                             ),
-                            // A gem spent on a card the player then sells is a
-                            // gem gone, and this is the only place to say so.
-                            if (hasMatchSlot(findOurCard(state, instanceId)))
-                              Padding(
-                                padding: const EdgeInsets.only(top: 6),
-                                child: Text(
-                                  t('squad.detail.sell_burns_slot'),
-                                  key: const ValueKey('sell-burns-slot'),
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    color: _plateInk(sheetContext),
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ),
                           ],
                         ),
                       ),

@@ -488,7 +488,6 @@ const Map<String, String> koCopy = <String, String>{
   'squad.traits': "특성",
   'squad.trait.slot.player': "선수",
   'squad.trait.slot.match': "경기",
-  'squad.trait.slot.locked': "잠김",
   'squad.traits.all': "모든 특성 보기",
   'squad.traits.all.title': "모든 특성",
   'squad.traits.match_blurb':
@@ -511,10 +510,6 @@ const Map<String, String> koCopy = <String, String>{
   'matchtrait.effect.squad': "팀 전체 +{n}%",
   'matchtrait.effect.booked': "경고 시 -{n}% (기본 -10%)",
   'matchtrait.effect.shrug': "{n}% 확률로 계속 뛴다",
-  'squad.detail.matchslot.locked': "경기 중에만 작동하는 두 번째 특성. 젬 1개로 개방.",
-  'squad.detail.matchslot.unlock': "젬 {gems}개로 슬롯 개방",
-  'squad.detail.matchslot.need_gem': "이 슬롯을 열려면 젬이 필요합니다.",
-  'squad.detail.sell_burns_slot': "두 번째 특성 슬롯은 선수와 함께 사라집니다. 젬은 환불되지 않습니다.",
   'boost.crowd_roar.name': "관중의 함성",
   'boost.crowd_roar.desc': "경기장이 폭발합니다 — 25분 동안 팀 전체가 살아납니다",
   'boost.park_the_bus.name': "버스 세우기",

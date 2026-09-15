@@ -562,7 +562,6 @@ const Map<String, String> ptCopy = <String, String>{
   'squad.traits': "Traços",
   'squad.trait.slot.player': "Jogador",
   'squad.trait.slot.match': "Jogo",
-  'squad.trait.slot.locked': "Bloqueado",
   'squad.traits.all': "Ver todos os traços",
   'squad.traits.all.title': "Todos os traços",
   'squad.traits.match_blurb':
@@ -585,10 +584,6 @@ const Map<String, String> ptCopy = <String, String>{
   'matchtrait.effect.squad': "+{n}% para toda a equipa",
   'matchtrait.effect.booked': "-{n}% admoestado, não -10%",
   'matchtrait.effect.shrug': "{n}% de continuar",
-  'squad.detail.matchslot.locked': "Um segundo traço, para o jogo em si. Abre por uma gema.",
-  'squad.detail.matchslot.unlock': "Abrir vaga por {gems} gema",
-  'squad.detail.matchslot.need_gem': "Você precisa de uma gema para abrir esta vaga.",
-  'squad.detail.sell_burns_slot': "A segunda vaga de traço vai com o jogador. A gema não é devolvida.",
   'boost.crowd_roar.name': "Rugido da torcida",
   'boost.crowd_roar.desc': "O estádio explode: o time inteiro cresce por vinte e cinco minutos",
   'boost.park_the_bus.name': "Ônibus estacionado",
