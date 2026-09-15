@@ -133,7 +133,7 @@ class _AuraPainter extends CustomPainter {
       final left = byId[id]!.clamp(0.0, 1.0);
       final breathe = 0.5 + 0.5 * math.sin(phase + i * 1.3);
       final inset = 4.0 + i * 10.0;
-      final band = 22.0 + 6.0 * breathe;
+      final band = 30.0 + 10.0 * breathe;
       final rect = Rect.fromLTWH(
         inset,
         inset,
@@ -159,24 +159,59 @@ class _AuraPainter extends CustomPainter {
         drawn.addPath(metric.extractPath(start, total), Offset.zero);
         drawn.addPath(metric.extractPath(0, endAt - total), Offset.zero);
       }
-      // A soft inward glow: a wide translucent stroke, blurred.
+      // **A GLOW, BREATHING, WITH A LIGHT RUNNING ROUND IT.** Two blurred
+      // strokes — a wide soft one and a tighter hot one — so the ring reads
+      // as light on the grass rather than a line drawn on it, and a bright
+      // comet that laps the ring once a loop, which is the part the eye
+      // catches from across the room. Asked for from the couch, twice.
       canvas.drawPath(
         drawn,
         Paint()
-          ..color = colour.withValues(alpha: 0.28 + 0.18 * breathe)
+          ..color = colour.withValues(alpha: 0.30 + 0.20 * breathe)
           ..style = PaintingStyle.stroke
           ..strokeWidth = band
-          ..maskFilter = MaskFilter.blur(BlurStyle.normal, band * 0.6),
+          ..maskFilter = MaskFilter.blur(BlurStyle.normal, band * 0.7),
+      );
+      canvas.drawPath(
+        drawn,
+        Paint()
+          ..color = colour.withValues(alpha: 0.55 + 0.25 * breathe)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 8
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
       );
       // And a hard line on it, so the ring has an edge to read.
       canvas.drawPath(
         drawn,
         Paint()
-          ..color = colour.withValues(alpha: 0.75 + 0.25 * breathe)
+          ..color = colour.withValues(alpha: 0.85 + 0.15 * breathe)
           ..style = PaintingStyle.stroke
           ..strokeWidth = 2
           ..strokeCap = StrokeCap.round,
       );
+      // The comet: a short bright run that travels the lit part of the ring.
+      if (len > 0) {
+        final head = (t.value + i * 0.33) % 1;
+        final cometLen = math.min(len, total * 0.12);
+        final from = start + (len - cometLen) * head;
+        final comet = Path();
+        final to = from + cometLen;
+        if (to <= total) {
+          comet.addPath(metric.extractPath(from, to), Offset.zero);
+        } else {
+          comet.addPath(metric.extractPath(from, total), Offset.zero);
+          comet.addPath(metric.extractPath(0, to - total), Offset.zero);
+        }
+        canvas.drawPath(
+          comet,
+          Paint()
+            ..color = Colors.white.withValues(alpha: 0.85)
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 6
+            ..strokeCap = StrokeCap.round
+            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5),
+        );
+      }
       // The rest of the way round, faint: the ring's outline, so what has
       // burned off is still legible as "this much gone".
       canvas.drawRRect(
