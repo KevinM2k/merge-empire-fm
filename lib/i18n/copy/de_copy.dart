@@ -98,18 +98,26 @@ const Map<String, String> deCopy = <String, String>{
       'Es geht ins Elfmeterschießen.|'
       'Nach neunzig Minuten nichts zwischen ihnen — es geht vom Punkt weiter.|'
       'Keine Entscheidung, also fällt sie aus elf Metern.',
+  'match.pens.step_up':
+      '{who} tritt an.|'
+      '{who} legt sich den Ball zurecht.|'
+      'Als Nächstes: {who}. Im ganzen Stadion wird es still.',
+  'match.pens.opp_step_up':
+      '{them} schicken ihren nächsten Schützen.|'
+      'Der nächste Spieler von {them} legt sich den Ball zurecht.|'
+      '{them} sind als Nächstes dran.',
   'match.pens.sudden_death':
       'Fünf zu fünf, immer noch gleich. Jetzt entscheidet der nächste Fehler.|'
       'Weiter im K.-o.-Modus: ein Fehlschuss und es ist vorbei.|'
       'Je fünf verwandelt. Der nächste Fehler entscheidet.',
   'match.pens.scored':
-      'Flach ins Eck. {us} trifft.|'
-      'Der Torwart ist in der falschen Ecke — {us} macht keinen Fehler.|'
-      'Mittig und drin. {us} trifft.',
+      'Flach ins Eck. {who} macht keinen Fehler.|'
+      'Der Torwart ist in der falschen Ecke, und {who} trifft.|'
+      'Mittig und drin. {who} trifft.',
   'match.pens.missed':
-      'Gehalten! {us} fasst es nicht.|'
-      'Drüber — {us} setzt ihn in den Block.|'
-      'An den Pfosten und daneben. Ein bitterer Moment für {us}.',
+      'Gehalten! {who} fasst es nicht.|'
+      'Drüber — {who} setzt ihn in den Block.|'
+      'An den Pfosten und daneben. Ein bitterer Moment für {who}.',
   'match.pens.opp_scored':
       '{them} treffen, da gibt es nichts zu deuten.|'
       'In den Winkel für {them} — unhaltbar.|'

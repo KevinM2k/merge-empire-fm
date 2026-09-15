@@ -680,18 +680,32 @@ const Map<String, String> enCopy = <String, String>{
       'It\'s going to penalties.|'
       'Nothing between them after ninety minutes — it goes to spot kicks.|'
       'No separating them, so the cup tie is decided from twelve yards.',
+  // **A KICK IS TWO LINES: the walk up, and what happened.** Asked for from
+  // the couch after the first pass went straight to the result — "there should
+  // be some tension, so it's player a steps up, pause, goal, etc for all".
+  // `{who}` is the man on the spot, off the team sheet that FINISHED the
+  // match; the opposition's is a club, because the engine names no player of
+  // theirs and never has.
+  'match.pens.step_up':
+      '{who} steps up.|'
+      '{who} places the ball on the spot.|'
+      'Next up: {who}. The whole ground goes quiet.',
+  'match.pens.opp_step_up':
+      '{them} send up their next taker.|'
+      'The next {them} player places the ball.|'
+      '{them} are up next.',
   'match.pens.sudden_death':
       'Five each, and still level. Sudden death.|'
       'Into sudden death — one miss now and it is over.|'
       'Five apiece. Next mistake decides it.',
   'match.pens.scored':
-      'Buried, bottom corner. {us} score.|'
-      'Sent the keeper the wrong way — {us} make no mistake.|'
-      'Straight down the middle, and it is in. {us} score.',
+      'Buried, bottom corner. {who} makes no mistake.|'
+      'The keeper goes the wrong way, and {who} scores.|'
+      'Straight down the middle, and it is in. {who} scores.',
   'match.pens.missed':
-      'Saved! {us} cannot believe it.|'
-      'Over the bar — {us} have put it into the crowd.|'
-      'Off the post and out. An awful moment for {us}.',
+      'Saved! {who} cannot believe it.|'
+      'Over the bar — {who} has put it into the crowd.|'
+      'Off the post and out. An awful moment for {who}.',
   'match.pens.opp_scored':
       '{them} score, no argument about it.|'
       'Top corner for {them} — unstoppable.|'

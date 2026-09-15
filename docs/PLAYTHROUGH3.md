@@ -6,7 +6,7 @@ because that is the part worth keeping.
 
 ## Where this queue stands
 
-**123 done, 6 open, and one feature parked.** One open row is a report still
+**124 done, 6 open, and one feature parked.** One open row is a report still
 being narrowed (the trees' size, below); none of the rest is a fault.
 One is a feature that was built, tried and turned down; one is a balance
 question rather than work; one is a survey to run before building; and one is
@@ -1732,6 +1732,25 @@ was allowed to decide the BEHAVIOUR; the second half stopped being true when
 `en_copy.dart` and `lib/i18n/copy/<id>_copy.dart` became overlays laid over the
 generated catalogues, which is where every word of the write-up already lives.
 
+- [x] **A KICK IS TWO BEATS, and the gap between them is the feature.** The
+      first pass of this shipped the outcome alone — a line a second saying
+      whether each one went in — and came straight back: "there should be some
+      tension... so it's player a steps up.... pause.... goal.... etc for all."
+      Which is right, and it is the difference between a shootout and a
+      scoreboard updating. So every kick is a walk-up line naming the man on
+      the spot, a beat of nothing, and then the result — and the board's
+      bracket moves on the RESULT, never on the walk-up, because the score
+      while somebody is standing over the ball is the score before he kicks it.
+
+      **The taker is the SCREEN's, like the bookings.** The engine's shootout
+      is teams rather than players — `simulatePenaltyShootout` decides each
+      kick off the two sides' ratings and names nobody — so who walks up is
+      read off the eleven who FINISHED the match: a substitute takes one, a man
+      sent off does not, and the goalkeeper is last because a sudden death has
+      to run a long way before it reaches him. Nothing about the result moves;
+      the kick was already decided. Theirs is a club rather than a man, because
+      the port has never named an opposition player.
+
 - [x] **The kicks are taken one at a time, in the commentary, with the score
       beside each.** The ninety minutes end, the whistle goes, the feed says it
       is going to penalties — and then a kick lands every second, each row
@@ -1758,7 +1777,7 @@ generated catalogues, which is where every word of the write-up already lives.
       neither, so a board reading the stored figure would have shown a running
       score on a re-simulated tie and zeroes on one that went straight through.
 
-      Nine keys in ten languages, four pools among them because a kick of
+      Eleven keys in ten languages, six pools among them because a kick of
       theirs going in is opposite news to one of ours. A skipped tie gets every
       line and the full bracket at once: the 13 Sep audit's rule is that what
       was watched is what gets recorded, and only the pacing may differ.
@@ -1766,7 +1785,9 @@ generated catalogues, which is where every word of the write-up already lives.
       Tested by RUNNING THE CLOCK rather than skipping it, which is the whole
       point — every existing cup test reaches full time through `skipToEnd`,
       and a shootout that only ever arrives at once is the thing being fixed.
-      Six through the screen and seven on the arithmetic.
+      Seven through the screen and nine on the arithmetic, including the pause
+      itself: a walk-up that resolves faster than the gap between kicks has no
+      tension in it, so the two durations are asserted against each other.
 
 ## Open
 

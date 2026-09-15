@@ -90,18 +90,26 @@ const Map<String, String> ptCopy = <String, String>{
       'Isto vai para as grandes penalidades.|'
       'Nada os separa ao fim de noventa minutos: decide-se aos onze metros.|'
       'Continuam empatados, e a eliminatória resolve-se na marca de penálti.',
+  'match.pens.step_up':
+      '{who} avança para a marca.|'
+      '{who} coloca a bola na marca de grande penalidade.|'
+      'É a vez de {who}. Faz-se silêncio no estádio.',
+  'match.pens.opp_step_up':
+      'O {them} manda o próximo marcador.|'
+      'O próximo jogador do {them} coloca a bola.|'
+      'Agora é a vez do {them}.',
   'match.pens.sudden_death':
       'Cinco para cada lado e continuam empatados. Morte súbita.|'
       'Entramos em morte súbita: um falhanço e acaba tudo.|'
       'Cinco cada um. O próximo erro decide.',
   'match.pens.scored':
-      'No fundo das redes, junto ao poste. O {us} marca.|'
-      'Guarda-redes para o lado errado: o {us} não falha.|'
-      'Pelo meio, e lá dentro. O {us} marca.',
+      'No fundo das redes, junto ao poste. {who} não falha.|'
+      'O guarda-redes vai para o lado errado, e {who} marca.|'
+      'Pelo meio, e lá dentro. {who} marca.',
   'match.pens.missed':
-      'Defendeu! O {us} não quer acreditar.|'
-      'Por cima da barra: o {us} manda-a para a bancada.|'
-      'No poste e para fora. Momento terrível para o {us}.',
+      'Defendeu! {who} não quer acreditar.|'
+      'Por cima da barra: {who} manda-a para a bancada.|'
+      'No poste e para fora. Momento terrível para {who}.',
   'match.pens.opp_scored':
       'O {them} marca, sem discussão.|'
       'Ao ângulo para o {them}: indefensável.|'

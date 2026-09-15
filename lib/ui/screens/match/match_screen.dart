@@ -610,6 +610,11 @@ class MatchScreenState extends ConsumerState<MatchScreen>
   List<ShootoutBeat> _pens = const [];
   int _pensShown = 0;
 
+  /// Whether a taker is standing over the ball right now — a walk-up line has
+  /// been said and the kick has not been struck. It is what puts the bracket
+  /// on the board for the very first kick, before there is any tally to show.
+  bool _pensOnTheSpot = false;
+
   /// Whether the kicks are still being taken. **This is what `finished` means
   /// now**: the ninety minutes being up is not the match being over on a tie
   /// that is still level, and a CONTINUE button over a shootout in progress
@@ -1664,6 +1669,17 @@ class MatchScreenState extends ConsumerState<MatchScreen>
   }
 
   // ── The shootout ──────────────────────────────────────────────────────────
+  //
+  // **A KICK IS TWO BEATS, and the gap between them is the point.** Asked for
+  // from the couch after the first pass shipped the outcome alone: "there
+  // should be some tension — so it's player a steps up, pause, goal, etc for
+  // all". A line every second saying whether a kick went in is a scoreboard
+  // updating; a shootout is the walk, the placing of the ball, and the wait.
+  //
+  // So every kick is a walk-up line, a beat of nothing, and then the result —
+  // and the board's bracket moves on the RESULT, never on the walk-up, because
+  // the score while somebody is standing over the ball is the score before he
+  // kicks it.
 
   /// Take the clock over for a level cup tie, or say there is nothing to take
   /// it over for.
@@ -1685,26 +1701,52 @@ class MatchScreenState extends ConsumerState<MatchScreen>
       _pens = beats;
       _pensShown = 0;
       _pensRunning = true;
+      _takers = _penaltyTakers();
       _pensNote('match.pens.going');
     });
-    _pensTimer = Timer(penaltyBeat(penaltyOpenBeat, pace), _takeNextPenalty);
+    _pensTimer = Timer(penaltyBeat(penaltyOpenBeat, pace), _stepUpToTheSpot);
     return true;
   }
 
-  /// One kick, its line, and its noise.
-  void _takeNextPenalty() {
+  /// Somebody walks up and places the ball. Nothing else happens for a beat.
+  void _stepUpToTheSpot() {
     if (!mounted) return;
     final beat = _pens[_pensShown];
     setState(() {
-      // **SUDDEN DEATH GETS ITS OWN LINE, once.** Five each and still level is
-      // a change in what a miss costs, and a feed that does not say so leaves
-      // the sixth kick reading like the fifth.
+      // **SUDDEN DEATH GETS ITS OWN LINE, once, and BEFORE the man walks up.**
+      // Five each and still level is a change in what a miss costs, and it is
+      // what the next taker is carrying out to the spot with him.
       if (beat.suddenDeath &&
           (_pensShown == 0 || !_pens[_pensShown - 1].suddenDeath)) {
         _pensNote('match.pens.sudden_death');
       }
+      _pensOnTheSpot = true;
+      _pensNote(
+        shootoutStepUpKey(beat),
+        // The score AS HE PLACES THE BALL, which is the one before this kick.
+        beat: _pensShown == 0 ? null : _pens[_pensShown - 1],
+        // A goalless tie has no beat to read it off and the row still wants
+        // the column filled: nobody has scored, from open play or from twelve
+        // yards.
+        openingScore: _pensShown == 0,
+        who: beat.ours ? _takerFor(beat) : null,
+      );
+    });
+    _pensTimer = Timer(penaltyBeat(penaltyStepUpBeat, pace), _takeThePenalty);
+  }
+
+  /// And he strikes it.
+  void _takeThePenalty() {
+    if (!mounted) return;
+    final beat = _pens[_pensShown];
+    setState(() {
+      _pensOnTheSpot = false;
       _pensShown++;
-      _pensNote(shootoutLineKey(beat), beat: beat);
+      _pensNote(
+        shootoutLineKey(beat),
+        beat: beat,
+        who: beat.ours ? _takerFor(beat) : null,
+      );
     });
     final sound = ref.read(soundServiceProvider);
     unawaited(
@@ -1719,7 +1761,7 @@ class MatchScreenState extends ConsumerState<MatchScreen>
         _pensShown >= _pens.length ? penaltyVerdictBeat : penaltyKickBeat,
         pace,
       ),
-      _pensShown >= _pens.length ? _endShootout : _takeNextPenalty,
+      _pensShown >= _pens.length ? _endShootout : _stepUpToTheSpot,
     );
   }
 
@@ -1735,18 +1777,19 @@ class MatchScreenState extends ConsumerState<MatchScreen>
   }
 
   /// Every kick at once, for a player who skipped the ninety minutes and is
-  /// not going to want the other thirty seconds either.
+  /// not going to want the other half-minute either.
   ///
-  /// The lines are all there and the board carries the full bracket, so a
-  /// skipped tie is the same record as a watched one — which is the rule the
-  /// 13 Sep audit wrote down: what was watched is what gets recorded, and a
-  /// skip may not produce a different match.
+  /// The lines are all there — both beats of every kick — and the board carries
+  /// the full bracket, so a skipped tie is the same record as a watched one,
+  /// which is the rule the 13 Sep audit wrote down: what was watched is what
+  /// gets recorded, and only the pacing may differ.
   void _skipShootout() {
     if (_pensReached) return;
     _pensReached = true;
     final beats = shootoutBeats(widget.result);
     if (beats.isEmpty) return;
     _pens = beats;
+    _takers = _penaltyTakers();
     _pensShown = beats.length;
     _pensNote('match.pens.going');
     for (final beat in beats) {
@@ -1754,20 +1797,80 @@ class MatchScreenState extends ConsumerState<MatchScreen>
           (beat.kick == 1 || !beats[beat.kick - 2].suddenDeath)) {
         _pensNote('match.pens.sudden_death');
       }
-      _pensNote(shootoutLineKey(beat), beat: beat);
+      final who = beat.ours ? _takerFor(beat) : null;
+      _pensNote(
+        shootoutStepUpKey(beat),
+        beat: beat.kick == 1 ? null : beats[beat.kick - 2],
+        openingScore: beat.kick == 1,
+        who: who,
+      );
+      _pensNote(shootoutLineKey(beat), beat: beat, who: who);
     }
     _pensNote(_wonOnPens ? 'match.pens.through' : 'match.pens.out');
   }
 
-  /// The kicks scored so far, ours and theirs, or null before the first one.
+  /// **WHO IS ON THE SPOT, and it is a real name off the team sheet.**
+  ///
+  /// The engine's shootout is teams rather than players — `simulatePenaltyShootout`
+  /// decides each kick off the two sides' ratings and names nobody — so the
+  /// taker is the SCREEN's, the same way the bookings are. Nothing about the
+  /// result changes: who walks up is which of the eleven is next in the order,
+  /// and the kick was already decided.
+  ///
+  /// The list is taken when the shootout starts rather than at kick-off, so it
+  /// is the eleven who FINISHED the match: a substitute takes one, a man sent
+  /// off does not.
+  List<String> _takers = const [];
+
+  /// The order they go in.
+  ///
+  /// Lineup order, with the goalkeeper last — he is in the list because a long
+  /// enough sudden death reaches him, and last because it takes that long.
+  List<String> _penaltyTakers() {
+    final state = ref.read(gameProvider).state;
+    final lineup = (state?['squad'] as Map<String, dynamic>?)?['lineup'];
+    final outfield = <String>[];
+    final keepers = <String>[];
+    for (final row in lineup is List ? lineup : const []) {
+      if (row is! Map<String, dynamic>) continue;
+      final id = row['cardInstanceId'];
+      if (id is! String || _sentOff.contains(id)) continue;
+      final name = cardById(state, id)?.name();
+      if (name == null || name.isEmpty) continue;
+      ('${row['slotPosition']}' == 'GK' ? keepers : outfield).add(name);
+    }
+    return [...outfield, ...keepers];
+  }
+
+  /// The man taking kick [beat], or null when the save has no names to give —
+  /// an older result played back with no squad behind it. The copy falls back
+  /// to the club, which is what the opposition's line says anyway.
+  String? _takerFor(ShootoutBeat beat) {
+    if (_takers.isEmpty) return null;
+    // OUR kicks only, and every second one is ours, so the taker index is the
+    // number of kicks we have taken rather than the kick number. Wrapping is
+    // what a sudden death that runs past eleven does in real life.
+    final ours = (beat.kick + 1) ~/ 2 - 1;
+    return _takers[ours % _takers.length];
+  }
+
+  /// The kicks scored so far, ours and theirs.
+  ///
+  /// Zero from the moment the first player walks up — the bracket belongs on
+  /// the board as soon as somebody is standing over a ball — and null before
+  /// that, and for every fixture that has no shootout at all.
   ///
   /// Read off the LAST BEAT SHOWN rather than counted here: `shootoutBeats`
   /// already carries the running tally, and two places working it out is two
   /// places to get sudden death wrong.
-  int? get _ourPens =>
-      _pensShown == 0 ? null : _pens[_pensShown - 1].ourScore;
-  int? get _theirPens =>
-      _pensShown == 0 ? null : _pens[_pensShown - 1].theirScore;
+  bool get _pensOnBoard =>
+      _pens.isNotEmpty && (_pensShown > 0 || _pensOnTheSpot);
+  int? get _ourPens => !_pensOnBoard
+      ? null
+      : (_pensShown == 0 ? 0 : _pens[_pensShown - 1].ourScore);
+  int? get _theirPens => !_pensOnBoard
+      ? null
+      : (_pensShown == 0 ? 0 : _pens[_pensShown - 1].theirScore);
 
   /// Did the club go through? Off the shootout itself rather than off the
   /// tally: sudden death can end level on kicks taken and is not level on kicks
@@ -1778,10 +1881,20 @@ class MatchScreenState extends ConsumerState<MatchScreen>
   ///
   /// At the FULL-TIME minute, so it merges after everything the ninety minutes
   /// said — see the merge in `build`, which puts a note at or before the
-  /// clock's minute at the end of the list. [beat] carries the running score
-  /// for the row's own head; the sentence never prints it.
-  void _pensNote(String key, {ShootoutBeat? beat}) {
+  /// clock's minute at the end of the list.
+  ///
+  /// [beat] is the score the ROW's own head prints, which is the tally AFTER
+  /// that beat — so a walk-up line is handed the PREVIOUS kick and a result
+  /// line is handed its own. The sentence never prints a score.
+  void _pensNote(
+    String key, {
+    ShootoutBeat? beat,
+    bool openingScore = false,
+    String? who,
+  }) {
     final home = widget.result['isHome'] == true;
+    final ourPens = beat?.ourScore ?? 0;
+    final theirPens = beat?.theirScore ?? 0;
     _notes.add((
       minute: _end,
       type: 'penalty',
@@ -1789,19 +1902,21 @@ class MatchScreenState extends ConsumerState<MatchScreen>
       params: <String, Object?>{
         'us': '${widget.result['clubName'] ?? ''}',
         'them': '${widget.result['opponentName'] ?? ''}',
-        if (beat != null)
+        // The man on the spot, or the club when the save cannot name one.
+        'who': who ?? '${widget.result['clubName'] ?? ''}',
+        if (beat != null || openingScore)
           'score': shootoutScoreLine(
             // HOME SIDE LEFT, like the board — see `shootoutScoreLine`. A cup
             // tie always carries `isHome: true`, but the board's rule is the
             // one to follow rather than the fixture's habit.
             leftGoals: home ? frame.ourGoals : frame.theirGoals,
             rightGoals: home ? frame.theirGoals : frame.ourGoals,
-            leftPens: home ? beat.ourScore : beat.theirScore,
-            rightPens: home ? beat.theirScore : beat.ourScore,
+            leftPens: home ? ourPens : theirPens,
+            rightPens: home ? theirPens : ourPens,
           ),
       },
-      // The kick number, so two kicks that read the same never share a pick.
-      seed: '$key-${beat?.kick ?? 0}',
+      // The kick number and which half of it, so no two rows share a pick.
+      seed: '$key-${beat?.kick ?? 0}-${_notes.length}',
       goal: null,
       aboutId: null,
       card: null,

@@ -980,6 +980,33 @@ void main() {
       );
     });
 
+    test('and the WALK UP is a line of its own, ours naming a man', () {
+      // A kick is two beats — see `shootoutStepUpKey`. Ours names a player and
+      // theirs names a club, because the engine picks no opposition player and
+      // a sentence written for a person does not survive a club's name in most
+      // of the ten languages.
+      ShootoutBeat beat({required bool ours}) => (
+        kick: 1,
+        ours: ours,
+        scored: true,
+        ourScore: 0,
+        theirScore: 0,
+        suddenDeath: false,
+      );
+      expect(shootoutStepUpKey(beat(ours: true)), 'match.pens.step_up');
+      expect(shootoutStepUpKey(beat(ours: false)), 'match.pens.opp_step_up');
+    });
+
+    test('and the pause is longer than the gap between kicks', () {
+      // **The pause IS the feature.** "There should be some tension... player a
+      // steps up, pause, goal." A walk-up that resolves faster than the wait
+      // between one kick and the next has no tension in it at all.
+      expect(
+        penaltyStepUpBeat.inMilliseconds,
+        greaterThan(penaltyKickBeat.inMilliseconds),
+      );
+    });
+
     test('and a beat scales with the pace the match is watched at', () {
       // 2x halves the wait the way it halves a minute: a player who chose to
       // watch at double speed chose it for this too.

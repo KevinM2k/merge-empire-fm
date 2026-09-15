@@ -5,6 +5,12 @@
 /// do the penalties one at a time with the score recorded as `0(3)-(2)0` —
 /// "that's how it has always worked and how it should work now".
 ///
+/// And then, on seeing the first pass go straight to the result: "there should
+/// be some tension... so it's player a steps up.... pause.... goal.... etc for
+/// all". **A KICK IS TWO BEATS**, and the gap between them is the feature. The
+/// tests below are written around that pair — a walk-up with the score as it
+/// stands, a beat of nothing, then the outcome and the bracket moving.
+///
 /// The JS did exactly that. `shootout_row.dart`'s own header records the port
 /// dropping the reveal on the reasoning that its copy was hardcoded English
 /// with no `t()` key behind it and the catalogues are generated, so there was
@@ -22,7 +28,11 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:merge_empire_fc/providers/game_providers.dart'
+    show gameProvider;
 import 'package:merge_empire_fc/ui/screens/match/match_clock.dart';
+import 'package:merge_empire_fc/ui/screens/squad/player_detail_sheet.dart'
+    show cardById;
 import 'package:merge_empire_fc/ui/screens/match/match_screen.dart'
     show MatchScreenState;
 
@@ -113,8 +123,8 @@ Future<void> _playOutTheKicks(
   WidgetTester tester,
   MatchScreenState state,
 ) async {
-  for (var i = 0; i < 60 && !state.frame.finished; i++) {
-    await tester.pump(penaltyKickBeat);
+  for (var i = 0; i < 120 && !state.frame.finished; i++) {
+    await tester.pump(penaltyStepUpBeat);
   }
   await tester.pumpAndSettle();
 }
@@ -139,6 +149,13 @@ List<String> _pensKeys(MatchScreenState state) => [
     if (line.type == 'penalty') line.key,
 ];
 
+/// Who each shootout row names — the man on the spot, or the club when the
+/// save has nobody to name.
+List<String> _pensWho(MatchScreenState state) => [
+  for (final line in state.notes)
+    if (line.type == 'penalty') '${line.params['who']}',
+];
+
 List<String> _pensScores(MatchScreenState state) => [
   for (final line in state.notes)
     if (line.type == 'penalty' && line.params['score'] != null)
@@ -155,9 +172,11 @@ void main() {
       await _watchToTheWhistle(tester, state);
 
       expect(_pensKeys(state), ['match.pens.going']);
+      // On the feed, under its own heading. The sentence itself is one of a
+      // pool of three, so the HEAD is what is asserted — see `match.pens.head`.
       expect(
-        _onScreen(tester).any((s) => s.contains('penalties')),
-        isTrue,
+        _onScreen(tester),
+        contains('PENALTIES'),
         reason: 'the ninety minutes ended with nothing said about a shootout',
       );
       // **AND THE MATCH IS NOT OVER.** `finished` is what turns the control
@@ -182,18 +201,41 @@ void main() {
       final state = stateOf(tester);
       await _watchToTheWhistle(tester, state);
 
-      // The opening pause, then the first kick — and only the first.
+      // **THE OPENING PAUSE, THEN SOMEBODY WALKS UP — and that is all.**
+      // The kick has not been taken: the row says who is on the spot and the
+      // score as he places the ball, which is nil-nil from twelve yards.
       await tester.pump(penaltyOpenBeat);
-      expect(_pensScores(state), ['0 (1) - (0) 0']);
+      expect(_pensKeys(state), ['match.pens.going', 'match.pens.step_up']);
+      expect(_pensScores(state), ['0 (0) - (0) 0']);
+      // **A REAL NAME OFF THE TEAM SHEET, not the club.** The engine's
+      // shootout names nobody — it decides each kick off the two ratings — so
+      // the taker is the screen's, read from the eleven who finished the
+      // match.
+      expect(_pensWho(state).last, isNotEmpty);
+      expect(_pensWho(state).last, isNot('Testville'));
+      expect(_onScreen(tester).any((s) => s.contains(_pensWho(state).last)),
+          isTrue);
+      // The bracket is on the board from the moment he stands over it.
       expect(find.byKey(const ValueKey('match-pens-left')), findsOneWidget);
+      expect(find.text('(0)'), findsNWidgets(2));
+
+      // **AND NOW THE PAUSE.** Half a beat later he still has not kicked it.
+      await tester.pump(penaltyStepUpBeat ~/ 2);
+      expect(_pensKeys(state).length, 2);
+      expect(find.text('(0)'), findsNWidgets(2));
+
+      // Then he strikes it, and the bracket moves.
+      await tester.pump(penaltyStepUpBeat);
+      expect(_pensKeys(state).last, 'match.pens.scored');
+      expect(_pensScores(state).last, '0 (1) - (0) 0');
       expect(find.text('(1)'), findsOneWidget);
-      expect(find.text('(0)'), findsOneWidget);
       // The row carries the running score in the column a feed is scanned by.
       expect(_onScreen(tester), contains('0 (1) - (0) 0'));
 
-      // And theirs answers it, one beat later.
+      // And theirs walks up next, with our kick still the score on the board.
       await tester.pump(penaltyKickBeat);
-      expect(_pensScores(state), ['0 (1) - (0) 0', '0 (1) - (1) 0']);
+      expect(_pensKeys(state).last, 'match.pens.opp_step_up');
+      expect(_pensScores(state).last, '0 (1) - (0) 0');
       expect(state.frame.finished, isFalse);
 
       // The rest of them, and the tie is settled.
@@ -204,6 +246,13 @@ void main() {
       expect(find.text('(4)'), findsOneWidget);
       expect(find.text('(3)'), findsOneWidget);
       expect(_pensScores(state).last, '0 (4) - (3) 0');
+      // **EVERY KICK IS A PAIR.** Eight kicks, so sixteen rows, plus the
+      // announcement and the verdict.
+      expect(
+        _pensKeys(state).where((k) => k.endsWith('step_up')).length,
+        8,
+      );
+      expect(_pensKeys(state).length, 18);
       // The ninety minutes are untouched by any of it.
       expect(state.frame.ourGoals, 0);
       expect(state.frame.theirGoals, 0);
@@ -236,9 +285,56 @@ void main() {
       );
       expect(
         _pensKeys(state).indexOf('match.pens.sudden_death'),
-        // The announcement, then ten kicks.
-        11,
+        // The announcement, then ten kicks of two rows each — and it lands
+        // BEFORE the eleventh man walks up, because it is what he is carrying
+        // out to the spot with him.
+        21,
       );
+      expect(_pensKeys(state)[22], 'match.pens.step_up');
+      await settleSave(tester);
+    });
+
+    testWidgets('the order walks down the team sheet, the keeper last', (
+      tester,
+    ) async {
+      // **THE TAKER IS THE SCREEN'S, and the order is the team sheet's.** The
+      // engine decides each kick off the two sides' ratings and names nobody,
+      // so who walks up is the port's own — the eleven who FINISHED the match,
+      // outfield first and the goalkeeper last, because a sudden death has to
+      // run a long way before it reaches him.
+      final container = await pumpMatch(
+        tester,
+        _tie(suddenDeath: true),
+        save: squadSave(),
+      );
+      final state = stateOf(tester);
+      await _watchToTheWhistle(tester, state);
+      await _playOutTheKicks(tester, state);
+
+      // Six kicks of ours, and the walk-up and the result name the same man.
+      final ours = <String>[];
+      var i = 0;
+      for (final line in state.notes) {
+        if (line.type != 'penalty') continue;
+        if (line.key == 'match.pens.step_up') {
+          ours.add('${line.params['who']}');
+        }
+        if (line.key == 'match.pens.scored' || line.key == 'match.pens.missed') {
+          expect('${line.params['who']}', ours[i++]);
+        }
+      }
+      expect(ours.length, 6);
+      // **AND IT WALKS DOWN THE SHEET** rather than handing the ball to the
+      // same man six times. (The harness's eleven share four definitions, so
+      // two takers can genuinely have the same NAME — what is asserted is that
+      // the order advances, not that every name is distinct.)
+      expect(ours.first, isNot(ours.last));
+      // **THE GOALKEEPER IS LAST**, which is the only thing about the order
+      // that is a decision rather than the team sheet's own. He is eleventh,
+      // so six kicks never reach him — a long enough sudden death would.
+      final keeper = cardById(container.read(gameProvider).state, 'c0')?.name();
+      expect(keeper, isNotNull);
+      expect(ours, isNot(contains(keeper)));
       await settleSave(tester);
     });
 
@@ -255,8 +351,11 @@ void main() {
 
       expect(state.frame.finished, isTrue);
       expect(_pensKeys(state).first, 'match.pens.going');
+      expect(_pensKeys(state)[1], 'match.pens.step_up');
       expect(_pensKeys(state).last, 'match.pens.through');
-      expect(_pensScores(state).first, '0 (1) - (0) 0');
+      // Both beats of every kick, exactly as a watched tie writes them.
+      expect(_pensKeys(state).length, 18);
+      expect(_pensScores(state).first, '0 (0) - (0) 0');
       expect(_pensScores(state).last, '0 (4) - (3) 0');
       expect(find.text('(4)'), findsOneWidget);
       expect(find.byKey(const ValueKey('shootout-row')), findsOneWidget);

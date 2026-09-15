@@ -93,18 +93,26 @@ const Map<String, String> esCopy = <String, String>{
       'Esto se va a los penaltis.|'
       'Nada les separa tras noventa minutos: se decide desde los once metros.|'
       'Siguen igualados, así que la eliminatoria se decide en la tanda.',
+  'match.pens.step_up':
+      '{who} se acerca al punto.|'
+      '{who} coloca el balón en el punto de penalti.|'
+      'Le toca a {who}. Silencio en todo el estadio.',
+  'match.pens.opp_step_up':
+      'El {them} manda a su siguiente lanzador.|'
+      'El siguiente jugador del {them} coloca el balón.|'
+      'Ahora le toca al {them}.',
   'match.pens.sudden_death':
       'Cinco cada uno y siguen iguales. Muerte súbita.|'
       'Entramos en muerte súbita: un fallo y se acabó.|'
       'Cinco por bando. El próximo error lo decide.',
   'match.pens.scored':
-      'Al fondo, junto al palo. El {us} marca.|'
-      'El portero se va al otro lado: el {us} no falla.|'
-      'Por el centro, y dentro. El {us} marca.',
+      'Al fondo, junto al palo. {who} no falla.|'
+      'El portero se va al otro lado, y {who} marca.|'
+      'Por el centro, y dentro. {who} marca.',
   'match.pens.missed':
-      '¡Parada! El {us} no se lo cree.|'
-      'Por encima del larguero: el {us} la manda a la grada.|'
-      'Al palo y fuera. Momento terrible para el {us}.',
+      '¡Parada! {who} no se lo cree.|'
+      'Por encima del larguero: {who} la manda a la grada.|'
+      'Al palo y fuera. Momento terrible para {who}.',
   'match.pens.opp_scored':
       'El {them} marca, sin discusión.|'
       'A la escuadra del {them}: imparable.|'

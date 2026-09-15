@@ -95,18 +95,26 @@ const Map<String, String> itCopy = <String, String>{
       'Si va ai rigori.|'
       'Nulla li divide dopo novanta minuti: si decide dal dischetto.|'
       'Ancora in parità, la qualificazione si gioca dagli undici metri.',
+  'match.pens.step_up':
+      '{who} si presenta sul dischetto.|'
+      '{who} sistema il pallone sul dischetto.|'
+      'Tocca a {who}. Lo stadio ammutolisce.',
+  'match.pens.opp_step_up':
+      'Il {them} manda avanti il prossimo rigorista.|'
+      'Il prossimo giocatore del {them} sistema il pallone.|'
+      'Ora tocca al {them}.',
   'match.pens.sudden_death':
       'Cinque a testa e ancora parità. A oltranza.|'
       'Si va a oltranza: un errore e finisce qui.|'
       'Cinque per parte. Il prossimo errore decide.',
   'match.pens.scored':
-      'In fondo al sacco, sul palo. Il {us} segna.|'
-      'Portiere spedito dalla parte sbagliata: il {us} non sbaglia.|'
-      'Centrale, e dentro. Il {us} segna.',
+      'In fondo al sacco, sul palo. {who} non sbaglia.|'
+      'Il portiere va dalla parte sbagliata, e {who} segna.|'
+      'Centrale, e dentro. {who} segna.',
   'match.pens.missed':
-      'Parato! Il {us} non ci crede.|'
-      'Sopra la traversa: il {us} la manda in curva.|'
-      'Palo e fuori. Momento terribile per il {us}.',
+      'Parato! {who} non ci crede.|'
+      'Sopra la traversa: {who} la manda in curva.|'
+      'Palo e fuori. Momento terribile per {who}.',
   'match.pens.opp_scored':
       'Il {them} segna, non c\'è discussione.|'
       'All\'incrocio per il {them}: imparabile.|'

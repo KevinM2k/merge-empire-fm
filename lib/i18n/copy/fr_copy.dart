@@ -100,18 +100,26 @@ const Map<String, String> frCopy = <String, String>{
       'Rien ne les sépare après quatre-vingt-dix minutes : ce sera aux tirs au '
           'but.|'
       'Toujours à égalité, la qualification se joue depuis le point de penalty.',
+  'match.pens.step_up':
+      '{who} s\'avance.|'
+      '{who} pose le ballon sur le point de penalty.|'
+      'Au tour de {who}. Tout le stade se tait.',
+  'match.pens.opp_step_up':
+      '{them} envoie son tireur suivant.|'
+      'Le prochain joueur de {them} pose le ballon.|'
+      'C\'est au tour de {them}.',
   'match.pens.sudden_death':
       'Cinq partout, toujours rien. Mort subite.|'
       'On passe en mort subite : un raté et c\'est terminé.|'
       'Cinq chacun. La prochaine erreur décidera de tout.',
   'match.pens.scored':
-      'Au fond, dans le petit filet. {us} marque.|'
-      'Le gardien part du mauvais côté : {us} ne tremble pas.|'
-      'Plein axe, et c\'est dedans. {us} marque.',
+      'Au fond, dans le petit filet. {who} ne tremble pas.|'
+      'Le gardien part du mauvais côté, et {who} marque.|'
+      'Plein axe, et c\'est dedans. {who} marque.',
   'match.pens.missed':
-      'Arrêté ! {us} n\'en revient pas.|'
-      'Au-dessus de la barre : {us} l\'envoie dans les tribunes.|'
-      'Sur le poteau et dehors. Terrible moment pour {us}.',
+      'Arrêté ! {who} n\'en revient pas.|'
+      'Au-dessus de la barre : {who} l\'envoie dans les tribunes.|'
+      'Sur le poteau et dehors. Terrible moment pour {who}.',
   'match.pens.opp_scored':
       '{them} marque, rien à dire.|'
       'Lucarne pour {them} : imparable.|'

@@ -924,16 +924,40 @@ String shootoutLineKey(ShootoutBeat beat) => beat.ours
     ? (beat.scored ? 'match.pens.scored' : 'match.pens.missed')
     : (beat.scored ? 'match.pens.opp_scored' : 'match.pens.opp_missed');
 
+/// And what the WALK UP says, which is a line of its own.
+///
+/// **A kick is two beats, not one.** Asked for from the couch after the first
+/// pass shipped the outcome alone: "there should be some tension — so it's
+/// player a steps up, pause, goal, etc for all". A row that says a kick went in
+/// is a result; the pause between the man placing the ball and the keeper
+/// moving is the whole of what a shootout is to watch.
+///
+/// Ours names a PLAYER and theirs names a CLUB, which is why they are two keys
+/// rather than one pool with a `{who}`: the port never names an opposition
+/// player — the engine does not pick them — and a sentence written for a person
+/// does not survive a club's name in most of the ten languages.
+String shootoutStepUpKey(ShootoutBeat beat) =>
+    beat.ours ? 'match.pens.step_up' : 'match.pens.opp_step_up';
+
 /// How long the announcement holds before the first kick is taken.
 const Duration penaltyOpenBeat = Duration(milliseconds: 1400);
 
-/// And how long each kick holds after it.
+/// How long the taker stands over the ball.
+///
+/// **This is the tension, and it is the reason the feature exists.** The first
+/// pass put the outcome straight after the announcement and every kick after
+/// the last one — a list of results at a steady tick, which is a scoreboard
+/// updating rather than a shootout being taken. The walk-up line lands, and
+/// then nothing happens for a beat.
+const Duration penaltyStepUpBeat = Duration(milliseconds: 1200);
+
+/// And how long the result stands before the next player walks up.
 ///
 /// **Slower than a minute of the match, deliberately.** A minute is 350ms and a
 /// shootout is the one part of a cup tie a player watches rather than reads —
 /// twelve kicks at the clock's own pace is over in four seconds, which is the
 /// animation the JS built its reveal for playing to nobody.
-const Duration penaltyKickBeat = Duration(milliseconds: 1000);
+const Duration penaltyKickBeat = Duration(milliseconds: 900);
 
 /// And the pause after the last kick, before the whistle's own payoff.
 const Duration penaltyVerdictBeat = Duration(milliseconds: 1100);
