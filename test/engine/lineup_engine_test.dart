@@ -365,6 +365,134 @@ void main() {
     });
   });
 
+  group('replaceUnfitStarters', () {
+    Map<String, dynamic> stateWith(
+      List<String?> lineupIds,
+      List<CardInstance?> grid,
+    ) => {
+      'squad': {
+        'formation': '4-3-3',
+        'lineup': [
+          for (var i = 0; i < 11; i++)
+            {
+              'slotId': getFormation('4-3-3').slots[i].slotId,
+              'slotPosition': getFormation('4-3-3').slots[i].slotPosition,
+              'cardInstanceId': i < lineupIds.length ? lineupIds[i] : null,
+            },
+        ],
+      },
+      'grid': <String, dynamic>{
+        'cells': <dynamic>[for (final c in grid) c?.raw],
+      },
+    };
+
+    List<String?> idsOf(Map<String, dynamic> state) => [
+      for (final s in (state['squad'] as Map)['lineup'] as List)
+        (s as Map)['cardInstanceId'] as String?,
+    ];
+
+    test('AN INJURED STARTER IS SWAPPED FOR THE NEXT MAN', () {
+      // Reported from the couch: an injured player found on the bench with no
+      // injury announced, and an XI that went out a man short. `cleanLineup`
+      // keeps him in the squad screen's eleven on purpose — being hurt is not
+      // losing your place — so nothing had ever taken him out at kickoff.
+      final state = stateWith(
+        ['hurt'],
+        [_card('hurt', injured: true), _card('fit')],
+      );
+      final swaps = replaceUnfitStarters(state);
+
+      expect(swaps, hasLength(1));
+      expect(swaps.single.on, isNotNull);
+      // Where he lands is the refill's call — it puts each man where he fits
+      // best — so what matters is that he is IN and the injured man is OUT.
+      expect(idsOf(state), contains('fit'));
+      expect(idsOf(state), isNot(contains('hurt')));
+    });
+
+    test('and it says who went and who came in', () {
+      // The screen has to name both — the card reads "X is injured, Y comes in".
+      // Two DIFFERENT definitions, because the name comes off the definition
+      // and not the instance: two `player_t5_mid`s are the same footballer
+      // twice and would prove nothing about the pairing.
+      final state = stateWith(
+        ['hurt'],
+        [
+          _card('hurt', injured: true),
+          _card('fit', definitionId: 'player_t5_fwd'),
+        ],
+      );
+      final swap = replaceUnfitStarters(state).single;
+      expect(swap.out, isNotEmpty);
+      expect(swap.on, isNotEmpty);
+      expect(swap.out, isNot(swap.on));
+    });
+
+    test('WITH NOBODY TO COVER, the hole is reported rather than hidden', () {
+      // A manager with an empty bench is still allowed to play the ten he has,
+      // so this is not a refusal — but `on` is null and the screen warns.
+      final state = stateWith(['hurt'], [_card('hurt', injured: true)]);
+      final swaps = replaceUnfitStarters(state);
+
+      expect(swaps, hasLength(1));
+      expect(swaps.single.on, isNull);
+      expect(idsOf(state), isNot(contains('hurt')));
+    });
+
+    test('A BANNED MAN GOES TOO, and is reported as banned', () {
+      // A suspension is deliberately not part of `isSelectable` — a red card
+      // does not cost a player his place in the squad screen — but he cannot
+      // play THIS fixture, and leaving him on the sheet is the same hole by
+      // another route. Asked for from the couch: evict unfit AND unavailable.
+      final state = stateWith(
+        ['sent_off'],
+        [_card('sent_off'), _card('fit', definitionId: 'player_t5_fwd')],
+      );
+      // The ban is stored as the match number he is free again for.
+      ((state['grid'] as Map)['cells'] as List)[0]['suspendedUntilMatch'] = 5;
+      state['progression'] = <String, dynamic>{'matchesPlayed': 3};
+
+      final swaps = replaceUnfitStarters(state);
+      expect(swaps, hasLength(1));
+      expect(swaps.single.banned, isTrue, reason: 'a ban, not a knock');
+      expect(idsOf(state), isNot(contains('sent_off')));
+      expect(idsOf(state), contains('fit'));
+    });
+
+    test('and a served ban leaves him in the side', () {
+      // The control: the ban has expired, so he plays.
+      final state = stateWith(['served'], [_card('served'), _card('fit')]);
+      ((state['grid'] as Map)['cells'] as List)[0]['suspendedUntilMatch'] = 2;
+      state['progression'] = <String, dynamic>{'matchesPlayed': 4};
+      expect(replaceUnfitStarters(state), isEmpty);
+      expect(idsOf(state), contains('served'));
+    });
+
+    test('an injury is reported as an injury, not a ban', () {
+      final state = stateWith(
+        ['hurt'],
+        [_card('hurt', injured: true), _card('fit')],
+      );
+      expect(replaceUnfitStarters(state).single.banned, isFalse);
+    });
+
+    test('a fit XI is left alone and written to nothing', () {
+      final state = stateWith(['fit'], [_card('fit'), _card('spare')]);
+      final before = idsOf(state);
+      expect(replaceUnfitStarters(state), isEmpty);
+      expect(idsOf(state), before, reason: 'no swap, no write');
+    });
+
+    test('a malformed save is refused without throwing', () {
+      expect(replaceUnfitStarters({}), isEmpty);
+      expect(replaceUnfitStarters({'squad': <String, dynamic>{}}), isEmpty);
+      expect(
+        replaceUnfitStarters({'squad': {'lineup': null}}),
+        isEmpty,
+      );
+    });
+  });
+
   group('refillLineupFromBench', () {
     Map<String, dynamic> stateWith(List<String?> lineupIds, List<CardInstance?> grid) => {
       'squad': {

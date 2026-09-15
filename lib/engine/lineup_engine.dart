@@ -393,6 +393,104 @@ bool refillLineupFromBench(Map<String, dynamic> state) {
   return changed;
 }
 
+/// A man taken out of the XI before kickoff, and whoever took his place.
+///
+/// [on] is null when the bench had nobody for the hole, which is the case the
+/// screen still has to warn about rather than quietly field ten.
+/// [banned] separates the two reasons a man cannot play, because the manager is
+/// told them in different words: a suspension is not a trip to the treatment
+/// room and the copy for each says so.
+typedef ForcedSwap = ({String out, String? on, bool banned});
+
+/// Take anyone who cannot play OUT of the saved XI, and fill the holes.
+///
+/// **Before a fixture only.** [refillLineupFromBench] says in its own first
+/// lines why filling a hole DURING a match is the manager's call and never the
+/// game's; this is the other side of that rule. Once the team sheet is being
+/// handed in, a name that cannot play is not a decision the manager is making,
+/// it is one nobody made: `cleanLineup` deliberately keeps an injured man in
+/// the squad screen's eleven — being hurt is not losing your place — and the
+/// consequence was that the eleven went out as ten with nothing saying so.
+/// Reported from the couch: an injured player found on the bench, with no
+/// injury ever announced.
+///
+/// `isSelectable` rather than `!injured`, matching [unfitStarters] and the
+/// bench picker: the engine rates a loaned-out or listed man zero too, and the
+/// side is just as short for one of those.
+///
+/// **AND A BANNED MAN GOES WITH THEM.** A suspension is deliberately NOT part
+/// of `isSelectable` — see [LineupSlot]'s note, a red card is not an injury and
+/// does not cost a player his place in the squad screen — but he cannot play
+/// THIS fixture any more than a hurt man can, and leaving him on the sheet is
+/// the same eleven-names-ten-footballers hole by another route.
+/// [refillLineupFromBench] already refuses to fill with a banned player, so the
+/// hole he leaves is filled by somebody who can actually play.
+///
+/// Returns one entry per man removed, in lineup order, so the caller can say
+/// who went and who came in. Empty when the XI was already fit, which is the
+/// ordinary answer and writes nothing.
+List<ForcedSwap> replaceUnfitStarters(Map<String, dynamic> state) {
+  final squad = state['squad'];
+  if (squad is! Map) return const [];
+  final lineup = squad['lineup'];
+  if (lineup is! List) return const [];
+
+  final grid = state['grid'];
+  final cells = grid is Map ? grid['cells'] : null;
+  final byId = <String, CardInstance>{};
+  if (cells is List) {
+    for (final raw in cells) {
+      final card = CardInstance.from(raw);
+      if (card != null) byId[card.instanceId] = card;
+    }
+  }
+
+  // Emptied first, all of them, and filled once: `refillLineupFromBench` picks
+  // the best body for every hole it can see, so clearing one at a time would
+  // let the first swap take a player the second needed more.
+  final banned = suspendedIn(state);
+  final before = <String>{};
+  final out = <({String name, bool banned})>[];
+  for (final raw in lineup) {
+    if (raw is! Map) continue;
+    final id = raw['cardInstanceId'];
+    if (id is! String) continue;
+    final card = byId[id];
+    final isBanned = banned.contains(id);
+    if (card == null || (card.isSelectable && !isBanned)) {
+      before.add(id);
+      continue;
+    }
+    // A man who is BOTH hurt and banned is reported as banned: it is the longer
+    // of the two absences and the one the manager can do nothing about.
+    out.add((name: card.name('A player'), banned: isBanned));
+    raw['cardInstanceId'] = null;
+  }
+  if (out.isEmpty) return const [];
+
+  refillLineupFromBench(state);
+
+  // **WHO IS NEW IN THE XI, not who holds the vacated square.** The refill
+  // fills every hole at once and puts each man where he fits best, so the
+  // replacement often lands in a different slot from the one that opened —
+  // reading the vacated square back reported "nobody came in" while the bench
+  // player was standing in the side. The honest pairing is the set difference.
+  final entered = <String>[
+    for (final raw in squad['lineup'] as List)
+      if (raw is Map)
+        if (raw['cardInstanceId'] case final String id)
+          if (!before.contains(id)) id,
+  ];
+  return [
+    for (var i = 0; i < out.length; i++)
+      (
+        out: out[i].name,
+        on: i < entered.length ? byId[entered[i]]?.name('A player') : null,
+        banned: out[i].banned,
+      ),
+  ];
+}
+
 /// The slot an injury just emptied.
 typedef VacatedSlot = ({String slotId, String slotPosition});
 

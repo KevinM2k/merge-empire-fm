@@ -13,6 +13,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/ui/widgets/bar_fill.dart';
 import 'package:merge_empire_fc/data/config.dart';
+import 'package:merge_empire_fc/engine/lineup_engine.dart';
 import 'package:merge_empire_fc/engine/cup_engine.dart';
 import 'package:merge_empire_fc/engine/rating_prompt.dart';
 import 'package:merge_empire_fc/engine/match_orchestration.dart';
@@ -303,20 +304,52 @@ class PlayMatchButton extends ConsumerWidget {
   /// in `lib/`, which is this repo's loudest tell that a feature was dropped
   /// rather than never specified. Returns whether to go on.
   Future<bool> _confirmUnfitXI(BuildContext context, WidgetRef ref) async {
-    final unfit = unfitStarters(ref.read(gameProvider).state);
-    if (unfit.isEmpty) return true;
+    final game = ref.read(gameProvider);
+    // Asked first and cheaply: the ordinary answer is a fit XI, and that must
+    // not write to the save.
+    if (unfitStarters(game.state).isEmpty) return true;
+
+    // **AND THE SIDE IS FIXED RATHER THAN QUERIED.** This used to warn and
+    // leave the team sheet exactly as it was, so a manager who tapped Continue
+    // — which is most of them, most of the time — kicked off with ten. Asked
+    // for from the couch: an injured player should be replaced by the next
+    // available man by default. `replaceUnfitStarters` takes him out and fills
+    // the hole the same way every other squad change does.
+    //
+    // **Which means going back no longer leaves the save untouched**, and that
+    // is the right trade: the lineup it leaves behind is a legal one, and the
+    // Squad tab is still a tap away for a manager who wants a different answer.
+    final swaps = game.update(replaceUnfitStarters);
+    if (swaps.isEmpty) return true;
+
+    // **HURT AND BANNED ARE TOLD APART, because he says them differently.** A
+    // suspended man is not in the treatment room, and `manager.suspended` —
+    // "serving a ban, boss" — is the shipped line for him. Asked for from the
+    // couch: the coach should mention both.
+    final hurt = [for (final s in swaps) if (!s.banned) s.out];
+    final banned = [for (final s in swaps) if (s.banned) s.out];
+    final covered = [for (final s in swaps) if (s.on != null) s];
+    final short = swaps.length > covered.length;
+
     final answer = await showCoachCard<bool>(
       context,
       titleKey: 'coachtip.injury.title',
-      // One name in the line the copy was written for; more than one and the
-      // treatment-room line is the one that fits, because a sentence about
-      // subbing "them" out reads as one man however many are named.
-      bodyKey: unfit.length == 1
-          ? 'coach.hard.injured_starter'
-          : 'manager.injured_out',
-      bodyParams: unfit.length == 1
-          ? {'name': unfit.first}
-          : {'names': unfit.join(', ')},
+      // Whichever group he leads with, the other follows in `extraTexts`. Both
+      // lines ask nothing of the manager, which is now the truth: the
+      // substitutions have already been made. `coach.hard.injured_starter` is
+      // deliberately no longer reachable from here — "sub them out before
+      // kickoff" is an instruction this has just carried out itself.
+      bodyKey: hurt.isNotEmpty ? 'manager.injured_out' : 'manager.suspended',
+      bodyParams: {'names': (hurt.isNotEmpty ? hurt : banned).join(', ')},
+      extraTexts: [
+        if (hurt.isNotEmpty && banned.isNotEmpty)
+          t('manager.suspended', {'names': banned.join(', ')}),
+        // Who actually came in, in the same words the match feed uses for a
+        // substitution.
+        for (final s in covered)
+          t('match.subs.feed', {'off': s.out, 'on': s.on!}),
+        if (short) t('match.subs.injury_tip_none'),
+      ],
       barrierDismissible: false,
       actions: [
         CoachAction(
