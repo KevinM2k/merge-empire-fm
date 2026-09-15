@@ -7,6 +7,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:merge_empire_fc/ui/widgets/player_card.dart' show TraitGlyph;
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 import 'package:merge_empire_fc/ui/widgets/store_button.dart'
@@ -224,14 +225,16 @@ class TraitDisc extends StatelessWidget {
             ],
           ),
           child: child ??
-              Text(
-                glyph,
-                style: TextStyle(
-                  fontSize: compact ? 20 : 24,
-                  fontWeight: FontWeight.w900,
-                  color: colour,
-                ),
-              ),
+              (glyph == '?'
+                  ? Text(
+                      glyph,
+                      style: TextStyle(
+                        fontSize: compact ? 20 : 24,
+                        fontWeight: FontWeight.w900,
+                        color: colour,
+                      ),
+                    )
+                  : TraitGlyph(glyph, size: compact ? 24 : 28, color: colour)),
         ),
         ),
         if (level != null)

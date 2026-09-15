@@ -12,6 +12,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:merge_empire_fc/ui/widgets/player_card.dart' show TraitGlyph;
 import 'package:merge_empire_fc/data/match_traits.dart';
 import 'package:merge_empire_fc/data/traits.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
@@ -180,7 +181,7 @@ class _Row extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(icon, style: const TextStyle(fontSize: 22)),
+          TraitGlyph(icon, size: 22, color: held ? kit.accentBright : kit.textMuted),
           const SizedBox(width: 10),
           Expanded(
             child: Column(

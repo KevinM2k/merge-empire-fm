@@ -45,9 +45,9 @@ String traitTitle(Map<String, dynamic>? instance) {
   final level = (instance['level'] as num?)?.toInt();
   final label = (level == null ? null : getTraitLevel(trait, level)?.label);
   final name = traitName(trait);
-  return label == null || label.isEmpty
-      ? '${trait.icon} $name'
-      : '${trait.icon} $name $label';
+  // No emoji in front: wherever this is printed, the trait's mark is drawn
+  // beside it as an icon — see `TraitGlyph`.
+  return label == null || label.isEmpty ? name : '$name $label';
 }
 
 /// The one-line description of the trait a card is actually carrying.
@@ -153,9 +153,9 @@ String matchTraitTitle(Map<String, dynamic>? instance) {
   final level = (instance['level'] as num?)?.toInt();
   final label = level == null ? null : getMatchTraitLevel(trait, level)?.label;
   final name = matchTraitName(trait);
-  return label == null || label.isEmpty
-      ? '${trait.icon} $name'
-      : '${trait.icon} $name $label';
+  // No emoji in front: wherever this is printed, the trait's mark is drawn
+  // beside it as an icon — see `TraitGlyph`.
+  return label == null || label.isEmpty ? name : '$name $label';
 }
 
 /// What a TIER is called — "Bronze", "Legend" — with the catalogue winning.

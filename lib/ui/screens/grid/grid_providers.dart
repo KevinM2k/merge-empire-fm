@@ -14,7 +14,9 @@ import 'package:merge_empire_fc/data/config.dart';
 import 'package:merge_empire_fc/data/divisions.dart';
 import 'package:merge_empire_fc/data/player_art.dart';
 import 'package:merge_empire_fc/data/players.dart';
+import 'package:merge_empire_fc/data/match_traits.dart';
 import 'package:merge_empire_fc/data/traits.dart';
+import 'package:merge_empire_fc/engine/match_trait_engine.dart' show matchTraitOf;
 import 'package:merge_empire_fc/engine/idle_engine.dart';
 import 'package:merge_empire_fc/engine/player_energy_engine.dart';
 import 'package:merge_empire_fc/engine/scout_signing_engine.dart';
@@ -128,6 +130,7 @@ CardView? cardViewFor(
     // handed what to draw and never asked what a trait is; the catalogue is
     // what names it, and the definition is only the fallback.
     trait: _traitFor(card.raw['trait']),
+    matchTrait: _matchTraitFor(card),
     // **A RATING POINT, and the card never said so.** `getEffectiveRating` adds
     // this straight onto the composed figure — see [CardView.form].
     form: card.form.toInt(),
@@ -145,6 +148,18 @@ CardView? cardViewFor(
 
 /// The glyph, the level and the localised title of a card's trait, or null for
 /// a card carrying none — or one whose id the data no longer knows.
+({String icon, String level, String title})? _matchTraitFor(CardInstance card) {
+  final raw = matchTraitOf(card);
+  final trait = getMatchTrait(raw?['id'] as String?);
+  if (raw == null || trait == null) return null;
+  final level = getMatchTraitLevel(trait, (raw['level'] as num?)?.toInt() ?? 1);
+  return (
+    icon: trait.icon,
+    level: level?.label ?? '',
+    title: matchTraitTitle(raw),
+  );
+}
+
 ({String icon, String level, String title})? _traitFor(Object? raw) {
   if (raw is! Map<String, dynamic>) return null;
   final trait = getTrait(raw['id'] as String?);

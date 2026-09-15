@@ -488,16 +488,24 @@ class MatchStatboard extends StatelessWidget {
                                   child: PlayerCard(view: view),
                                 ),
                                 const SizedBox(height: 4),
-                                Text(
-                                  '${lift.icon} ${lift.label}',
-                                  textAlign: TextAlign.center,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w900,
-                                    color: kit.accentBright,
-                                  ),
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    TraitGlyph(lift.icon, size: 13, color: kit.accentBright),
+                                    const SizedBox(width: 4),
+                                    Flexible(
+                                      child: Text(
+                                        lift.label,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w900,
+                                          color: kit.accentBright,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                                 if (lift.effect.isNotEmpty)
                                   Text(

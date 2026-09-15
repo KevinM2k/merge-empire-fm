@@ -375,6 +375,7 @@ void main() {
               maxed: false,
               atCap: false,
               trait: null,
+              matchTrait: null,
               form: 0,
               suspended: false,
             ),

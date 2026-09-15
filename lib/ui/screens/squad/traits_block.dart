@@ -21,6 +21,7 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:merge_empire_fc/ui/widgets/player_card.dart' show TraitGlyph;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/data/match_traits.dart';
 import 'package:merge_empire_fc/data/players.dart';
@@ -147,7 +148,7 @@ class TraitBlockState extends ConsumerState<TraitBlock> {
       context,
       title: traitTitle({'id': roll.id, 'level': roll.level}),
       subtitle: traitDesc(trait),
-      icon: Text(trait.icon, style: const TextStyle(fontSize: 44)),
+      icon: TraitGlyph(trait.icon, size: 44, color: Theme.of(context).extension<KitTheme>()!.accentBright),
       accent: Theme.of(context).extension<KitTheme>()!.accentBright,
       starCount: roll.level.clamp(1, 3),
     );
@@ -182,7 +183,7 @@ class TraitBlockState extends ConsumerState<TraitBlock> {
       context,
       title: matchTraitTitle({'id': roll.id, 'level': roll.level}),
       subtitle: matchTraitDesc(trait),
-      icon: Text(trait.icon, style: const TextStyle(fontSize: 44)),
+      icon: TraitGlyph(trait.icon, size: 44, color: Theme.of(context).extension<KitTheme>()!.accentBright),
       accent: Theme.of(context).extension<KitTheme>()!.accentBright,
       starCount: roll.level.clamp(1, 3),
     );
@@ -342,6 +343,7 @@ class TraitBlockState extends ConsumerState<TraitBlock> {
               children: [
             if (matchSelected && matchHeld != null) ...[
               _Description(
+                icon: matchHeld.icon,
                 title: matchTraitTitle(matchTrait!),
                 desc: matchTraitDesc(matchHeld),
                 when: matchTraitWhen(matchHeld),
@@ -357,6 +359,7 @@ class TraitBlockState extends ConsumerState<TraitBlock> {
               const SizedBox(height: 10),
             ] else if (!matchSelected && playerHeld != null) ...[
               _Description(
+                icon: playerHeld.icon,
                 title: traitTitle(playerTrait!),
                 desc: traitDesc(playerHeld),
                 effects: traitEffectsOn(card, playerTrait, ratios),
@@ -371,14 +374,7 @@ class TraitBlockState extends ConsumerState<TraitBlock> {
                 keyPrefix: 'matchtrait-reel',
                 names: [
                   for (final trait in matchTraitList)
-                    Text(
-                      '${trait.icon} ${matchTraitName(trait)}',
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
+                    _ReelName(icon: trait.icon, name: matchTraitName(trait)),
                 ],
                 initialName: matchInitial.name,
                 initialLevel: matchInitial.level,
@@ -389,14 +385,7 @@ class TraitBlockState extends ConsumerState<TraitBlock> {
                 key: _playerReel,
                 names: [
                   for (final trait in pool)
-                    Text(
-                      '${trait.icon} ${traitName(trait)}',
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 13,
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
+                    _ReelName(icon: trait.icon, name: traitName(trait)),
                 ],
                 initialName: playerInitial.name,
                 initialLevel: playerInitial.level,
@@ -594,12 +583,14 @@ class _NotchPainter extends CustomPainter {
 /// IN POINTS: what the card reads with it minus the card without.
 class _Description extends StatelessWidget {
   const _Description({
+    required this.icon,
     required this.title,
     required this.desc,
     required this.effects,
     this.when,
   });
 
+  final String icon;
   final String title;
   final String desc;
   final List<String> effects;
@@ -615,14 +606,22 @@ class _Description extends StatelessWidget {
       key: const ValueKey('detail-trait-label'),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          title,
-          style: TextStyle(
-            fontSize: 15,
-            fontWeight: FontWeight.w900,
-            height: 1.15,
-            color: kit.accentBright,
-          ),
+        Row(
+          children: [
+            TraitGlyph(icon, size: 16, color: kit.accentBright),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                title,
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.w900,
+                  height: 1.15,
+                  color: kit.accentBright,
+                ),
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 2),
         Text(
@@ -686,4 +685,28 @@ class _Description extends StatelessWidget {
       ],
     );
   }
+}
+
+/// One name on a reel: the trait's mark, then its name.
+class _ReelName extends StatelessWidget {
+  const _ReelName({required this.icon, required this.name});
+
+  final String icon;
+  final String name;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      TraitGlyph(icon, size: 14, color: Theme.of(context).colorScheme.onSurface),
+      const SizedBox(width: 5),
+      Flexible(
+        child: Text(
+          name,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w800),
+        ),
+      ),
+    ],
+  );
 }
