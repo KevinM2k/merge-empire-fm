@@ -325,6 +325,18 @@ void main() {
       tie.result['homeGoals'] = 4;
       tie.result['awayGoals'] = 1;
       tie.result['won'] = true;
+      // **AND THE TIE DID NOT GO TO PENALTIES, said out loud.** The shared PRNG
+      // is seeded off the wall clock — see `util/random.dart` — so the kickoff
+      // sim behind `beginCupRound` is a different tie on every run, and about
+      // one run in ten prepared a LEVEL one and attached a shootout to it.
+      // `settleCupRound` then correctly unfolds that shootout's goal back out
+      // of the recorded score, and the 4 this asserts arrived as a 3.
+      //
+      // This test is about the OVERRIDE — that the bracket records what the
+      // screen ended on rather than what was simulated at kickoff — so the
+      // shootout is not its subject and is pinned rather than left to chance.
+      // The unfold has its own group further down.
+      tie.result['penaltyShootout'] = null;
       settleCupRound(s, tie);
 
       final stored = _map(_cupResults(s).single)!;
@@ -447,6 +459,13 @@ void main() {
       // The overwhelming case: nobody changed anything.
       final s = cupState();
       final tie = beginCupRound(s)!;
+      // **AND IT DID NOT GO TO PENALTIES**, for the same reason the override
+      // test above says so: the kickoff sim is rolled off a clock-seeded PRNG,
+      // about one tie in ten comes back level with a shootout on it, and
+      // `settleCupRound` then unfolds that goal out of the recorded score — so
+      // the prepared figure this compares against is one higher than what is
+      // stored. The unfold is the subject of its own group further down.
+      tie.result['penaltyShootout'] = null;
       settleCupRound(s, tie);
       final stored = _map(_cupResults(s).single)!;
       expect(stored['homeGoals'], tie.prepared.homeGoals);

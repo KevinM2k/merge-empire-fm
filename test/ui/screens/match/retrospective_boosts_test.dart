@@ -322,6 +322,15 @@ void main() {
       // Colin's tactic tip may be over the board; put him away first.
       state.clearCoachLine();
       await tester.pumpAndSettle();
+      // **AND AGAIN, IN THE SAME FRAME AS THE TAP.** The match is still
+      // RUNNING here — the subs panel is shut and the clock resumed — so the
+      // settle above advances it, and a minute ticking past while the tree
+      // settles is enough to schedule a NEW tip. It comes up over the board and
+      // eats the tap, and the stats sheet never opens: `match-active-cards`
+      // found nothing, about one full-suite run in four. Clearing once left the
+      // window between the settle and the tap open; this shuts it.
+      state.clearCoachLine();
+      await tester.pump();
       await tester.tap(find.byKey(const ValueKey('match-stats-button')));
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('match-active-cards')), findsOneWidget);

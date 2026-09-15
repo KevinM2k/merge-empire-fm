@@ -58,6 +58,21 @@ Future<void> pumpWalker(
   ),
 );
 
+/// A look with every axis named, so a test is not at the mercy of a roll.
+///
+/// `defaultManagerLook` is `normalizeAvatar(null)`, which is a fresh RANDOM
+/// avatar — fine as the app's fallback, useless as a fixture.
+const ManagerLook _plainLook = <String, dynamic>{
+  'build': 'regular',
+  'outfit': 'kit',
+  'style': 'crop',
+  'hair': '#3A2A1C',
+  'beard': 'none',
+  'hat': 'none',
+  'face': 'none',
+  'neck': 'none',
+};
+
 ManagerParts partsFor(
   ManagerLook look, {
   Mood mood = Mood.neutral,
@@ -229,16 +244,56 @@ void main() {
     });
 
     test('every part it hands back is drawable', () {
+      // **PINNED, not `defaultManagerLook`.** That is `normalizeAvatar(null)`,
+      // which is a RANDOM avatar rolled once per isolate off an unseeded
+      // `math.Random` — so this fixture was a different manager on every run
+      // and the test only asked about the axes that happened to come up. It
+      // failed roughly one run in ten, always on the same thing, and never
+      // twice in the same place.
+      //
+      // Every axis is walked explicitly now instead, which is both
+      // deterministic and a wider net than the roll ever was.
       for (final style in hairStyleIds) {
-        final parts = partsFor({...defaultManagerLook, 'style': style});
-        for (final svg in [
+        for (final face in faceIds) {
+          // **BUBBLEGUM DRAWS NOTHING, on purpose.** `manager_art.dart` spends
+          // a paragraph on it: a pink shape at the mouth showed through the
+          // jaw the painter draws over it, and no size of it was reliably
+          // hidden, so the still part is an empty `<svg/>`. What the item IS
+          // lives in `_GumChew` — a working jaw and a bubble — and the entry
+          // stays so the resolver still knows the id. It is the one part in
+          // the wardrobe that is meant to parse to nothing.
+          if (face == 'bubblegum') continue;
+          final parts = partsFor({
+            ..._plainLook,
+            'style': style,
+            'face': face,
+          });
+          for (final svg in [
+            for (final layer in parts.behindHead) layer.svg,
+            ...parts.overTorso,
+            for (final layer in parts.overHead) layer.svg,
+          ]) {
+            expect(parseSvg(svg), isNotEmpty, reason: '$style/$face');
+          }
+        }
+      }
+    });
+
+    test('and bubblegum is the ONLY part that draws nothing', () {
+      // The exemption above is a hole in the net, so it is nailed shut: if a
+      // second blank part ever ships, this fails and somebody decides whether
+      // it is deliberate.
+      final blanks = <String>[];
+      for (final face in faceIds) {
+        final parts = partsFor({..._plainLook, 'face': face});
+        final svgs = [
           for (final layer in parts.behindHead) layer.svg,
           ...parts.overTorso,
           for (final layer in parts.overHead) layer.svg,
-        ]) {
-          expect(parseSvg(svg), isNotEmpty, reason: style);
-        }
+        ];
+        if (svgs.any((svg) => parseSvg(svg).isEmpty)) blanks.add(face);
       }
+      expect(blanks, ['bubblegum']);
     });
 
     group('PAINT IS ON THE SKIN, hardware is on top of everything', () {
