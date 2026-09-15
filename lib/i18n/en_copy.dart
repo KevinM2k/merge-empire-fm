@@ -323,6 +323,14 @@ const Map<String, String> enCopy = <String, String>{
   // the marks that explained it sat under the fold of the report.
   //
   // `{club}` is the side taking it, so the line reads for either of them.
+  // A merge whose older half has declined too far hands back a worse player
+  // than the better of the two going in. The line names the reason rather than
+  // the rule — a player does not need to know about tier steps, only that the
+  // one they would lose is the better card.
+  'merge.refused_ageing':
+      'That merge would leave you worse off — the younger one is already the '
+      'better player.',
+
   'cup.shootout.title': 'PENALTIES',
   'cup.shootout.steps_up': '{club} step up…',
   'cup.shootout.scored': 'GOAL!',

@@ -228,6 +228,11 @@ Toast? toastFor(String event, Object? args) {
       if (data?['reason'] == 'division_locked') {
         return _say(t('grid.tier_unlock_higher', {'tier': data?['tier'] ?? 0}), good: false);
       }
+      // The age gap, not the age: the pair would hand back a worse player than
+      // the better of the two going in.
+      if (data?['reason'] == 'ageing_loss') {
+        return _say(t('merge.refused_ageing'), good: false);
+      }
       if (data?['reason'] == 'insufficient_coins') {
         final coins = data?['coins'];
         return _say(t('merge.need_coins', {

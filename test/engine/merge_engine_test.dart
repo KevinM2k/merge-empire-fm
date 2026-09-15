@@ -322,6 +322,68 @@ void main() {
       expect(merged.age, 33);
     });
 
+    test('A MERGE THAT WOULD HAND BACK A WORSE PLAYER IS REFUSED', () {
+      // A 38 and a 29 Legendary Icon made a World Legend rating 56 out of a 78
+      // the player already had — a 22-point loss for destroying the better of
+      // the two, with nothing on screen to say so before the drag finished.
+      final cells = <dynamic>[
+        _card('player_t7_fwd', instanceId: 'old', age: 38),
+        _card('player_t7_fwd', instanceId: 'young', age: 29),
+      ];
+      final r = attemptMerge(0, 1, cells);
+
+      expect(r.ok, isFalse);
+      expect(r.reason, 'ageing_loss');
+      // And both are still there — nothing was consumed.
+      expect(cells[0], isNotNull);
+      expect(cells[1], isNotNull);
+      expect(CardInstance(cells[1] as Map<String, dynamic>).age, 29);
+    });
+
+    test('but the GAP is what does it, not the age', () {
+      // The rule this deliberately is NOT: "a declining card cannot merge".
+      // Two thirty-eight-year-olds are a ten-point gain and consolidating a
+      // squad of veterans is a real thing to do with them.
+      final cells = <dynamic>[
+        _card('player_t7_fwd', instanceId: 'a', age: 38),
+        _card('player_t7_fwd', instanceId: 'b', age: 38),
+      ];
+      final r = attemptMerge(0, 1, cells);
+
+      expect(r.action, MergeAction.merge);
+      expect(r.result!.definitionId, 'player_t8_fwd');
+      expect(r.result!.age, 38);
+    });
+
+    test('and a small gap still merges', () {
+      for (final (older, younger) in const [(31, 29), (33, 29), (29, 29)]) {
+        final cells = <dynamic>[
+          _card('player_t7_fwd', instanceId: 'a', age: older),
+          _card('player_t7_fwd', instanceId: 'b', age: younger),
+        ];
+        expect(
+          attemptMerge(0, 1, cells).action,
+          MergeAction.merge,
+          reason: '$older + $younger',
+        );
+      }
+    });
+
+    test('and a card in its prime is never refused', () {
+      // Most of a squad, and the refusal must never reach any of it.
+      for (var age = 18; age <= peakAgeEnd; age++) {
+        final cells = <dynamic>[
+          _card('player_t1_fwd', instanceId: 'a', age: age),
+          _card('player_t1_fwd', instanceId: 'b', age: 18),
+        ];
+        expect(
+          attemptMerge(0, 1, cells).action,
+          MergeAction.merge,
+          reason: 'age $age',
+        );
+      }
+    });
+
     test('the merged card inherits its parents gender', () {
       setMergeRandom(math.Random(9));
       final cells = <dynamic>[

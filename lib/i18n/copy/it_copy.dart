@@ -19,6 +19,7 @@ const Map<String, String> itCopy = <String, String>{
   'coach.squad.sell_now': '{name} ha {age} anni e cala in fretta — {pen} pt di valutazione in meno. Restano solo {left} stagioni: è il momento di vendere.',
   'squad.badge.sell_now': '⚠️ Vendi subito — in caduta libera',
   'squad.stat.age': 'Età',
+  'merge.refused_ageing': 'Quella fusione ti lascerebbe messo peggio — il più giovane è già il giocatore migliore.',
   'cup.shootout.title': 'RIGORI',
   'cup.shootout.steps_up': '{club} si presenta…',
   'cup.shootout.scored': 'GOL!',

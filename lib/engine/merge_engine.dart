@@ -251,6 +251,39 @@ MergeResult attemptMerge(
     }
   }
 
+  // **A MERGE THAT WOULD HAND BACK A WORSE PLAYER IS REFUSED.**
+  //
+  // The merged card takes the OLDER parent's age — see `mergedAge` — and a tier
+  // step is worth about ten rating points, so the pairing loses value exactly
+  // when the older card has declined by more than the step. Feeding a
+  // thirty-eight-year-old Legendary Icon and a twenty-nine-year-old one
+  // together produced a World Legend rating 56 out of a 78 you already had: a
+  // twenty-two point loss, for destroying the better of the two, with nothing
+  // on screen to say so before the drag finished.
+  //
+  // **It is the GAP that does the damage, not the age**, which is why this is
+  // not "declining cards cannot merge". Two thirty-eight-year-olds are +10 and
+  // a thirty-one with a twenty-nine is +9; blocking those would turn every card
+  // past its prime into dead weight and take away consolidating a squad of
+  // veterans, which is a real thing to do with them.
+  //
+  // Judged on the DEFINITIONS rather than the instances: both parents share a
+  // definition, so the only thing between them is the birthday, and leaving the
+  // per-instance spread out of it keeps the answer the same every time rather
+  // than turning on a roll the player cannot see.
+  final into = getDefinition(def.mergesInto);
+  if (into != null) {
+    int declined(PlayerDef d, int age) => d.rating - ageDeclinePenalty(age);
+    final best = math.max(
+      declined(def, sourceCard.age),
+      declined(def, targetCard.age),
+    );
+    final merged = mergedAge(sourceCard.age, targetCard.age, into.tier);
+    if (declined(into, merged) < best) {
+      return const MergeResult(ok: false, reason: 'ageing_loss');
+    }
+  }
+
   // The merged card inherits its parents' gender — they are required to match,
   // so either parent's variant names the right pool.
   //
@@ -259,7 +292,7 @@ MergeResult attemptMerge(
   // young: two thirty-four-year-olds make a thirty-four-year-old, and the
   // Bronze Rookies you started with are the reason a home-grown Legendary Icon
   // has years in front of him that a scouted one does not.
-  final intoDef = getDefinition(def.mergesInto);
+  final intoDef = into;
   final newCard = createInstance(
     def.mergesInto!,
     preferredFemale: isVariantFemale(sourceVariant),

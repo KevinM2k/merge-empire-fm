@@ -18,6 +18,7 @@ const Map<String, String> zhCopy = <String, String>{
   'coach.squad.sell_now': '{name} {age} 岁且下滑很快——评分已掉 {pen} 分。只剩 {left} 赛季，现在正是出售时机。',
   'squad.badge.sell_now': '⚠️ 立即出售——急剧下滑',
   'squad.stat.age': '年龄',
+  'merge.refused_ageing': '这次合成会让你更差——年轻的那位已经是更好的球员。',
   'cup.shootout.title': '点球大战',
   'cup.shootout.steps_up': '{club} 主罚…',
   'cup.shootout.scored': '进球！',

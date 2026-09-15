@@ -18,6 +18,7 @@ const Map<String, String> ptCopy = <String, String>{
   'coach.squad.sell_now': '{name} tem {age} e cai rápido — {pen} pts de rating a menos. Restam só {left} temporadas: é hora de vender.',
   'squad.badge.sell_now': '⚠️ Venda agora — caindo rápido',
   'squad.stat.age': 'Idade',
+  'merge.refused_ageing': 'Essa fusão te deixaria em pior situação — o mais novo já é o melhor jogador.',
   'cup.shootout.title': 'PÊNALTIS',
   'cup.shootout.steps_up': '{club} vai bater…',
   'cup.shootout.scored': 'GOL!',
