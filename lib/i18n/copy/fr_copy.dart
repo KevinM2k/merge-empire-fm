@@ -675,4 +675,15 @@ const Map<String, String> frCopy = <String, String>{
   'matchtrait.name.warrior': "Guerrier",
   'matchtrait.desc.warrior': "Serre les dents — peut encaisser un coup et continuer",
   'hud.income.trophy_polish': "Polissage des Trophées · {mins} min restantes",
+  // Colin's pre-match tactic tips shipped in English in every catalogue.
+  'coach.tactic_tip.counter_their_atk': "{opp} sont dangereux vers l'avant. {tactic} – absorber et frapper en retour.",
+  'coach.tactic_tip.exploit_their_def': "La défense de {opp} est exposée. {tactic} – jouer la victoire.",
+  'coach.tactic_tip.open_dominant': "Les deux équipes marqueront, mais nous sommes nettement plus forts. {tactic} – jouer la victoire.",
+  'coach.tactic_tip.open_even': "Les deux équipes auront des occasions. {tactic} – frapper {opp} en contre.",
+  'coach.tactic_tip.open_favoured': "Des occasions des deux côtés, et nous devrions l'emporter. {tactic} pour contrôler le match.",
+  'coach.tactic_tip.open_underdog': "{opp} sont plus forts, mais ce sera ouvert. {tactic} – saisir les occasions quand elles viennent.",
+  'coach.tactic_tip.park_underdog': "{opp} sont une vraie menace et marquer sera dur. {tactic} – limiter les dégâts.",
+  'coach.tactic_tip.tight_favoured': "Un match serré, mais l'avantage est pour nous. {tactic} – créer l'occasion.",
+  'coach.tactic_tip.tight_underdog': "Difficile de marquer des deux côtés. {tactic} – rester disciplinés.",
+  'game.whack.fouls': "Stadiers",
 };

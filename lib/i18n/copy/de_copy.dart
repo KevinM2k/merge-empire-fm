@@ -677,4 +677,18 @@ const Map<String, String> deCopy = <String, String>{
   'matchtrait.name.warrior': "Krieger",
   'matchtrait.desc.warrior': "Beißt sich durch – schüttelt einen Schlag vielleicht ab und macht weiter",
   'hud.income.trophy_polish': "Trophäen-Politur · noch {mins} Min.",
+  // Colin's pre-match tactic tips shipped in English in every catalogue.
+  'coach.tactic_tip.counter_their_atk': "{opp} sind nach vorne gefährlich. {tactic} – abfangen und zurückschlagen.",
+  'coach.tactic_tip.exploit_their_def': "Die Abwehr von {opp} ist anfällig. {tactic} – auf Sieg spielen.",
+  'coach.tactic_tip.open_dominant': "Beide Teams werden treffen, aber wir sind klar stärker. {tactic} – auf Sieg spielen.",
+  'coach.tactic_tip.open_even': "Beide Teams werden Chancen haben. {tactic} – {opp} mit Konter erwischen.",
+  'coach.tactic_tip.open_favoured': "Beide Seiten bekommen Chancen, wir sollten die Nase vorn haben. {tactic}, um das Spiel zu kontrollieren.",
+  'coach.tactic_tip.open_underdog': "{opp} sind stärker, aber es wird offen. {tactic} – Chancen nutzen, wenn sie kommen.",
+  'coach.tactic_tip.park_underdog': "{opp} sind eine echte Gefahr, wir werden schwer treffen. {tactic} – Schaden begrenzen.",
+  'coach.tactic_tip.tight_favoured': "Ein enges Spiel, aber wir haben den Vorteil. {tactic} – die Chance erarbeiten.",
+  'coach.tactic_tip.tight_underdog': "Tore werden auf beiden Seiten schwer. {tactic} – diszipliniert bleiben.",
+  'daily.start_over': "Zurücksetzen",
+  'pi.filter.tier': "Stufe",
+  'pi.stat.rating': "Wertung",
+  'mg.drills': "Übungen: {hit} / {total}",
 };

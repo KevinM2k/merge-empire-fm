@@ -658,4 +658,16 @@ const Map<String, String> esCopy = <String, String>{
   'matchtrait.name.warrior': "Guerrero",
   'matchtrait.desc.warrior': "Aguanta el golpe: puede sacudirse un percance y seguir",
   'hud.income.trophy_polish': "Pulido de Trofeos · faltan {mins} min",
+  // Colin's pre-match tactic tips shipped in English in every catalogue.
+  'coach.tactic_tip.counter_their_atk': "{opp} son peligrosos al ataque. {tactic}: aguantar y golpear a la contra.",
+  'coach.tactic_tip.exploit_their_def': "La defensa de {opp} está expuesta. {tactic}: a por la victoria.",
+  'coach.tactic_tip.open_dominant': "Los dos equipos marcarán, pero somos claramente superiores. {tactic}: a por la victoria.",
+  'coach.tactic_tip.open_even': "Los dos equipos tendrán ocasiones. {tactic}: castigar a {opp} a la contra.",
+  'coach.tactic_tip.open_favoured': "Habrá ocasiones para ambos y deberíamos llevarnos el partido. {tactic} para controlar el juego.",
+  'coach.tactic_tip.open_underdog': "{opp} son más fuertes, pero será un partido abierto. {tactic}: aprovechar las ocasiones cuando lleguen.",
+  'coach.tactic_tip.park_underdog': "{opp} son una amenaza real y nos costará marcar. {tactic}: limitar los daños.",
+  'coach.tactic_tip.tight_favoured': "Partido cerrado, pero tenemos ventaja. {tactic}: crear la ocasión.",
+  'coach.tactic_tip.tight_underdog': "Difícil marcar para los dos. {tactic}: mantener la disciplina.",
+  'club.stats.tier_value': "Nivel {tier}",
+  'hud.income.base_total': "Total base",
 };

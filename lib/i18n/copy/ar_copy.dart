@@ -604,4 +604,14 @@ const Map<String, String> arCopy = <String, String>{
   'matchtrait.name.warrior': "المحارب",
   'matchtrait.desc.warrior': "يتحمل الألم — قد ينفض عنه الإصابة ويواصل",
   'hud.income.trophy_polish': "تلميع الكؤوس · {mins} دقيقة متبقية",
+  // Colin's pre-match tactic tips shipped in English in every catalogue.
+  'coach.tactic_tip.counter_their_atk': "{opp} خطيرون في الهجوم. {tactic} – استوعب الضغط ثم اضرب بالمرتدة.",
+  'coach.tactic_tip.exploit_their_def': "دفاع {opp} مكشوف. {tactic} – العب من أجل الفوز.",
+  'coach.tactic_tip.open_dominant': "سيسجل الفريقان لكننا الأقوى بوضوح. {tactic} – العب من أجل الفوز.",
+  'coach.tactic_tip.open_even': "سيصنع الفريقان الفرص. {tactic} – اضرب {opp} بالمرتدات.",
+  'coach.tactic_tip.open_favoured': "فرص للطرفين ويجب أن نحسمها. {tactic} للسيطرة على المباراة.",
+  'coach.tactic_tip.open_underdog': "{opp} أقوى لكن المباراة ستكون مفتوحة. {tactic} – استغل الفرص حين تأتي.",
+  'coach.tactic_tip.park_underdog': "{opp} خطر حقيقي وسنعاني للتسجيل. {tactic} – قلّل الخسائر.",
+  'coach.tactic_tip.tight_favoured': "مباراة محكمة لكن الأفضلية لنا. {tactic} – اصنع الفرصة.",
+  'coach.tactic_tip.tight_underdog': "التسجيل صعب على الطرفين. {tactic} – حافظ على الانضباط.",
 };

@@ -650,4 +650,17 @@ const Map<String, String> ptCopy = <String, String>{
   'matchtrait.name.warrior': "Guerreiro",
   'matchtrait.desc.warrior': "Segura a pancada: pode sacudir uma lesão e seguir",
   'hud.income.trophy_polish': "Polimento de Troféus · {mins} min restantes",
+  // Colin's pre-match tactic tips shipped in English in every catalogue.
+  'coach.tactic_tip.counter_their_atk': "{opp} são perigosos no ataque. {tactic}: aguentar e responder no contra-ataque.",
+  'coach.tactic_tip.exploit_their_def': "A defesa de {opp} está exposta. {tactic}: jogar para ganhar.",
+  'coach.tactic_tip.open_dominant': "As duas equipas vão marcar, mas somos claramente mais fortes. {tactic}: jogar para ganhar.",
+  'coach.tactic_tip.open_even': "As duas equipas vão criar oportunidades. {tactic}: apanhar {opp} no contra-ataque.",
+  'coach.tactic_tip.open_favoured': "Oportunidades para os dois lados, e devemos levar a melhor. {tactic} para controlar o jogo.",
+  'coach.tactic_tip.open_underdog': "{opp} são mais fortes, mas vai ser um jogo aberto. {tactic}: aproveitar as oportunidades quando surgirem.",
+  'coach.tactic_tip.park_underdog': "{opp} são uma ameaça real e vai custar marcar. {tactic}: limitar os danos.",
+  'coach.tactic_tip.tight_favoured': "Jogo fechado, mas temos vantagem. {tactic}: criar a oportunidade.",
+  'coach.tactic_tip.tight_underdog': "Difícil marcar para os dois lados. {tactic}: manter a disciplina.",
+  'club.stats.tier_value': "Nível {tier}",
+  'cup.banner.semi.title': "MEIA-FINAL!",
+  'sell.tier_category': "Nível {tier} · {category}",
 };
