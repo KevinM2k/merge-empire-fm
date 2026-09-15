@@ -13,6 +13,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:merge_empire_fc/data/players.dart' show getPlayerDef, ratioRange;
 import 'package:merge_empire_fc/engine/boost_engine.dart';
 import 'package:merge_empire_fc/engine/match_tactics.dart' show strategies;
+import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/state/save_slots.dart';
 import 'package:merge_empire_fc/state/save_store.dart';
@@ -198,6 +199,11 @@ void main() {
       expect(find.byKey(const ValueKey('match-live-glow')), findsOneWidget);
       expect(find.byKey(const ValueKey('match-live-source-pill')), findsOneWidget);
       expect(state.notes.any((n) => n.key == 'boost.roar.live'), isTrue);
+      // And the feed's header names it: BOOST · Crowd Roar.
+      expect(
+        find.text('${t('boost.feed.action')} · ${t('boost.crowd_roar.name')}'.toUpperCase()),
+        findsWidgets,
+      );
       // The split, not the star: the star is an int blended from the already
       // rounded pair, and on a ~15-rated eleven a 10% lift can round away.
       final liftedAtk = state.liveRatings['liveAttackRating'] as num;

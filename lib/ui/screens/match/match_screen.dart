@@ -4748,7 +4748,18 @@ class _FeedLine extends StatelessWidget {
       'injury' => t('match.subs.injured'),
       'subs' || 'opp_sub' => t('match.subs'),
       'tactics' => t('match.tab.tactics'),
-      'boost' => t('boost.feed.action'),
+      // **WHICH boost**, beside the word: "BOOST · Sharp Shooting" over the
+      // line, so the feed says what was called without the line having to.
+      // Asked for from the couch. The line's key names it: `boost.sharp.*`.
+      'boost' => switch (line.key.split('.').elementAtOrNull(1)) {
+        'roar' => '${t('boost.feed.action')} · ${t('boost.crowd_roar.name')}',
+        'bus' => '${t('boost.feed.action')} · ${t('boost.park_the_bus.name')}',
+        'sharp' => '${t('boost.feed.action')} · ${t('boost.sharp_shooting.name')}',
+        'var' => '${t('boost.feed.action')} · ${t('boost.var_review.name')}',
+        'physio' => '${t('boost.feed.action')} · ${t('boost.physio_sponge.name')}',
+        'quiet' => '${t('boost.feed.action')} · ${t('boost.quiet_word.name')}',
+        _ => t('boost.feed.action'),
+      },
       'chance' => t('match.chance'),
       // **THREE WORDS, not one.** A second caution and a straight red are
       // different offences — one is a booking too many, the other is violent
