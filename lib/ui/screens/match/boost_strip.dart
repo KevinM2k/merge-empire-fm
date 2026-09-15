@@ -28,7 +28,7 @@ import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/ui/popups/bottom_sheet_popup.dart';
 import 'package:merge_empire_fc/ui/popups/sheet_header.dart';
 import 'package:merge_empire_fc/ui/screens/match/boost_bar_paint.dart'
-    show flameMid, goldMid;
+    show liveBoostColour;
 import 'package:merge_empire_fc/ui/theme/glass.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
@@ -38,13 +38,6 @@ List<Boost> get proactiveBoosts => [
   for (final b in boostList)
     if (b.kind == BoostKind.proactive) b,
 ];
-
-/// The colour a live window paints its tile and its row in.
-Color liveBoostColour(BuildContext context, String id) => switch (id) {
-  'crowd_roar' => flameMid,
-  'sharp_shooting' => goldMid,
-  _ => Theme.of(context).extension<KitTheme>()!.textMuted,
-};
 
 /// The sixth tile on the tactic strip: the bolt, how many are in the bag,
 /// and the colour of whatever window is burning.
@@ -70,7 +63,7 @@ class BoostTacticTile extends ConsumerWidget {
       owned += boostCount(state, b.id);
     }
     final live = liveId != null;
-    final hue = live ? liveBoostColour(context, liveId!) : null;
+    final hue = live ? liveBoostColour(liveId!) : null;
     final ink = live
         ? Colors.white
         : owned > 0
@@ -183,7 +176,7 @@ class _BoostRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final live = until != null;
     final owned = count > 0;
-    final hue = live ? liveBoostColour(context, boost.id) : null;
+    final hue = live ? liveBoostColour(boost.id) : null;
     final ink = owned || live ? kit.accentBright : kit.textMuted;
     return Semantics(
       button: owned,

@@ -3394,7 +3394,22 @@ class MatchScreenState extends ConsumerState<MatchScreen>
                                 // most needs them to say which side is which.
                                 // Reported from the couch in turn. See
                                 // `MomentumArrow.arrow`.
-                                onGrass: MomentumArrow(
+                                // The aura under the arrow, both on the
+                                // grass — see `BoostAura`. The arrow takes
+                                // the colour of whatever is burning the bar,
+                                // so the pitch says what the tile says.
+                                onGrass: Stack(
+                                  fit: StackFit.expand,
+                                  children: [
+                                    if (!f.finished &&
+                                        _boosts.activeAt(f.minute).isNotEmpty)
+                                      BoostAura(
+                                        ids: [
+                                          for (final b in _boosts.activeAt(f.minute)) b.id,
+                                        ],
+                                        on: _liveGlow.isAnimating,
+                                      ),
+                                    MomentumArrow(
                                     arrow: !f.finished,
                                     bias: momentumBias(
                                       dangerHome: stats.dangerHome,
@@ -3402,8 +3417,12 @@ class MatchScreenState extends ConsumerState<MatchScreen>
                                     ),
                                     attackingRight: home,
                                     // Shades of the TURF, not of the kit: a solid
-                                    // mark on the grass rather than a tint over it.
-                                    ours: momentumOurs,
+                                    // mark on the grass rather than a tint over it
+                                    // — until a window burns, when it wears that.
+                                    ours: switch (leadBoost(_boosts.activeAt(f.minute))) {
+                                      final b? => liveBoostColour(b),
+                                      null => momentumOurs,
+                                    },
                                     theirs: momentumTheirs,
                                     // **WHOSE END IS WHICH, painted on the
                                     // grass.** The markings are symmetric, so
@@ -3426,6 +3445,8 @@ class MatchScreenState extends ConsumerState<MatchScreen>
                                     leftEnd: t('play.home'),
                                     rightEnd: t('play.away'),
                                   ),
+                                  ],
+                                ),
                                 onDone: (_) {
                                   if (!mounted) return;
                                   final told = _clippedMinute;
@@ -3471,7 +3492,7 @@ class MatchScreenState extends ConsumerState<MatchScreen>
                         boosts: _boostsHidden
                             ? null
                             : BoostTacticTile(
-                                liveId: barBurn(_boosts.activeAt(f.minute)),
+                                liveId: leadBoost(_boosts.activeAt(f.minute)),
                                 enabled: !_paused,
                                 onTap: openBoosts,
                               ),

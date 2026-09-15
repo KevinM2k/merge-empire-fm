@@ -32,6 +32,130 @@ const Color goldHot = Color(0xFFFFF3C4);
 const Color goldMid = Color(0xFFFFC542);
 const Color goldDeep = Color(0xFFB8860B);
 
+/// The steel a Bus is drawn in: cool where the other two are hot, because it
+/// is the tactical opposite — a wall, not a fire.
+const Color busSteel = Color(0xFF5B7C99);
+const Color busSteelHot = Color(0xFFA9C2D9);
+
+/// The colour a live window paints everything it touches in — its tile, its
+/// row on the sheet, its band, and its aura on the grass.
+Color liveBoostColour(String id) => switch (id) {
+  'crowd_roar' => flameMid,
+  'sharp_shooting' => goldMid,
+  _ => busSteel,
+};
+
+/// **THE PITCH SHOWS IT TOO.** A boost was a band on the clock and a tinted
+/// tile; the one thing on the screen with room to say "something is on" is the
+/// pitch, so a live window draws an aura along its edge in its own colour,
+/// breathing, and two windows are two rings. Asked for from the couch.
+class BoostAura extends StatefulWidget {
+  const BoostAura({super.key, required this.ids, required this.on});
+
+  /// The live windows, in the order they were called — the first is the
+  /// outermost ring.
+  final List<String> ids;
+
+  /// Animating, or a still frame for reduced motion and tests.
+  final bool on;
+
+  @override
+  State<BoostAura> createState() => _BoostAuraState();
+}
+
+class _BoostAuraState extends State<BoostAura>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _t = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1800),
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.on) _t.repeat();
+  }
+
+  @override
+  void didUpdateWidget(BoostAura oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.on && !_t.isAnimating) _t.repeat();
+    if (!widget.on && _t.isAnimating) _t.stop();
+  }
+
+  @override
+  void dispose() {
+    _t.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => IgnorePointer(
+    child: RepaintBoundary(
+      child: CustomPaint(
+        key: const ValueKey('match-boost-aura'),
+        painter: _AuraPainter(_t, widget.ids),
+        child: const SizedBox.expand(),
+      ),
+    ),
+  );
+}
+
+class _AuraPainter extends CustomPainter {
+  _AuraPainter(this.t, this.ids) : super(repaint: t);
+
+  final Animation<double> t;
+  final List<String> ids;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final phase = t.value * 2 * math.pi;
+    final unique = <String>[];
+    for (final id in ids) {
+      if (!unique.contains(id)) unique.add(id);
+    }
+    // Each ring sits inside the last, so stacked windows read as stacked.
+    for (var i = 0; i < unique.length; i++) {
+      final colour = liveBoostColour(unique[i]);
+      final breathe = 0.5 + 0.5 * math.sin(phase + i * 1.3);
+      final inset = 4.0 + i * 10.0;
+      final band = 22.0 + 6.0 * breathe;
+      final rect = Rect.fromLTWH(
+        inset,
+        inset,
+        size.width - inset * 2,
+        size.height - inset * 2,
+      );
+      final rrect = RRect.fromRectAndRadius(rect, const Radius.circular(10));
+      // A soft inward glow: a wide translucent stroke, blurred.
+      canvas.drawRRect(
+        rrect,
+        Paint()
+          ..color = colour.withValues(alpha: 0.28 + 0.18 * breathe)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = band
+          ..maskFilter = MaskFilter.blur(BlurStyle.normal, band * 0.6),
+      );
+      // And a hard line on it, so the ring has an edge to read.
+      canvas.drawRRect(
+        rrect,
+        Paint()
+          ..color = colour.withValues(alpha: 0.75 + 0.25 * breathe)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(_AuraPainter old) => old.t != t || old.ids.join() != ids.join();
+}
+
+/// The window that leads the others on the tile and the arrow: the Roar's
+/// fire over the gold over the steel.
+String? leadBoost(List<LiveBoost> windows) =>
+    barBurn(windows) ?? (windows.isEmpty ? null : windows.first.id);
+
 /// Which whole-bar burn is on at this minute, or null for a band or nothing.
 /// A Roar and a Sharp Shooting together: the Roar's fire wins the bar, the
 /// gold keeps its band.
@@ -254,7 +378,6 @@ class BoostBands extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final kit = Theme.of(context).extension<KitTheme>()!;
     return LayoutBuilder(
       builder: (context, box) {
         final w = box.maxWidth;
@@ -279,9 +402,7 @@ class BoostBands extends StatelessWidget {
                   glow: glow,
                   // A Bus is a grey wash; Sharp Shooting is gold, the colour
                   // a chance converting already wears on the feed.
-                  wash: b.id == 'sharp_shooting'
-                      ? const Color(0xFFFFC542)
-                      : kit.textMuted,
+                  wash: liveBoostColour(b.id),
                 ),
               ),
           ],
