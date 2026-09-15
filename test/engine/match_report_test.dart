@@ -30,6 +30,7 @@ void main() {
     String? nextOpponent = 'Ayton',
     String? oppNextOpponent,
     bool isCup = false,
+    ({int ours, int theirs, bool won})? shootout,
   }) => (
     ours: ours,
     theirs: theirs,
@@ -63,6 +64,7 @@ void main() {
     nextOpponent: nextOpponent,
     nextIsHome: false,
     oppNextOpponent: oppNextOpponent,
+    shootout: shootout,
   );
 
   /// **WHAT A MATCH EARNS, with the length ceiling lifted.**
@@ -916,6 +918,75 @@ void main() {
         isEmpty,
       );
     });
+  });
+
+  group('AND A TIE THAT WENT TO PENALTIES', () {
+    /// A cup tie that finished level and was settled from twelve yards.
+    ReportFacts tie({required bool won, int ours = 1, int theirs = 1}) => facts(
+      ours: ours,
+      theirs: theirs,
+      isCup: true,
+      position: null,
+      points: null,
+      posDelta: null,
+      shootout: (ours: won ? 4 : 3, theirs: won ? 3 : 4, won: won),
+    );
+
+    test('IT IS NOT A DRAW, WHICHEVER DRAW POOL THE MARGIN WOULD PICK', () {
+      // **The write-up had no idea shootouts existed.** A cup tie that
+      // finished 1-1 and went to penalties opened on `report.draw.shared` —
+      // "they share the points", about a knockout round with no points to
+      // share and one of the two clubs already out. Reported from the couch
+      // with the shot: 1-1, full time, a cup tie, "why no penalties".
+      for (final level in [
+        tie(won: true),
+        // The thriller and the late-equaliser pools are the other two arms a
+        // level scoreline can take, and the kicks outrank all three.
+        tie(won: true, ours: 3, theirs: 3),
+        tie(won: false),
+        tie(won: false, ours: 0, theirs: 0),
+      ]) {
+        expect(
+          keysOf(level).where((k) => k.startsWith('report.draw.')),
+          isEmpty,
+          reason: 'a tie settled on penalties was written up as a draw',
+        );
+      }
+    });
+
+    test('and it says which way the kicks went', () {
+      expect(keysOf(tie(won: true)), contains('report.cup.pens_won'));
+      expect(keysOf(tie(won: false)), contains('report.cup.pens_lost'));
+    });
+
+    test('with both scorelines in it, the ninety and the kicks', () {
+      final beat = buildMatchReport(
+        tie(won: true),
+      ).firstWhere((b) => b.key == 'report.cup.pens_won');
+      // Home team first, like `score` — see the params block.
+      expect(beat.params['score'], '1-1');
+      expect(beat.params['pens'], '4-3');
+    });
+
+    test('AND IT SURVIVES THE BUDGET, because it IS the headline', () {
+      // It replaces one of the three result pools rather than joining them, so
+      // it is worth what they are — a beat ranked below them would be trimmed
+      // off a busy afternoon and the tie would be a draw again.
+      expect(beatRank('report.cup.pens_won'), beatRank('report.draw.shared'));
+      expect(beatRank('report.cup.pens_lost'), beatRank('report.draw.shared'));
+    });
+
+    test('and a league draw is still a draw', () {
+      // The control. Nothing outside a cup can carry a shootout, and the
+      // override is on the field rather than on `isCup`, so a level league
+      // match is untouched.
+      expect(keysOf(facts(ours: 1, theirs: 1)), contains('report.draw.shared'));
+      expect(
+        keysOf(facts(ours: 1, theirs: 1))
+            .where((k) => k.startsWith('report.cup.pens')),
+        isEmpty,
+      );
+    });
 
     test('nor has a save with no row in one', () {
       expect(
@@ -1334,6 +1405,25 @@ void main() {
       'held': facts(posDelta: 0),
       'one place': facts(posDelta: 1),
       'cup tie': facts(isCup: true, position: null, points: null),
+      // Both ways round: the two pens pools are a headline each, and a
+      // paragraph that opened in the locale and then said this sentence in
+      // English is exactly what this matrix exists to catch.
+      'won on pens': facts(
+        ours: 1,
+        theirs: 1,
+        isCup: true,
+        position: null,
+        points: null,
+        shootout: (ours: 4, theirs: 3, won: true),
+      ),
+      'out on pens': facts(
+        ours: 1,
+        theirs: 1,
+        isCup: true,
+        position: null,
+        points: null,
+        shootout: (ours: 3, theirs: 4, won: false),
+      ),
       'both next': facts(oppNextOpponent: 'Beeches'),
       'shut up shop': facts(
         lateSwitch: (minute: 74, tactic: 'parkTheBus'),

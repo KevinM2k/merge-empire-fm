@@ -87,6 +87,70 @@ const Map<String, String> deCopy = <String, String>{
           'und zwei verlorene für die anderen.|'
       'Vorbei, ausgeglichen, und es hat bis zur {minute}. Minute gedauert.|'
       'Spielende, mit dem Ausgleichstor in der {minute}. Minute.',
+  // ── Das Elfmeterschießen, Schuss für Schuss erzählt ──────────────────────
+  //
+  // Im JS war diese Sequenz fest verdrahtetes Englisch ohne `t()`-Schlüssel, in
+  // den generierten Katalogen also nichts zu portieren. Vom Sofa direkt
+  // gewünscht, deshalb hier geschrieben, in allen zehn Sprachen. `{score}`
+  // zeichnet die ZEILE, nicht der Satz.
+  'match.pens.head': 'Elfmeterschießen',
+  'match.pens.going':
+      'Es geht ins Elfmeterschießen.|'
+      'Nach neunzig Minuten nichts zwischen ihnen — es geht vom Punkt weiter.|'
+      'Keine Entscheidung, also fällt sie aus elf Metern.',
+  'match.pens.missed_title': 'Verschossen',
+  'match.pens.step_up':
+      '{who} tritt an.|'
+      '{who} legt sich den Ball zurecht.|'
+      'Als Nächstes: {who}. Im ganzen Stadion wird es still.',
+  'match.pens.opp_step_up':
+      '{them} schicken ihren nächsten Schützen.|'
+      'Der nächste Spieler von {them} legt sich den Ball zurecht.|'
+      '{them} sind als Nächstes dran.',
+  'match.pens.sudden_death':
+      'Fünf zu fünf, immer noch gleich. Jetzt entscheidet der nächste Fehler.|'
+      'Weiter im K.-o.-Modus: ein Fehlschuss und es ist vorbei.|'
+      'Je fünf verwandelt. Der nächste Fehler entscheidet.',
+  'match.pens.scored':
+      'Flach ins Eck. {who} macht keinen Fehler.|'
+      'Der Torwart ist in der falschen Ecke, und {who} trifft.|'
+      'Mittig und drin. {who} trifft.',
+  'match.pens.missed':
+      'Gehalten! {who} fasst es nicht.|'
+      'Drüber — {who} setzt ihn in den Block.|'
+      'An den Pfosten und daneben. Ein bitterer Moment für {who}.',
+  'match.pens.opp_scored':
+      '{them} treffen, da gibt es nichts zu deuten.|'
+      'In den Winkel für {them} — unhaltbar.|'
+      '{them} machen ihren rein.',
+  'match.pens.opp_missed':
+      'Gehalten! Der Torwart ist in der richtigen Ecke, {them} haben '
+          'verschossen.|'
+      '{them} setzen ihn am Pfosten vorbei.|'
+      'Drüber von {them} — ein Riesenfehler.',
+  'match.pens.through': '{us} gewinnt das Schießen und zieht weiter.',
+  'match.pens.out': '{them} gewinnen das Schießen. {us} ist raus.',
+
+  // ── Und ein Pokalspiel, das ins Elfmeterschießen geht ────────────────────
+  //
+  // Neue Schlüssel: die generierten Kataloge stammen aus einem JS, dessen
+  // Spielbericht kein Elfmeterschießen kannte. Sie ersetzen die Überschrift,
+  // die der Abstand sonst aus `report.draw.*` gewählt hätte. `{score}` sind die
+  // neunzig Minuten, `{pens}` die Elfmeter, beide mit der Heimmannschaft zuerst.
+  'report.cup.pens_won':
+      'Vorbei, und es brauchte Elfmeter — {score} nach neunzig Minuten, und '
+          '{club} gewinnt das Schießen {pens} und zieht weiter.|'
+      'Der Schlusspfiff ist bei {score} gefallen. {club} behielt vom Punkt die '
+          'Nerven: {pens}, und {opp} sind raus.|'
+      'Spielende, {score}, und das Schießen entscheidet — {pens} für {club}, '
+          'das weiterkommt.',
+  'report.cup.pens_lost':
+      'Vorbei, und es brauchte Elfmeter — {score} nach neunzig Minuten, und '
+          '{club} ist raus, {pens} im Schießen unterlegen.|'
+      'Der Schlusspfiff ist bei {score} gefallen. {club} konnte es vom Punkt '
+          'nicht klären: {pens}, und {opp} kommen weiter.|'
+      'Spielende, {score}, und das Schießen entscheidet — {pens}, und der '
+          'Pokalweg von {club} endet hier.',
   'report.draw.thriller':
       'Vorbei, und was für ein Spiel — {total} Tore, und nichts trennt sie.|'
       'Schlusspfiff über einem Spiel mit {total} Toren, das keiner von beiden '

@@ -1062,28 +1062,21 @@ group('a tie decided on penalties', () {
     );
   });
 
-  testWidgets('AND THE PENS ARE UNDER THE SCORE, not below the fold', (
-    tester,
-  ) async {
+  testWidgets('AND THE ROW OF DOTS IS GONE FROM HERE TOO', (tester) async {
+    // **This screen never sees a shootout anyway.** The summary is pushed
+    // from the LEAGUE flow's `onLeave` and a shootout only happens in a cup,
+    // which is the fault that started all of this — see `shootout.dart`. The
+    // row was drawn here and on the board, and once the kicks were told one at
+    // a time in the feed it was a third telling of one thing: "I don't like
+    // the thing at the top when the penalties is over — the thing with the
+    // dots."
+    //
+    // The unfolded SCORELINE stays, and it is the part of this that was ever
+    // reachable: `regulationScore` is what stops a 1-1 lost on penalties
+    // printing as 1-2, and the test above pins it.
     await pumpSummary(tester, tie(playerWins: false));
-    final row = find.byKey(const ValueKey('shootout-row'));
-    expect(row, findsOneWidget, reason: 'nothing said it went to pens');
-    expect(
-      tester.getTopLeft(row).dy,
-      lessThan(
-        tester
-            .getTopLeft(find.byKey(const ValueKey('summary-reaction-row')))
-            .dy,
-      ),
-      reason: 'the table, the scorers and the dugout came first, which put '
-          'the pens under the fold',
-    );
-    // Directly under the card it completes, with nothing between them.
-    expect(
-      tester.getTopLeft(row).dy,
-      greaterThan(tester.getBottomLeft(find.byKey(const ValueKey('summary-score'))).dy),
-    );
-    expect(find.text('3 - 4'), findsOneWidget);
+    expect(find.byKey(const ValueKey('shootout-row')), findsNothing);
+    expect(find.text('3 - 4'), findsNothing);
   });
 });
 

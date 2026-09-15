@@ -186,6 +186,22 @@ typedef ReportFacts = ({
   /// Null when the schedule does not say, which is a cup tie or the last round
   /// of a season; the beat is simply absent then.
   String? oppNextOpponent,
+
+  /// **HOW A CUP TIE THAT FINISHED LEVEL WAS ACTUALLY SETTLED**, or null when
+  /// nothing was settled from twelve yards — which is every league fixture and
+  /// every tie decided inside the ninety.
+  ///
+  /// The write-up had no idea shootouts existed. A tie that finished 1-1 and
+  /// went to penalties opened on `report.draw.shared` — "they share the
+  /// points", about a knockout round that has no points to share and that one
+  /// of the two clubs had just gone out of — and then closed on the league's
+  /// next-fixture beat naming a game for each of them. Reported from the couch
+  /// with the shot: a cup tie, full time, 1-1, "why no penalties".
+  ///
+  /// [ours] and [theirs] are the kicks SCORED, in the same our-side-first order
+  /// the goals are in; [won] is whether the club went through, which the totals
+  /// alone cannot say once sudden death has run.
+  ({int ours, int theirs, bool won})? shootout,
 });
 
 /// The whole report, beat by beat.
@@ -247,8 +263,21 @@ List<ReportBeat> buildMatchReport(
     -3 => 'report.loss.comfortable',
     _ => 'report.loss.rout',
   };
+  //
+  // **AND A SHOOTOUT TAKES THE HEADLINE OFF EVERY ONE OF THEM.** A cup tie
+  // that finished level is a draw to the margin and to nothing else: the
+  // ninety minutes decided nothing, one of the two clubs is out, and the
+  // sentence the reader needs first is which. Which draw pool would otherwise
+  // have fired — shared, late, goalless, thriller — does not matter once the
+  // kicks have been taken, so the override is on the KEY rather than another
+  // arm of the switch.
+  final pens = f.shootout;
   beats.add((
-    key: headline,
+    key: pens == null
+        ? headline
+        : pens.won
+        ? 'report.cup.pens_won'
+        : 'report.cup.pens_lost',
     para: ReportPara.result,
     params: {
       'club': f.clubName,
@@ -272,6 +301,13 @@ List<ReportBeat> buildMatchReport(
       'venue': f.isHome ? 'home' : 'away',
       // Only the late headlines print it; the rest ignore the spare.
       if (lateGoal) 'minute': ordinalOf(decider),
+      // The shootout, written in the same order [score] is — home team first —
+      // so a sentence can print the two scorelines side by side without
+      // swapping the clubs round between them.
+      if (pens != null)
+        'pens': f.isHome
+            ? '${pens.ours}-${pens.theirs}'
+            : '${pens.theirs}-${pens.ours}',
     },
   ));
 
@@ -906,6 +942,9 @@ int beatRank(String key) => switch (key) {
   _ when key.startsWith('report.win.') => 0,
   _ when key.startsWith('report.loss.') => 0,
   _ when key.startsWith('report.draw.') => 0,
+  // The shootout IS the headline on a cup tie — it replaces one of the three
+  // above rather than joining them — so it is worth exactly what they are.
+  _ when key.startsWith('report.cup.pens') => 0,
   _ when key.startsWith('report.scorers.') => 1,
   _ when key.startsWith('report.table.') => 2,
   _ when key.startsWith('report.next.') => 3,

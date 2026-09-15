@@ -79,6 +79,69 @@ const Map<String, String> ptCopy = <String, String>{
       'Acabou, iguais, e foi preciso esperar até aos {minute} minutos para lá '
           'chegar.|'
       'Final, com o golo do empate a cair aos {minute} minutos.',
+  // ── O desempate por penáltis, contado um a um ────────────────────────────
+  //
+  // No JS esta sequência estava escrita à mão em inglês, sem chave `t()`: não
+  // havia nada para portar dos catálogos gerados. Pedido do sofá, por isso fica
+  // escrito aqui, nas dez línguas. `{score}` é a LINHA que o imprime, não a
+  // frase.
+  'match.pens.head': 'Grandes penalidades',
+  'match.pens.going':
+      'Isto vai para as grandes penalidades.|'
+      'Nada os separa ao fim de noventa minutos: decide-se aos onze metros.|'
+      'Continuam empatados, e a eliminatória resolve-se na marca de penálti.',
+  'match.pens.missed_title': 'Falhado',
+  'match.pens.step_up':
+      '{who} avança para a marca.|'
+      '{who} coloca a bola na marca de grande penalidade.|'
+      'É a vez de {who}. Faz-se silêncio no estádio.',
+  'match.pens.opp_step_up':
+      'O {them} manda o próximo marcador.|'
+      'O próximo jogador do {them} coloca a bola.|'
+      'Agora é a vez do {them}.',
+  'match.pens.sudden_death':
+      'Cinco para cada lado e continuam empatados. Morte súbita.|'
+      'Entramos em morte súbita: um falhanço e acaba tudo.|'
+      'Cinco cada um. O próximo erro decide.',
+  'match.pens.scored':
+      'No fundo das redes, junto ao poste. {who} não falha.|'
+      'O guarda-redes vai para o lado errado, e {who} marca.|'
+      'Pelo meio, e lá dentro. {who} marca.',
+  'match.pens.missed':
+      'Defendeu! {who} não quer acreditar.|'
+      'Por cima da barra: {who} manda-a para a bancada.|'
+      'No poste e para fora. Momento terrível para {who}.',
+  'match.pens.opp_scored':
+      'O {them} marca, sem discussão.|'
+      'Ao ângulo para o {them}: indefensável.|'
+      'O {them} converte o seu.',
+  'match.pens.opp_missed':
+      'Defendeu! O guarda-redes adivinha o lado e o {them} falhou.|'
+      'O {them} atira ao lado do poste.|'
+      'Por cima da barra do {them}: um falhanço enorme.',
+  'match.pens.through': 'O {us} vence o desempate e segue em frente.',
+  'match.pens.out': 'O {them} vence o desempate. O {us} está fora.',
+
+  // ── E uma eliminatória que vai a grandes penalidades ─────────────────────
+  //
+  // Chaves novas: os catálogos gerados vêm de um JS cuja crónica não conhecia
+  // desempates por grandes penalidades. Substituem o título que a diferença
+  // teria escolhido em `report.draw.*`. `{score}` são os noventa minutos e
+  // `{pens}` o desempate, ambos escritos a começar pela equipa da casa.
+  'report.cup.pens_won':
+      'Acabou, e foram precisas grandes penalidades: {score} ao fim de noventa '
+          'minutos, e o {club} vence o desempate {pens} e segue em frente.|'
+      'Soou o apito com o {score} no marcador. O {club} aguentou a partir dos '
+          'onze metros: {pens}, e o {opp} está fora.|'
+      'Fim de jogo, {score}, e o desempate decide: {pens} para o {club}, que '
+          'segue em frente.',
+  'report.cup.pens_lost':
+      'Acabou, e foram precisas grandes penalidades: {score} ao fim de noventa '
+          'minutos, e o {club} está fora, batido {pens} no desempate.|'
+      'Soou o apito com o {score} no marcador. O {club} não resolveu a partir '
+          'dos onze metros: {pens}, e o {opp} segue em frente.|'
+      'Fim de jogo, {score}, e o desempate decide: {pens}, e o percurso do '
+          '{club} na prova termina aqui.',
   'report.draw.thriller':
       'Acabou, e que jogo: {total} golos e nada que os separe.|'
       'Apito final num jogo de {total} golos que nenhum dos dois conseguiu '

@@ -659,6 +659,91 @@ const Map<String, String> enCopy = <String, String>{
       'It\'s all over, level, and it took until the {minute} minute to get '
           'there.|'
       'Full time, with the goal that levelled it coming in the {minute} minute.',
+  // ── THE SHOOTOUT, PLAYED OUT IN THE COMMENTARY ───────────────────────────
+  //
+  // **The JS's reveal was hardcoded English and the port dropped it whole.**
+  // `shootout.dart` says so in its own header: "It's going to penalties!",
+  // "We go through!", "Out on penalties", with no `t()` key behind any of them,
+  // so there was nothing in the generated catalogues to port and the kicks were
+  // drawn as a row of ticks instead. Asked for from the couch, directly: it is
+  // meant to say it is going to penalties and then take them one at a time,
+  // with the score recorded as it goes.
+  //
+  // Which is buildable now — copy this repo owns is written here and laid over
+  // the generated catalogues at load — so it is written here, in all ten.
+  //
+  // `{us}` and `{them}` are the two clubs, the same pair the rest of the feed
+  // is handed; `{score}` is the running `1 (3) - (2) 1` and is printed by the
+  // ROW rather than by the sentence, so no pool has to carry it.
+  'match.pens.head': 'Penalties',
+  'match.pens.going':
+      'It\'s going to penalties.|'
+      'Nothing between them after ninety minutes — it goes to spot kicks.|'
+      'No separating them, so the cup tie is decided from twelve yards.',
+  // **A KICK IS TWO LINES: the walk up, and what happened.** Asked for from
+  // the couch after the first pass went straight to the result — "there should
+  // be some tension, so it's player a steps up, pause, goal, etc for all".
+  // `{who}` is the man on the spot, off the team sheet that FINISHED the
+  // match; the opposition's is a club, because the engine names no player of
+  // theirs and never has.
+  'match.pens.missed_title': 'Missed',
+  'match.pens.step_up':
+      '{who} steps up.|'
+      '{who} places the ball on the spot.|'
+      'Next up: {who}. The whole ground goes quiet.',
+  'match.pens.opp_step_up':
+      '{them} send up their next taker.|'
+      'The next {them} player places the ball.|'
+      '{them} are up next.',
+  'match.pens.sudden_death':
+      'Five each, and still level. Sudden death.|'
+      'Into sudden death — one miss now and it is over.|'
+      'Five apiece. Next mistake decides it.',
+  'match.pens.scored':
+      'Buried, bottom corner. {who} makes no mistake.|'
+      'The keeper goes the wrong way, and {who} scores.|'
+      'Straight down the middle, and it is in. {who} scores.',
+  'match.pens.missed':
+      'Saved! {who} cannot believe it.|'
+      'Over the bar — {who} has put it into the crowd.|'
+      'Off the post and out. An awful moment for {who}.',
+  'match.pens.opp_scored':
+      '{them} score, no argument about it.|'
+      'Top corner for {them} — unstoppable.|'
+      '{them} tuck theirs away.',
+  'match.pens.opp_missed':
+      'Saved! The keeper goes the right way and {them} have missed.|'
+      '{them} drag it wide of the post.|'
+      'Over the bar from {them} — a huge miss.',
+  'match.pens.through': '{us} win the shootout and go through.',
+  'match.pens.out': '{them} win the shootout. {us} are out.',
+
+  // ── AND A CUP TIE THAT WENT TO PENALTIES ─────────────────────────────────
+  //
+  // New keys rather than replacements: the generated catalogues are built from
+  // a JS whose write-up never knew about shootouts, so there is nothing here
+  // to widen. They take the headline off whichever `report.draw.*` pool the
+  // margin would otherwise have chosen — see `beatRank` and the override in
+  // `buildMatchReport` — because a knockout tie that finished level is a draw
+  // to the margin and to nothing else.
+  //
+  // `{score}` is the ninety minutes and `{pens}` the kicks, both written home
+  // team first so the two scorelines in one sentence name the clubs in the
+  // same order.
+  'report.cup.pens_won':
+      'It\'s all over, and it took penalties — {score} after ninety minutes, '
+          'and {club} win the shootout {pens} to go through.|'
+      'The whistle has gone with the tie level at {score}. {club} held their '
+          'nerve from twelve yards: {pens}, and {opp} are out.|'
+      'Full time, {score}, and a shootout settles it — {pens} to {club}, who '
+          'go through.',
+  'report.cup.pens_lost':
+      'It\'s all over, and it took penalties — {score} after ninety minutes, '
+          'and {club} are out, beaten {pens} in the shootout.|'
+      'The whistle has gone with the tie level at {score}. {club} could not '
+          'settle it from twelve yards: {pens}, and {opp} go through.|'
+      'Full time, {score}, and a shootout settles it — {pens}, and the cup run '
+          'ends here for {club}.',
   'report.draw.thriller':
       'It\'s all over, and what a game — {total} goals and nothing to separate '
           'them.|'

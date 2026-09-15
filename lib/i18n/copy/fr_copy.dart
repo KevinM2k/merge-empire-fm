@@ -88,6 +88,71 @@ const Map<String, String> frCopy = <String, String>{
           'y arriver.|'
       'Fin du match, avec le but de l\'égalisation tombé à la {minute}e '
           'minute.',
+  // ── La séance de tirs au but, racontée coup par coup ─────────────────────
+  //
+  // Le JS avait cette séquence en dur, en anglais, sans aucune clé `t()` : il
+  // n'y avait rien à porter depuis les catalogues générés. Demandé depuis le
+  // canapé, donc écrit ici, dans les dix langues. `{score}` est affiché par la
+  // ligne, pas par la phrase.
+  'match.pens.head': 'Tirs au but',
+  'match.pens.going':
+      'Ce sera la séance de tirs au but.|'
+      'Rien ne les sépare après quatre-vingt-dix minutes : ce sera aux tirs au '
+          'but.|'
+      'Toujours à égalité, la qualification se joue depuis le point de penalty.',
+  'match.pens.missed_title': 'Raté',
+  'match.pens.step_up':
+      '{who} s\'avance.|'
+      '{who} pose le ballon sur le point de penalty.|'
+      'Au tour de {who}. Tout le stade se tait.',
+  'match.pens.opp_step_up':
+      '{them} envoie son tireur suivant.|'
+      'Le prochain joueur de {them} pose le ballon.|'
+      'C\'est au tour de {them}.',
+  'match.pens.sudden_death':
+      'Cinq partout, toujours rien. Mort subite.|'
+      'On passe en mort subite : un raté et c\'est terminé.|'
+      'Cinq chacun. La prochaine erreur décidera de tout.',
+  'match.pens.scored':
+      'Au fond, dans le petit filet. {who} ne tremble pas.|'
+      'Le gardien part du mauvais côté, et {who} marque.|'
+      'Plein axe, et c\'est dedans. {who} marque.',
+  'match.pens.missed':
+      'Arrêté ! {who} n\'en revient pas.|'
+      'Au-dessus de la barre : {who} l\'envoie dans les tribunes.|'
+      'Sur le poteau et dehors. Terrible moment pour {who}.',
+  'match.pens.opp_scored':
+      '{them} marque, rien à dire.|'
+      'Lucarne pour {them} : imparable.|'
+      '{them} convertit le sien.',
+  'match.pens.opp_missed':
+      'Arrêté ! Le gardien part du bon côté et {them} a raté.|'
+      '{them} l\'envoie à côté du poteau.|'
+      'Au-dessus pour {them} : un raté énorme.',
+  'match.pens.through': '{us} remporte la séance et se qualifie.',
+  'match.pens.out': '{them} remporte la séance. {us} est éliminé.',
+
+  // ── Et un match de coupe qui va aux tirs au but ──────────────────────────
+  //
+  // Nouvelles clés : le catalogue généré vient d'un JS dont le résumé ignorait
+  // les séances de tirs au but. Elles remplacent le titre que la marge aurait
+  // choisi dans `report.draw.*`. `{score}` est le score des quatre-vingt-dix
+  // minutes, `{pens}` celui des tirs au but, tous deux écrits en commençant par
+  // l'équipe qui reçoit.
+  'report.cup.pens_won':
+      'C\'est fini, et il a fallu les tirs au but : {score} après quatre-vingt-'
+          'dix minutes, et {club} gagne la séance {pens} et passe.|'
+      'Le coup de sifflet est tombé sur un {score}. {club} a tenu depuis le '
+          'point de penalty : {pens}, et {opp} est éliminé.|'
+      'Fin du match, {score}, et la séance décide de tout : {pens} pour {club}, '
+          'qui se qualifie.',
+  'report.cup.pens_lost':
+      'C\'est fini, et il a fallu les tirs au but : {score} après quatre-vingt-'
+          'dix minutes, et {club} sort, battu {pens} dans la séance.|'
+      'Le coup de sifflet est tombé sur un {score}. {club} n\'a pas su conclure '
+          'depuis le point de penalty : {pens}, et {opp} se qualifie.|'
+      'Fin du match, {score}, et la séance décide de tout : {pens}, et le '
+          'parcours de {club} s\'arrête là.',
   'report.draw.thriller':
       'C\'est fini, et quel match : {total} buts et rien pour les séparer.|'
       'Coup de sifflet final sur un match à {total} buts qu\'aucun des deux '

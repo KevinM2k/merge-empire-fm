@@ -6,7 +6,7 @@ because that is the part worth keeping.
 
 ## Where this queue stands
 
-**120 done, 6 open, and one feature parked.** One open row is a report still
+**127 done, 6 open, and one feature parked.** One open row is a report still
 being narrowed (the trees' size, below); none of the rest is a fault.
 One is a feature that was built, tried and turned down; one is a balance
 question rather than work; one is a survey to run before building; and one is
@@ -1660,6 +1660,203 @@ Reported live on 14 Sep 2026.
       lives in `app_shell_test.dart` instead, walking all five tabs and checking
       `hitTestable` as well as the rect: on screen but untappable is exactly the
       shape of this bug, and a plain `findsOneWidget` passed throughout it.
+
+## Fifteenth batch — a cup tie with no penalties in it
+
+One report, with the shot: a cup tie, 1-1, FULL TIME on the board, the write-up
+underneath it saying both clubs have a next round. "Why no penalties???? We are
+meant to have tests for this."
+
+**We were, and we had them — six files of them, on everything about a shootout
+except whether a player can see one.** `shootout_order_test` pins the kick order,
+`match_orchestration_test` pins that a re-simulated tie never ends level,
+`cup_launcher_test` pins the folded goal, `match_screen_test` pins the whistle
+sting and Colin's line, `shootout_row_test` and `match_summary_test` pin the
+widget. The shootout was rolled, stored and settled correctly on every one of
+them. It was simply never drawn.
+
+- [x] **`ShootoutRow` was reachable by no fixture that could have a shootout.**
+      It lives on `MatchSummaryScreen`, and the summary is a LEAGUE screen:
+      `play_button` gives the league flow's `MatchScreen` an `onLeave` that
+      replaces it with the summary, and the cup flow pushes the screen with no
+      `onLeave` and nothing after the whistle but `settleCupRound` and Colin's
+      through-or-out card. A shootout can only happen in a cup. So the one
+      surface that drew one was on the one screen a cup tie never opened, and
+      every tie decided on penalties ended on a level scoreline under the words
+      FULL TIME, followed a beat later by a card saying the club was through.
+
+      The marks go on the BOARD now, against the full-time line, which is the
+      line they correct — the summary's own note argues the placement: it is
+      not a footnote to the result, it is the rest of it. Not between the score
+      and the ratings band under it, because those two are one block and a
+      panel dropped between them cuts the figures off the goals they belong
+      to. `match_screen_test` asks the question the other nine
+      did not — it is on screen at full time on a cup tie, it is not there
+      before the whistle, and it is not there on a level LEAGUE match.
+
+      This is `tool/unreached_ui.sh`'s question asked about a WIDGET rather than
+      a file: `shootout_row.dart` has a `lib/` importer, so the sweep reads it
+      as live, and it was live — for a fixture that cannot produce one.
+
+- [x] **And the write-up called it a draw between two clubs who both went
+      through.** Two more faults in the same paragraph, both in `reportFactsFor`.
+      `ReportFacts` had no shootout field, so the headline came off the margin
+      and the margin says a level scoreline is `report.draw.shared` — "they
+      share the points", about a knockout round with no points to share. Two
+      new pools take the headline off every draw arm when the kicks have been
+      taken, in all ten languages, with both scorelines in the sentence.
+
+      And `oppNextOpponent` is a lookup against the LEAGUE schedule: a cup
+      opponent can be a club from that league, so the tie closed on
+      `report.next.away_both` naming a fixture for each of the two clubs "in
+      the next round" — which is the sentence in the shot, and it reads as
+      neither of them having gone out. `_nextFor`'s own doc has said it is null
+      for a cup tie since it was written; nothing made it so. Ours is still
+      printed, because the league game after the tie is still the next game.
+
+## Sixteenth batch — the shootout is a passage of play, not a panel
+
+One report, straight after the last batch and correcting it: "at the end of the
+game it's meant to come up with commentary something like we are going to
+penalties, then it should proceed in the commentary to do the penalties one at a
+time with the score being recorded 0(3)-(2)0. That's how it has always worked
+and how it should work now."
+
+**It is, and the port had written down its own reason for not doing it.**
+`shootout_row.dart`'s header said the JS's reveal is hardcoded English — "It's
+going to penalties!", "We go through!", "Out on penalties" — with no `t()` key
+behind any of it and the catalogues generated from that same repo, "so there is
+no translated copy to port and none can be minted", and concluded that the
+animated step-through goes with it. The first half was true about the COPY and
+was allowed to decide the BEHAVIOUR; the second half stopped being true when
+`en_copy.dart` and `lib/i18n/copy/<id>_copy.dart` became overlays laid over the
+generated catalogues, which is where every word of the write-up already lives.
+
+- [x] **A KICK IS TWO BEATS, and the gap between them is the feature.** The
+      first pass of this shipped the outcome alone — a line a second saying
+      whether each one went in — and came straight back: "there should be some
+      tension... so it's player a steps up.... pause.... goal.... etc for all."
+      Which is right, and it is the difference between a shootout and a
+      scoreboard updating. So every kick is a walk-up line naming the man on
+      the spot, a beat of nothing, and then the result — and the board's
+      bracket moves on the RESULT, never on the walk-up, because the score
+      while somebody is standing over the ball is the score before he kicks it.
+
+      **The taker is the SCREEN's, like the bookings.** The engine's shootout
+      is teams rather than players — `simulatePenaltyShootout` decides each
+      kick off the two sides' ratings and names nobody — so who walks up is
+      read off the eleven who FINISHED the match: a substitute takes one, a man
+      sent off does not, and the goalkeeper is last because a sudden death has
+      to run a long way before it reaches him. Nothing about the result moves;
+      the kick was already decided. Theirs is a club rather than a man, because
+      the port has never named an opposition player.
+
+- [x] **The kicks are taken one at a time, in the commentary, with the score
+      beside each.** The ninety minutes end, the whistle goes, the feed says it
+      is going to penalties — and then a kick lands every second, each row
+      carrying `0 (3) - (2) 0` in the column the feed is scanned by, where a
+      minute goes on every other line. Sudden death is named once when it
+      arrives, because the sixth kick otherwise reads exactly like the fifth,
+      and the last line says which way it went.
+
+      **`finished` now means the tie is over rather than the clock is**, which
+      is the one structural change: it is what turns the control row into
+      CONTINUE, puts the write-up at the head of the feed and writes FULL TIME
+      on the board, and all three over a shootout in progress are the screen
+      telling the player the match is done while the thing that decides it is
+      still happening. The board says PENALTIES instead, and carries the bracket
+      from the first kick — not before it, because `(0) - (0)` under a tie that
+      has only just gone to penalties is a scoreline for a shootout nobody has
+      taken.
+
+      The playback is `match_clock.dart`'s, like the rest of the clock: the
+      whole shootout is decided before the screen opens and `shootoutBeats`
+      only works out the running tally and the order. **Counted rather than
+      read**, and that is not fussiness — `match_orchestration` writes a
+      `homeTotal`/`awayTotal` onto every kick and `cup_launcher` writes
+      neither, so a board reading the stored figure would have shown a running
+      score on a re-simulated tie and zeroes on one that went straight through.
+
+      Eleven keys in ten languages, six pools among them because a kick of
+      theirs going in is opposite news to one of ours. A skipped tie gets every
+      line and the full bracket at once: the 13 Sep audit's rule is that what
+      was watched is what gets recorded, and only the pacing may differ.
+
+      Tested by RUNNING THE CLOCK rather than skipping it, which is the whole
+      point — every existing cup test reaches full time through `skipToEnd`,
+      and a shootout that only ever arrives at once is the thing being fixed.
+      Nine through the screen and nine on the arithmetic, including the pause
+      itself: a walk-up that resolves faster than the gap between kicks has no
+      tension in it, so the two durations are asserted against each other.
+
+- [x] **And then it was SHOT, which is what found the rest of it.** Asked for
+      directly — "I need to see a screenshot" — and there is no device in a
+      cloud container, so the real `MatchScreen` was rendered to a PNG through
+      `matchesGoldenFile --update-goldens` at 393×852, with the app's own
+      Barlow and Lilita One loaded through a `FontLoader` (real file I/O has to
+      happen in `setUpAll`; inside `testWidgets` the fake-async zone never lets
+      it finish) and a `runAsync` pause so the bundled portraits decode. The
+      harness was deleted afterwards: this repo has no golden infrastructure
+      and a golden that renders differently on CI's machine is a red suite
+      rather than a test.
+
+      Three faults in one picture, none of which any assertion had asked
+      about. **The tactic strip, the boost strip and the SUBS button were all
+      live over the shootout**, because every one of them is gated on
+      `finished` — the screen offering three things the laws of the game do not
+      allow. `playing` is the gate now, and the pitch carries the final
+      statistics through the kicks instead, which is what a broadcast puts on
+      an empty pitch. Speed and skip stay: the beats scale with the pace.
+
+      **And the rows themselves.** Reported off the shot: "we use the green
+      background for goal and red for goal against and I think we should keep
+      that. I don't like seeing penalties again and again on the boxes title
+      and the score isn't needed there as it's at the top." All one
+      observation — twenty rows cannot each carry a heading that says the same
+      word and a scoreline that is already on the board in three times the
+      type. Then, off the second shot: "the way we do goal now is how I want
+      it, with player image, with Goal as title etc." So a kick that is TAKEN
+      goes through the goal card's own branch — the portrait, the name, the
+      GOAL heading, the sentence as its caption, green for ours and red for
+      theirs — with no minute (every kick is after the ninety) and no
+      scoreline, and the walk-up before it stays a plain line so the pause
+      still reads as one.
+
+      **A MISS is not a goal of either colour**, and the first attempt at it
+      coloured these rows by who the news was good FOR, which put a green card
+      reading "Missed" on the page. It keeps the feed's own plate and a muted
+      rail; the heading and the face are what make it a card. Put to the couch
+      both ways — "depends if it's them and they miss them it's green cuz it's
+      good for us right? … or just keep it how you have it, it's clearer
+      actually" — and it stays as the colour meaning a ball in a net.
+
+- [x] **AND THEN THE ROW OF DOTS WENT, which is the same objection a third
+      time.** "I don't like the thing at the top when the penalties is over —
+      the thing with the dots." `ShootoutRow` was the ticks and crosses under
+      two totals, put on the board and on the summary when the JS's reveal was
+      dropped for want of translated copy — and kept for one pass after the
+      reveal came back, which left the shootout told three ways at once: a card
+      per kick in the feed, a running bracket on the board, and a panel
+      restating both in a third notation.
+
+      So the widget goes, and its own header now records why. `shootout_row.dart`
+      is `shootout.dart`: it draws nothing and never will again, and a file
+      named for a row that does not exist is the stale naming this queue keeps
+      finding. What is left is the READ — `home` is always ours — which the
+      whistle's sting, Colin's full-time word, the write-up's headline and the
+      summary's `regulationScore` all still go through. The summary's call site
+      goes with it; that screen never sees a shootout anyway, which is the
+      fault this whole batch started from.
+
+- [x] **And nobody takes a second penalty until everybody has taken one.**
+      Asked for after the shot showed one name twice — and the order was
+      already right: `_takerFor` walks the eleven by INSTANCE ID and wraps only
+      at the twelfth kick. What repeated was the NAME, because the test
+      harness's five defenders share one definition and a card with no rolled
+      `displayName` falls back to its definition's. A real save rolls a name
+      per card — `pickDisplayName`, on every merge and every signing. Pinned
+      either way now, on ids: eleven different men, and only then the first of
+      them again.
 
 ## Open
 

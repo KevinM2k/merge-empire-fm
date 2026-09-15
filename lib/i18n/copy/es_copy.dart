@@ -82,6 +82,68 @@ const Map<String, String> esCopy = <String, String>{
           'otros.|'
       'Se acabó, iguales, y costó hasta el minuto {minute} llegar ahí.|'
       'Final, con el gol del empate cayendo en el minuto {minute}.',
+  // ── La tanda de penaltis, contada uno a uno ──────────────────────────────
+  //
+  // En el JS esta secuencia estaba escrita a mano en inglés, sin clave `t()`:
+  // no había nada que portar desde los catálogos generados. Pedido desde el
+  // sofá, así que se escribe aquí, en los diez idiomas. `{score}` lo pinta la
+  // FILA, no la frase.
+  'match.pens.head': 'Penaltis',
+  'match.pens.going':
+      'Esto se va a los penaltis.|'
+      'Nada les separa tras noventa minutos: se decide desde los once metros.|'
+      'Siguen igualados, así que la eliminatoria se decide en la tanda.',
+  'match.pens.missed_title': 'Fallado',
+  'match.pens.step_up':
+      '{who} se acerca al punto.|'
+      '{who} coloca el balón en el punto de penalti.|'
+      'Le toca a {who}. Silencio en todo el estadio.',
+  'match.pens.opp_step_up':
+      'El {them} manda a su siguiente lanzador.|'
+      'El siguiente jugador del {them} coloca el balón.|'
+      'Ahora le toca al {them}.',
+  'match.pens.sudden_death':
+      'Cinco cada uno y siguen iguales. Muerte súbita.|'
+      'Entramos en muerte súbita: un fallo y se acabó.|'
+      'Cinco por bando. El próximo error lo decide.',
+  'match.pens.scored':
+      'Al fondo, junto al palo. {who} no falla.|'
+      'El portero se va al otro lado, y {who} marca.|'
+      'Por el centro, y dentro. {who} marca.',
+  'match.pens.missed':
+      '¡Parada! {who} no se lo cree.|'
+      'Por encima del larguero: {who} la manda a la grada.|'
+      'Al palo y fuera. Momento terrible para {who}.',
+  'match.pens.opp_scored':
+      'El {them} marca, sin discusión.|'
+      'A la escuadra del {them}: imparable.|'
+      'El {them} anota el suyo.',
+  'match.pens.opp_missed':
+      '¡Parada! El portero acierta el lado y el {them} ha fallado.|'
+      'El {them} la manda fuera, junto al palo.|'
+      'Por encima del larguero del {them}: un fallo enorme.',
+  'match.pens.through': 'El {us} gana la tanda y pasa de ronda.',
+  'match.pens.out': 'El {them} gana la tanda. El {us} queda eliminado.',
+
+  // ── Y una eliminatoria que se va a los penaltis ──────────────────────────
+  //
+  // Claves nuevas: los catálogos generados vienen de un JS cuya crónica no
+  // sabía de tandas de penaltis. Sustituyen al titular que la diferencia habría
+  // elegido en `report.draw.*`. `{score}` son los noventa minutos y `{pens}` la
+  // tanda, ambos escritos empezando por el equipo local.
+  'report.cup.pens_won':
+      'Se acabó, y hicieron falta los penaltis: {score} tras noventa minutos, '
+          'y el {club} gana la tanda {pens} y pasa.|'
+      'Sonó el silbato con el {score} en el marcador. El {club} aguantó desde '
+          'los once metros: {pens}, y el {opp} queda eliminado.|'
+      'Final, {score}, y lo decide la tanda: {pens} para el {club}, que pasa.',
+  'report.cup.pens_lost':
+      'Se acabó, y hicieron falta los penaltis: {score} tras noventa minutos, '
+          'y el {club} queda fuera, batido {pens} en la tanda.|'
+      'Sonó el silbato con el {score} en el marcador. El {club} no supo '
+          'resolverlo desde los once metros: {pens}, y el {opp} pasa.|'
+      'Final, {score}, y lo decide la tanda: {pens}, y ahí acaba la andadura '
+          'copera del {club}.',
   'report.draw.thriller':
       'Se acabó, y menudo partido: {total} goles y nada que los separe.|'
       'Pitido final a un partido de {total} goles que ninguno de los dos pudo '

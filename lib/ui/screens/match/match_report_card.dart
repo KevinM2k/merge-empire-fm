@@ -26,6 +26,8 @@ import 'package:merge_empire_fc/ui/screens/match/match_statboard.dart'
     show liveStatsFor;
 import 'package:merge_empire_fc/ui/screens/match/match_summary.dart'
     show regulationScore;
+import 'package:merge_empire_fc/ui/screens/match/shootout.dart'
+    show shootoutFrom;
 import 'package:merge_empire_fc/ui/screens/match/match_screen.dart'
     show feedInset, feedPlateEdge, feedPlateFill;
 import 'package:merge_empire_fc/ui/theme/glass.dart';
@@ -366,6 +368,9 @@ ReportFacts? reportFactsFor(
   final seasonOver = _map(save?['progression'])?['seasonComplete'] == true;
   final preview = save == null || seasonOver ? null : previewFixture(save);
 
+  // The shootout, if the tie needed one — see [ReportFacts.shootout].
+  final pens = shootoutFrom(result);
+
   return (
     ours: ours,
     theirs: theirs,
@@ -389,7 +394,24 @@ ReportFacts? reportFactsFor(
     posDelta: was == null || row == null ? null : was - (at + 1),
     nextOpponent: preview?.opponentName,
     nextIsHome: preview?.isHome ?? true,
-    oppNextOpponent: _nextFor(save, '${result['opponentName'] ?? ''}'),
+    // **AND NOT ON A CUP TIE, which [_nextFor] has always said in its own
+    // doc and never did.** The lookup is against the LEAGUE schedule, and a
+    // cup opponent can be a club from that league — so a tie closed on
+    // `report.next.*_both`, naming a fixture for each of the two clubs "in the
+    // next round" moments after one of them had gone out of the cup. Reported
+    // from the couch alongside the missing shootout, and it is the same
+    // sentence doing the damage: the reader is told both sides are going on.
+    // Our own next fixture is still a fact and still printed; theirs is the
+    // half that reads as a bracket.
+    oppNextOpponent: result['isCup'] == true
+        ? null
+        : _nextFor(save, '${result['opponentName'] ?? ''}'),
+    // **HOW THE TIE WAS SETTLED, off the same field the board reads.** See
+    // `ReportFacts.shootout`; `shootoutFrom` already puts the kicks in our
+    // order and knows that `home` is always ours.
+    shootout: pens == null
+        ? null
+        : (ours: pens.ours.score, theirs: pens.theirs.score, won: pens.won),
   );
 }
 

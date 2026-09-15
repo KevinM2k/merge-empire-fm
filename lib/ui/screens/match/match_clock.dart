@@ -832,3 +832,128 @@ List<FeedLine> feedOf(
   });
   return [for (final line in merged) line.$2];
 }
+
+// ── The shootout, kick by kick ──────────────────────────────────────────────
+
+/// One kick of a shootout, in the order it is taken.
+///
+/// **The whole shootout is decided before this screen opens**, the same way the
+/// ninety minutes are: `simulatePenaltyShootout` builds the list, sudden death
+/// and all, and `cup_launcher` carries it onto the result. Nothing here may
+/// change any of it — this is the PLAYBACK, and the only thing it owns is when
+/// each kick appears.
+///
+/// [ourScore] and [theirScore] are the tally AFTER this kick, which is the
+/// number the board and the feed print beside it: `1 (3) - (2) 1`.
+typedef ShootoutBeat = ({
+  /// One-based, in the order taken.
+  int kick,
+
+  /// Whose kick it is. `home` is always OURS on a result — the same rule the
+  /// goals follow, and the one thing here that looks like it should be checked
+  /// against the venue and must not be.
+  bool ours,
+  bool scored,
+  int ourScore,
+  int theirScore,
+
+  /// Past the first five each, where one miss ends it.
+  bool suddenDeath,
+});
+
+/// The kicks a result carries, with the running tally worked out.
+///
+/// Empty for every league fixture and for a tie settled inside the ninety.
+///
+/// **The tally is COUNTED here rather than read off the kick.**
+/// `match_orchestration` writes a `homeTotal`/`awayTotal` onto each one and
+/// `cup_launcher` writes neither, so the two ways a shootout can reach this
+/// screen carry different fields — and a board that printed a running score on
+/// one path and zeroes on the other would be the same fault this whole feature
+/// exists to fix. `scored` is on both, and it is all the tally needs.
+List<ShootoutBeat> shootoutBeats(Map<String, dynamic>? result) {
+  final shootout = result?['penaltyShootout'];
+  if (shootout is! Map<String, dynamic>) return const [];
+  final raw = shootout['kicks'];
+  if (raw is! List) return const [];
+  final beats = <ShootoutBeat>[];
+  var ours = 0;
+  var theirs = 0;
+  for (final entry in raw) {
+    if (entry is! Map<String, dynamic>) continue;
+    final mine = entry['team'] != 'away';
+    final scored = entry['scored'] == true;
+    if (scored) {
+      if (mine) {
+        ours++;
+      } else {
+        theirs++;
+      }
+    }
+    beats.add((
+      kick: beats.length + 1,
+      ours: mine,
+      scored: scored,
+      ourScore: ours,
+      theirScore: theirs,
+      suddenDeath: entry['suddenDeath'] == true,
+    ));
+  }
+  return beats;
+}
+
+/// What a kick says in the feed.
+///
+/// Four pools rather than two: a kick of ours going in and a kick of theirs
+/// going in are opposite news, and a feed that described them with one sentence
+/// would be the fault `commentary.opp_goal` exists to avoid.
+String shootoutLineKey(ShootoutBeat beat) => beat.ours
+    ? (beat.scored ? 'match.pens.scored' : 'match.pens.missed')
+    : (beat.scored ? 'match.pens.opp_scored' : 'match.pens.opp_missed');
+
+/// And what the WALK UP says, which is a line of its own.
+///
+/// **A kick is two beats, not one.** Asked for from the couch after the first
+/// pass shipped the outcome alone: "there should be some tension — so it's
+/// player a steps up, pause, goal, etc for all". A row that says a kick went in
+/// is a result; the pause between the man placing the ball and the keeper
+/// moving is the whole of what a shootout is to watch.
+///
+/// Ours names a PLAYER and theirs names a CLUB, which is why they are two keys
+/// rather than one pool with a `{who}`: the port never names an opposition
+/// player — the engine does not pick them — and a sentence written for a person
+/// does not survive a club's name in most of the ten languages.
+String shootoutStepUpKey(ShootoutBeat beat) =>
+    beat.ours ? 'match.pens.step_up' : 'match.pens.opp_step_up';
+
+/// How long the announcement holds before the first kick is taken.
+const Duration penaltyOpenBeat = Duration(milliseconds: 1400);
+
+/// How long the taker stands over the ball.
+///
+/// **This is the tension, and it is the reason the feature exists.** The first
+/// pass put the outcome straight after the announcement and every kick after
+/// the last one — a list of results at a steady tick, which is a scoreboard
+/// updating rather than a shootout being taken. The walk-up line lands, and
+/// then nothing happens for a beat.
+const Duration penaltyStepUpBeat = Duration(milliseconds: 1200);
+
+/// And how long the result stands before the next player walks up.
+///
+/// **Slower than a minute of the match, deliberately.** A minute is 350ms and a
+/// shootout is the one part of a cup tie a player watches rather than reads —
+/// twelve kicks at the clock's own pace is over in four seconds, which is the
+/// animation the JS built its reveal for playing to nobody.
+const Duration penaltyKickBeat = Duration(milliseconds: 900);
+
+/// And the pause after the last kick, before the whistle's own payoff.
+const Duration penaltyVerdictBeat = Duration(milliseconds: 1100);
+
+/// A shootout beat at the pace the match is being watched at.
+///
+/// Scaled rather than switched, so 2× halves the wait the way it halves a
+/// minute and AUTO's slow pace stretches it the same amount. A player who has
+/// chosen to watch at double speed has chosen it for this too.
+Duration penaltyBeat(Duration base, MatchPace pace) => Duration(
+  microseconds: (base.inMicroseconds * pace.minuteMs / matchMinuteMs).round(),
+);
