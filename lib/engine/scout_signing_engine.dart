@@ -50,6 +50,18 @@ bool _freeScoutReady(Map<String, dynamic>? state) =>
 /// that IS its effect, and the Guaranteed Scout because it was already paid for
 /// in gems. The Youth Academy discounts the rest — that is the Academy's single
 /// stat, its squad slots being a milestone track rather than a second one.
+///
+/// **THIS DOES NOT CONSULT THE INVENTORY, and the distinction is the whole
+/// feature.** "A voucher is held" and "this card is free" used to be one fact,
+/// because only one voucher could exist and it was applied automatically. With
+/// a stack they are two: a card is free because a voucher was ASSIGNED to it,
+/// on the sheet, by the player. So this is the full unit price for anyone
+/// holding a collection, and the batch's real total is the sum over the
+/// assignment — see [signPlayers].
+///
+/// The two legacy reads stay because they cost nothing: `migrate` drains both
+/// keys, so on a live save they are always empty and this always returns the
+/// full price. What they still answer for is the JS fixture's hand-made states.
 int scoutCost(Map<String, dynamic>? state, {bool ignoreVoucher = false}) {
   if (!ignoreVoucher &&
       (_freeScoutReady(state) || heldVoucherTier(state) != null)) {
@@ -69,7 +81,7 @@ int scoutCost(Map<String, dynamic>? state, {bool ignoreVoucher = false}) {
 /// Why a player cannot be signed, or null when one can.
 ///
 /// One of: `grid_full`, `insufficient_coins`, `no_candidate`.
-String? signBlocked(Map<String, dynamic>? state) {
+String? signBlocked(Map<String, dynamic>? state, {int? voucher}) {
   // **THE ROSTER CAP, not the array's length.** `grid.cells` is 39 long because
   // 30 plus a maxed Youth Academy's 8 needs 39 with one spare — it is a
   // fixed-length array so index-based drag targets stay stable, and it is NOT
@@ -83,12 +95,40 @@ String? signBlocked(Map<String, dynamic>? state) {
   // signing here goes through this, batch included, so the port cannot.
   if (_occupied(state) >= getMaxPlayers(state)) return 'grid_full';
   if (findFirstEmpty(_cells(state)) == -1) return 'grid_full';
-  final free = _freeScoutReady(state) || heldVoucherTier(state) != null;
-  if (!free && _coins(state) < scoutCost(state)) return 'insufficient_coins';
-  if (pickScoutDefinition(state, minTier: heldVoucherTier(state)) == null) {
+  // **Per card, and [voucher] is what makes it exact.** In a batch the slots
+  // are priced separately: with three vouchers held and one assigned, the
+  // unassigned slots are still full price, so "does the player hold anything"
+  // is the wrong question here — it would wave through a card the coins cannot
+  // cover and drive the balance negative. [scoutBlocked] asks the looser
+  // question, for the button.
+  final free = voucher != null ||
+      _freeScoutReady(state) ||
+      heldVoucherTier(state) != null;
+  if (!free && _coins(state) < scoutCost(state, ignoreVoucher: true)) {
+    return 'insufficient_coins';
+  }
+  final floor = voucher != null ? drawFloorFor(voucher) : heldVoucherTier(state);
+  if (pickScoutDefinition(state, minTier: floor) == null) {
     return 'no_candidate';
   }
   return null;
+}
+
+/// Why the Scout button is dead, or null when it is live.
+///
+/// [signBlocked] asks about ONE card at its own price. This asks whether a scout
+/// is possible at all, and the difference is a player holding vouchers and no
+/// coins: every held voucher is a card they can take, so the button is live and
+/// the assignment sheet is where it gets spent. Without this the whole control
+/// greyed out with a full tray, which is the opposite of what the feature is.
+///
+/// It does not need to know WHICH vouchers cover which slots — that is the
+/// sheet's answer, and `availableScoutBatchSizes` has already capped the batch
+/// to what the two purses can deliver between them.
+String? scoutBlocked(Map<String, dynamic>? state) {
+  final blocked = signBlocked(state);
+  if (blocked == 'insufficient_coins' && hasVouchers(state)) return null;
+  return blocked;
 }
 
 /// One signing, and everything the reveal needs to caption it.
@@ -139,13 +179,28 @@ Signing _fail(String reason) => (
 /// The voucher is READ before the draw and only spent after the card lands. The
 /// draw can still fail on a full grid, and burning a voucher somebody paid gems
 /// for on a signing that never happened is the one bug this must not have.
-Signing signPlayer(Map<String, dynamic> state, {int batchSize = 1}) {
-  final blocked = signBlocked(state);
+///
+/// [voucher] is the inventory entry the player put on THIS card — a floor of
+/// 2..8, or [anyCardVoucher] for the token. Null means they left the slot to the
+/// coins. It arrives as an argument rather than being read off the save because
+/// with a stack the save cannot say which card a voucher was meant for; that is
+/// the assignment sheet's answer and only the caller has it.
+///
+/// With no argument the legacy read still runs, so a save carrying the old
+/// scalar behaves exactly as it did.
+Signing signPlayer(
+  Map<String, dynamic> state, {
+  int batchSize = 1,
+  int? voucher,
+}) {
+  final blocked = signBlocked(state, voucher: voucher);
   if (blocked != null) return _fail(blocked);
 
-  final floor = heldVoucherTier(state);
-  final free = floor != null || _freeScoutReady(state);
-  final cost = free ? 0 : scoutCost(state);
+  // An assigned token is free but has NO floor — see [drawFloorFor]. Reading
+  // `floor` where the caller meant "any card" would cut tier 9 from the pool.
+  final floor = voucher != null ? drawFloorFor(voucher) : heldVoucherTier(state);
+  final free = voucher != null || floor != null || _freeScoutReady(state);
+  final cost = free ? 0 : scoutCost(state, ignoreVoucher: true);
 
   final defId = pickScoutDefinition(
     state,
@@ -176,7 +231,14 @@ Signing signPlayer(Map<String, dynamic> state, {int batchSize = 1}) {
 
   // Spend the voucher AHEAD of the plain free scout, so holding both never
   // burns the free one on a card the voucher was already paying for.
-  if (floor != null) {
+  //
+  // An assigned voucher comes out of the inventory here, AFTER the card has
+  // landed, for the reason in this function's header: the draw can still fail
+  // on a full grid, and a voucher burned on a signing that never happened is
+  // the one bug this must not have.
+  if (voucher != null) {
+    takeVoucher(state, voucher);
+  } else if (floor != null) {
     consumeScoutVoucher(state);
   } else if (free) {
     final shop = _map(state['shop']);
@@ -208,7 +270,12 @@ Signing signPlayer(Map<String, dynamic> state, {int batchSize = 1}) {
     'is_free': free,
     // 0 rather than null for a scout with no voucher on it: the JS sends 0 and
     // a missing param and a zero are different rows on a dashboard.
-    'voucher_tier': floor ?? 0,
+    //
+    // The ASSIGNED entry rather than the draw floor, so the 🎲 token reports as
+    // 1 instead of sharing 0 with an ordinary coin scout — with a batch able to
+    // carry four different vouchers, telling those apart is the whole value of
+    // this row.
+    'voucher_tier': voucher ?? floor ?? 0,
     'batch_size': batchSize,
     'division': '${_map(state['progression'])?['currentDivision'] ?? 'unknown'}',
   });
@@ -233,9 +300,10 @@ Signing signPlayer(Map<String, dynamic> state, {int batchSize = 1}) {
             CardInstance.from(raw),
           )
         : 0,
-    // In a batch only the FIRST card is on a voucher — it is spent above, and
-    // the next pass reads nothing. Without the caption there was no telling
-    // which of four cards was the one the promise had been bought for.
+    // **Any number of a batch's cards can be on a voucher now**, each with its
+    // own floor, which is what the assignment sheet is for. The caption is what
+    // tells them apart on the reveal; it used to mark the first card only,
+    // because the first card was the only one that could ever carry one.
     voucherFloor: floor,
     voucherRandom: floor == null && free,
   );
@@ -266,12 +334,26 @@ void setScoutBatch(Map<String, dynamic> state, int n) {
 /// runs out of coins on the third card is the trap this avoids — the player has
 /// already tapped by the time they find out.
 ///
-/// A voucher or a free scout covers the FIRST card only, so the rest are priced
-/// at the normal rate.
+/// **Voucher capacity is ADDITIVE**: every voucher held is one more card the
+/// player can take beyond what the coins buy. The rule is the one that was
+/// always here — the line used to read `(free ? 1 : 0)`, a bool, because one
+/// voucher was the most anyone could have. It is a count now.
+///
+/// So two vouchers plus coins for four offers ×4 (capacity six, and the ladder
+/// stops at four); two vouchers and no coins offers ×2; no vouchers and coins
+/// for four offers ×4, exactly as before.
+///
+/// **What this cannot promise on its own**: capacity assumes the vouchers get
+/// assigned, and the player may decline on the sheet — two vouchers plus coins
+/// for two gives a ×4 that only pays for two. The sheet closes that by refusing
+/// Continue while the unassigned slots cost more than the wallet, which is where
+/// the answer is actually known; [signPlayers] keeps its short-batch handling as
+/// the backstop either way.
 List<int> availableScoutBatchSizes(Map<String, dynamic>? state) {
-  final free = _freeScoutReady(state) || heldVoucherTier(state) != null;
+  final legacy = _freeScoutReady(state) || heldVoucherTier(state) != null;
+  final vouchers = voucherInventory(state).length + (legacy ? 1 : 0);
   final unit = scoutCost(state, ignoreVoucher: true);
-  final byCoins = (free ? 1 : 0) + (unit <= 0 ? 0 : _coins(state) ~/ unit);
+  final byCoins = vouchers + (unit <= 0 ? 0 : _coins(state) ~/ unit);
   final bySlots = _cells(state).where((c) => c == null).length;
   final max = math.min(byCoins, bySlots);
   final sizes = [
@@ -317,16 +399,34 @@ typedef ScoutBatch = ({
 /// short batch honest: the position bias and the tier-nine uniqueness filter
 /// both re-read the grid, so they see the cards this batch has already placed;
 /// coins come off per card as it lands, so a run that hits the buffers has
-/// charged only for what it delivered; and the voucher is consumed by the first
-/// card alone.
-ScoutBatch signPlayers(Map<String, dynamic> state, int count) {
+/// charged only for what it delivered; and a voucher is consumed only by the
+/// card it was put on.
+///
+/// [vouchers] is the assignment, one entry per slot in the same order — a floor,
+/// [anyCardVoucher], or null for a slot left to the coins. A short list is fine
+/// and so is none at all; anything past the end is simply unassigned.
+///
+/// **The draw sequence does not depend on WHERE the vouchers went**, which
+/// matters because a save's whole future is seeded off it. `weightedPick` takes
+/// exactly one `random()` whatever the pool holds, so four cards are four draws
+/// either way; a floor changes which pool a draw filters against, never how many
+/// values come off the sequence or in what order.
+ScoutBatch signPlayers(
+  Map<String, dynamic> state,
+  int count, {
+  List<int?>? vouchers,
+}) {
   final want = math.max(1, math.min(maxScoutBatch, count));
   final placed = <Signing>[];
   var spent = 0;
   String? stoppedBy;
 
   for (var i = 0; i < want; i++) {
-    final result = signPlayer(state, batchSize: want);
+    final result = signPlayer(
+      state,
+      batchSize: want,
+      voucher: vouchers != null && i < vouchers.length ? vouchers[i] : null,
+    );
     if (!result.ok) {
       stoppedBy = result.reason;
       break;

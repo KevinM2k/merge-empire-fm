@@ -8,15 +8,46 @@ import 'package:merge_empire_fc/data/players.dart';
 import 'package:merge_empire_fc/data/quests.dart';
 import 'package:merge_empire_fc/engine/auto_tier_engine.dart';
 import 'package:merge_empire_fc/engine/scout_signing_engine.dart';
+import 'package:merge_empire_fc/engine/scout_voucher_engine.dart';
 import 'package:merge_empire_fc/state/card_instance.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
 import 'package:merge_empire_fc/util/analytics.dart';
 import 'package:merge_empire_fc/util/event_bus.dart';
+import 'package:merge_empire_fc/util/random.dart';
 
 Map<String, dynamic> stateWith({int coins = 100000, bool freeScout = false}) {
   final s = createDefaultState();
   (s['resources'] as Map<String, dynamic>)['fanCoins'] = coins;
   (s['shop'] as Map<String, dynamic>)['freeScoutReady'] = freeScout;
+  return s;
+}
+
+/// A save holding [vouchers] in the inventory, past the tutorial, in a division
+/// that can actually draw them.
+///
+/// Two traps, both of which quietly turn a batch test into a test of something
+/// else. The tutorial caps every scout at ×1 and at tier one. And a floor the
+/// division's pool cannot reach makes `pickScoutDefinition` return null, so the
+/// signing fails `no_candidate` and the whole batch stops — Sunday League draws
+/// tiers one and two only, so a tier-5 voucher there delivers nothing at all.
+///
+/// **That second one is reachable in play**, which is why it is spelled out
+/// here rather than just worked around: a prestige keeps the inventory and
+/// drops the player back to Sunday League, so a top-division voucher can
+/// outlive the division that sold it. The assignment sheet is what stops it
+/// being assigned; the engine's refusal is the safety net under that, and it
+/// burns nothing when it fires.
+Map<String, dynamic> held(
+  List<int> vouchers, {
+  // Champions Cup scouts cost 960,000 apiece, so a Sunday League purse tests
+  // nothing but the coin check.
+  int coins = 10000000,
+  String division = 'champions_cup',
+}) {
+  final s = stateWith(coins: coins);
+  (s['tutorial'] as Map<String, dynamic>)['done'] = true;
+  (s['progression'] as Map<String, dynamic>)['currentDivision'] = division;
+  (s['shop'] as Map<String, dynamic>)['scoutVouchers'] = [...vouchers];
   return s;
 }
 
@@ -487,6 +518,176 @@ void main() {
       final result = signPlayer(s);
       expect(result.ok, isFalse);
       expect(scouts(), isEmpty);
+    });
+
+    test('the ASSIGNED entry is reported, so a token is 1 and not 0', () {
+      // With four different vouchers possible on one batch, telling a 🎲 token
+      // apart from an ordinary coin scout is the whole value of this row.
+      final s = held([anyCardVoucher]);
+      signPlayer(s, voucher: anyCardVoucher);
+      expect(scouts().single.params['voucher_tier'], 1);
+    });
+  });
+
+  // ── Assigning vouchers to individual cards of a batch ──────────────────────
+
+  group('the assignment', () {
+    test('a voucher on slot 2 covers slot 2 and nothing else', () {
+      final s = held([2]);
+      final before = coinsOf(s);
+      final unit = scoutCost(s, ignoreVoucher: true);
+      final batch = signPlayers(s, 3, vouchers: [null, 2, null]);
+
+      expect(batch.placed.length, 3);
+      expect(batch.placed[0].cost, unit);
+      expect(batch.placed[1].cost, 0);
+      expect(batch.placed[2].cost, unit);
+      expect(batch.spent, unit * 2);
+      expect(coinsOf(s), before - unit * 2);
+      // And it is the middle card that wears the pill on the reveal.
+      expect(batch.placed[1].voucherFloor, 2);
+      expect(batch.placed[0].voucherFloor, isNull);
+      expect(batch.placed[2].voucherFloor, isNull);
+    });
+
+    test('only the assigned vouchers leave the inventory', () {
+      final s = held([2, 2, 5]);
+      signPlayers(s, 2, vouchers: [5, null]);
+      expect(voucherInventory(s), [2, 2]);
+    });
+
+    test('several on one batch, each with its own floor', () {
+      final s = held([2, 3]);
+      final batch = signPlayers(s, 2, vouchers: [2, 3]);
+      expect(batch.spent, 0);
+      expect(batch.placed.map((p) => p.voucherFloor), [2, 3]);
+      expect(voucherInventory(s), isEmpty);
+    });
+
+    test('A TOKEN IS FREE BUT PUTS NO FLOOR ON THE DRAW', () {
+      // The Icon case. `voucherFloor` null is what says "no floor was applied",
+      // and `voucherRandom` is the caption the reveal uses instead.
+      final s = held([anyCardVoucher]);
+      final batch = signPlayers(s, 1, vouchers: [anyCardVoucher]);
+      expect(batch.spent, 0);
+      expect(batch.placed.single.voucherFloor, isNull);
+      expect(batch.placed.single.voucherRandom, isTrue);
+      expect(voucherInventory(s), isEmpty);
+    });
+
+    test('no assignment at all is the old behaviour, untouched', () {
+      final s = held([5]);
+      final unit = scoutCost(s, ignoreVoucher: true);
+      final batch = signPlayers(s, 2);
+      // Held but not assigned, so both cards are paid for and the stack is
+      // still there. A voucher is spent because the player spent it.
+      expect(batch.spent, unit * 2);
+      expect(voucherInventory(s), [5]);
+    });
+
+    test('A VOUCHER IS NEVER BURNED ON A SIGNING THAT NEVER HAPPENED', () {
+      // The guard the whole read-before-draw, spend-after-land order exists
+      // for. The grid fills on the second card, so the third never lands.
+      final s = held([5, 6, 7]);
+      final cells = (s['grid'] as Map<String, dynamic>)['cells'] as List;
+      for (var i = 0; i < cells.length - 2; i++) {
+        cells[i] = <String, dynamic>{'definitionId': 'x', 'instanceId': 'c$i'};
+      }
+      final batch = signPlayers(s, 3, vouchers: [5, 6, 7]);
+      expect(batch.placed.length, lessThan(3));
+      // Exactly as many gone as cards that landed.
+      expect(voucherInventory(s).length, 3 - batch.placed.length);
+      expect(voucherInventory(s), contains(7));
+    });
+
+    test('A FLOOR THE DIVISION CANNOT REACH REFUSES, AND BURNS NOTHING', () {
+      // Reachable in play: a prestige keeps the inventory and drops the player
+      // back to Sunday League, which draws tiers one and two only — so a
+      // top-division voucher can outlive the division that sold it. The sheet
+      // refuses to assign one; this is the safety net under that, and what it
+      // must not do is eat the voucher.
+      final s = held([8], division: 'sunday_league');
+      final before = coinsOf(s);
+      final batch = signPlayers(s, 1, vouchers: [8]);
+      expect(batch.placed, isEmpty);
+      expect(batch.stoppedBy, 'no_candidate');
+      expect(voucherInventory(s), [8], reason: 'still theirs');
+      expect(coinsOf(s), before);
+    });
+
+    test('a short list leaves the rest of the batch on the coins', () {
+      final s = held([4]);
+      final unit = scoutCost(s, ignoreVoucher: true);
+      final batch = signPlayers(s, 3, vouchers: [4]);
+      expect(batch.spent, unit * 2);
+    });
+
+    test('THE DRAW SEQUENCE DOES NOT MOVE WITH THE ASSIGNMENT', () {
+      // A save's whole future is seeded off this sequence, so where a voucher
+      // went must not change how many values come off it. `weightedPick` takes
+      // exactly one `random()` whatever the pool holds — this is that, asserted
+      // from outside: the same seed, the same number of draws, so the value the
+      // sequence is left on is the same either way.
+      // Measured from outside, because there is no injectable seam: off a
+      // fixed seed, the value the stream hands out AFTER the batch can only
+      // match if the batch consumed the same number of values.
+      double nextAfter(List<int?> assignment) {
+        final s = held([3, 3, 3, 3]);
+        setSeed(20260915);
+        signPlayers(s, 4, vouchers: assignment);
+        return random();
+      }
+
+      final none = nextAfter([null, null, null, null]);
+      expect(nextAfter([3, null, null, null]), none);
+      expect(nextAfter([null, null, 3, null]), none);
+      expect(nextAfter([3, 3, 3, 3]), none);
+    });
+  });
+
+  group('what the button offers', () {
+    test('vouchers ADD to what the coins can buy', () {
+      // 2 vouchers + coins for 2 → capacity 4, so ×4 is offered on a purse that
+      // alone would only reach ×2. That IS the additive rule.
+      final unit = scoutCost(held(const []), ignoreVoucher: true);
+      expect(availableScoutBatchSizes(held(const [], coins: unit * 2)), [1, 2]);
+      expect(availableScoutBatchSizes(held([3, 3], coins: unit * 2)), [1, 2, 4]);
+    });
+
+    test('vouchers alone carry a batch with no coins at all', () {
+      final s = held([3, 3], coins: 0);
+      expect(availableScoutBatchSizes(s), [1, 2]);
+    });
+
+    test('and with neither it is back to ×1', () {
+      expect(availableScoutBatchSizes(stateWith(coins: 0)), [1]);
+    });
+
+    test('no vouchers is exactly what it always was', () {
+      final unit = scoutCost(held(const []), ignoreVoucher: true);
+      expect(availableScoutBatchSizes(held(const [], coins: unit * 4)), [1, 2, 4]);
+    });
+
+    test('THE BUTTON IS LIVE ON VOUCHERS ALONE', () {
+      // It greyed out with a full tray otherwise, which is the opposite of the
+      // feature: `scoutCost` quotes the full price now, so the per-card
+      // `signBlocked` says `insufficient_coins` at zero coins.
+      final s = held([5], coins: 0);
+      expect(signBlocked(s), 'insufficient_coins');
+      expect(scoutBlocked(s), isNull);
+    });
+
+    test('and dead when there is neither', () {
+      expect(scoutBlocked(stateWith(coins: 0)), 'insufficient_coins');
+    });
+
+    test('a full grid still beats a full tray', () {
+      final s = held([5]);
+      final cells = (s['grid'] as Map<String, dynamic>)['cells'] as List;
+      for (var i = 0; i < cells.length; i++) {
+        cells[i] = <String, dynamic>{'definitionId': 'x', 'instanceId': 'c$i'};
+      }
+      expect(scoutBlocked(s), 'grid_full');
     });
   });
 }
