@@ -11,7 +11,7 @@
 /// tests below are written around that pair — a walk-up with the score as it
 /// stands, a beat of nothing, then the outcome and the bracket moving.
 ///
-/// The JS did exactly that. `shootout_row.dart`'s own header records the port
+/// The JS did exactly that. `shootout.dart`'s own header records the port
 /// dropping the reveal on the reasoning that its copy was hardcoded English
 /// with no `t()` key behind it and the catalogues are generated, so there was
 /// nothing to port — which was true of the COPY and was allowed to decide the
@@ -29,11 +29,7 @@ library;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart' show t;
-import 'package:merge_empire_fc/providers/game_providers.dart'
-    show gameProvider;
 import 'package:merge_empire_fc/ui/screens/match/match_clock.dart';
-import 'package:merge_empire_fc/ui/screens/squad/player_detail_sheet.dart'
-    show cardById;
 import 'package:merge_empire_fc/ui/screens/match/match_screen.dart'
     show MatchScreenState;
 
@@ -54,8 +50,25 @@ import 'match_screen_test.dart';
 ///
 /// Without [suddenDeath] it is three each and then the fourth kick, which is
 /// eight kicks; with it, five each and then one apiece.
-Map<String, dynamic> _tie({bool won = true, bool suddenDeath = false}) {
-  final kicks = <Map<String, dynamic>>[
+Map<String, dynamic> _tie({
+  bool won = true,
+  bool suddenDeath = false,
+  /// How many kicks OURS takes, for the tests about the taker order. The
+  /// default is whatever the two flags above build.
+  int? kicks,
+}) {
+  if (kicks != null) {
+    return _shootout(
+      won: won,
+      kicks: [
+        for (var i = 0; i < kicks; i++) ...[
+          {'team': 'home', 'scored': true, 'suddenDeath': i >= 5},
+          {'team': 'away', 'scored': true, 'suddenDeath': i >= 5},
+        ],
+      ],
+    );
+  }
+  final built = <Map<String, dynamic>>[
     for (var i = 0; i < (suddenDeath ? 5 : 3); i++) ...[
       {'team': 'home', 'scored': true},
       {'team': 'away', 'scored': true},
@@ -63,6 +76,14 @@ Map<String, dynamic> _tie({bool won = true, bool suddenDeath = false}) {
     {'team': 'home', 'scored': won, if (suddenDeath) 'suddenDeath': true},
     {'team': 'away', 'scored': !won, if (suddenDeath) 'suddenDeath': true},
   ];
+  return _shootout(won: won, kicks: built);
+}
+
+/// A goalless cup tie carrying [kicks].
+Map<String, dynamic> _shootout({
+  required bool won,
+  required List<Map<String, dynamic>> kicks,
+}) {
   var ours = 0;
   var theirs = 0;
   for (final k in kicks) {
@@ -401,39 +422,56 @@ void main() {
       // so who walks up is the port's own — the eleven who FINISHED the match,
       // outfield first and the goalkeeper last, because a sudden death has to
       // run a long way before it reaches him.
-      final container = await pumpMatch(
-        tester,
-        _tie(suddenDeath: true),
-        save: squadSave(),
-      );
+      await pumpMatch(tester, _tie(suddenDeath: true), save: squadSave());
       final state = stateOf(tester);
       await _watchToTheWhistle(tester, state);
       await _playOutTheKicks(tester, state);
 
-      // Six kicks of ours, and the walk-up and the result name the same man.
+      // Six kicks of ours, and the walk-up and the result are the same man.
       final ours = <String>[];
       var i = 0;
       for (final line in state.notes) {
         if (line.type != 'penalty') continue;
         if (line.key == 'match.pens.step_up') {
-          ours.add('${line.params['who']}');
+          ours.add('${line.aboutId}');
         }
         if (line.key == 'match.pens.scored' || line.key == 'match.pens.missed') {
-          expect('${line.params['who']}', ours[i++]);
+          expect('${line.aboutId}', ours[i++]);
         }
       }
       expect(ours.length, 6);
-      // **AND IT WALKS DOWN THE SHEET** rather than handing the ball to the
-      // same man six times. (The harness's eleven share four definitions, so
-      // two takers can genuinely have the same NAME — what is asserted is that
-      // the order advances, not that every name is distinct.)
-      expect(ours.first, isNot(ours.last));
+      // **NOBODY TAKES A SECOND ONE UNTIL EVERYBODY HAS TAKEN ONE**, which is
+      // the rule as it was asked for and the rule a real shootout follows.
+      // Asserted on the CARD rather than on the name: the harness's eleven
+      // share four definitions and a card with no rolled `displayName` falls
+      // back to its definition's, so two different men can read the same in
+      // this fixture. A real save rolls a name per card — `pickDisplayName`,
+      // on every merge and every signing — and the order here is by id either
+      // way.
+      expect(ours.toSet().length, ours.length);
       // **THE GOALKEEPER IS LAST**, which is the only thing about the order
       // that is a decision rather than the team sheet's own. He is eleventh,
       // so six kicks never reach him — a long enough sudden death would.
-      final keeper = cardById(container.read(gameProvider).state, 'c0')?.name();
-      expect(keeper, isNotNull);
-      expect(ours, isNot(contains(keeper)));
+      expect(ours, isNot(contains('c0')));
+      await settleSave(tester);
+    });
+
+    testWidgets('and only then does the first man go again', (tester) async {
+      // **THE WRAP.** Eleven takers, so the twelfth kick of ours is the first
+      // man's second — which is what a sudden death that runs that far does,
+      // and the only case where a name may repeat.
+      await pumpMatch(tester, _tie(kicks: 12), save: squadSave());
+      final state = stateOf(tester);
+      state.skipToEnd();
+      await tester.pumpAndSettle();
+      final ours = [
+        for (final line in state.notes)
+          if (line.key == 'match.pens.step_up') '${line.aboutId}',
+      ];
+      expect(ours.length, 12);
+      // Eleven different men, and then the first of them again.
+      expect(ours.take(11).toSet().length, 11);
+      expect(ours[11], ours[0]);
       await settleSave(tester);
     });
 
@@ -455,7 +493,6 @@ void main() {
       // Both beats of every kick, exactly as a watched tie writes them.
       expect(_pensKeys(state).length, 18);
       expect(_bracket(tester), ('(4)', '(3)'));
-      expect(find.byKey(const ValueKey('shootout-row')), findsOneWidget);
       await settleSave(tester);
     });
 

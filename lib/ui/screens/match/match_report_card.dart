@@ -26,7 +26,7 @@ import 'package:merge_empire_fc/ui/screens/match/match_statboard.dart'
     show liveStatsFor;
 import 'package:merge_empire_fc/ui/screens/match/match_summary.dart'
     show regulationScore;
-import 'package:merge_empire_fc/ui/screens/match/shootout_row.dart'
+import 'package:merge_empire_fc/ui/screens/match/shootout.dart'
     show shootoutFrom;
 import 'package:merge_empire_fc/ui/screens/match/match_screen.dart'
     show feedInset, feedPlateEdge, feedPlateFill;

@@ -68,8 +68,8 @@ import 'package:merge_empire_fc/ui/screens/match/match_clock.dart';
 import 'package:merge_empire_fc/ui/screens/match/momentum_arrow.dart';
 import 'package:merge_empire_fc/ui/widgets/card_glyph.dart';
 import 'package:merge_empire_fc/ui/screens/match/match_report_card.dart';
-import 'package:merge_empire_fc/ui/screens/match/shootout_row.dart'
-    show ShootoutRow, shootoutFrom;
+import 'package:merge_empire_fc/ui/screens/match/shootout.dart'
+    show shootoutFrom;
 import 'package:merge_empire_fc/ui/screens/match/subs_panel.dart';
 export 'package:merge_empire_fc/ui/widgets/card_glyph.dart'
     show CardGlyph, cardYellowInk, cardRedInk, cardInk;
@@ -4910,12 +4910,6 @@ class _Scoreboard extends StatelessWidget {
     final kit = Theme.of(context).extension<KitTheme>()!;
     final ink = Theme.of(context).colorScheme.onSurface;
 
-    // The shootout, once the whistle has gone — see the row it builds, below
-    // the score. Null for every league fixture and for a tie that was settled
-    // inside the ninety, and null before full time because the feed has not
-    // finished playing the ninety minutes the kicks come after.
-    final pens = finished ? shootoutFrom(result) : null;
-
     num asNum(Object? v) => v is num ? v : 0;
     // Composed the way the next-match card composes it: OUR split carries the
     // tactic's multipliers, theirs never does. The two screens print the same
@@ -5136,36 +5130,6 @@ class _Scoreboard extends StatelessWidget {
             // board height, so it is not reserved on a quiet afternoon.
             if (hasSplit && (lifted || pill != null))
               LiveSourcePill(text: pill),
-            // **AND A CUP TIE SAYS HOW IT WAS ACTUALLY SETTLED.**
-            //
-            // `ShootoutRow` was built for the summary screen and the summary
-            // screen is a LEAGUE screen: `play_button` pushes it from the
-            // league flow's `onLeave`, and the cup flow pushes `MatchScreen`
-            // with no `onLeave` and nothing after it but `settleCupRound` and
-            // Colin's through-or-out card. A shootout can only happen in a
-            // cup — so the one surface that drew one was reachable by no
-            // fixture that could have one, and every tie decided on penalties
-            // ended on this board reading a level scoreline under the words
-            // FULL TIME. Reported from the couch with the shot: 1-1, full
-            // time, a cup tie, "why no penalties".
-            //
-            // **AGAINST THE FULL-TIME LINE rather than under the score**,
-            // which is a placement rather than a compromise: the score and the
-            // ratings band under it are one block — a panel dropped between
-            // them cuts the figures off the goals they belong to — and the
-            // words this corrects are FULL TIME, which is the line directly
-            // below. It is still the rest of the result and it is still on the
-            // board; the feed's write-up says the same thing in prose a moment
-            // later.
-            if (pens != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 8),
-                child: ShootoutRow(
-                  ours: pens.ours,
-                  theirs: pens.theirs,
-                  won: pens.won,
-                ),
-              ),
             // **THE FOOTER STRIP IS GONE, and the BOARD is the stats door.**
             // The competition line went first ("Sunday League · Away" is a fact
             // the player brought with them), which left a chart icon alone in a

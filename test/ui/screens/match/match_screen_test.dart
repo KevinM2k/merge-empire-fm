@@ -4620,12 +4620,12 @@ void main() {
       await settleSave(tester);
     });
 
-    testWidgets('AND THE KICKS ARE ON THE BOARD, WHICH THEY NEVER WERE', (
+    testWidgets('AND THE SHOOTOUT IS ON THE BOARD, WHICH IT NEVER WAS', (
       tester,
     ) async {
-      // **`ShootoutRow` was reachable by no fixture that could have one.** It
-      // was built for `MatchSummaryScreen`, and the summary is pushed from the
-      // LEAGUE flow only — `play_button` hands `MatchScreen` an `onLeave` that
+      // **The shootout was reachable by no fixture that could have one.** It
+      // was drawn only by `MatchSummaryScreen`, and the summary is pushed from
+      // the LEAGUE flow only — `play_button` hands `MatchScreen` an `onLeave` that
       // replaces it with the summary, and the cup flow pushes the screen with
       // no `onLeave` and nothing after the whistle but `settleCupRound` and
       // Colin's through-or-out card. A shootout can only happen in a cup. So
@@ -4661,22 +4661,31 @@ void main() {
       );
       // Not before the whistle: the kicks come after the ninety minutes the
       // feed is still playing.
-      expect(find.byKey(const ValueKey('shootout-row')), findsNothing);
+      expect(find.byKey(const ValueKey('match-pens-left')), findsNothing);
 
       stateOf(tester).skipToEnd();
       await tester.pumpAndSettle();
 
+      // **THE BRACKET, which is how the board says it.** A row of ticks and
+      // crosses was the first answer and it is gone — see `shootout.dart` —
+      // because the kicks are told one at a time in the feed now and the
+      // board carries the running score: `2 (4) - (3) 2`.
       expect(
-        find.byKey(const ValueKey('shootout-row')),
+        find.byKey(const ValueKey('match-pens-left')),
         findsOneWidget,
         reason: 'a level cup scoreline with no shootout on the board',
       );
       expect(
-        find.descendant(
-          of: find.byKey(const ValueKey('shootout-row')),
-          matching: find.text('4 - 3'),
-        ),
-        findsOneWidget,
+        tester
+            .widget<Text>(find.byKey(const ValueKey('match-pens-left')))
+            .data,
+        '(4)',
+      );
+      expect(
+        tester
+            .widget<Text>(find.byKey(const ValueKey('match-pens-right')))
+            .data,
+        '(3)',
       );
       await settleSave(tester);
     });

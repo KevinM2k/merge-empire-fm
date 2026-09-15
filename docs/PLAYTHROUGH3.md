@@ -6,7 +6,7 @@ because that is the part worth keeping.
 
 ## Where this queue stands
 
-**125 done, 6 open, and one feature parked.** One open row is a report still
+**127 done, 6 open, and one feature parked.** One open row is a report still
 being narrowed (the trees' size, below); none of the rest is a fault.
 One is a feature that was built, tried and turned down; one is a balance
 question rather than work; one is a survey to run before building; and one is
@@ -1825,7 +1825,38 @@ generated catalogues, which is where every word of the write-up already lives.
       **A MISS is not a goal of either colour**, and the first attempt at it
       coloured these rows by who the news was good FOR, which put a green card
       reading "Missed" on the page. It keeps the feed's own plate and a muted
-      rail; the heading and the face are what make it a card.
+      rail; the heading and the face are what make it a card. Put to the couch
+      both ways — "depends if it's them and they miss them it's green cuz it's
+      good for us right? … or just keep it how you have it, it's clearer
+      actually" — and it stays as the colour meaning a ball in a net.
+
+- [x] **AND THEN THE ROW OF DOTS WENT, which is the same objection a third
+      time.** "I don't like the thing at the top when the penalties is over —
+      the thing with the dots." `ShootoutRow` was the ticks and crosses under
+      two totals, put on the board and on the summary when the JS's reveal was
+      dropped for want of translated copy — and kept for one pass after the
+      reveal came back, which left the shootout told three ways at once: a card
+      per kick in the feed, a running bracket on the board, and a panel
+      restating both in a third notation.
+
+      So the widget goes, and its own header now records why. `shootout_row.dart`
+      is `shootout.dart`: it draws nothing and never will again, and a file
+      named for a row that does not exist is the stale naming this queue keeps
+      finding. What is left is the READ — `home` is always ours — which the
+      whistle's sting, Colin's full-time word, the write-up's headline and the
+      summary's `regulationScore` all still go through. The summary's call site
+      goes with it; that screen never sees a shootout anyway, which is the
+      fault this whole batch started from.
+
+- [x] **And nobody takes a second penalty until everybody has taken one.**
+      Asked for after the shot showed one name twice — and the order was
+      already right: `_takerFor` walks the eleven by INSTANCE ID and wraps only
+      at the twelfth kick. What repeated was the NAME, because the test
+      harness's five defenders share one definition and a card with no rolled
+      `displayName` falls back to its definition's. A real save rolls a name
+      per card — `pickDisplayName`, on every merge and every signing. Pinned
+      either way now, on ids: eleven different men, and only then the first of
+      them again.
 
 ## Open
 

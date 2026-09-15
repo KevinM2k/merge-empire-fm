@@ -36,7 +36,8 @@ import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/services/rewarded_ads.dart';
 import 'package:merge_empire_fc/ui/screens/settings_controls.dart'
     show settingPick;
-import 'package:merge_empire_fc/ui/screens/match/shootout_row.dart';
+import 'package:merge_empire_fc/ui/screens/match/shootout.dart'
+    show shootoutFrom;
 import 'package:merge_empire_fc/ui/screens/home/league_providers.dart'
     show managerLookProvider;
 import 'package:merge_empire_fc/ui/screens/match/dugout_cam.dart';
@@ -547,20 +548,6 @@ class MatchSummaryScreenState extends ConsumerState<MatchSummaryScreen>
                       trophies: trophies,
                       result: result,
                     ),
-                    // **A TIE DECIDED ON PENALTIES SAYS SO, DIRECTLY UNDER THE
-                    // SCORE IT COMPLETES.** It used to sit below the league
-                    // table and the scorers, which on any phone is below the
-                    // fold — so the one thing that explains a level scoreline
-                    // was the one thing the player never reached. It is not a
-                    // footnote to the result; it is the rest of it.
-                    if (shootoutFrom(result) case final penalties?) ...[
-                      const SizedBox(height: 10),
-                      ShootoutRow(
-                        ours: penalties.ours,
-                        theirs: penalties.theirs,
-                        won: penalties.won,
-                      ),
-                    ],
                     const SizedBox(height: 12),
                     // **THE TABLE IS SECOND, and that is the whole ordering
                     // decision on this screen.** It is the one thing here that

@@ -662,7 +662,7 @@ const Map<String, String> enCopy = <String, String>{
   // ── THE SHOOTOUT, PLAYED OUT IN THE COMMENTARY ───────────────────────────
   //
   // **The JS's reveal was hardcoded English and the port dropped it whole.**
-  // `shootout_row.dart` says so in its own header: "It's going to penalties!",
+  // `shootout.dart` says so in its own header: "It's going to penalties!",
   // "We go through!", "Out on penalties", with no `t()` key behind any of them,
   // so there was nothing in the generated catalogues to port and the kicks were
   // drawn as a row of ticks instead. Asked for from the couch, directly: it is
