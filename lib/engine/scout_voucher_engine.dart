@@ -255,11 +255,17 @@ VoucherBlock? voucherBlocked(Map<String, dynamic>? state, int floor) {
 // and the fixture's hand-made shop maps, which DO set those keys, still get the
 // JS's answer.
 //
-// The cost, stated plainly: [buyScoutVoucher] and [consumeScoutVoucher] now have
-// only their own test as a caller, which `tool/unreached.sh` reports and which
-// CLAUDE.md normally calls the module's real status. Here it is the intended
-// state of a frozen parity surface, and the sweep's header carries it as a fifth
-// expected kind of hit so nobody deletes them.
+// The cost, stated plainly and checked rather than assumed. [consumeScoutVoucher]
+// still has a live caller — `signPlayer`'s legacy branch, for a save carrying the
+// old scalar. **[buyScoutVoucher] has none**, and `tool/unreached.sh` does NOT
+// report it: the sweep is a `grep -w` on the bare name, and the `[buyScoutVoucher]`
+// references in the doc comments here and in `shop_spend.dart` read as callers.
+// So the one function this change orphaned is invisible to the check that exists
+// to find orphans, and this paragraph is the only thing standing in for it.
+//
+// It is kept deliberately, not overlooked: `parity — buying one` and
+// `parity — buy, spend, buy again` are what hold the port to the JS's answer, and
+// they cannot run without it.
 
 /// **`1` IS THE "ANY CARD" TOKEN, NOT A TIER-1 FLOOR**, and the difference is
 /// the Football Icon.

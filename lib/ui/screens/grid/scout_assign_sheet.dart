@@ -366,8 +366,11 @@ class _Slot extends StatelessWidget {
                     t('scout.assign.autosell'),
                     textAlign: TextAlign.center,
                     style: const TextStyle(
-                      fontSize: 10,
-                      height: 1.2,
+                      // 12 is the type floor `architecture_test` enforces; the
+                      // line wraps inside the card's width rather than shrinking
+                      // under it.
+                      fontSize: 12,
+                      height: 1.15,
                       fontWeight: FontWeight.w700,
                       color: dangerInk,
                     ),
@@ -409,7 +412,7 @@ class _SlotBadge extends StatelessWidget {
               label,
               textAlign: TextAlign.center,
               style: const TextStyle(
-                fontSize: 11,
+                fontSize: 12,
                 fontWeight: FontWeight.w800,
                 color: Colors.white,
               ),
@@ -420,7 +423,7 @@ class _SlotBadge extends StatelessWidget {
         Text(
           t('scout.assign.free'),
           style: const TextStyle(
-            fontSize: 11,
+            fontSize: 12,
             fontWeight: FontWeight.w900,
             letterSpacing: 1,
             color: Colors.white,
@@ -470,7 +473,7 @@ class _Footer extends StatelessWidget {
               t('scout.assign.short'),
               textAlign: TextAlign.center,
               style: const TextStyle(
-                fontSize: 11,
+                fontSize: 12,
                 fontWeight: FontWeight.w700,
                 color: dangerInk,
               ),
@@ -659,7 +662,7 @@ class _ChipFace extends StatelessWidget {
             Text(
               label,
               style: TextStyle(
-                fontSize: 11,
+                fontSize: 12,
                 fontWeight: FontWeight.w800,
                 color: accent == null
                     ? Theme.of(context).colorScheme.onSurface

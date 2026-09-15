@@ -66,20 +66,6 @@ void main() {
     expect(find.text('inner'), findsOneWidget);
   });
 
-  testWidgets('a section note is rendered once, above the child', (
-    tester,
-  ) async {
-    await pump(
-      tester,
-      ShopSectionFrame(
-        id: ShopSectionId.vouchers,
-        note: t('shop.voucher.one_at_a_time'),
-        child: const Text('inner'),
-      ),
-    );
-    expect(find.text(t('shop.voucher.one_at_a_time')), findsOneWidget);
-  });
-
   testWidgets('a buyable tile shows its price and calls back', (tester) async {
     var bought = 0;
     await pump(

@@ -22,6 +22,7 @@ import 'package:merge_empire_fc/engine/season_end.dart'
 import 'package:merge_empire_fc/state/game_state.dart';
 import 'package:merge_empire_fc/state/save_slots.dart';
 import 'package:merge_empire_fc/state/save_store.dart';
+import 'package:merge_empire_fc/engine/scout_voucher_engine.dart';
 import 'package:merge_empire_fc/state/state_schema.dart';
 import 'package:merge_empire_fc/util/random.dart' as seeded;
 import 'package:merge_empire_fc/util/time.dart';
@@ -60,6 +61,24 @@ Map<String, dynamic> _withoutRatios(Map<String, dynamic> state) {
     for (final e in state.entries)
       if (e.key != 'definitionRatios') e.key: e.value,
   };
+  // **THE PORT KEEPS UNSPENT SCOUT VOUCHERS THROUGH A RESET; the JS did not.**
+  //
+  // A deliberate divergence, and one that cannot live on a screen the way
+  // CLAUDE.md's rule usually asks: it is a fact about the save. The reasoning is
+  // the one already written in `game_state.dart` for gems themselves — hard
+  // currency, bought with real money or earned once from a faucet that never
+  // re-arms, and wiping it revokes something that was paid for. A voucher is
+  // what those gems were turned into.
+  //
+  // So `shop.scoutVouchers` is lifted out before the comparison rather than
+  // `reset_reference.json` being edited, which could not be regenerated here
+  // anyway. Everything else in the shop branch is still compared field for
+  // field, and the divergence itself is asserted on its own below — see
+  // `THE PORT KEEPS WHAT THE GEMS BOUGHT`.
+  if (out['shop'] case final Map<String, dynamic> shop
+      when shop.containsKey('scoutVouchers')) {
+    out['shop'] = <String, dynamic>{...shop}..remove('scoutVouchers');
+  }
   if (out['prestige'] case final Map<String, dynamic> prestige) {
     final level = prestige['level'];
     out['prestige'] = <String, dynamic>{
@@ -343,5 +362,53 @@ void main() {
         jsonDecode(loaded.store.values[saveKeyPrimary]!)
             as Map<String, dynamic>;
     expect(stored['clubName'], 'Late Change FC');
+  });
+
+  group('THE PORT KEEPS WHAT THE GEMS BOUGHT', () {
+    // The divergence `_withoutRatios` lifts out of the parity comparison, put
+    // back under its own light so removing it from there does not lose it.
+    //
+    // `fullRich` carries a tier-5 voucher on the legacy scalar and an unspent
+    // free scout, which `migrate` folds into the bag as `[5, 1]`.
+
+    test('a FULL reset carries the unspent bag over', () {
+      final loaded = _loaded(_before('fullRich'));
+      expect(
+        voucherInventory(loaded.game.state),
+        [5, 1],
+        reason: 'the fold happened on load',
+      );
+
+      final after = loaded.game.fullResetState();
+      expect(voucherInventory(after), [5, 1]);
+    });
+
+    test('and so does a soft one', () {
+      final loaded = _loaded(_before('softRich'));
+      final held = voucherInventory(loaded.game.state);
+      final after = loaded.game.resetState();
+      expect(voucherInventory(after), held);
+    });
+
+    test('BUT THE LEGACY KEYS ARE NOT CARRIED TOO', () {
+      // They were drained into the bag on load. Carrying them as well would
+      // double the stock on every reset — a farm, out of the one mechanism
+      // meant to protect what was paid for.
+      final after = _loaded(_before('fullRich')).game.fullResetState();
+      final shop = after['shop'] as Map<String, dynamic>;
+      expect(shop['scoutVoucherTier'], isNull);
+      expect(shop['freeScoutReady'], isFalse);
+    });
+
+    test('an empty bag leaves no key behind at all', () {
+      // `createDefaultState` cannot declare `scoutVouchers` without failing the
+      // JS shape parity, so a reset with nothing to carry has to come out
+      // shaped exactly like a fresh save.
+      final after = _loaded(_before('fullBare')).game.fullResetState();
+      expect(
+        (after['shop'] as Map<String, dynamic>).containsKey('scoutVouchers'),
+        isFalse,
+      );
+    });
   });
 }

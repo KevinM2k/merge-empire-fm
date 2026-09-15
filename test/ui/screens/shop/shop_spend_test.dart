@@ -360,25 +360,29 @@ void main() {
   });
 
   group('the voucher ladder', () {
-    testWidgets('THE ARMED RUNG WEARS THE GREEN CHIP, and the others say nothing', (
+    testWidgets('A RUNG YOU OWN WEARS ITS COUNT, and the rest say nothing', (
       tester,
     ) async {
+      // It used to wear `shop.already_active`, which was the one-voucher rule
+      // showing through: exactly one tile could be the live one and every other
+      // rung was blocked by it. Owning three of something is a count.
       await pumpShopWidget(
         tester,
-        (s) => (s['shop'] as Map<String, dynamic>)['freeScoutReady'] = true,
+        (s) => (s['shop'] as Map<String, dynamic>)['scoutVouchers'] = [1, 1, 1],
         VouchersSection.new,
       );
       expect(find.byKey(const ValueKey('shop-active-voucher-random')), findsOneWidget);
-      expect(find.text(t('shop.already_active')), findsOneWidget);
-      // The rule once, in the section's note — not again under each rung.
-      expect(find.text(t('shop.voucher.one_at_a_time')), findsOneWidget);
+      expect(find.text('×3'), findsOneWidget);
+      expect(find.text(t('shop.already_active')), findsNothing);
     });
 
-    testWidgets('the one-at-a-time rule is stated once, not per rung', (
+    testWidgets('THE ONE-AT-A-TIME RULE IS GONE FROM THE SHELF', (
       tester,
     ) async {
+      // The sentence is false now, and the question it answered — "why can't I
+      // buy this one" — cannot be asked: nothing here blocks anything else.
       await pumpShopWidget(tester, (_) {}, VouchersSection.new);
-      expect(find.text(t('shop.voucher.one_at_a_time')), findsOneWidget);
+      expect(find.text(t('shop.voucher.one_at_a_time')), findsNothing);
     });
 
     testWidgets('THE TIER IS THE NAME, not "Scout Vouchers" eight times', (
@@ -523,10 +527,13 @@ void main() {
       await settleSave(tester);
 
       expect(container.read(gemsProvider), lessThan(before));
-      expect(heldVoucherTier(container.read(gameProvider).state), open.floor);
+      // Into the BAG, not onto the legacy scalar — that one still answers the
+      // frozen JS fixture and nothing in the game writes it.
+      expect(voucherInventory(container.read(gameProvider).state), [open.floor]);
+      expect(heldVoucherTier(container.read(gameProvider).state), isNull);
     });
 
-    testWidgets('once one is armed every other rung is blocked', (
+    testWidgets('AND EVERY OTHER RUNG STAYS OPEN, which is the point', (
       tester,
     ) async {
       final container = await pumpShopWidget(
@@ -541,14 +548,12 @@ void main() {
       await buyRow(tester, 'voucher-${open.floor}');
       await settleSave(tester);
 
-      // Every rung this division can BUY is blocked by the armed one. The
-      // rungs above it stay `notOffered`, which is a different no and the
-      // reason the tile names a division instead of a price.
+      // Holding one blocks nothing. The rungs above this division stay
+      // `notOffered`, which is a different no and the reason the tile names a
+      // division instead of a price.
       final after = container.read(voucherTilesProvider);
       expect(
-        after
-            .where((t) => t.offered)
-            .every((t) => t.blocked == VoucherBlock.alreadyHeld),
+        after.where((t) => t.offered).every((t) => t.blocked == null),
         isTrue,
       );
       expect(
@@ -557,8 +562,31 @@ void main() {
             .every((t) => t.blocked == VoucherBlock.notOffered),
         isTrue,
       );
-      // And exactly ONE says it is the one being held.
-      expect(after.where((t) => t.holding), hasLength(1));
+      // And the one that was bought says how many are in the bag.
+      expect(after.firstWhere((t) => t.floor == open.floor).owned, 1);
+    });
+
+    testWidgets('BUYING THE SAME RUNG TWICE STACKS IT', (tester) async {
+      final container = await pumpShopWidget(
+        tester,
+        (s) => (s['resources'] as Map<String, dynamic>)['gems'] = 500,
+        VouchersSection.new,
+      );
+      final open = container
+          .read(voucherTilesProvider)
+          .firstWhere((t) => t.blocked == null);
+
+      await buyRow(tester, 'voucher-${open.floor}');
+      await settleSave(tester);
+      await buyRow(tester, 'voucher-${open.floor}');
+      await settleSave(tester);
+
+      expect(
+        voucherInventory(container.read(gameProvider).state),
+        [open.floor, open.floor],
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('×2'), findsOneWidget);
     });
   });
 

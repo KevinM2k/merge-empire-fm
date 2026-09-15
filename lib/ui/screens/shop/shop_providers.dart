@@ -64,10 +64,14 @@ typedef VoucherTile = ({
   /// ladder into a shelf and takes the reason to climb with it.
   bool offered,
 
-  /// The one currently armed. Distinct from `blocked`: an armed floor blocks
-  /// every OTHER rung too, so reading "am I holding this" off the block had
-  /// every tile in the section claiming to be the one.
-  bool holding,
+  /// How many of this rung are in the bag, for the owned-count badge.
+  ///
+  /// It used to be a `holding` bool — the ONE armed floor — and it had to be
+  /// distinct from `blocked`, because an armed floor blocked every other rung
+  /// too and reading "am I holding this" off the block had every tile in the
+  /// section claiming to be the one. Vouchers are collectable now, so holding
+  /// one blocks nothing and the honest readout is a count.
+  int owned,
 
   /// What an ordinary scout at this division clears this floor at — the number
   /// the voucher is worth arguing against. 0..1.
@@ -135,7 +139,6 @@ final voucherTilesProvider = savePick<List<VoucherTile>>((s) {
   final division = progression is Map<String, dynamic>
       ? progression['currentDivision'] as String?
       : null;
-  final held = heldVoucherTier(s);
   return [
     for (final floor in voucherTiers)
       () {
@@ -143,9 +146,15 @@ final voucherTilesProvider = savePick<List<VoucherTile>>((s) {
         return (
           floor: floor,
           cost: voucherCost(floor),
-          blocked: offered ? voucherBlocked(s, floor) : VoucherBlock.notOffered,
+          // **[voucherPurchaseBlocked], not `voucherBlocked`.** The latter is
+          // pinned to the JS and still answers `alreadyHeld` for the old scalar
+          // shape; this is the question the live shelf asks, and it can never
+          // refuse a sale for something already being held.
+          blocked: offered
+              ? voucherPurchaseBlocked(s, floor)
+              : VoucherBlock.notOffered,
           offered: offered,
-          holding: held == floor,
+          owned: voucherCount(s, floor),
           odds: voucherOdds(division, floor),
           unlocksIn: voucherUnlockDivision(floor),
         );

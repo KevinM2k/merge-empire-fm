@@ -6,7 +6,6 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
-import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/entrance.dart';
 import 'package:merge_empire_fc/ui/widgets/section_heading.dart';
 
@@ -178,20 +177,23 @@ class ShopSectionFrame extends ConsumerWidget {
     super.key,
     required this.id,
     required this.child,
-    this.note,
   });
 
   final ShopSectionId id;
   final Widget child;
 
-  /// Said once, about the whole section. The voucher ladder's one-at-a-time rule
-  /// is the answer to "why can't I buy this one" for all eight rungs at once,
-  /// and repeating it per tile is worse rather than clearer.
-  final String? note;
+  // **THE SECTION NOTE IS GONE, with the rule it was built for.** It said one
+  // thing once about a whole shelf, and the only thing it ever said was the
+  // voucher ladder's `shop.voucher.one_at_a_time` — the answer to "why can't I
+  // buy this one" for all eight rungs at once. Vouchers are collectable now, so
+  // nothing on that shelf blocks anything else on it and the sentence is false.
+  //
+  // Removed rather than left as an unused parameter: the last caller going is
+  // exactly the reachability finding `tool/unreached_ui.sh` exists to surface,
+  // and a shelf that wants a note again can have this back out of the history.
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final kit = Theme.of(context).extension<KitTheme>()!;
     final headed = sectionNeedsHeading(id);
     final folds = headed && sectionCollapsible(id);
     final closed = folds && ref.watch(collapsedShopSectionsProvider).contains(id);
@@ -246,15 +248,7 @@ class ShopSectionFrame extends ConsumerWidget {
                 : Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      if (note != null)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 6),
-                          child: Text(
-                            note!,
-                            style: TextStyle(color: kit.textMuted, fontSize: 12),
-                          ),
-                        ),
-                      if (headed || note != null) const SizedBox(height: 8),
+                      if (headed) const SizedBox(height: 8),
                       child,
                     ],
                   ),

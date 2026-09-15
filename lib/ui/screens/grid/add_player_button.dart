@@ -654,7 +654,7 @@ class _VoucherCount extends StatelessWidget {
     ),
     child: Text(
       '🎟️ $count',
-      style: TextStyle(color: ink, fontSize: 11, fontWeight: FontWeight.w800),
+      style: TextStyle(color: ink, fontSize: 12, fontWeight: FontWeight.w800),
     ),
   );
 }

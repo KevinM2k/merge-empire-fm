@@ -11,6 +11,76 @@ rough sense of size, not a target.
 **The live queue for this session is `docs/PLAYTHROUGH3.md`**, which is where
 the couch's reports are ticked off one at a time. What follows is the summary.
 
+## Collectable scout vouchers, 15 Sep 2026
+
+The port's own. Asked for from the couch: "rather than just 1 at a time, I might
+own 3 — but then how do you use them?"
+
+- [x] **A voucher is a thing you collect, not a flag you arm.**
+      `shop.scoutVouchers` is a list of tier floors, unordered, duplicates
+      allowed, uncapped. The one-at-a-time rule was never a design position — it
+      was a consequence of the storage, and the engine's own header said so:
+      `scoutVoucherTier` is a scalar, so a second floor overwrote the first and
+      took the gems for nothing. It **dissolves** rather than being switched
+      off: nothing writes the two legacy keys any more and `migrate` drains
+      both on load, so `alreadyHeld` cannot occur on a live save. No flag, no
+      branch.
+- [x] **The inventory sits BESIDE the JS rather than replacing it**, and that is
+      forced. `scout_voucher_reference.json` compares whole objects — `parity —
+      buying one` asserts `state['shop']` field for field after
+      `buyScoutVoucher` — and the spec repo is not cloned in a cloud container,
+      so it cannot be regenerated to say otherwise. The five pinned functions
+      are untouched and still asserted; `purchaseScoutVoucher`, `grantVoucher`,
+      `takeVoucher` and `voucherInventory` are what the game calls. The cost is
+      written down where it happened: `buyScoutVoucher` now has no live caller
+      and **the sweep cannot see that**, because a `[buyScoutVoucher]` doc
+      reference reads as one to a `grep -w`.
+- [x] **`1` is the "any card" token, NOT a tier-1 floor**, and the difference is
+      the Football Icon. `buildScoutDrawPool` filters `tier >= minTier && tier
+      <= 8`, so any non-null floor cuts tier 9 — including 1, which reads like a
+      harmless "every card in the game". The 🎲 rung is the only voucher that
+      can hand one over and is priced at one gem for exactly that. Nothing fails
+      if this is got wrong: no test breaks and no screen changes, and the
+      cheapest thing on the shelf quietly stops selling what it advertises. It
+      has a test of its own and one translation point, `drawFloorFor`.
+- [x] **The assignment sheet** — tap Scout with something in the bag and the
+      batch comes up face down, a drop slot per card, the bag along the bottom,
+      the total falling as each one lands. Drag or tap; tapping a covered card
+      takes the voucher back. **Not part of the reveal**, which is an animation
+      layer that asks nothing and could not work anyway — `signPlayers` charges
+      and rolls card by card, so by then the coins are gone and the tier is
+      decided. The backs are the reveal's own `CardBack`, so the sheet and the
+      flip that follows it are the same cards. An empty bag is byte-for-byte the
+      old path, which is what kept every existing test untouched.
+- [x] **Two states only the sheet can know.** A floor this division cannot draw
+      is shown but not draggable, naming the division it unlocks in — reachable
+      now that a prestige keeps the bag and drops the player to Sunday League,
+      so a World Class voucher can outlive the division that sold it. And
+      Continue is shut while the uncovered cards cost more than the wallet:
+      batch capacity counts a held voucher as a card, so declining to assign it
+      leaves a batch that cannot be paid for.
+- [x] **Unspent vouchers survive a prestige.** They did not, so a reset
+      destroyed something bought with gems — the rule for gems themselves was
+      already written thirty lines below the code that dropped them. A
+      deliberate divergence from the JS, and one that cannot live on a screen:
+      it is lifted out of the reset parity comparison and asserted on its own.
+- [x] The auto-sell rules are **unchanged** and the sheet warns instead. A World
+      Class voucher can never warn — `maxAutoTier` is 7.
+- [x] The daily calendar's `freeScout` and a live event's reward tier can pay
+      out again; both were dormant because a grant into a `true` bool evaporates.
+      The 🎲 rung is repeatably buyable. Seven new keys in all ten catalogues,
+      and `shop.voucher.toast` — shipped in ten languages with no caller — is
+      wired to the purchase it was written for.
+- [ ] **The economy is deliberately untouched and is the open question.** Prices
+      are unchanged (2–8 gems, 1 for the 🎲) and no faucet was added; what went
+      is the brake, since you could not buy a second until the first was spent.
+      Whether that makes scouting too generous needs gem balance distribution,
+      gems earned per session by source, conversion on the ladder before and
+      after, and scout volume per division — a voucher's worth is denominated in
+      ordinary scouts saved and `voucherOdds` varies sharply by division.
+      `logAppEvent('scout', …)` already sends `voucher_tier` per card, so the
+      assignment data arrives for free. Worth a session against real figures.
+
 ## Match traits and manager boosts, 14 Sep 2026
 
 Two features of the port's own, on `match-traits-and-boosts`. Spec at
@@ -9746,11 +9816,20 @@ gold rather than in a word.
       of the three sweeteners named are the wrong ones.** A coin bundle is a
       CONSUMABLE — bought as often as the player likes — and:
 
-      - the scout voucher is **one at a time by design**. `anyVoucherArmed`
-        blocks a second across the whole ladder, for two reasons its own comment
-        spells out, and `freeScoutReady` is a bool the rewarded video and the
-        Lucky Boot also set. A paid grant into a flag that is already true is
-        value that silently evaporates.
+      - ~~the scout voucher is **one at a time by design**~~ — **no longer
+        true, and this bullet is the one that has been answered.** Vouchers are
+        collectable now (`shop.scoutVouchers`, a list of floors), so a paid
+        grant stacks instead of evaporating and the scout voucher is a perfectly
+        good pack sweetener. Two corrections to what this bullet said while it
+        stood: `freeScoutReady` was never set by a rewarded video or the Lucky
+        Boot in this port — that claim came from the JS comment — and it is now
+        drained into the list on load and never written again.
+        **The ITEM is unblocked; the PACK still is not.** `iap_parity_test`
+        compares `purchaseProduct`'s whole `shop` branch against
+        `iap_reference.json`, which is a different frozen fixture from the
+        voucher engine's and equally unregenerable here, so a coin bundle that
+        grants one still fails the harness. That is the only thing left in the
+        way of this particular sweetener.
       - both coin boosts are **per-season flags**, not stacking timers:
         `kitSponsorSeason` and `matchRevBoostSeason` are compared against the
         current season, and the shop already greys them as `already_active`.

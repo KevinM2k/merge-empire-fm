@@ -30,6 +30,7 @@ import 'package:merge_empire_fc/ui/screens/shop/shop_providers.dart';
 import 'package:merge_empire_fc/ui/screens/match/boost_bar_paint.dart' show flameDeep, liveBoostColour;
 import 'package:merge_empire_fc/ui/screens/shop/shop_section.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_tiles.dart';
+import 'package:merge_empire_fc/util/event_bus.dart' show emit;
 import 'package:merge_empire_fc/ui/widgets/store_button.dart';
 import 'package:merge_empire_fc/util/format.dart';
 
@@ -292,16 +293,16 @@ class VouchersSection extends ConsumerWidget {
         .watch(gemItemTilesProvider)
         .where((g) => g.item.id == _scoutVoucherGemId);
     final game = ref.read(gameProvider);
-    final shop = game.state?['shop'];
-    final randomArmed =
-        shop is Map<String, dynamic> && shop['freeScoutReady'] == true;
+    final tokens = voucherCount(game.state, anyCardVoucher);
 
     return ShopSectionFrame(
       id: ShopSectionId.vouchers,
-      // Said once, up here, rather than eight times on eight tiles: the rule is
-      // about the SECTION, and it answers "why can't I buy this one" for every
-      // rung at once.
-      note: t('shop.voucher.one_at_a_time'),
+      // **NO SECTION NOTE ANY MORE.** It used to carry
+      // `shop.voucher.one_at_a_time`, said once up here rather than eight times
+      // on eight tiles because the rule was about the SECTION and answered "why
+      // can't I buy this one" for every rung at once. Vouchers are collectable
+      // now, so that sentence is simply false and the question it answered
+      // cannot be asked: nothing on this shelf blocks anything else on it.
       child: ShopGrid(
         children: [
           for (final item in gamble)
@@ -316,15 +317,14 @@ class VouchersSection extends ConsumerWidget {
               price: '${item.item.cost}',
               tone: StoreTone.gem,
               // Never locked: every division can scout a random player.
-              // "Held" is state-wide, so the chip goes on only when THIS is
-              // the one armed — a floor armed instead says nothing here; the
-              // section's note is the rule.
+              // **Buyable again and again now.** `already_held` was the
+              // one-voucher rule and it can no longer fire — the flag it read
+              // is drained by `migrate` and never written again — so what is
+              // left to say is how many are in the bag.
               disabledReason: item.blocked == 'already_held'
                   ? null
                   : blockedCopy(item.blocked),
-              activeLabel: item.blocked == 'already_held' && randomArmed
-                  ? t('shop.already_active')
-                  : null,
+              activeLabel: tokens > 0 ? '×$tokens' : null,
               onBuy: blockedCopy(item.blocked) != null
                   ? null
                   : () => offerToBuy(context, ref, (
@@ -346,16 +346,12 @@ class VouchersSection extends ConsumerWidget {
               // The TIER is the name. The section heading already said "Scout
               // Vouchers".
               final name = tierLabel[tile.floor] ?? 'T${tile.floor}';
-              // **"ALREADY ACTIVE" IS ONLY TRUE OF THE ONE THAT IS.** The
-              // family blocks as a family — one voucher at a time, and a
-              // RANDOM buy arms `freeScoutReady` rather than a floor, so no
-              // tile is `holding` and every rung on the ladder claimed to be
-              // the live one. Reported from the couch: bought random, and
-              // bronze-and-up said "already active", which was not true.
-              //
-              // `shop.voucher.one_at_a_time` is the sentence that IS true and
-              // it is already shipped in ten languages — it is the rule, said
-              // as the rule.
+              // **A COUNT, WHERE "ALREADY ACTIVE" USED TO BE.** The family
+              // blocked as a family — one voucher at a time — so every rung on
+              // the ladder claimed to be the live one, and the fix at the time
+              // was to say the rule once at section level instead. Now nothing
+              // blocks anything: a rung the player owns three of says ×3, and
+              // the tile stays buyable.
               // A rung above this division is LOCKED, not "coming soon": the
               // JS puts a padlock on the button and lets the subtitle name
               // the division. `blockedCopy` has no line for it, and its
@@ -363,13 +359,10 @@ class VouchersSection extends ConsumerWidget {
               // a tile whose own subtitle said when it unlocks.
               // The held rung wears the green chip; the rungs it blocks say
               // nothing — the rule is the section's note, once, above them.
-              final held = tile.holding;
-              final reason = held || tile.blocked == VoucherBlock.alreadyHeld
-                  ? null
-                  : tile.blocked == VoucherBlock.notOffered
+              final reason = tile.blocked == VoucherBlock.notOffered
                   ? null
                   : blockedCopy(tile.blocked?.name);
-              final dead = held || tile.blocked != null;
+              final dead = tile.blocked != null;
               return ShopTile(
                 tileKey: 'voucher-${tile.floor}',
                 title: name,
@@ -392,7 +385,7 @@ class VouchersSection extends ConsumerWidget {
                 tone: StoreTone.gem,
                 locked: !tile.offered,
                 disabledReason: reason,
-                activeLabel: held ? t('shop.already_active') : null,
+                activeLabel: tile.owned > 0 ? '×${tile.owned}' : null,
                 onBuy: dead
                     ? null
                     : () => offerToBuy(context, ref, (
@@ -408,10 +401,27 @@ class VouchersSection extends ConsumerWidget {
                         currency: SpendCurrency.gems,
                         glyphColor: hudGemInk,
                         cost: tile.cost ?? 0,
-                        buy: () => game
-                            .update((s) => buyScoutVoucher(s, tile.floor))
-                            .reason
-                            ?.name,
+                        // **[purchaseScoutVoucher], not `buyScoutVoucher`.**
+                        // The latter arms the legacy scalar and exists only to
+                        // answer the frozen JS fixture; this one banks the floor
+                        // in the inventory, which is what the Scout button and
+                        // the assignment sheet read.
+                        buy: () {
+                          final result = game.update(
+                            (s) => purchaseScoutVoucher(s, tile.floor),
+                          );
+                          if (result.ok) {
+                            // Shipped copy in ten languages that had never had
+                            // a caller — exactly the tell CLAUDE.md describes.
+                            // It is the right sentence for this moment and it
+                            // needed no new translation.
+                            emit(
+                              'toast:success',
+                              t('shop.voucher.toast', {'tier': name}),
+                            );
+                          }
+                          return result.reason?.name;
+                        },
                       )),
               );
             }(),
