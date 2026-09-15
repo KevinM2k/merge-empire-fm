@@ -898,8 +898,17 @@ class _Rating extends StatelessWidget {
     // position chip's own) and then further: the club name above it is what
     // this card is about, and the rating is an annotation on it. A step back in
     // weight is what says so.
-    final ink = tint ??
-        Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.72);
+    // **DEEPER ON LIGHT GLASS.** The window's own orange is fine at 26pt on
+    // a dark pane and fine at 13 in the well, and washed out at 26 on a pale
+    // one — reported from the couch. The big figure takes the colour pulled
+    // a third of the way to black there, which keeps the hue and buys the
+    // contrast; the ATK/DEF pair sit in the dark well and keep theirs.
+    final light = Theme.of(context).brightness == Brightness.light;
+    final ink = tint == null
+        ? Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.72)
+        : light
+            ? Color.lerp(tint, Colors.black, 0.38)!
+            : tint!;
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [

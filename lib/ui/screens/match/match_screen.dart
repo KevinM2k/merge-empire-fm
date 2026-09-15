@@ -3402,6 +3402,7 @@ class MatchScreenState extends ConsumerState<MatchScreen>
                                             ),
                                         ],
                                         on: _liveGlow.isAnimating,
+                                        minute: pace.minute,
                                       ),
                                     MomentumArrow(
                                     arrow: !f.finished,

@@ -56,7 +56,17 @@ Color liveBoostColour(String id) => switch (id) {
 typedef AuraRing = ({String id, double left});
 
 class BoostAura extends StatefulWidget {
-  const BoostAura({super.key, required this.rings, required this.on});
+  const BoostAura({
+    super.key,
+    required this.rings,
+    required this.on,
+    required this.minute,
+  });
+
+  /// How long a match minute takes on the wall clock, so the ring can empty
+  /// SMOOTHLY between ticks rather than stepping once a minute. The clock
+  /// only says the minute; the ring glides to it over the minute that follows.
+  final Duration minute;
 
   /// The live windows, in the order they were called — the first is the
   /// outermost ring. **Each ring is a clock**: it starts whole and empties
@@ -78,10 +88,14 @@ class _BoostAuraState extends State<BoostAura>
     duration: const Duration(milliseconds: 1800),
   );
 
+  /// Where each ring is gliding from and to, and when it set off.
+  final Map<String, ({double from, double to, DateTime at})> _glide = {};
+
   @override
   void initState() {
     super.initState();
     if (widget.on) _t.repeat();
+    _retarget();
   }
 
   @override
@@ -89,6 +103,31 @@ class _BoostAuraState extends State<BoostAura>
     super.didUpdateWidget(oldWidget);
     if (widget.on && !_t.isAnimating) _t.repeat();
     if (!widget.on && _t.isAnimating) _t.stop();
+    _retarget();
+  }
+
+  /// A new minute: each ring glides from where it is now to the new figure
+  /// over the coming minute. A ring that just appeared starts whole.
+  void _retarget() {
+    final now = DateTime.now();
+    final seen = <String>{};
+    for (final r in widget.rings) {
+      if (seen.contains(r.id)) continue;
+      seen.add(r.id);
+      final g = _glide[r.id];
+      final current = g == null ? 1.0 : _shownOf(g, now);
+      if (g == null || g.to != r.left) {
+        _glide[r.id] = (from: current, to: r.left, at: now);
+      }
+    }
+    _glide.removeWhere((id, _) => !seen.contains(id));
+  }
+
+  double _shownOf(({double from, double to, DateTime at}) g, DateTime now) {
+    final ms = widget.minute.inMilliseconds;
+    if (ms <= 0 || !widget.on) return g.to;
+    final f = (now.difference(g.at).inMilliseconds / ms).clamp(0.0, 1.0);
+    return g.from + (g.to - g.from) * f;
   }
 
   @override
@@ -102,7 +141,14 @@ class _BoostAuraState extends State<BoostAura>
     child: RepaintBoundary(
       child: CustomPaint(
         key: const ValueKey('match-boost-aura'),
-        painter: _AuraPainter(_t, widget.rings),
+        painter: _AuraPainter(
+          _t,
+          widget.rings,
+          (id) => switch (_glide[id]) {
+            final g? => _shownOf(g, DateTime.now()),
+            null => 1.0,
+          },
+        ),
         child: const SizedBox.expand(),
       ),
     ),
@@ -110,27 +156,28 @@ class _BoostAuraState extends State<BoostAura>
 }
 
 class _AuraPainter extends CustomPainter {
-  _AuraPainter(this.t, this.rings) : super(repaint: t);
+  _AuraPainter(this.t, this.rings, this.shownOf) : super(repaint: t);
 
   final Animation<double> t;
   final List<AuraRing> rings;
+
+  /// The ring's fraction as it is being SHOWN — gliding, not stepped.
+  final double Function(String id) shownOf;
 
   @override
   void paint(Canvas canvas, Size size) {
     final phase = t.value * 2 * math.pi;
     // One ring per window id: a second Roar stacked on the first keeps the
     // later end, which is what the strip shows too.
-    final byId = <String, double>{};
     final order = <String>[];
     for (final r in rings) {
-      if (!byId.containsKey(r.id)) order.add(r.id);
-      byId[r.id] = math.max(byId[r.id] ?? 0, r.left);
+      if (!order.contains(r.id)) order.add(r.id);
     }
     // Each ring sits inside the last, so stacked windows read as stacked.
     for (var i = 0; i < order.length; i++) {
       final id = order[i];
       final colour = liveBoostColour(id);
-      final left = byId[id]!.clamp(0.0, 1.0);
+      final left = shownOf(id).clamp(0.0, 1.0);
       final breathe = 0.5 + 0.5 * math.sin(phase + i * 1.3);
       final inset = 4.0 + i * 10.0;
       final band = 30.0 + 10.0 * breathe;
@@ -159,27 +206,53 @@ class _AuraPainter extends CustomPainter {
         drawn.addPath(metric.extractPath(start, total), Offset.zero);
         drawn.addPath(metric.extractPath(0, endAt - total), Offset.zero);
       }
-      // **A GLOW, BREATHING, WITH A LIGHT RUNNING ROUND IT.** Two blurred
-      // strokes — a wide soft one and a tighter hot one — so the ring reads
-      // as light on the grass rather than a line drawn on it, and a bright
-      // comet that laps the ring once a loop, which is the part the eye
-      // catches from across the room. Asked for from the couch, twice.
+      // **THE WHOLE RING GLOWS, and the glow MOVES.** A wide soft wash and
+      // a tighter hot one under a hard edge, so it reads as light on the
+      // grass rather than a line drawn on it; and the lit part is drawn in
+      // segments whose brightness is a slow wave travelling round it, so the
+      // glow is alive along its whole length rather than a spot running
+      // round a dull line. Asked for from the couch, three times.
       canvas.drawPath(
         drawn,
         Paint()
-          ..color = colour.withValues(alpha: 0.30 + 0.20 * breathe)
+          ..color = colour.withValues(alpha: 0.32 + 0.18 * breathe)
           ..style = PaintingStyle.stroke
           ..strokeWidth = band
           ..maskFilter = MaskFilter.blur(BlurStyle.normal, band * 0.7),
       );
-      canvas.drawPath(
-        drawn,
-        Paint()
-          ..color = colour.withValues(alpha: 0.55 + 0.25 * breathe)
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 8
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
-      );
+      if (len > 0) {
+        const segments = 36;
+        final seg = len / segments;
+        for (var k = 0; k < segments; k++) {
+          final a = start + seg * k;
+          final b = a + seg + 1.0; // a hair of overlap, or the joins show
+          final piece = Path();
+          if (b <= total) {
+            piece.addPath(metric.extractPath(a, b), Offset.zero);
+          } else if (a >= total) {
+            piece.addPath(metric.extractPath(a - total, b - total), Offset.zero);
+          } else {
+            piece.addPath(metric.extractPath(a, total), Offset.zero);
+            piece.addPath(metric.extractPath(0, b - total), Offset.zero);
+          }
+          // Two waves of different lengths, so the pattern never reads as a
+          // loop, travelling against the clock's direction.
+          final u = k / segments;
+          final wave = 0.5 +
+              0.3 * math.sin(u * 2 * math.pi * 2 + phase) +
+              0.2 * math.sin(u * 2 * math.pi * 5 - phase * 1.7);
+          canvas.drawPath(
+            piece,
+            Paint()
+              ..color = Color.lerp(colour, Colors.white, 0.35 * wave)!
+                  .withValues(alpha: 0.45 + 0.45 * wave)
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = 9
+              ..strokeCap = StrokeCap.round
+              ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
+          );
+        }
+      }
       // And a hard line on it, so the ring has an edge to read.
       canvas.drawPath(
         drawn,
@@ -189,29 +262,6 @@ class _AuraPainter extends CustomPainter {
           ..strokeWidth = 2
           ..strokeCap = StrokeCap.round,
       );
-      // The comet: a short bright run that travels the lit part of the ring.
-      if (len > 0) {
-        final head = (t.value + i * 0.33) % 1;
-        final cometLen = math.min(len, total * 0.12);
-        final from = start + (len - cometLen) * head;
-        final comet = Path();
-        final to = from + cometLen;
-        if (to <= total) {
-          comet.addPath(metric.extractPath(from, to), Offset.zero);
-        } else {
-          comet.addPath(metric.extractPath(from, total), Offset.zero);
-          comet.addPath(metric.extractPath(0, to - total), Offset.zero);
-        }
-        canvas.drawPath(
-          comet,
-          Paint()
-            ..color = Colors.white.withValues(alpha: 0.85)
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = 6
-            ..strokeCap = StrokeCap.round
-            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5),
-        );
-      }
       // The rest of the way round, faint: the ring's outline, so what has
       // burned off is still legible as "this much gone".
       canvas.drawRRect(
@@ -225,8 +275,7 @@ class _AuraPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_AuraPainter old) =>
-      old.t != t || old.rings.toString() != rings.toString();
+  bool shouldRepaint(_AuraPainter old) => true;
 }
 
 /// Which board figures the live windows are moving, in whose colour — see
