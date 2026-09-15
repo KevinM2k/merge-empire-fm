@@ -166,12 +166,9 @@ num _bidPrice(
   CardInstance? card, [
   int gap = 0,
 ]) {
-  // Priced as what he is WEARING — see `marketDefFor`.
-  final priced = marketDefFor(def, card?.age ?? peakAgeEnd);
-  final tierMult = transferTierMultiplier[priced.tier] ?? 4;
+  // Priced as what he is WEARING, tapered — see `marketValueBasis`.
   var price =
-      priced.sellValue *
-      tierMult *
+      marketValueBasis(def, card?.age ?? peakAgeEnd) *
       _divMult(state) *
       bidPremium *
       divGapMult(gap);

@@ -7,6 +7,10 @@
 /// Deliberately Flutter-free so it runs under plain `dart test`.
 library;
 
+import 'dart:math' as math;
+
+import 'package:merge_empire_fc/data/players.dart';
+
 /// **AFTER A MATCH, and nowhere else.** There used to be an idle roll on the
 /// main tick as well, behind a fifteen-minute gate, so a player who left the
 /// game sitting on the Play screen collected a bid roughly every fifty minutes
@@ -36,6 +40,39 @@ const Map<int, int> transferTierMultiplier = {
   7: 52,
   8: 80,
 };
+
+/// **WHAT A CARD IS WORTH ON THE MARKET, before any division or premium.**
+///
+/// `sellValue * tierMultiplier` of the tier the card is WEARING — so a World
+/// Legend who has declined to Gold Elite fetches Gold Elite money — TAPERED
+/// across the rung he is standing on, so the figure slides rather than falling
+/// off a cliff the day his border changes colour.
+///
+/// Without the taper this is a step function, and the step is a fourfold drop:
+/// 3.83M the season he turns 34 and 932k the season he turns 35. The tier is
+/// still what sets the two ends; `tierFall.progress` is how far between them he
+/// has actually got. It is continuous across a demotion — a card a hair short
+/// of dropping is a hair short of the tier below's value, and one that has just
+/// dropped is exactly at it — so there is no discontinuity left anywhere on the
+/// curve.
+///
+/// **AND IT NEVER RISES.** The multiplier table has no entry for T9, which
+/// falls back to a four and leaves the unique Football Icon nominally cheaper
+/// than a World Legend — so a declining Icon would have gained value on the way
+/// down. Clamped to what the card's own tier is worth rather than papered over
+/// by inventing a ninth multiplier, which would be an economy change nobody
+/// asked for.
+double marketValueBasis(PlayerDef def, int age) {
+  double basisAt(int tier) =>
+      tierSellValue(tier) * (transferTierMultiplier[tier] ?? 4).toDouble();
+
+  final own = basisAt(def.tier);
+  final fall = tierFall(def, age);
+  final here = basisAt(fall.tier);
+  if (fall.progress <= 0 || fall.tier <= 1) return math.min(own, here);
+  final below = basisAt(fall.tier - 1);
+  return math.min(own, here + (below - here) * fall.progress);
+}
 
 /// Sponsored players are more attractive to rivals: +50% of the base offer.
 const double transferSponsorBonus = 0.5;

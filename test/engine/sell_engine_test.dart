@@ -58,11 +58,14 @@ void main() {
         final def = getPlayerDef(defId);
         expect(def, isNotNull, reason: defId);
         final card = refCard(defId, seasons);
-        // Only the rows the old discount never touched. It bit from the
-        // eleventh year of wear, so these are the fresh ones — and a fresh card
-        // has not declined either, which is the other half of the same filter.
-        if (seasons > 10) continue;
-        expect(marketDefFor(def!, card.age).tier, def.tier, reason: defId);
+        // **BOTH RULES HAVE TO SAY NOTHING**, and they disagree about which
+        // rows those are. The reference discounted from the eleventh season of
+        // service; this game discounts from the first year past the prime, and
+        // a Bronze Rookie with twelve seasons is only thirty — untouched here,
+        // and down to a fifth of his value there. A row is comparable to the
+        // digit only where neither rule has bitten.
+        if (seasons > 10 || ageDeclinePenalty(card.age) > 0) continue;
+        expect(tierFall(def!, card.age).tier, def.tier, reason: defId);
         expect(
           baseSellPrice(def, card, _state(divId)),
           closeTo(want, 1e-9),
@@ -73,31 +76,55 @@ void main() {
       expect(checked, greaterThan(0), reason: 'the scan matched nothing');
     });
 
-    test('AND EVERY ROW IS WORTH WHAT THE TIER IT WEARS IS WORTH', () {
+    test('AND EVERY ROW SITS ON THE RUNG IT HAS FALLEN TO', () {
       // The rule the reference's discount was replaced by, asserted directly
       // rather than as a frozen number: a World Legend who has fallen to Gold
       // Elite fetches Gold Elite money — not a percentage off World Legend
       // money, which left a thirty-nine-year-old drawn in silver fetching a
       // hundred and forty-five times what silver is worth.
+      //
+      // It TAPERS across the rung, so the claim is a bracket rather than an
+      // equality except at the moment he arrives: no more than the tier he
+      // wears, no less than the one he is falling toward.
+      PlayerDef atTier(PlayerDef def, int tier) =>
+          getPlayerDef('player_t${tier}_${def.position.toLowerCase()}')!;
+
       var declined = 0;
+      var tapered = 0;
       for (final (defId, divId, seasons, _) in referenceRows()) {
         final def = getPlayerDef(defId)!;
         final card = refCard(defId, seasons);
-        final worn = marketDefFor(def, card.age);
+        final fall = tierFall(def, card.age);
+        final worn = atTier(def, fall.tier);
+        final got = baseSellPrice(def, card, _state(divId));
+        final wornFresh =
+            baseSellPrice(worn, refCard(worn.id, 0), _state(divId));
+
         expect(worn.position, def.position, reason: 'a keeper stays a keeper');
         expect(
-          baseSellPrice(def, card, _state(divId)),
-          closeTo(
-            baseSellPrice(worn, refCard(worn.id, 0), _state(divId)),
-            1e-9,
-          ),
-          reason: '$defId|$divId|$seasons wears ${worn.id}',
+          got,
+          lessThanOrEqualTo(wornFresh + 1e-9),
+          reason: '$defId|$divId|$seasons is worth more than ${worn.id}',
         );
-        if (worn.tier != def.tier) declined++;
+        if (fall.progress == 0) {
+          expect(got, closeTo(wornFresh, 1e-9), reason: '$defId|$divId|$seasons');
+        } else {
+          tapered++;
+          final below = atTier(def, fall.tier - 1);
+          expect(
+            got,
+            greaterThanOrEqualTo(
+              baseSellPrice(below, refCard(below.id, 0), _state(divId)) - 1e-9,
+            ),
+            reason: '$defId|$divId|$seasons fell past ${below.id}',
+          );
+        }
+        if (fall.tier != def.tier) declined++;
       }
-      // And the fixture genuinely exercises the falling case, or this is a test
-      // that only ever compares a card to itself.
+      // And the fixture genuinely exercises both cases, or this is a test that
+      // only ever compares a card to itself.
       expect(declined, greaterThan(0), reason: 'no reference row declines');
+      expect(tapered, greaterThan(0), reason: 'no reference row tapers');
     });
   });
 

@@ -170,21 +170,18 @@ Map<String, dynamic>? buildOffer(
   // The price scales with division so it always feels meaningful against the
   // current economy, using the same power-scaled multiplier as the manual sell
   // screen so late-game offers do not reach absurd values.
-  // Priced as what he is WEARING — see `marketDefFor`.
-  final priced = marketDefFor(def, card.age);
-  final tierMult = transferTierMultiplier[priced.tier] ?? 4;
+  // Priced as what he is WEARING, tapered — see `marketValueBasis`.
+  final basis = marketValueBasis(def, card.age);
   final div = getDivision(
     _map(state['progression'])?['currentDivision'] as String? ?? '',
   );
   final scaledDivMult = math.pow(div.matchRevenueBase / 100, 0.35).toDouble();
 
   // What a fair market sale would fetch.
-  final marketBasePrice = roundCoins(
-    priced.sellValue * tierMult * scaledDivMult * 0.5,
-  );
+  final marketBasePrice = roundCoins(basis * scaledDivMult * 0.5);
 
   // A rival pays twice the self-sell base — always better than an average roll.
-  var price = priced.sellValue * tierMult * scaledDivMult * 2;
+  var price = basis * scaledDivMult * 2;
 
   if (_num(_map(card.sponsor)?['multiplier']) != null) {
     price *= 1 + transferSponsorBonus;

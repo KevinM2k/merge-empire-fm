@@ -718,32 +718,6 @@ int mergedAge(int ageA, int ageB, int intoTier) =>
 /// that says so.
 int wearYears(int tier, int age) => math.max(0, age - scoutAgeForTier(tier));
 
-/// **THE DEFINITION A CARD IS PRICED AS.** Its own until age has taken it down
-/// a tier, and then the one it is WEARING.
-///
-/// A World Legend who has declined to Gold Elite is worth what a Gold Elite is
-/// worth. That is the whole rule, and it is the rule because the alternative
-/// was indefensible: priced off the definition, a thirty-nine-year-old rating
-/// 48 and drawn in silver still fetched a hundred and forty-five times what a
-/// silver card fetches. Holding a veteran for ever cost nothing, which is the
-/// one thing the age system exists to make expensive.
-///
-/// **A percentage discount cannot do this job and it is worth saying why.** The
-/// ladder's values are exponential — a tier is worth two to four times the one
-/// below — while a rating is linear, so no `(rating - penalty) / rating` factor
-/// ever closes a gap of that size. It has to be the tier, and the tier the card
-/// already shows the player is the honest one to charge for.
-///
-/// The position is kept: a keeper who falls to Gold Elite is priced as a Gold
-/// Elite KEEPER. Falls back to [def] if the ladder has no card at that tier and
-/// position, which is only T9 — scout-only, forward-only, and it declines into
-/// T8 where the full four exist.
-PlayerDef marketDefFor(PlayerDef def, int age) {
-  final tier = effectiveTierFor(def, age);
-  if (tier == def.tier) return def;
-  return getPlayerDef(_buildId(tier, def.position)) ?? def;
-}
-
 /// The age a card written before ages existed reads as.
 ///
 /// Its tier says where it started and its service says how long ago that was,
@@ -770,6 +744,15 @@ int derivedAge(int tier, int seasonsPlayed) =>
 /// floor times `_posVariance`, so it answers a different question for each of
 /// the four positions. [effectiveTierFor] wants the LADDER, and the ladder is
 /// the same ladder for a keeper and a striker.
+/// What a fresh card of [tier] sells for, before any multiplier. Position does
+/// not enter into it — `sellValue` is the tier's, not the definition's.
+int tierSellValue(int tier) {
+  for (final t in _tiers) {
+    if (t.tier == tier) return t.sellValue;
+  }
+  return _tiers.first.sellValue;
+}
+
 int tierDropCost(int tier) {
   _Tier? here;
   _Tier? below;
@@ -811,8 +794,20 @@ int tierDropCost(int tier) {
 /// Form, sponsor drawback and the trait bonus all move week to week, and a card
 /// that changes colour because a striker had a bad run is a card that means
 /// nothing. Age only goes one way, so this only goes one way.
-int effectiveTierFor(PlayerDef? def, int age) {
-  if (def == null) return 1;
+int effectiveTierFor(PlayerDef? def, int age) => tierFall(def, age).tier;
+
+/// **THE TIER A CARD WEARS, AND HOW FAR IT HAS FALLEN INTO IT.**
+///
+/// [progress] is the leftover the ladder walk could not spend, as a share of
+/// the rung it stopped on: 0 the year a card arrives at a tier, climbing toward
+/// 1 as it is about to drop again. It is what lets a PRICE taper instead of
+/// stepping — see `marketValueBasis` — and it is continuous across a demotion
+/// by construction, because a card a hair short of dropping is a hair short of
+/// the tier below's value and a card that has just dropped is exactly at it.
+///
+/// Nothing tapers at tier one: there is no rung under it to fall toward.
+({int tier, double progress}) tierFall(PlayerDef? def, int age) {
+  if (def == null) return (tier: 1, progress: 0);
   var remaining = ageDeclinePenalty(age);
   var tier = def.tier;
   while (tier > 1) {
@@ -821,7 +816,8 @@ int effectiveTierFor(PlayerDef? def, int age) {
     remaining -= band;
     tier--;
   }
-  return tier;
+  if (tier <= 1) return (tier: 1, progress: 0);
+  return (tier: tier, progress: (remaining / tierDropCost(tier)).clamp(0.0, 1.0));
 }
 
 /// The headline stat floats up to ~9% above the rating.

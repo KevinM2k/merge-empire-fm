@@ -325,16 +325,15 @@ List<({CardInstance card, int idx})> loansOut(Map<String, dynamic>? state) {
 /// A card's fair value before any premium — the same anchor the sell screen and
 /// Deadline Day price off, so a loan sits in one economy.
 num _fairValue(Map<String, dynamic>? state, PlayerDef def, CardInstance card) {
-  // Priced as what he is WEARING — see `marketDefFor`.
-  final priced = marketDefFor(def, card.age);
-  final tierMult = transferTierMultiplier[priced.tier] ?? 4;
+  // Priced as what he is WEARING, tapered — see `marketValueBasis`.
+  final basis = marketValueBasis(def, card.age);
   final div = getDivision(
     _map(state?['progression'])?['currentDivision'] as String? ?? '',
   );
   final divMult = math.pow(div.matchRevenueBase / 100, 0.35).toDouble();
   // A veteran is worth less to borrow for the same reason he sells for less,
-  // and it is the same mechanism: the tier he has fallen to.
-  return priced.sellValue * tierMult * divMult;
+  // and it is the same mechanism: the tier he has fallen toward.
+  return basis * divMult;
 }
 
 /// What a rival pays us per match: a share of market value spread across the

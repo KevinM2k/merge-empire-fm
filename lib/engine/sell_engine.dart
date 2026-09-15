@@ -27,11 +27,11 @@ double baseSellPrice(
   Map<String, dynamic>? state,
 ) {
   if (def == null) return 0;
-  // **PRICED AS WHAT HE IS WEARING**, which is his own tier until age has taken
-  // him down one — see `marketDefFor`. A World Legend who has declined to Gold
-  // Elite fetches Gold Elite money.
-  final priced = marketDefFor(def, card?.age ?? peakAgeEnd);
-  final tierMult = transferTierMultiplier[priced.tier] ?? 4;
+  // **PRICED AS WHAT HE IS WEARING**, tapered across the rung he is standing
+  // on — see `marketValueBasis`. A World Legend who has declined to Gold Elite
+  // fetches Gold Elite money, and slides toward Gold on the way to the next
+  // drop rather than waiting for it.
+  final basis = marketValueBasis(def, card?.age ?? peakAgeEnd);
   final divId = (state?['progression'] as Map<String, dynamic>?)?['currentDivision'];
   final div = getDivision('$divId');
 
@@ -40,10 +40,10 @@ double baseSellPrice(
   final divMult = math.pow(div.matchRevenueBase / 100, 0.35).toDouble();
   // **AND NOTHING FURTHER COMES OFF FOR AGE.** There used to be a second
   // discount here — a percentage of the rating the years had taken — and
-  // stacking it on top of the demotion would charge a declined card LESS than
+  // stacking it on top of the tier slide would charge a declined card LESS than
   // the tier it has fallen to, which is not what the rule says. The tier IS the
   // discount now.
-  return priced.sellValue * tierMult * divMult * sellMarketFactor;
+  return basis * divMult * sellMarketFactor;
 }
 
 /// One rung of the sell market.

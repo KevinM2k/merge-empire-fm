@@ -4,25 +4,46 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this repo is
 
-A Flutter port, in progress, of a shipped JavaScript game. **The JS at
-`../merge-empire-fc/src/` is the specification** — not a reference, the spec. Its
-comments carry the reasoning behind nearly every decision and its CSS states
-column counts, backgrounds and container nesting. Read the module and its
-stylesheet in full before porting either.
+**A Flutter football game. It is not a port any more and there is no spec to
+consult.**
+
+It began as a port of a shipped JavaScript game at `../merge-empire-fc`, and for
+most of its life that JS was the specification — not a reference, the spec. That
+repo is gone. Nothing in this tree may be justified by "the JS does it this
+way": the reasoning that survived the move is in the source comments here, which
+is why they are as long as they are, and the reasoning that did not is gone with
+the runtime that held it.
+
+**What the JS left behind is a pile of frozen snapshots, not authority.** The
+`test/fixtures/*.json` files were dumped from it, the `*.g.dart` catalogues and
+art were generated from it, and none of them can be regenerated — the generators
+needed a repo that no longer exists. Treat them as regression cover: they pin
+behaviour that works, they are worth keeping green, and when a deliberate design
+change makes one wrong, **the fixture is what yields.** Say so in the commit,
+and prefer replacing a frozen number with an assertion about the RULE that
+replaced it — a fixture row that has stopped describing the game is worse than
+no row at all. See `sell_engine_test` and `negotiation_parity_test`, where the
+rows age no longer touches are still pinned to the digit and the rest are
+checked against the rule.
+
+Design decisions are now made on what is right for the game. There is nobody
+else to ask.
 
 Two queues, and they are different lists:
 
 - `docs/REMAINING.md` — the live queue, newest playtesting session first. What a
   player actually noticed. Clear this one first.
-- `docs/PARITY.md` — control-by-control and layout-by-layout diff taken from the
-  source. Longer, drier, and it finds things playing does not.
+- `docs/PARITY.md` — a control-by-control and layout-by-layout diff taken from
+  the old source while it still existed. Longer, drier, and it finds things
+  playing does not — but it is a historical document now, so read a row as a
+  suggestion rather than an instruction.
 
 ## Commands
 
 **Flutter 3.44.9 / Dart 3.12.2**, in `.fvmrc` and in CI. Not a suggestion: the
 framework's own assertions move between minors, and the same suite that is green
 here fails 34 tests on 3.47. A clone that picks up whatever `flutter` is on the
-path will disagree with CI about whether the port works.
+path will disagree with CI about whether the game works.
 
 **A cloud session starts with NO Flutter at all**, and `analyze` and the suite
 are the only evidence a change works — so install the pinned one first rather
@@ -49,15 +70,12 @@ and **exits 0**. Nothing says "analyze did not run", so it reads exactly like a
 clean pass and will happily be believed for the rest of a session. Wait for
 `flutter --version` to answer before trusting any green.
 
-**And `../merge-empire-fc` — the spec — is NOT in a cloud container.** It is a
-separate repo and only this one is cloned. Read what the port already has (the
-source comments carry the JS's reasoning, which is why they are so long) and say
-in the commit that the JS could not be consulted; do not reconstruct a rule from
-memory and present it as the spec's. The generated catalogues are downstream of
-that repo too — but copy is no longer blocked on it. **`lib/i18n/en_copy.dart`
-is where English is written now, and `lib/i18n/copy/<id>_copy.dart` is where the
-other nine are**; both are laid over the generated catalogues at load in
-`i18n.dart`, so nothing generated is edited by hand and no key needs `en.js`.
+**Copy is written HERE.** `lib/i18n/en_copy.dart` is where English goes and
+`lib/i18n/copy/<id>_copy.dart` is where the other nine do; both are laid over
+the generated catalogues at load in `i18n.dart`, so nothing generated is edited
+by hand and no key needs the old `en.js`. Read their headers before adding to
+either — and never reconstruct a rule from memory and present it as something
+the old game did.
 Read their headers before adding to either.
 
 **A new key needs all ten, not just English.** `t()` falls back to English for a
@@ -111,31 +129,23 @@ before committing; a reviewer cannot find a four-line change inside forty lines
 of reflow. Note that `git checkout -- <file>` may be refused in a cloud session,
 so the revert is a targeted edit rather than a restore.
 
-Fixtures are dumped from node, not hand-written:
+**The node scripts under `tool/` no longer run.** They read a repo that is gone,
+so `test/fixtures/*.json`, `lib/i18n/**/*.g.dart`, `club_art.g.dart` and
+`manager_art.g.dart` are all frozen. They are kept because they are the record
+of how each was produced; do not try to re-run one and do not treat a stale
+output as regenerable.
 
-```bash
-node tool/dump_<module>_reference.mjs > test/fixtures/<module>.json
-node tool/difftest/run.mjs > test/fixtures/season_difftest.json  # whole seasons
-```
-
-Generators — edit the generator, never the output:
-
-```bash
-node tool/gen_i18n.mjs        # lib/i18n/catalogs.g.dart + locales/*.g.dart
-node tool/gen_club_art.mjs    # lib/data/club_art.g.dart
-node tool/gen_manager_art.mjs # lib/data/manager_art.g.dart
-```
-
-Generated catalogue text comes from `../merge-empire-fc`'s own `en.js`. Copy
-this repo owns is laid OVER it and never regenerated: `lib/i18n/en_copy.dart`
-for English, `lib/i18n/copy/<id>_copy.dart` for the other nine.
+Nothing ending `.g.dart` is edited by hand even so — a generated file with no
+generator is a file nobody should be touching. New copy goes in the overlay
+(`lib/i18n/en_copy.dart` and `lib/i18n/copy/<id>_copy.dart`), which is laid OVER
+the generated catalogues and is where every string this game owns now lives.
 
 ## Mapping the repo
 
 `/graphify` is checked in at `.claude/skills/graphify`, so it is available to
 anyone who clones this rather than only to the machine it was installed on. It
 turns the tree into a navigable knowledge graph — communities, an audit trail,
-and a queryable JSON — which is worth having HERE specifically: the port is 56
+and a queryable JSON — which is worth having HERE specifically: this is 56
 engines and a UI layer whose rule is that the bottom half may not import
 Flutter, and "what reaches this" is the question `tool/unreached.sh` and
 `tool/unreached_ui.sh` already ask one file at a time.
@@ -201,7 +211,7 @@ layer run under plain `dart test` with no widget binding.
   `gen_i18n.mjs` run undoes it. Twenty-three entries carry `<strong>` and one of
   them was on screen: the cup sponsor offer read `<strong>Nike</strong> wants to
   sponsor <strong>Smith</strong>.` to players. Emphasis inside a run of text is
-  a DOM affordance a Dart `String` cannot carry; the port's cards get it from
+  a DOM affordance a Dart `String` cannot carry; this game's cards get it from
   their own typography (`CoachLine.strong`) instead.
 - **A cue emitted N times in one frame plays ONCE.** `retriggerFloor` in
   `sound_service.dart` is 70ms, because a batch signing places four cards inside
@@ -263,33 +273,40 @@ layer run under plain `dart test` with no widget binding.
   the bench and the pickers were dark on a light page. Pass it only for a card
   that is genuinely not in the page's theme — one lifted onto a drag overlay.
 
-## Porting habits
+## Habits this tree was built on
 
-- **Reach for the widget before porting the CSS.** The JS builds what the DOM
-  won't give it; a straight port of that build is usually worse than the Flutter
-  widget it stood in for (`ListWheelScrollView` for a hand-scrolled DOM strip,
-  `AnimatedRotation` with an `Alignment` for four `transform-origin` transitions).
-  The exceptions are what a widget cannot express — a rig whose limbs turn about
-  their own joints wants a painter.
-- **Generate a node fixture for anything with non-obvious arithmetic or an RNG
-  draw.** Every fixture so far has caught something.
-- **A value the parity harness compares is the JS's, not a figure to print.**
-  Several fixtures compare a whole object field for field — `deadline_day_parity_test`
-  does it to everything `endSession` returns — so a field there cannot be
-  "corrected" to suit a screen, and a fixture cannot be regenerated from a cloud
-  container anyway. When the port has deliberately diverged from the JS on a
-  mechanic, the divergence belongs on the SCREEN. Deadline Day's `summary['wageBill']`
-  is per-match because the JS's is; wages have been a per-second drain on the
-  income rate since the port changed them, so the ledger asks the squad what the
-  drain is and leaves the field to the harness. The parity failure is how that
-  was found — it is a feature, so read one before working around it.
+These were written while the JS was still here. They are kept because every one
+of them is still how you find something wrong in this codebase — the tells just
+point at the leftovers now rather than at a live source.
+
+- **Reach for the widget before hand-rolling the mechanism.** A good deal of
+  this tree started as a transcription of what a DOM could not do, and a
+  straight transcription is usually worse than the Flutter widget it stood in
+  for (`ListWheelScrollView` for a hand-scrolled strip, `AnimatedRotation` with
+  an `Alignment` for four `transform-origin` transitions). The exceptions are
+  what a widget cannot express — a rig whose limbs turn about their own joints
+  wants a painter.
+- **Pin anything with non-obvious arithmetic or an RNG draw.** Every fixture so
+  far has caught something. New ones are written here rather than dumped, so
+  prefer a test that states the RULE over one that memorises an output.
+- **A FIXTURE FAILING IS INFORMATION. Read it before you touch it.**
+  Several compare a whole object field for field — `deadline_day_parity_test`
+  does it to everything `endSession` returns — so one going red usually means a
+  change reached further than intended, and that is the single most useful thing
+  these files still do. Establish WHY it moved first.
+  Then: if the change was deliberate, the fixture yields — update it, and say in
+  the commit what rule replaced what. If it was not, you have just found a bug.
+  What is no longer true is that the old number wins by default; it has no
+  runtime behind it any more.
+  Where a whole mechanic has moved on, do not re-baseline a column of numbers —
+  replace those rows with an assertion about the new rule and keep the rows the
+  change did not touch pinned exactly. That is what keeps the fractional-power
+  arithmetic honest while letting the game move.
 - **Check reachability; do not assume it.** Widget tests construct the state they
   need, so they prove a part works and say nothing about whether a player can get
   to it. Before calling a module done, grep for who *calls* it — "only its own
   test" is the module's real status. This catches engines too: `trackEvent` had no
   caller in `lib/`, so three quests could never advance while every test passed.
-  And grep the JS for a caller as well — some functions are a dead end *there*,
-  and building a UI for one is adding a feature rather than porting it.
 - **`bash tool/unreached.sh` is that check mechanised**, over every public
   top-level function in `lib/engine`, `lib/data` and `lib/state`. Six engines
   have been caught this way, the largest being the whole of prestige — engine,
@@ -307,24 +324,25 @@ layer run under plain `dart test` with no widget binding.
   round one, 768 more and fourteen passing tests in round two. Liveness means a
   `lib/` importer; a test is not a caller.
 - **Shipped copy with no caller is the loudest tell there is.** The catalogues
-  are generated from the JS, so a translated string nothing can print is a
-  feature the port dropped, named and counted in ten languages. It has now found
+  were generated wholesale, so a translated string nothing can print is a
+  feature that never got built here, named and counted in ten languages. It has
+  now found
   the coach tips, the income breakdown, every trait, the match commentary, the
   transfer pill and prestige. Grep `lib/i18n/locales/en.g.dart` for a key prefix
   and then for a caller — the gap between the two counts is a work queue.
 - **Shipped ART carrying an ANIMATION CLASS is the same tell in another
-  medium.** The generated SVGs come from a DOM, so a moving part is written as
+  medium.** The generated SVGs came out of a DOM, so a moving part is written as
   its starting position plus a CSS class, and a painter that draws the file
   draws every frame of it at once. `managerFaces['cigar']` ships three
-  `.mgr-smoke-puff` circles at ONE point — the port drew a grey disc on the
+  `.mgr-smoke-puff` circles at ONE point — this game drew a grey disc on the
   cigar's end that never moved, for a bought item named in ten catalogues. Grep
-  the generated art for `class="` and ask what moved it in the JS.
+  the generated art for `class="` and ask what the class was supposed to move.
 - **A shipped string with markup in it is a second tell.** `t()` strips `<br>`
   and `<strong>` at the boundary because the copy was written for a DOM and the
-  catalogues are generated; a string that renders its own tags is a call site
-  nobody has looked at. `cup.win_reward.body` was printing
+  catalogues cannot be regenerated; a string that renders its own tags is a call
+  site nobody has looked at. `cup.win_reward.body` was printing
   `<strong>Nike</strong>` to players.
-- A port with no tests is not done.
+- A feature with no tests is not done.
 
 ## Identifiers
 

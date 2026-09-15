@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:merge_empire_fc/data/players.dart';
+import 'package:merge_empire_fc/data/transfer_market.dart';
 import 'package:merge_empire_fc/util/random.dart';
 
 /// The full generated table, captured from the JS
@@ -379,35 +380,75 @@ void main() {
     });
 
     test('A DECLINED CARD IS PRICED AS THE TIER HE WEARS', () {
-      // The whole rule, in one line: a World Legend who has fallen to Gold
-      // Elite is a Gold Elite as far as the market is concerned. Priced off his
-      // definition instead, a thirty-nine-year-old rating 48 and drawn in
-      // silver fetched a hundred and forty-five times what silver fetches, and
-      // holding a veteran for ever cost nothing.
+      // The whole rule: a World Legend who has fallen to Gold Elite is a Gold
+      // Elite as far as the market is concerned. Priced off his definition
+      // instead, a thirty-nine-year-old rating 48 and drawn in silver fetched a
+      // hundred and forty-five times what silver fetches, and holding a veteran
+      // for ever cost nothing.
       final legend = getPlayerDef('player_t8_fwd')!;
-      expect(marketDefFor(legend, peakAgeEnd).id, legend.id);
-      expect(marketDefFor(legend, 35).id, 'player_t7_fwd');
-      expect(marketDefFor(legend, 38).id, 'player_t5_fwd');
-      expect(marketDefFor(legend, retirementAge - 1).id, 'player_t4_fwd');
+      double basisOf(int tier) =>
+          tierSellValue(tier) * (transferTierMultiplier[tier] ?? 4).toDouble();
+
+      // In his prime he is worth his own tier, to the penny.
+      expect(marketValueBasis(legend, peakAgeEnd), basisOf(8));
+      // The year he arrives at a tier he is worth exactly that tier: the walk
+      // has spent the whole rung and there is nothing left to taper with.
+      expect(tierFall(legend, 36).progress, 0);
+      expect(marketValueBasis(legend, 36), basisOf(6));
     });
 
-    test('and a keeper is priced as a KEEPER of that tier', () {
-      // Position survives the fall: the ladder he drops down is his own.
-      for (final pos in ['fwd', 'mid', 'def', 'gk']) {
-        final def = getPlayerDef('player_t8_$pos')!;
-        final worn = marketDefFor(def, retirementAge - 1);
-        expect(worn.position, def.position, reason: pos);
-        expect(worn.tier, effectiveTierFor(def, retirementAge - 1));
+    test('and it TAPERS across the rung rather than stepping off it', () {
+      // Without this the curve is a fourfold cliff on the day the border
+      // changes colour — 3.83M at 34 and 932k at 35.
+      final legend = getPlayerDef('player_t8_fwd')!;
+      double basisOf(int tier) =>
+          tierSellValue(tier) * (transferTierMultiplier[tier] ?? 4).toDouble();
+
+      // Mid-rung: between the tier he wears and the one he is falling toward.
+      final fall = tierFall(legend, 35);
+      expect(fall.tier, 7);
+      expect(fall.progress, greaterThan(0));
+      expect(fall.progress, lessThan(1));
+      expect(marketValueBasis(legend, 35), lessThan(basisOf(7)));
+      expect(marketValueBasis(legend, 35), greaterThan(basisOf(6)));
+    });
+
+    test('and NEVER rises, at any age, from any tier', () {
+      // The multiplier table has no T9 entry and falls back to a four, which
+      // makes the unique Icon nominally cheaper than a World Legend — so a
+      // declining Icon would have GAINED value on the way down. Clamped.
+      for (final id in [
+        'player_t9_fwd',
+        'player_t8_fwd',
+        'player_t8_gk',
+        'player_t5_mid',
+        'player_t1_def',
+      ]) {
+        final def = getPlayerDef(id)!;
+        var prev = double.infinity;
+        for (var age = 16; age <= 60; age++) {
+          final v = marketValueBasis(def, age);
+          expect(v, lessThanOrEqualTo(prev), reason: '$id at $age');
+          prev = v;
+        }
       }
     });
 
-    test('and an Icon falls onto the ladder rather than off it', () {
-      // T9 is forward-only and scout-only, so the tier below is the first rung
-      // where all four positions exist. Nothing here may return null.
-      final icon = getPlayerDef('player_t9_fwd')!;
-      expect(marketDefFor(icon, peakAgeEnd).id, icon.id);
-      expect(marketDefFor(icon, retirementAge - 1).tier, lessThan(9));
-      expect(marketDefFor(icon, retirementAge - 1).position, 'FWD');
+    test('and the slide is CONTINUOUS across a demotion', () {
+      // A card a hair short of dropping is a hair short of the tier below's
+      // value, and one that has just dropped is exactly at it — so there is no
+      // step left anywhere on the curve. Measured as: no single year costs more
+      // than the whole rung it is standing on.
+      final legend = getPlayerDef('player_t8_fwd')!;
+      for (var age = declineStartAge; age <= retirementAge; age++) {
+        final before = marketValueBasis(legend, age - 1);
+        final after = marketValueBasis(legend, age);
+        final rung =
+            tierSellValue(tierFall(legend, age - 1).tier) *
+            (transferTierMultiplier[tierFall(legend, age - 1).tier] ?? 4);
+        expect(before - after, lessThanOrEqualTo(rung.toDouble()),
+            reason: 'age $age drops more than a whole rung');
+      }
     });
 
     test('AND AN ICON IS AN ICON THE DAY HE IS SCOUTED', () {

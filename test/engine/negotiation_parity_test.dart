@@ -164,7 +164,8 @@ void main() {
     //
     // The reference discounted a veteran by a percentage of his rating, per
     // season of service. A card is priced off the tier it has FALLEN TO now —
-    // see `marketDefFor` — so those rows encode a rule the game no longer has.
+    // see `marketValueBasis` — so those rows encode a rule the game no longer
+    // has.
     // What has not changed is the arithmetic the fixture was really guarding:
     // the fractional-power division multiplier, which drifts silently and would
     // put every sale in the game a percent or two out.
@@ -180,7 +181,12 @@ void main() {
       expect(rows, hasLength(90));
       var checked = 0;
       for (final row in rows) {
+        // **BOTH RULES HAVE TO SAY NOTHING.** The reference discounted from
+        // the eleventh season of service; this game discounts from the first
+        // year past the prime, and the two do not agree about which cards those
+        // are. A row holds to the digit only where neither has bitten.
         if ((row['seasons'] as num) > 10) continue;
+        if (ageDeclinePenalty(card(row).age) > 0) continue;
         final s = _baseState();
         (s['progression'] as Map)['currentDivision'] = row['division'];
         expect(
@@ -193,26 +199,41 @@ void main() {
       expect(checked, greaterThan(0), reason: 'the scan matched nothing');
     });
 
-    test('AND VALUES EVERY ROW AT THE TIER IT WEARS', () {
+    test('AND VALUES EVERY ROW ON THE RUNG IT HAS FALLEN TO', () {
+      // Bracketed rather than equal, because the slide tapers across the rung:
+      // never worth more than the tier he wears, never less than the one he is
+      // falling toward.
       var declined = 0;
       for (final row in _rows('playerValue')) {
         final s = _baseState();
         (s['progression'] as Map)['currentDivision'] = row['division'];
         final c = card(row);
         final def = getPlayerDef(c.definitionId)!;
-        final worn = marketDefFor(def, c.age);
-        final fresh = CardInstance({
+        final fall = tierFall(def, c.age);
+
+        CardInstance freshAt(int tier) => CardInstance({
           'instanceId': 'y',
-          'definitionId': worn.id,
+          'definitionId': 'player_t${tier}_mid',
           'seasonsPlayed': 0,
           if (row['sponsored'] == true) 'sponsor': {'multiplier': 1.5},
         });
+
+        final why = 't${row['tier']} / ${row['seasons']}s wears T${fall.tier}';
         expect(
           playerValue(s, c),
-          playerValue(s, fresh),
-          reason: 't${row['tier']} / ${row['seasons']}s wears ${worn.id}',
+          lessThanOrEqualTo(playerValue(s, freshAt(fall.tier))),
+          reason: why,
         );
-        if (worn.tier != def.tier) declined++;
+        if (fall.progress == 0) {
+          expect(playerValue(s, c), playerValue(s, freshAt(fall.tier)), reason: why);
+        } else if (fall.tier > 1) {
+          expect(
+            playerValue(s, c),
+            greaterThanOrEqualTo(playerValue(s, freshAt(fall.tier - 1))),
+            reason: why,
+          );
+        }
+        if (fall.tier != def.tier) declined++;
       }
       expect(declined, greaterThan(0), reason: 'no row declines');
     });
