@@ -666,4 +666,5 @@ const Map<String, String> ptCopy = <String, String>{
   'product.starter_pack.desc': "{coins} moedas + 10 de energia + {gems} gemas – moedas e energia de novo em cada recomeço!",
   'product.starter_pack.descHard': "{coins} moedas + forma do plantel no máximo + {gems} gemas – moedas e forma de novo em cada recomeço!",
   'product.vip_pass.desc': "{coins} moedas de imediato · {gems} gemas · ×2 renda · 10 s entre jogos (em vez de 30 s) · 30 dias.",
+  'boost.pitch.none': "Não tens mais – compra na Loja",
 };

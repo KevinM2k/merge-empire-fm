@@ -689,4 +689,5 @@ const Map<String, String> itCopy = <String, String>{
   'product.starter_pack.desc': "{coins} monete + 10 di energia + {gems} gemme: monete ed energia di nuovo a ogni ripartenza!",
   'product.starter_pack.descHard': "{coins} monete + forma della rosa al massimo + {gems} gemme: monete e forma di nuovo a ogni ripartenza!",
   'product.vip_pass.desc': "{coins} monete subito · {gems} gemme · ×2 ricavi · 10 s tra le partite (invece di 30) · 30 giorni.",
+  'boost.pitch.none': "Finiti: comprane altri nel Negozio",
 };
