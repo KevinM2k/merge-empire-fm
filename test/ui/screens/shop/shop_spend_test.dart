@@ -318,6 +318,25 @@ void main() {
       expect(container.read(coinsProvider), 999999);
     });
 
+    testWidgets('A RUNNING POLISH WEARS A GREEN BADGE THAT COUNTS DOWN', (
+      tester,
+    ) async {
+      // It said "Already active" in plain text under the button — the TV
+      // deal's green badge, and the minutes left on it. Reported from the couch.
+      await pumpShopWidget(tester, (s) {
+        (s['resources'] as Map<String, dynamic>)['gems'] = 50;
+        (s['boosts'] as Map<String, dynamic>)['trophyPolishUntil'] =
+            DateTime.now().millisecondsSinceEpoch + 29 * 60000 + 500;
+      }, IncomeSection.new);
+      final badge = find.byKey(const ValueKey('shop-active-gem-trophy_polish_gem'));
+      expect(badge, findsOneWidget);
+      expect(
+        find.descendant(of: badge, matching: find.text(t('shop.active_mins_left', {'mins': 30}))),
+        findsOneWidget,
+      );
+      expect(find.text(t('shop.already_active')), findsNothing);
+    });
+
     testWidgets('the sponge is dead with nobody injured, and says why', (
       tester,
     ) async {

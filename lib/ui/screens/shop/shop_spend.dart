@@ -16,6 +16,7 @@ import 'package:merge_empire_fc/data/card_theme.dart';
 import 'package:merge_empire_fc/engine/gem_engine.dart';
 import 'package:merge_empire_fc/engine/scout_voucher_engine.dart';
 import 'package:merge_empire_fc/data/boosts.dart';
+import 'package:merge_empire_fc/engine/coin_sink_engine.dart' show trophyPolishLeftMs;
 import 'package:merge_empire_fc/engine/boost_engine.dart';
 import 'package:merge_empire_fc/engine/shop_consumables_engine.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
@@ -66,6 +67,16 @@ String? blockedCopy(String? reason) => switch (reason) {
   'no_injured' => t('shop.toast.no_injured'),
   _ => t('settings.comingSoon'),
 };
+
+bool _held(String? blocked) =>
+    blocked == 'already_active' || blocked == 'already_held';
+
+/// The badge on a held item: the polish says how long it has left.
+String _activeLabel(String id, Map<String, dynamic>? state) {
+  if (id != 'trophy_polish_gem') return t('shop.already_active');
+  final mins = (trophyPolishLeftMs(state) / 60000).ceil();
+  return t('shop.active_mins_left', {'mins': mins < 1 ? 1 : mins});
+}
 
 /// The app's own line art for each coin-priced consumable, and for the gem
 /// items — the JS's emoji, in the icon set the rest of the app is drawn in.
@@ -209,11 +220,13 @@ class _SpendShelf extends ConsumerWidget {
               ),
               price: formatCoins(tile.item.cost),
               tone: StoreTone.gem,
-              disabledReason: tile.blocked == 'already_active'
+              // A held item is ACTIVE, in the green badge the TV deal wears
+              // — and the polish's badge counts down. Reported from the couch.
+              disabledReason: _held(tile.blocked)
                   ? null
                   : blockedCopy(tile.blocked),
-              activeLabel: tile.blocked == 'already_active'
-                  ? t('shop.already_active')
+              activeLabel: _held(tile.blocked)
+                  ? _activeLabel(tile.item.id, game.state)
                   : null,
               onBuy: blockedCopy(tile.blocked) != null
                   ? null
