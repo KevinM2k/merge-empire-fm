@@ -26,7 +26,7 @@ import 'package:merge_empire_fc/ui/screens/shop/purchase_flow.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_copy.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_match_day.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_providers.dart';
-import 'package:merge_empire_fc/ui/screens/match/boost_bar_paint.dart' show flameDeep;
+import 'package:merge_empire_fc/ui/screens/match/boost_bar_paint.dart' show flameDeep, liveBoostColour;
 import 'package:merge_empire_fc/ui/screens/shop/shop_section.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_tiles.dart';
 import 'package:merge_empire_fc/ui/widgets/store_button.dart';
@@ -155,7 +155,7 @@ class _SpendShelf extends ConsumerWidget {
           // heading of their own directly under this one and it was a
           // subdivision of a tab already named for this shelf. See
           // [matchDayTiles].
-          if (!income) ...matchDayTiles(ref),
+          if (!income) ...matchDayTiles(context, ref),
           for (final row in coins)
             ShopTile(
               tileKey: 'coin-${row.id}',
@@ -442,8 +442,23 @@ class MatchBoostsSection extends ConsumerWidget {
                       key: 'boost-${boost.id}',
                       title: t('boost.${boost.id}.name'),
                       subtitle: t('boost.${boost.id}.desc'),
-                      body: null,
-                      glyph: 'gem',
+                      // The figure, for the three that have one: "+25% ATK"
+                      // is what is being bought, and the prose alone did not
+                      // say it. Reported from the couch.
+                      body: boost.kind == BoostKind.proactive
+                          ? Text(
+                              t('boost.${boost.id}.effect'),
+                              key: ValueKey('boost-effect-${boost.id}'),
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w900,
+                                color: liveBoostColour(boost.id),
+                              ),
+                            )
+                          : null,
+                      // Its own icon, not the gem: the gem is on the button.
+                      glyph: boost.icon,
                       currency: SpendCurrency.gems,
                       cost: boost.gemCost,
                       buy: () =>

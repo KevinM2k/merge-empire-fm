@@ -51,6 +51,20 @@ void main() {
       }
       expect(find.text(t('boost.shop.count', {'n': '0'})), findsNWidgets(6));
       final gems = container.read(gemsProvider);
+      // The confirm card wears the boost's own icon and says its figure.
+      await tester.tap(find.byKey(const ValueKey('shop-buy-boost-crowd_roar')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('boost-effect-crowd_roar')), findsOneWidget);
+      expect(find.text(t('boost.crowd_roar.effect')), findsOneWidget);
+      final glyphs = tester.widgetList<GameIcon>(
+        find.descendant(
+          of: find.byKey(const ValueKey('spend-confirm-boost-crowd_roar')),
+          matching: find.byType(GameIcon),
+        ),
+      );
+      expect(glyphs.any((g) => g.name == 'megaphone'), isTrue);
+      await tester.tap(find.byKey(const ValueKey('spend-cancel-boost-crowd_roar')));
+      await tester.pumpAndSettle();
       await buyRow(tester, 'boost-crowd_roar');
       expect(container.read(gemsProvider), gems - 1);
       expect(boostCount(container.read(gameProvider).state, 'crowd_roar'), 1);

@@ -40,10 +40,10 @@ import 'package:merge_empire_fc/engine/match_tactics.dart'
 import 'package:merge_empire_fc/i18n/i18n.dart';
 import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/ui/hud/hud.dart' show hudGemInk;
+import 'package:merge_empire_fc/ui/screens/shop/purchase_flow.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_tiles.dart';
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
 import 'package:merge_empire_fc/ui/widgets/store_button.dart';
-import 'package:merge_empire_fc/util/event_bus.dart';
 
 /// What the two tiles are holding, so each redraws when its own thing changes.
 typedef MatchDayState = ({
@@ -65,29 +65,28 @@ final matchDayProvider = savePick<MatchDayState>(
 /// **The precondition is re-read INSIDE the update** rather than trusted from
 /// the build that painted the button: a tile drawn a moment before the boost
 /// started must not charge for a second one, and `spendGems` returning false
-/// has to leave the grant unrun rather than half-applied.
-void _buy(
+/// has to leave the grant unrun rather than half-applied. The wallet check
+/// itself is [offerToBuy]'s, which opens the gem packs instead of refusing.
+String? _buy(
   WidgetRef ref, {
   required int cost,
   required String reason,
   required bool Function(Map<String, dynamic>) blocked,
   required void Function(Map<String, dynamic>) grant,
 }) {
-  var paid = false;
+  String? refused;
   ref.read(gameProvider).update((state) {
-    if (blocked(state)) return;
-    if (!spendGems(state, cost, reason)) return;
-    paid = true;
+    if (blocked(state)) {
+      refused = 'already_active';
+      return;
+    }
+    if (!spendGems(state, cost, reason)) {
+      refused = 'insufficient_gems';
+      return;
+    }
     grant(state);
   });
-  // **ONLY THE REFUSAL SPEAKS.** A tap that did nothing has to say why, and an
-  // empty wallet is the one thing the tile cannot show. The purchase itself
-  // needs no line: the tile flips its badge to Active — with the minutes left
-  // on the cooldown — and the button goes dead in the same frame. Reported from
-  // the couch once the two channels started speaking at all: no toasts for
-  // what is already obvious. The two `shop.toast.*` grant lines keep their
-  // catalogue entries and lose their callers.
-  if (!paid) emit('toast:error', t('shop.toast.not_enough_gems'));
+  return refused;
 }
 
 /// The two tiles, for whichever grid is drawing them — see the note at the top.
@@ -95,7 +94,7 @@ void _buy(
 /// A function rather than a widget because they are spliced into a shelf that
 /// is not theirs: a widget would put a second `ShopGrid` inside the first, and
 /// two grids under one heading do not share a column edge.
-List<Widget> matchDayTiles(WidgetRef ref) {
+List<Widget> matchDayTiles(BuildContext context, WidgetRef ref) {
   final shelf = ref.watch(matchDayProvider);
 
   // **WHAT IS LEFT OF THE GATE IS THE PART ABOUT THE GRANT.** The frequency
@@ -137,15 +136,25 @@ List<Widget> matchDayTiles(WidgetRef ref) {
       tone: StoreTone.gem,
       badge: cooldownState,
       disabledReason: notTwice(cooldownState, cooldownState),
+      // The same confirm card every other gem tile opens — see [offerToBuy].
       onBuy: shelf.cooldownActive
           ? null
-          : () => _buy(
-              ref,
+          : () => offerToBuy(context, ref, (
+              key: 'ad-match-cooldown',
+              title: t('shop.match_cooldown_ad_name'),
+              subtitle: t('shop.match_cooldown_ad_desc'),
+              body: null,
+              glyph: 'stopwatch',
+              currency: SpendCurrency.gems,
               cost: matchDayGemCost,
-              reason: 'match_cooldown',
-              blocked: matchCooldownFree,
-              grant: grantMatchCooldownAd,
-            ),
+              buy: () => _buy(
+                ref,
+                cost: matchDayGemCost,
+                reason: 'match_cooldown',
+                blocked: matchCooldownFree,
+                grant: grantMatchCooldownAd,
+              ),
+            )),
     ),
     ShopTile(
       tileKey: 'ad-lucky-boot',
@@ -166,13 +175,24 @@ List<Widget> matchDayTiles(WidgetRef ref) {
       disabledReason: notTwice(bootState, bootState),
       onBuy: shelf.bootHeld
           ? null
-          : () => _buy(
-              ref,
+          : () => offerToBuy(context, ref, (
+              key: 'ad-lucky-boot',
+              title: t('shop.lucky_boot_name'),
+              subtitle: t('shop.lucky_boot_desc', {
+                'pct': (luckyBootPct * 100).round(),
+              }),
+              body: null,
+              glyph: 'clover',
+              currency: SpendCurrency.gems,
               cost: luckyBootGemCost,
-              reason: 'lucky_boot',
-              blocked: luckyBootHeld,
-              grant: grantLuckyBootAd,
-            ),
+              buy: () => _buy(
+                ref,
+                cost: luckyBootGemCost,
+                reason: 'lucky_boot',
+                blocked: luckyBootHeld,
+                grant: grantLuckyBootAd,
+              ),
+            )),
     ),
   ];
 }
