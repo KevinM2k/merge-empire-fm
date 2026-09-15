@@ -87,10 +87,24 @@ void main() {
       final events = <(String, Map<String, Object?>)>[];
       setAnalyticsSink((name, params) => events.add((name, params)));
       addGems(_state(gems: 1), 4, 'iap');
-      expect(events.single.$1, 'gems_earned');
-      expect(events.single.$2['reason'], 'iap');
-      expect(events.single.$2['amount'], 4);
-      expect(events.single.$2['balance'], 5);
+      final earned = events.firstWhere((e) => e.$1 == 'gems_earned');
+      expect(earned.$2['reason'], 'iap');
+      expect(earned.$2['amount'], 4);
+      expect(earned.$2['balance'], 5);
+    });
+
+    test('AND THE RESERVED EVENT BESIDE IT, which GA4 reports on itself', () {
+      // The custom event's `reason` is invisible in GA until somebody registers
+      // a custom dimension for it by hand. `earn_virtual_currency` is reserved
+      // and needs no setup.
+      final events = <(String, Map<String, Object?>)>[];
+      setAnalyticsSink((name, params) => events.add((name, params)));
+      addGems(_state(gems: 1), 4, 'iap');
+      final reserved = events.firstWhere(
+        (e) => e.$1 == 'earn_virtual_currency',
+      );
+      expect(reserved.$2['virtual_currency_name'], 'gems');
+      expect(reserved.$2['value'], 4);
     });
 
     test('adds nothing for zero, a negative, or a broken amount', () {
@@ -159,8 +173,24 @@ void main() {
       final events = <(String, Map<String, Object?>)>[];
       setAnalyticsSink((name, params) => events.add((name, params)));
       spendGems(_state(gems: 9), 4, 'item:energy_refill');
-      expect(events.single.$1, 'gems_spent');
-      expect(events.single.$2['reason'], 'item:energy_refill');
+      final spent = events.firstWhere((e) => e.$1 == 'gems_spent');
+      expect(spent.$2['reason'], 'item:energy_refill');
+    });
+
+    test('AND WHERE THEY WENT, in a field GA4 breaks down by itself', () {
+      // "Where are gems spent" had no answer on the dashboards even though
+      // `reason` has always been on the custom event — an unregistered custom
+      // parameter is not queryable. `item_name` is `spend_virtual_currency`'s
+      // own, so the same breakdown arrives ready to report on.
+      final events = <(String, Map<String, Object?>)>[];
+      setAnalyticsSink((name, params) => events.add((name, params)));
+      spendGems(_state(gems: 9), 4, 'boost:double_coins');
+      final reserved = events.firstWhere(
+        (e) => e.$1 == 'spend_virtual_currency',
+      );
+      expect(reserved.$2['virtual_currency_name'], 'gems');
+      expect(reserved.$2['value'], 4);
+      expect(reserved.$2['item_name'], 'boost:double_coins');
     });
 
     test('a null save is refused', () {

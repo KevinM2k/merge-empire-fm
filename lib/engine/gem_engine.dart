@@ -137,6 +137,16 @@ int addGems(Map<String, dynamic>? state, num amount, [String reason = 'unknown']
     'reason': reason,
     'balance': resources['gems'],
   });
+  // **AND THE NAME GA4 ALREADY UNDERSTANDS.** `gems_earned` is a custom event:
+  // it arrives, and both it and its `reason` are invisible to every built-in
+  // report until somebody registers a custom dimension for the parameter by
+  // hand. `earn_virtual_currency` is reserved, and GA reads
+  // `virtual_currency_name` and `value` off it with no setup at all. Sent
+  // beside the custom one so the existing dashboards keep working.
+  logAppEvent('earn_virtual_currency', {
+    'virtual_currency_name': 'gems',
+    'value': n,
+  });
   return n;
 }
 
@@ -156,6 +166,22 @@ bool spendGems(Map<String, dynamic>? state, num cost, [String reason = 'unknown'
     'amount': n,
     'reason': reason,
     'balance': resources['gems'],
+  });
+  // **WHERE THE GEMS WENT, in the field GA4 reports on by itself.**
+  //
+  // The custom event above has carried [reason] all along — `boost:<id>`,
+  // `look_pack:<id>`, `quest_reroll`, `skip_cooldown`, `scout_voucher_t<n>` —
+  // so the data was never missing; it is simply not queryable until the
+  // parameter is registered as a custom dimension in the GA console, which is
+  // why "where are gems spent" had no answer on the dashboards.
+  //
+  // `spend_virtual_currency` is reserved and `item_name` is one of its own
+  // parameters, so the same breakdown arrives ready to report on. [reason] goes
+  // in as-is: it is already a stable machine-readable key rather than prose.
+  logAppEvent('spend_virtual_currency', {
+    'virtual_currency_name': 'gems',
+    'value': n,
+    'item_name': reason,
   });
   return true;
 }
