@@ -1,4 +1,4 @@
 Bug fixes.
 
-• Fixed a quiet word wiping a booking but the player still being sent off later in the same match, for a second yellow he no longer had a first for. He now stays on, and serves no ban for it.
-• How many in-game boosts you own now sits in a badge on the corner of its tile.
+• Tapping a boost that is already running — a Crowd Roar, say — now restarts it at full length and refills its ring, instead of hiding a second one behind the first. Different boosts still run together.
+• The scoreboard's Stats control is a proper button in the board's corner now.

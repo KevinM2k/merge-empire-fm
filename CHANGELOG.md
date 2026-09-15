@@ -1,3 +1,8 @@
+## v2.1.4
+
+- Tapping a boost that is already running — a Crowd Roar, say — now restarts it at full length and refills its ring on the pitch, instead of layering a second one behind the first where you could not see it. Different boosts still run together: a Roar and a Sharp Shooting are two lifts, as before.
+- The scoreboard's Stats control is a proper button in the board's own corner now, rather than a tag floated on the scoreline.
+
 ## v2.1.3
 
 - Fixed a quiet word wiping a booking but the player being sent off later in the same match anyway, for a second yellow he no longer had a first for. The later booking is now his first, he stays on, and he serves no ban for it.
