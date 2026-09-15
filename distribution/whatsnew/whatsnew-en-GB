@@ -1,5 +1,4 @@
 Bug fixes.
 
-• Fixed a cup tie won on penalties being called a draw at full time, moments before the card saying you were through.
-• Player traits and match traits now have a tab each in the sheet that lists them all.
-• Fixed the tutorial's end-of-match screen offering to double coins when there is no video to watch.
+• An injured or suspended player is now replaced in your XI before kickoff by the next available man, with Coach Colin saying who is out and who comes in.
+• Fixed an injury during a match going unannounced when another card was on screen — it now always tells you and takes you to the bench.

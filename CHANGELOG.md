@@ -1,3 +1,8 @@
+## v2.1.2
+
+- An injured or suspended player is now taken out of the XI before kickoff and replaced by the next available man, instead of being left on the team sheet. Coach Colin says who is out and who comes in.
+- Fixed an injury during a match going completely unannounced when it arrived while another card was on screen — it now always says who went down and takes you to the bench.
+
 ## v2.1.1
 
 - Fixed a cup tie won on penalties being called a draw at full time, moments before the card saying you were through.
