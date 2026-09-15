@@ -4844,9 +4844,13 @@ class _FeedLine extends StatelessWidget {
                     // take the feed's own ink and nothing is lost. A red still
                     // wears its own: it reads at any size, and it is the one a
                     // player must not miss.
+                    // Through `glassAccent`, like every other ink on the
+                    // glass: the raw gold was unreadable on a light pane.
                     color: line.type == 'boost'
-                        ? (_boostHeadingInk(line.key) ??
-                            glassAccent(context, kit.textMuted))
+                        ? glassAccent(
+                            context,
+                            _boostHeadingInk(line.key) ?? kit.textMuted,
+                          )
                         : line.card == null || line.card == cardYellow
                         ? glassAccent(context, kit.accentBright)
                         : cardInk(line.card!),
