@@ -830,6 +830,55 @@ void main() {
     });
   }
 
+  testWidgets('HIS BUBBLE EATS THE FIRST TAP, whatever it was aimed at', (
+    tester,
+  ) async {
+    // **THIS IS THE DESIGN, and it is why every test that plays a match has to
+    // clear him before pressing anything.** `CoachCorner` lays a full-screen
+    // `GestureDetector` with `HitTestBehavior.opaque` and `onTap: _dismiss`
+    // over the page while he is speaking, so a tap anywhere is how a player is
+    // done with him — and it presses nothing underneath.
+    //
+    // It only bites a TEST, because `tap()` merely WARNS when it lands on
+    // something else. `season_end_test` had a guarded `if (skip.isNotEmpty)
+    // tap(skip)` that Colin swallowed roughly one full-suite run in eight: the
+    // match kept running and the failure surfaced twenty-three lines later as
+    // "full time offered no way out", an assertion about something else
+    // entirely. Pinned here so the next person meets the mechanism rather than
+    // the symptom.
+    // `pump`, not `pumpAndSettle`: the clock is running, so it setStates every
+    // minute and there is nothing here to settle TO.
+    await pumpMatch(tester, matchResult());
+    final state = stateOf(tester);
+    state.say('Colin has something to say about that.');
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.byKey(const ValueKey('match-coach-line')), findsOneWidget);
+
+    // The skip button is right there and the tap goes nowhere near it.
+    await tester.tap(
+      find.byKey(const ValueKey('match-skip')),
+      warnIfMissed: false,
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(
+      find.byKey(const ValueKey('match-coach-line')),
+      findsNothing,
+      reason: 'the tap cleared him, which is what it is for',
+    );
+    expect(
+      state.frame.finished,
+      isFalse,
+      reason: 'and it pressed nothing underneath',
+    );
+
+    // The SECOND tap is the one that skips.
+    await tester.tap(find.byKey(const ValueKey('match-skip')));
+    await tester.pumpAndSettle();
+    expect(state.frame.finished, isTrue);
+  });
+
   testWidgets('a commentary line resolves its translation key', (tester) async {
     // The engine emits KEYS, which is why the i18n layer had to land first.
     await pumpMatch(
