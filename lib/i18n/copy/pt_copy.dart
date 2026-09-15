@@ -79,6 +79,40 @@ const Map<String, String> ptCopy = <String, String>{
       'Acabou, iguais, e foi preciso esperar até aos {minute} minutos para lá '
           'chegar.|'
       'Final, com o golo do empate a cair aos {minute} minutos.',
+  // ── O desempate por penáltis, contado um a um ────────────────────────────
+  //
+  // No JS esta sequência estava escrita à mão em inglês, sem chave `t()`: não
+  // havia nada para portar dos catálogos gerados. Pedido do sofá, por isso fica
+  // escrito aqui, nas dez línguas. `{score}` é a LINHA que o imprime, não a
+  // frase.
+  'match.pens.head': 'Grandes penalidades',
+  'match.pens.going':
+      'Isto vai para as grandes penalidades.|'
+      'Nada os separa ao fim de noventa minutos: decide-se aos onze metros.|'
+      'Continuam empatados, e a eliminatória resolve-se na marca de penálti.',
+  'match.pens.sudden_death':
+      'Cinco para cada lado e continuam empatados. Morte súbita.|'
+      'Entramos em morte súbita: um falhanço e acaba tudo.|'
+      'Cinco cada um. O próximo erro decide.',
+  'match.pens.scored':
+      'No fundo das redes, junto ao poste. O {us} marca.|'
+      'Guarda-redes para o lado errado: o {us} não falha.|'
+      'Pelo meio, e lá dentro. O {us} marca.',
+  'match.pens.missed':
+      'Defendeu! O {us} não quer acreditar.|'
+      'Por cima da barra: o {us} manda-a para a bancada.|'
+      'No poste e para fora. Momento terrível para o {us}.',
+  'match.pens.opp_scored':
+      'O {them} marca, sem discussão.|'
+      'Ao ângulo para o {them}: indefensável.|'
+      'O {them} converte o seu.',
+  'match.pens.opp_missed':
+      'Defendeu! O guarda-redes adivinha o lado e o {them} falhou.|'
+      'O {them} atira ao lado do poste.|'
+      'Por cima da barra do {them}: um falhanço enorme.',
+  'match.pens.through': 'O {us} vence o desempate e segue em frente.',
+  'match.pens.out': 'O {them} vence o desempate. O {us} está fora.',
+
   // ── E uma eliminatória que vai a grandes penalidades ─────────────────────
   //
   // Chaves novas: os catálogos gerados vêm de um JS cuja crónica não conhecia

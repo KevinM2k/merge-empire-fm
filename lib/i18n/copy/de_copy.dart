@@ -87,6 +87,41 @@ const Map<String, String> deCopy = <String, String>{
           'und zwei verlorene für die anderen.|'
       'Vorbei, ausgeglichen, und es hat bis zur {minute}. Minute gedauert.|'
       'Spielende, mit dem Ausgleichstor in der {minute}. Minute.',
+  // ── Das Elfmeterschießen, Schuss für Schuss erzählt ──────────────────────
+  //
+  // Im JS war diese Sequenz fest verdrahtetes Englisch ohne `t()`-Schlüssel, in
+  // den generierten Katalogen also nichts zu portieren. Vom Sofa direkt
+  // gewünscht, deshalb hier geschrieben, in allen zehn Sprachen. `{score}`
+  // zeichnet die ZEILE, nicht der Satz.
+  'match.pens.head': 'Elfmeterschießen',
+  'match.pens.going':
+      'Es geht ins Elfmeterschießen.|'
+      'Nach neunzig Minuten nichts zwischen ihnen — es geht vom Punkt weiter.|'
+      'Keine Entscheidung, also fällt sie aus elf Metern.',
+  'match.pens.sudden_death':
+      'Fünf zu fünf, immer noch gleich. Jetzt entscheidet der nächste Fehler.|'
+      'Weiter im K.-o.-Modus: ein Fehlschuss und es ist vorbei.|'
+      'Je fünf verwandelt. Der nächste Fehler entscheidet.',
+  'match.pens.scored':
+      'Flach ins Eck. {us} trifft.|'
+      'Der Torwart ist in der falschen Ecke — {us} macht keinen Fehler.|'
+      'Mittig und drin. {us} trifft.',
+  'match.pens.missed':
+      'Gehalten! {us} fasst es nicht.|'
+      'Drüber — {us} setzt ihn in den Block.|'
+      'An den Pfosten und daneben. Ein bitterer Moment für {us}.',
+  'match.pens.opp_scored':
+      '{them} treffen, da gibt es nichts zu deuten.|'
+      'In den Winkel für {them} — unhaltbar.|'
+      '{them} machen ihren rein.',
+  'match.pens.opp_missed':
+      'Gehalten! Der Torwart ist in der richtigen Ecke, {them} haben '
+          'verschossen.|'
+      '{them} setzen ihn am Pfosten vorbei.|'
+      'Drüber von {them} — ein Riesenfehler.',
+  'match.pens.through': '{us} gewinnt das Schießen und zieht weiter.',
+  'match.pens.out': '{them} gewinnen das Schießen. {us} ist raus.',
+
   // ── Und ein Pokalspiel, das ins Elfmeterschießen geht ────────────────────
   //
   // Neue Schlüssel: die generierten Kataloge stammen aus einem JS, dessen

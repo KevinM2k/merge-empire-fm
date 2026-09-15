@@ -82,6 +82,40 @@ const Map<String, String> esCopy = <String, String>{
           'otros.|'
       'Se acabó, iguales, y costó hasta el minuto {minute} llegar ahí.|'
       'Final, con el gol del empate cayendo en el minuto {minute}.',
+  // ── La tanda de penaltis, contada uno a uno ──────────────────────────────
+  //
+  // En el JS esta secuencia estaba escrita a mano en inglés, sin clave `t()`:
+  // no había nada que portar desde los catálogos generados. Pedido desde el
+  // sofá, así que se escribe aquí, en los diez idiomas. `{score}` lo pinta la
+  // FILA, no la frase.
+  'match.pens.head': 'Penaltis',
+  'match.pens.going':
+      'Esto se va a los penaltis.|'
+      'Nada les separa tras noventa minutos: se decide desde los once metros.|'
+      'Siguen igualados, así que la eliminatoria se decide en la tanda.',
+  'match.pens.sudden_death':
+      'Cinco cada uno y siguen iguales. Muerte súbita.|'
+      'Entramos en muerte súbita: un fallo y se acabó.|'
+      'Cinco por bando. El próximo error lo decide.',
+  'match.pens.scored':
+      'Al fondo, junto al palo. El {us} marca.|'
+      'El portero se va al otro lado: el {us} no falla.|'
+      'Por el centro, y dentro. El {us} marca.',
+  'match.pens.missed':
+      '¡Parada! El {us} no se lo cree.|'
+      'Por encima del larguero: el {us} la manda a la grada.|'
+      'Al palo y fuera. Momento terrible para el {us}.',
+  'match.pens.opp_scored':
+      'El {them} marca, sin discusión.|'
+      'A la escuadra del {them}: imparable.|'
+      'El {them} anota el suyo.',
+  'match.pens.opp_missed':
+      '¡Parada! El portero acierta el lado y el {them} ha fallado.|'
+      'El {them} la manda fuera, junto al palo.|'
+      'Por encima del larguero del {them}: un fallo enorme.',
+  'match.pens.through': 'El {us} gana la tanda y pasa de ronda.',
+  'match.pens.out': 'El {them} gana la tanda. El {us} queda eliminado.',
+
   // ── Y una eliminatoria que se va a los penaltis ──────────────────────────
   //
   // Claves nuevas: los catálogos generados vienen de un JS cuya crónica no

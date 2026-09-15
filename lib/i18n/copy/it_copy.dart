@@ -84,6 +84,40 @@ const Map<String, String> itCopy = <String, String>{
           'l\'altra.|'
       'È finita, pari, e c\'è voluto fino al {minute}\' per arrivarci.|'
       'Finale, con il gol del pareggio caduto al {minute}\'.',
+  // ── I rigori, raccontati uno alla volta ──────────────────────────────────
+  //
+  // Nel JS questa sequenza era inglese scritto a mano, senza chiave `t()`: nei
+  // cataloghi generati non c'era nulla da portare. Chiesto dal divano, quindi
+  // scritto qui, in tutte e dieci le lingue. `{score}` lo stampa la RIGA, non
+  // la frase.
+  'match.pens.head': 'Rigori',
+  'match.pens.going':
+      'Si va ai rigori.|'
+      'Nulla li divide dopo novanta minuti: si decide dal dischetto.|'
+      'Ancora in parità, la qualificazione si gioca dagli undici metri.',
+  'match.pens.sudden_death':
+      'Cinque a testa e ancora parità. A oltranza.|'
+      'Si va a oltranza: un errore e finisce qui.|'
+      'Cinque per parte. Il prossimo errore decide.',
+  'match.pens.scored':
+      'In fondo al sacco, sul palo. Il {us} segna.|'
+      'Portiere spedito dalla parte sbagliata: il {us} non sbaglia.|'
+      'Centrale, e dentro. Il {us} segna.',
+  'match.pens.missed':
+      'Parato! Il {us} non ci crede.|'
+      'Sopra la traversa: il {us} la manda in curva.|'
+      'Palo e fuori. Momento terribile per il {us}.',
+  'match.pens.opp_scored':
+      'Il {them} segna, non c\'è discussione.|'
+      'All\'incrocio per il {them}: imparabile.|'
+      'Il {them} mette dentro il suo.',
+  'match.pens.opp_missed':
+      'Parato! Il portiere intuisce e il {them} ha sbagliato.|'
+      'Il {them} la manda a lato del palo.|'
+      'Alta sopra la traversa del {them}: errore pesantissimo.',
+  'match.pens.through': 'Il {us} vince i rigori e passa il turno.',
+  'match.pens.out': 'Il {them} vince i rigori. Il {us} è fuori.',
+
   // ── E una partita di coppa che va ai rigori ──────────────────────────────
   //
   // Chiavi nuove: i cataloghi generati vengono da un JS la cui cronaca non

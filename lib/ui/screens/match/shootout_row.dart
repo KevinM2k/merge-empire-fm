@@ -6,17 +6,27 @@
 /// JS's own warning about this field, word for word: "a 2-2 tie surfacing as
 /// lost 2-3 with no penalties shown".
 ///
-/// **IT IS DRAWN, NOT WRITTEN, and that is a constraint rather than a style.**
-/// The JS's reveal is hardcoded English — "It's going to penalties!", "We go
-/// through!", "Out on penalties" — with no `t()` key behind any of it, and the
-/// catalogues here are generated from that same repo, so there is no translated
-/// copy to port and none can be minted. A row of ticks and crosses under two
-/// totals says the same thing in every language the game ships in, and says the
-/// part that actually matters — which kicks went in.
+/// **THIS ROW IS THE RECORD, and it is no longer the whole reveal.**
 ///
-/// The JS's animated step-through is not ported with it: that machinery exists
-/// to build suspense, and suspense is what the copy was carrying. Marks that
-/// appear one at a time saying nothing would be a progress bar.
+/// It was. The JS's step-through is hardcoded English — "It's going to
+/// penalties!", "We go through!", "Out on penalties" — with no `t()` key behind
+/// any of it, and the catalogues here are generated from that same repo, so
+/// there was no translated copy to port. The reveal was dropped on that
+/// reasoning and this row put in its place: ticks and crosses under two totals,
+/// which says the part that matters in every language the game ships in.
+///
+/// **Which was the copy deciding the behaviour, and it was reported as such.**
+/// Asked for from the couch in these words: it should say it is going to
+/// penalties and then take them one at a time with the score recorded as it
+/// goes, "that's how it has always worked". Copy this repo owns is written in
+/// `lib/i18n/en_copy.dart` and its nine and laid over the generated
+/// catalogues, so the reveal is mintable and is minted — see `match.pens.*`,
+/// `shootoutBeats` in `match_clock.dart` and `MatchScreenState._beginShootout`.
+///
+/// So the kicks are taken one at a time in the commentary with the running
+/// score beside each, and THIS is what they add up to: the whole shootout at a
+/// glance, once it is over, for a player who wants to see which kicks went in
+/// rather than scroll a feed back.
 library;
 
 import 'package:flutter/material.dart';

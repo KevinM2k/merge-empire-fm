@@ -6,7 +6,7 @@ because that is the part worth keeping.
 
 ## Where this queue stands
 
-**122 done, 6 open, and one feature parked.** One open row is a report still
+**123 done, 6 open, and one feature parked.** One open row is a report still
 being narrowed (the trees' size, below); none of the rest is a fault.
 One is a feature that was built, tried and turned down; one is a balance
 question rather than work; one is a survey to run before building; and one is
@@ -1713,6 +1713,60 @@ them. It was simply never drawn.
       neither of them having gone out. `_nextFor`'s own doc has said it is null
       for a cup tie since it was written; nothing made it so. Ours is still
       printed, because the league game after the tie is still the next game.
+
+## Sixteenth batch — the shootout is a passage of play, not a panel
+
+One report, straight after the last batch and correcting it: "at the end of the
+game it's meant to come up with commentary something like we are going to
+penalties, then it should proceed in the commentary to do the penalties one at a
+time with the score being recorded 0(3)-(2)0. That's how it has always worked
+and how it should work now."
+
+**It is, and the port had written down its own reason for not doing it.**
+`shootout_row.dart`'s header said the JS's reveal is hardcoded English — "It's
+going to penalties!", "We go through!", "Out on penalties" — with no `t()` key
+behind any of it and the catalogues generated from that same repo, "so there is
+no translated copy to port and none can be minted", and concluded that the
+animated step-through goes with it. The first half was true about the COPY and
+was allowed to decide the BEHAVIOUR; the second half stopped being true when
+`en_copy.dart` and `lib/i18n/copy/<id>_copy.dart` became overlays laid over the
+generated catalogues, which is where every word of the write-up already lives.
+
+- [x] **The kicks are taken one at a time, in the commentary, with the score
+      beside each.** The ninety minutes end, the whistle goes, the feed says it
+      is going to penalties — and then a kick lands every second, each row
+      carrying `0 (3) - (2) 0` in the column the feed is scanned by, where a
+      minute goes on every other line. Sudden death is named once when it
+      arrives, because the sixth kick otherwise reads exactly like the fifth,
+      and the last line says which way it went.
+
+      **`finished` now means the tie is over rather than the clock is**, which
+      is the one structural change: it is what turns the control row into
+      CONTINUE, puts the write-up at the head of the feed and writes FULL TIME
+      on the board, and all three over a shootout in progress are the screen
+      telling the player the match is done while the thing that decides it is
+      still happening. The board says PENALTIES instead, and carries the bracket
+      from the first kick — not before it, because `(0) - (0)` under a tie that
+      has only just gone to penalties is a scoreline for a shootout nobody has
+      taken.
+
+      The playback is `match_clock.dart`'s, like the rest of the clock: the
+      whole shootout is decided before the screen opens and `shootoutBeats`
+      only works out the running tally and the order. **Counted rather than
+      read**, and that is not fussiness — `match_orchestration` writes a
+      `homeTotal`/`awayTotal` onto every kick and `cup_launcher` writes
+      neither, so a board reading the stored figure would have shown a running
+      score on a re-simulated tie and zeroes on one that went straight through.
+
+      Nine keys in ten languages, four pools among them because a kick of
+      theirs going in is opposite news to one of ours. A skipped tie gets every
+      line and the full bracket at once: the 13 Sep audit's rule is that what
+      was watched is what gets recorded, and only the pacing may differ.
+
+      Tested by RUNNING THE CLOCK rather than skipping it, which is the whole
+      point — every existing cup test reaches full time through `skipToEnd`,
+      and a shootout that only ever arrives at once is the thing being fixed.
+      Six through the screen and seven on the arithmetic.
 
 ## Open
 

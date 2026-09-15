@@ -875,4 +875,123 @@ void main() {
       );
     });
   });
+
+  group('THE SHOOTOUT, KICK BY KICK', () {
+    Map<String, dynamic> tie(List<Map<String, dynamic>> kicks) => {
+      'penaltyShootout': <String, dynamic>{'kicks': kicks},
+    };
+
+    test('the running tally is counted, not read off the kick', () {
+      // **The two paths a shootout reaches the screen by carry different
+      // fields.** `match_orchestration` writes a `homeTotal`/`awayTotal` onto
+      // every kick and `cup_launcher` writes neither, so a board that printed
+      // the stored tally would show a running score on a re-simulated tie and
+      // zeroes on one that went straight through — which is the fault the
+      // whole reveal exists to avoid. `scored` is on both.
+      final beats = shootoutBeats(
+        tie([
+          {'team': 'home', 'scored': true},
+          {'team': 'away', 'scored': false},
+          {'team': 'home', 'scored': false},
+          {'team': 'away', 'scored': true},
+        ]),
+      );
+      expect([for (final b in beats) (b.ourScore, b.theirScore)], [
+        (1, 0),
+        (1, 0),
+        (1, 0),
+        (1, 1),
+      ]);
+      expect([for (final b in beats) b.kick], [1, 2, 3, 4]);
+      expect([for (final b in beats) b.ours], [true, false, true, false]);
+    });
+
+    test('and `home` is OURS, the same rule the goals follow', () {
+      final beats = shootoutBeats(
+        tie([
+          {'team': 'away', 'scored': true},
+          {'team': 'home', 'scored': true},
+        ]),
+      );
+      expect(beats.first.ours, isFalse);
+      expect(beats.first.theirScore, 1);
+      expect(beats.last.ours, isTrue);
+      expect(beats.last.ourScore, 1);
+    });
+
+    test('sudden death travels with the kick that is in it', () {
+      final beats = shootoutBeats(
+        tie([
+          {'team': 'home', 'scored': true},
+          {'team': 'away', 'scored': false, 'suddenDeath': true},
+        ]),
+      );
+      expect(beats.first.suddenDeath, isFalse);
+      expect(beats.last.suddenDeath, isTrue);
+    });
+
+    test('a league fixture has none of it', () {
+      expect(shootoutBeats(const <String, dynamic>{}), isEmpty);
+      expect(shootoutBeats(null), isEmpty);
+      expect(
+        shootoutBeats(const <String, dynamic>{'penaltyShootout': null}),
+        isEmpty,
+      );
+    });
+
+    test('THE SCORELINE IS THE ONE THE COUCH ASKED FOR', () {
+      // "the score being recorded 0(3)-(2)0" — the ninety minutes stand and
+      // the kicks go in brackets on the inside of each of them.
+      expect(
+        shootoutScoreLine(
+          leftGoals: 0,
+          rightGoals: 0,
+          leftPens: 3,
+          rightPens: 2,
+        ),
+        '0 (3) - (2) 0',
+      );
+    });
+
+    test('and four pools, because a kick of theirs is opposite news', () {
+      ShootoutBeat beat({required bool ours, required bool scored}) => (
+        kick: 1,
+        ours: ours,
+        scored: scored,
+        ourScore: 0,
+        theirScore: 0,
+        suddenDeath: false,
+      );
+      expect(
+        shootoutLineKey(beat(ours: true, scored: true)),
+        'match.pens.scored',
+      );
+      expect(
+        shootoutLineKey(beat(ours: true, scored: false)),
+        'match.pens.missed',
+      );
+      expect(
+        shootoutLineKey(beat(ours: false, scored: true)),
+        'match.pens.opp_scored',
+      );
+      expect(
+        shootoutLineKey(beat(ours: false, scored: false)),
+        'match.pens.opp_missed',
+      );
+    });
+
+    test('and a beat scales with the pace the match is watched at', () {
+      // 2x halves the wait the way it halves a minute: a player who chose to
+      // watch at double speed chose it for this too.
+      expect(penaltyBeat(penaltyKickBeat, MatchPace.base), penaltyKickBeat);
+      expect(
+        penaltyBeat(penaltyKickBeat, MatchPace.fast).inMilliseconds * 2,
+        penaltyKickBeat.inMilliseconds,
+      );
+      expect(
+        penaltyBeat(penaltyKickBeat, MatchPace.autoSlow),
+        penaltyKickBeat * 2,
+      );
+    });
+  });
 }

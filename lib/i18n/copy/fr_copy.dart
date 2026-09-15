@@ -88,6 +88,41 @@ const Map<String, String> frCopy = <String, String>{
           'y arriver.|'
       'Fin du match, avec le but de l\'égalisation tombé à la {minute}e '
           'minute.',
+  // ── La séance de tirs au but, racontée coup par coup ─────────────────────
+  //
+  // Le JS avait cette séquence en dur, en anglais, sans aucune clé `t()` : il
+  // n'y avait rien à porter depuis les catalogues générés. Demandé depuis le
+  // canapé, donc écrit ici, dans les dix langues. `{score}` est affiché par la
+  // ligne, pas par la phrase.
+  'match.pens.head': 'Tirs au but',
+  'match.pens.going':
+      'Ce sera la séance de tirs au but.|'
+      'Rien ne les sépare après quatre-vingt-dix minutes : ce sera aux tirs au '
+          'but.|'
+      'Toujours à égalité, la qualification se joue depuis le point de penalty.',
+  'match.pens.sudden_death':
+      'Cinq partout, toujours rien. Mort subite.|'
+      'On passe en mort subite : un raté et c\'est terminé.|'
+      'Cinq chacun. La prochaine erreur décidera de tout.',
+  'match.pens.scored':
+      'Au fond, dans le petit filet. {us} marque.|'
+      'Le gardien part du mauvais côté : {us} ne tremble pas.|'
+      'Plein axe, et c\'est dedans. {us} marque.',
+  'match.pens.missed':
+      'Arrêté ! {us} n\'en revient pas.|'
+      'Au-dessus de la barre : {us} l\'envoie dans les tribunes.|'
+      'Sur le poteau et dehors. Terrible moment pour {us}.',
+  'match.pens.opp_scored':
+      '{them} marque, rien à dire.|'
+      'Lucarne pour {them} : imparable.|'
+      '{them} convertit le sien.',
+  'match.pens.opp_missed':
+      'Arrêté ! Le gardien part du bon côté et {them} a raté.|'
+      '{them} l\'envoie à côté du poteau.|'
+      'Au-dessus pour {them} : un raté énorme.',
+  'match.pens.through': '{us} remporte la séance et se qualifie.',
+  'match.pens.out': '{them} remporte la séance. {us} est éliminé.',
+
   // ── Et un match de coupe qui va aux tirs au but ──────────────────────────
   //
   // Nouvelles clés : le catalogue généré vient d'un JS dont le résumé ignorait

@@ -832,3 +832,117 @@ List<FeedLine> feedOf(
   });
   return [for (final line in merged) line.$2];
 }
+
+// ── The shootout, kick by kick ──────────────────────────────────────────────
+
+/// One kick of a shootout, in the order it is taken.
+///
+/// **The whole shootout is decided before this screen opens**, the same way the
+/// ninety minutes are: `simulatePenaltyShootout` builds the list, sudden death
+/// and all, and `cup_launcher` carries it onto the result. Nothing here may
+/// change any of it — this is the PLAYBACK, and the only thing it owns is when
+/// each kick appears.
+///
+/// [ourScore] and [theirScore] are the tally AFTER this kick, which is the
+/// number the board and the feed print beside it: `1 (3) - (2) 1`.
+typedef ShootoutBeat = ({
+  /// One-based, in the order taken.
+  int kick,
+
+  /// Whose kick it is. `home` is always OURS on a result — the same rule the
+  /// goals follow, and the one thing here that looks like it should be checked
+  /// against the venue and must not be.
+  bool ours,
+  bool scored,
+  int ourScore,
+  int theirScore,
+
+  /// Past the first five each, where one miss ends it.
+  bool suddenDeath,
+});
+
+/// The kicks a result carries, with the running tally worked out.
+///
+/// Empty for every league fixture and for a tie settled inside the ninety.
+///
+/// **The tally is COUNTED here rather than read off the kick.**
+/// `match_orchestration` writes a `homeTotal`/`awayTotal` onto each one and
+/// `cup_launcher` writes neither, so the two ways a shootout can reach this
+/// screen carry different fields — and a board that printed a running score on
+/// one path and zeroes on the other would be the same fault this whole feature
+/// exists to fix. `scored` is on both, and it is all the tally needs.
+List<ShootoutBeat> shootoutBeats(Map<String, dynamic>? result) {
+  final shootout = result?['penaltyShootout'];
+  if (shootout is! Map<String, dynamic>) return const [];
+  final raw = shootout['kicks'];
+  if (raw is! List) return const [];
+  final beats = <ShootoutBeat>[];
+  var ours = 0;
+  var theirs = 0;
+  for (final entry in raw) {
+    if (entry is! Map<String, dynamic>) continue;
+    final mine = entry['team'] != 'away';
+    final scored = entry['scored'] == true;
+    if (scored) {
+      if (mine) {
+        ours++;
+      } else {
+        theirs++;
+      }
+    }
+    beats.add((
+      kick: beats.length + 1,
+      ours: mine,
+      scored: scored,
+      ourScore: ours,
+      theirScore: theirs,
+      suddenDeath: entry['suddenDeath'] == true,
+    ));
+  }
+  return beats;
+}
+
+/// The scoreline a shootout is written in — `1 (3) - (2) 1`.
+///
+/// Asked for from the couch in exactly that shape: the ninety minutes stand,
+/// and the kicks go in brackets on the inside of each of them, which is how
+/// every scoreboard and every results page has ever printed a shootout. Both
+/// pairs are HOME SIDE LEFT, like the board.
+String shootoutScoreLine({
+  required int leftGoals,
+  required int rightGoals,
+  required int leftPens,
+  required int rightPens,
+}) => '$leftGoals ($leftPens) - ($rightPens) $rightGoals';
+
+/// What a kick says in the feed.
+///
+/// Four pools rather than two: a kick of ours going in and a kick of theirs
+/// going in are opposite news, and a feed that described them with one sentence
+/// would be the fault `commentary.opp_goal` exists to avoid.
+String shootoutLineKey(ShootoutBeat beat) => beat.ours
+    ? (beat.scored ? 'match.pens.scored' : 'match.pens.missed')
+    : (beat.scored ? 'match.pens.opp_scored' : 'match.pens.opp_missed');
+
+/// How long the announcement holds before the first kick is taken.
+const Duration penaltyOpenBeat = Duration(milliseconds: 1400);
+
+/// And how long each kick holds after it.
+///
+/// **Slower than a minute of the match, deliberately.** A minute is 350ms and a
+/// shootout is the one part of a cup tie a player watches rather than reads —
+/// twelve kicks at the clock's own pace is over in four seconds, which is the
+/// animation the JS built its reveal for playing to nobody.
+const Duration penaltyKickBeat = Duration(milliseconds: 1000);
+
+/// And the pause after the last kick, before the whistle's own payoff.
+const Duration penaltyVerdictBeat = Duration(milliseconds: 1100);
+
+/// A shootout beat at the pace the match is being watched at.
+///
+/// Scaled rather than switched, so 2× halves the wait the way it halves a
+/// minute and AUTO's slow pace stretches it the same amount. A player who has
+/// chosen to watch at double speed has chosen it for this too.
+Duration penaltyBeat(Duration base, MatchPace pace) => Duration(
+  microseconds: (base.inMicroseconds * pace.minuteMs / matchMinuteMs).round(),
+);
