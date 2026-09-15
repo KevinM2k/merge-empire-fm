@@ -545,8 +545,9 @@ class _TransferPillState extends ConsumerState<TransferPill>
                 const SizedBox(width: 8),
                 Text(
                   t('transfer.pill_label'),
+                  // 14: at 12.5 it read as the smallest type on the page.
                   style: const TextStyle(
-                    fontSize: 12.5,
+                    fontSize: 14,
                     fontWeight: FontWeight.w900,
                     // The pill's own ink: gold is a fixed colour in both
                     // themes, so what reads on it is too.
