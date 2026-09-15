@@ -62,7 +62,7 @@ class BoostPitchButtons extends ConsumerWidget {
             enabled: enabled,
             onUse: () => onUse(boost.id),
           ),
-          if (boost != proactiveBoosts.last) const SizedBox(width: 10),
+          if (boost != proactiveBoosts.last) const SizedBox(width: 8),
         ],
       ],
     );
@@ -100,8 +100,8 @@ class _PitchChip extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
         Container(
-          height: 32,
-          padding: const EdgeInsets.fromLTRB(7, 0, 8, 0),
+          height: 24,
+          padding: const EdgeInsets.fromLTRB(6, 0, 7, 0),
           decoration: BoxDecoration(
             // Over grass, so it wears the glass the HUD wears rather than a
             // card: dark enough to read on the turf, the window's colour
@@ -119,15 +119,15 @@ class _PitchChip extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              GameIcon(boost.icon, size: 15, color: ink),
-              const SizedBox(width: 4),
+              GameIcon(boost.icon, size: 12, color: ink),
+              const SizedBox(width: 3),
               if (live)
                 // Where the window ends, in match minutes — the same unit
                 // the bar burns in.
                 Text(
                   "$until'",
                   key: ValueKey('match-boost-until-${boost.id}'),
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w900, color: ink),
+                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w800, color: ink),
                 )
               else
                 Text(
@@ -138,16 +138,17 @@ class _PitchChip extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(height: 3),
-        // Its name, in caps, on the grass: an icon alone is a guess for a
-        // player who has not learned the three yet. Asked for from the couch.
+        const SizedBox(height: 2),
+        // Its name on the grass: an icon alone is a guess for a player who
+        // has not learned the three yet. Own case and a lighter weight — in
+        // caps at w900 the three read as signage over the pitch. Asked for
+        // from the couch, both times.
         Text(
-          t('boost.${boost.id}.name').toUpperCase(),
+          t('boost.${boost.id}.name'),
           maxLines: 1,
           style: TextStyle(
             fontSize: 12,
-            fontWeight: FontWeight.w900,
-            letterSpacing: 0.4,
+            fontWeight: FontWeight.w700,
             color: hue ?? Colors.white,
             shadows: const [Shadow(color: Color(0xAA000000), blurRadius: 3)],
           ),
