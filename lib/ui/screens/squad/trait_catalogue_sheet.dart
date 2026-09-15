@@ -9,6 +9,13 @@
 /// The PLAYER half is this position's own pool — a keeper is not shown
 /// Finisher — and the MATCH half is the whole pool, because that one has no
 /// position gating. The one he holds in each is marked.
+///
+/// **TWO TABS RATHER THAN TWO HEADINGS.** They were one scrolling list with a
+/// heading apiece, which put the match traits below the fold of a pool that can
+/// run to fifteen — so the half the sheet exists to advertise was the half
+/// nobody scrolled to. Asked for from the couch: tabs, so both are one tap
+/// away. The headings go with the change: the tab already names the half, and
+/// saying it twice a line apart is the same word twice.
 library;
 
 import 'package:flutter/material.dart';
@@ -42,7 +49,7 @@ Future<void> showTraitCatalogue(
   ),
 );
 
-class TraitCatalogueSheet extends StatelessWidget {
+class TraitCatalogueSheet extends StatefulWidget {
   const TraitCatalogueSheet({
     super.key,
     required this.position,
@@ -66,51 +73,74 @@ class TraitCatalogueSheet extends StatelessWidget {
   final String? heldMatch;
 
   @override
+  State<TraitCatalogueSheet> createState() => _TraitCatalogueSheetState();
+}
+
+class _TraitCatalogueSheetState extends State<TraitCatalogueSheet> {
+  /// 0 is the player pool, 1 the match pool. Opens on the player's own, which
+  /// is the slot every card has.
+  int _tab = 0;
+
+  @override
   Widget build(BuildContext context) {
     final kit = Theme.of(context).extension<KitTheme>()!;
-    final pool = getTraitPoolForPosition(position, hardMode: hardMode)
+    final pool = getTraitPoolForPosition(widget.position, hardMode: widget.hardMode)
         .where((t) => t.id != 'none')
         .toList();
+    final onMatch = _tab == 1;
     return Column(
       key: const ValueKey('trait-catalogue'),
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         SheetHeader(title: t('squad.traits.all.title')),
+        _Tabs(
+          selected: _tab,
+          onChanged: (i) => setState(() => _tab = i),
+        ),
         Flexible(
+          // **KEYED ON THE TAB.** The two pools are different lengths, and a
+          // ListView reused across the switch keeps the old scroll offset —
+          // land on the match tab already scrolled past its first rows and it
+          // reads as a list that starts in the middle.
           child: ListView(
+            key: ValueKey('trait-catalogue-list-$_tab'),
             shrinkWrap: true,
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
             children: [
-              _Heading(text: t('squad.trait.slot.player')),
-              for (final trait in pool)
-                _Row(
-                  rowKey: ValueKey('trait-catalogue-${trait.id}'),
-                  icon: trait.icon,
-                  name: traitName(trait),
-                  desc: traitDesc(trait),
-                  chips: traitLadderOn(card, trait, ratios),
-                  held: trait.id == heldPlayer,
+              if (!onMatch)
+                for (final trait in pool)
+                  _Row(
+                    rowKey: ValueKey('trait-catalogue-${trait.id}'),
+                    icon: trait.icon,
+                    name: traitName(trait),
+                    desc: traitDesc(trait),
+                    chips: traitLadderOn(widget.card, trait, widget.ratios),
+                    held: trait.id == widget.heldPlayer,
+                  ),
+              if (onMatch) ...[
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: Text(
+                    t('squad.traits.match_blurb'),
+                    style: TextStyle(
+                      fontSize: 12,
+                      height: 1.4,
+                      color: kit.textMuted,
+                    ),
+                  ),
                 ),
-              const SizedBox(height: 14),
-              _Heading(text: t('squad.trait.slot.match')),
-              Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: Text(
-                  t('squad.traits.match_blurb'),
-                  style: TextStyle(fontSize: 12, height: 1.4, color: kit.textMuted),
-                ),
-              ),
-              for (final trait in matchTraitList)
-                _Row(
-                  rowKey: ValueKey('trait-catalogue-${trait.id}'),
-                  icon: trait.icon,
-                  name: matchTraitName(trait),
-                  desc: matchTraitDesc(trait),
-                  when: matchTraitWhen(trait),
-                  chips: matchTraitLadder(trait),
-                  held: trait.id == heldMatch,
-                ),
+                for (final trait in matchTraitList)
+                  _Row(
+                    rowKey: ValueKey('trait-catalogue-${trait.id}'),
+                    icon: trait.icon,
+                    name: matchTraitName(trait),
+                    desc: matchTraitDesc(trait),
+                    when: matchTraitWhen(trait),
+                    chips: matchTraitLadder(trait),
+                    held: trait.id == widget.heldMatch,
+                  ),
+              ],
             ],
           ),
         ),
@@ -119,24 +149,73 @@ class TraitCatalogueSheet extends StatelessWidget {
   }
 }
 
-class _Heading extends StatelessWidget {
-  const _Heading({required this.text});
+/// The two halves, as a strip of tabs.
+///
+/// Built here rather than with `TabBar`: that needs a `TabController` and a
+/// `TabBarView`, and a `TabBarView` demands a bounded height — which a bottom
+/// sheet that sizes itself to its content does not have. Two buttons and an
+/// `if` do the same job and leave the sheet measuring itself as it did.
+///
+/// The labels are the slot names the rest of the squad screen already uses, so
+/// they are translated in all ten languages and say the same word here as they
+/// do on the medal the sheet was opened from.
+class _Tabs extends StatelessWidget {
+  const _Tabs({required this.selected, required this.onChanged});
 
-  final String text;
+  final int selected;
+  final ValueChanged<int> onChanged;
 
   @override
   Widget build(BuildContext context) {
     final kit = Theme.of(context).extension<KitTheme>()!;
     return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
-      child: Text(
-        text.toUpperCase(),
-        style: TextStyle(
-          color: kit.accentBright,
-          fontSize: 12,
-          fontWeight: FontWeight.w900,
-          letterSpacing: 1.2,
-        ),
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      child: Row(
+        children: [
+          for (final (i, label) in [
+            (0, t('squad.trait.slot.player')),
+            (1, t('squad.trait.slot.match')),
+          ])
+            Expanded(
+              child: InkWell(
+                key: ValueKey(
+                  'trait-catalogue-tab-${i == 0 ? 'player' : 'match'}',
+                ),
+                onTap: () => onChanged(i),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        label.toUpperCase(),
+                        textAlign: TextAlign.center,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: i == selected
+                              ? kit.accentBright
+                              : kit.textMuted,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: 1.2,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      // The underline is what says which one you are on; the
+                      // colour alone is a distinction some players cannot make.
+                      Container(
+                        height: 2,
+                        color: i == selected
+                            ? kit.accentBright
+                            : kit.border,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }

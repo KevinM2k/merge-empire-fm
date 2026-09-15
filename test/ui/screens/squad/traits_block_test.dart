@@ -131,6 +131,13 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('detail-trait-catalogue')));
       await tester.pumpAndSettle();
       expect(find.byKey(const ValueKey('trait-catalogue')), findsOneWidget);
+      // **THE MATCH TRAITS LIVE ON THEIR OWN TAB NOW.** The sheet opens on the
+      // player pool — the slot every card has — and the match half is one tap
+      // away rather than below fifteen rows of the other one.
+      await tester.tap(
+        find.byKey(const ValueKey('trait-catalogue-tab-match')),
+      );
+      await tester.pumpAndSettle();
       // Every match trait is a row; `none` from the player pool is not.
       // The list builds lazily, so walk it by its own position rather than
       // by dragging — a drag inside a modal sheet is the sheet's to dismiss.
@@ -152,6 +159,35 @@ void main() {
       // And each says WHEN it fires and what each level is worth.
       expect(find.textContaining(matchTraitWhen(matchTraitList.last)), findsWidgets);
       expect(find.text('III ${matchTraitEffect(matchTraitList.last, matchTraitList.last.levels.last)}'), findsOneWidget);
+    });
+
+    testWidgets('AND THE TWO HALVES ARE ONE TAP APART', (tester) async {
+      // Asked for from the couch: tabs, so the match traits are not buried
+      // under a player pool that runs to fifteen rows.
+      final container = await pumpSquad(tester);
+      await openDetailOfFirst(tester, container);
+      await scrollSheetTo(tester, 'detail-trait');
+      await tester.tap(find.byKey(const ValueKey('detail-trait-catalogue')));
+      await tester.pumpAndSettle();
+
+      // It opens on the player pool, and the match pool is not in the tree.
+      final firstMatch = ValueKey('trait-catalogue-${matchTraitList.first.id}');
+      expect(find.byKey(firstMatch), findsNothing);
+      expect(find.text(t('squad.traits.match_blurb')), findsNothing);
+
+      await tester.tap(
+        find.byKey(const ValueKey('trait-catalogue-tab-match')),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byKey(firstMatch), findsOneWidget);
+      expect(find.text(t('squad.traits.match_blurb')), findsOneWidget);
+
+      // And back again, so neither tab is a one-way door.
+      await tester.tap(
+        find.byKey(const ValueKey('trait-catalogue-tab-player')),
+      );
+      await tester.pumpAndSettle();
+      expect(find.byKey(firstMatch), findsNothing);
     });
   });
 }
