@@ -412,7 +412,15 @@ class TraitBlockState extends ConsumerState<TraitBlock> {
               _Description(
                 title: matchTraitTitle(matchTrait!),
                 desc: matchTraitDesc(matchHeld),
-                effects: const [],
+                when: matchTraitWhen(matchHeld),
+                effects: [
+                  if (getMatchTraitLevel(
+                        matchHeld,
+                        (matchTrait['level'] as num?)?.toInt() ?? 1,
+                      )
+                      case final level?)
+                    matchTraitEffect(matchHeld, level),
+                ],
               ),
               const SizedBox(height: 10),
             ] else if (!matchSelected && playerHeld != null) ...[
@@ -678,11 +686,16 @@ class _Description extends StatelessWidget {
     required this.title,
     required this.desc,
     required this.effects,
+    this.when,
   });
 
   final String title;
   final String desc;
   final List<String> effects;
+
+  /// The circumstance a match trait fires in. Null for the first slot, which
+  /// is always on.
+  final String? when;
 
   @override
   Widget build(BuildContext context) {
@@ -706,6 +719,19 @@ class _Description extends StatelessWidget {
           key: const ValueKey('detail-trait-desc'),
           style: TextStyle(fontSize: 12, height: 1.35, color: kit.textMuted),
         ),
+        if (when case final w?) ...[
+          const SizedBox(height: 4),
+          Text(
+            '${t('matchtrait.when').toUpperCase()} · $w',
+            key: const ValueKey('detail-trait-when'),
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.3,
+              color: kit.accentBright,
+            ),
+          ),
+        ],
         if (effects.isNotEmpty) ...[
           const SizedBox(height: 6),
           Wrap(

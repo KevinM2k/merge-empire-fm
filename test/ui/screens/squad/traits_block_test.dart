@@ -15,6 +15,7 @@ import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/state/card_instance.dart';
 import 'package:merge_empire_fc/ui/screens/squad/trait_reel.dart';
 import 'package:merge_empire_fc/ui/screens/squad/traits_block.dart';
+import 'package:merge_empire_fc/ui/widgets/trait_copy.dart';
 
 import 'squad_screen_test.dart';
 
@@ -195,6 +196,9 @@ void main() {
         expect(row, findsOneWidget, reason: trait.id);
       }
       expect(find.byKey(const ValueKey('trait-catalogue-none')), findsNothing);
+      // And each says WHEN it fires and what each level is worth.
+      expect(find.textContaining(matchTraitWhen(matchTraitList.last)), findsWidgets);
+      expect(find.text('III ${matchTraitEffect(matchTraitList.last, matchTraitList.last.levels.last)}'), findsOneWidget);
     });
   });
 }

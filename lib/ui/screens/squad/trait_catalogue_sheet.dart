@@ -93,6 +93,8 @@ class TraitCatalogueSheet extends StatelessWidget {
                   icon: trait.icon,
                   name: matchTraitName(trait),
                   desc: matchTraitDesc(trait),
+                  when: matchTraitWhen(trait),
+                  chips: matchTraitLadder(trait),
                   held: trait.id == heldMatch,
                 ),
             ],
@@ -133,12 +135,19 @@ class _Row extends StatelessWidget {
     required this.name,
     required this.desc,
     required this.held,
+    this.when,
+    this.chips = const [],
   });
 
   final Key rowKey;
   final String icon;
   final String name;
   final String desc;
+
+  /// When it fires, and what each level is worth — the two things a
+  /// description of the trait's character does not say.
+  final String? when;
+  final List<String> chips;
 
   /// The one he has: lit the way the medal is.
   final bool held;
@@ -177,6 +186,46 @@ class _Row extends StatelessWidget {
                   desc,
                   style: TextStyle(fontSize: 12, height: 1.35, color: kit.textMuted),
                 ),
+                if (when case final w?) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    '${t('matchtrait.when').toUpperCase()} · $w',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.3,
+                      color: kit.accentBright,
+                    ),
+                  ),
+                ],
+                if (chips.isNotEmpty) ...[
+                  const SizedBox(height: 6),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 4,
+                    children: [
+                      for (final chip in chips)
+                        DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: kit.accent.withValues(alpha: 0.16),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            child: Text(
+                              chip,
+                              style: TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: 0.4,
+                                color: kit.accentBright,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
               ],
             ),
           ),

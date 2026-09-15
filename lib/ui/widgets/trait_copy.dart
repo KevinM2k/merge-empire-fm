@@ -63,6 +63,35 @@ String matchTraitName(MatchTrait trait) =>
 String matchTraitDesc(MatchTrait trait) =>
     _catalogue('matchtrait.desc.${trait.id}') ?? trait.desc;
 
+/// When it fires — the condition, in words. A description says what the
+/// trait is; this says the circumstance, which is the thing to plan round.
+String matchTraitWhen(MatchTrait trait) =>
+    t('matchtrait.when.${trait.condition.name}');
+
+/// What one level is worth, as a figure a manager can weigh: the rating lift
+/// as a percentage, or for the two that are not a lift, what they are.
+/// Asked for from the couch — "fights hardest when the drop is real" said
+/// nothing about how hard.
+String matchTraitEffect(MatchTrait trait, MatchTraitLevel level) {
+  final pct = ((level.mult - 1) * 100).round();
+  return switch (trait.condition) {
+    MatchTraitCondition.tenMen => t('matchtrait.effect.squad', {'n': '$pct'}),
+    MatchTraitCondition.booked => t('matchtrait.effect.booked', {
+        'n': '${((1 - level.mult) * 100).round()}',
+      }),
+    MatchTraitCondition.injuryShrug => t('matchtrait.effect.shrug', {
+        'n': '${(level.mult * 100).round()}',
+      }),
+    _ => t('matchtrait.effect.rating', {'n': '$pct'}),
+  };
+}
+
+/// The three levels' worth, `I +4%` style, for a trait nobody holds yet.
+List<String> matchTraitLadder(MatchTrait trait) => [
+  for (final level in trait.levels)
+    '${level.label} ${matchTraitEffect(trait, level)}',
+];
+
 /// `🔄 Super Sub III`, localised.
 String matchTraitTitle(Map<String, dynamic>? instance) {
   if (instance == null) return '';
