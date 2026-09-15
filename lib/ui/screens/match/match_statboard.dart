@@ -437,14 +437,33 @@ class MatchStatboard extends StatelessWidget {
             // Off the list the moment he is off, hurt or sent off, because
             // the list is built from the lineup every tick. Asked for from
             // the couch, with the column count left to the width.
-            if (active.any((l) => l.card != null))
-              LayoutBuilder(
-                key: const ValueKey('match-active-cards'),
+            // **AND THEY COME AND GO, rather than blink.** The sheet
+            // follows the match, so a man's card leaves when he does — a
+            // fade and a shrink, keyed on who is listed. Asked for.
+            AnimatedSize(
+              duration: const Duration(milliseconds: 350),
+              curve: Curves.easeOutCubic,
+              alignment: Alignment.topCenter,
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 350),
+                switchInCurve: Curves.easeOut,
+                switchOutCurve: Curves.easeIn,
+                transitionBuilder: (child, anim) => FadeTransition(
+                  opacity: anim,
+                  child: ScaleTransition(scale: Tween(begin: 0.92, end: 1.0).animate(anim), child: child),
+                ),
+                child: !active.any((l) => l.card != null)
+                    ? const SizedBox(width: double.infinity)
+                    : LayoutBuilder(
+                key: ValueKey('match-active-cards-${[for (final l in active) if (l.card != null) l.id].join(',')}'),
                 builder: (context, box) {
-                  final columns = benchColumns(box.maxWidth).clamp(2, 4);
+                  // Three at least: two made the cards the size of the
+                  // sheet's own header. Asked for from the couch.
+                  final columns = benchColumns(box.maxWidth).clamp(3, 4);
                   const gap = 8.0;
                   final width = (box.maxWidth - gap * (columns - 1)) / columns;
                   return Wrap(
+                    key: const ValueKey('match-active-cards'),
                     spacing: gap,
                     runSpacing: gap,
                     children: [
@@ -490,6 +509,8 @@ class MatchStatboard extends StatelessWidget {
                   );
                 },
               ),
+              ),
+            ),
           ],
         ],
       ),

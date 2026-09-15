@@ -1606,6 +1606,7 @@ class MatchScreenState extends ConsumerState<MatchScreen>
     if (_liveGlow.isAnimating) _liveGlow.stop();
     if (_reported) return;
     _reported = true;
+    _closeStats();
     _catchUpSendingsOff();
     // **AND THE BANS ARE WRITTEN AT THE WHISTLE.** A sending-off costs the next
     // match as well as the rest of this one — see `applySuspensions`. It goes
@@ -1800,8 +1801,8 @@ class MatchScreenState extends ConsumerState<MatchScreen>
       sentOffSlots: _sentOffSlots,
       cautioned: _cautioned,
       boostOffers: _boostsHidden ? null : _benchOffers,
-      lit: litIds(),
-      wouldBeLit: wouldBeLitIds(),
+      lifts: lifts(),
+      wouldBeLifts: wouldBeLifts(),
     );
     // **CLOSING THE BENCH IS THE DECISION.** Whoever was on offer for a review
     // or a sponge and was not taken is not coming back — you cannot undo a
@@ -1829,7 +1830,28 @@ class MatchScreenState extends ConsumerState<MatchScreen>
   /// rebuilds never reached it: the numbers it opened with were the numbers
   /// it showed until it closed. Reported from the couch. It listens to the
   /// clock now and re-reads the same figures the board reads, every tick.
-  Future<void> _showStats(bool home) => showBottomSheetPopup<void>(
+  /// The stats sheet's route while it is up, so the whistle can close it:
+  /// the statistics are on the pitch at full time, and the sheet's own
+  /// "Active" list is about a match that is over. Asked for from the couch.
+  NavigatorState? _statsOpenOn;
+
+  void _closeStats() {
+    final nav = _statsOpenOn;
+    _statsOpenOn = null;
+    if (nav != null && nav.mounted && nav.canPop()) nav.pop();
+  }
+
+  Future<void> _showStats(bool home) async {
+    if (frame.finished) return _openStats(home);
+    _statsOpenOn = Navigator.of(context);
+    try {
+      await _openStats(home);
+    } finally {
+      _statsOpenOn = null;
+    }
+  }
+
+  Future<void> _openStats(bool home) => showBottomSheetPopup<void>(
     context,
     heightFraction: 0.6,
     child: SingleChildScrollView(
@@ -2496,22 +2518,21 @@ class MatchScreenState extends ConsumerState<MatchScreen>
     }
   }
 
-  /// The men on the pitch whose match trait is lit at this minute, and the
-  /// men on the bench whose trait WOULD be if they came on now — the bench
-  /// pulses both, so a boost in play and a boost in hand are both seen.
-  /// Asked for from the couch.
-  Set<String> litIds() {
+  /// The men on the pitch whose match trait is lifting them at this minute,
+  /// each with his multiplier, and the men on the bench whose trait WOULD be
+  /// if they came on now — the bench pulses both and rates them lifted, so a
+  /// boost in play and a boost in hand are both seen. Asked for from the couch.
+  Map<String, double> lifts() {
     final cells = _gridCells();
     final lineup = _lineupSnapshot();
-    final ctx = _matchContext();
+    final mults = matchTraitMultipliers(cells, lineup, _matchContext());
     return {
-      for (final row in lineup)
-        if (row['cardInstanceId'] case final String id)
-          if (isMatchTraitLit(cells, lineup, ctx, id)) id,
+      for (final e in mults.entries)
+        if (e.value > 1) e.key: e.value,
     };
   }
 
-  Set<String> wouldBeLitIds() {
+  Map<String, double> wouldBeLifts() {
     final cells = _gridCells();
     final lineup = _lineupSnapshot();
     final on = {
@@ -2519,7 +2540,7 @@ class MatchScreenState extends ConsumerState<MatchScreen>
         if (row['cardInstanceId'] case final String id) id,
     };
     final late = _minute >= _end - 20;
-    final out = <String>{};
+    final out = <String, double>{};
     for (final card in cells.whereType<CardInstance>()) {
       final id = card.instanceId;
       if (on.contains(id) || _withdrawn.contains(id) || _sentOff.contains(id)) continue;
@@ -2543,14 +2564,18 @@ class MatchScreenState extends ConsumerState<MatchScreen>
         subbedOnLate: late ? {...base.subbedOnLate, id} : base.subbedOnLate,
         cautioned: base.cautioned,
       );
-      if (isMatchTraitLit(cells, trial, ctx, id)) out.add(id);
+      if (!isMatchTraitLit(cells, trial, ctx, id)) continue;
+      final mult = matchTraitMultipliers(cells, trial, ctx)[id] ?? 1;
+      if (mult > 1) out[id] = mult;
     }
     return out;
   }
 
-  /// Everything running, for the statboard's "Active" list.
+  /// Everything running, for the statboard's "Active" list. Empty at full
+  /// time: nothing lifts a match that is over.
   List<ActiveLift> _activeLifts() {
     final out = <ActiveLift>[];
+    if (frame.finished) return out;
     for (final b in _boosts.activeAt(_minute)) {
       if (out.any((a) => a.id == b.id)) continue;
       final boost = getBoost(b.id);
@@ -4604,15 +4629,33 @@ class _Scoreboard extends StatelessWidget {
                   color: kit.textMuted,
                 ),
               ),
-              right: Text(
-                '$rightGoals',
-                key: const ValueKey('match-score-right'),
-                style: TextStyle(
-                  fontSize: 34,
-                  height: 1,
-                  fontWeight: FontWeight.w900,
-                  color: ink,
-                  fontFeatures: const [FontFeature.tabularFigures()],
+              // Full width, or the stack hugs the number and the tag lands on it.
+              right: SizedBox(
+                width: double.infinity,
+                child: Stack(
+                alignment: Alignment.center,
+                children: [
+                  Text(
+                    '$rightGoals',
+                    key: const ValueKey('match-score-right'),
+                    style: TextStyle(
+                      fontSize: 34,
+                      height: 1,
+                      fontWeight: FontWeight.w900,
+                      color: ink,
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                    ),
+                  ),
+                  // **A HINT THAT THE BOARD OPENS.** Floated at the score
+                  // row's far edge, which is the emptiest strip on the card,
+                  // so it costs no height and sits under nothing. Gone at
+                  // full time, when the statistics are on the pitch already.
+                  if (!finished)
+                    Positioned(
+                      right: 0,
+                      child: _StatsHint(ink: kit.textMuted),
+                    ),
+                ],
                 ),
               ),
             ),
@@ -4694,6 +4737,37 @@ class _Scoreboard extends StatelessWidget {
   }
 }
 
+
+/// The little `Stats` tag on the board — a label, not a button: the board
+/// itself takes the tap, this only says so.
+class _StatsHint extends StatelessWidget {
+  const _StatsHint({required this.ink});
+
+  final Color ink;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: const ValueKey('match-stats-hint'),
+      padding: const EdgeInsets.fromLTRB(6, 3, 7, 3),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: ink.withValues(alpha: 0.55), width: 1.2),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          GameIcon('bars', size: 10, color: ink),
+          const SizedBox(width: 3),
+          Text(
+            t('match.tab.stats'),
+            style: TextStyle(fontSize: 10, fontWeight: FontWeight.w900, color: ink, height: 1),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 /// `BOOST · Crowd Roar · On` from a feed key like `boost.roar.live`.
 String _boostHeading(String key) {

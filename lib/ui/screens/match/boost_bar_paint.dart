@@ -407,7 +407,7 @@ class _BoostPulseState extends State<BoostPulse>
   @override
   Widget build(BuildContext context) {
     if (!widget.on) return widget.child;
-    final kit = Theme.of(context).extension<KitTheme>()!;
+    // Gold, not the kit's green: on the grass a green halo is no halo at all.
     return AnimatedBuilder(
       animation: _t,
       builder: (context, child) => DecoratedBox(
@@ -416,7 +416,7 @@ class _BoostPulseState extends State<BoostPulse>
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
-              color: kit.accentBright.withValues(alpha: 0.35 + 0.4 * _t.value),
+              color: goldMid.withValues(alpha: 0.45 + 0.4 * _t.value),
               blurRadius: 10 + 8 * _t.value,
               spreadRadius: 1 + 2 * _t.value,
             ),

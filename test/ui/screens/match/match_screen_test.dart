@@ -754,10 +754,14 @@ void main() {
       matchResult(addedTime: 1),
       onFinished: (_) => finished++,
     );
+    // The board's `Stats` tag is up while it plays and gone at the whistle,
+    // when the statistics are on the pitch already.
+    expect(find.byKey(const ValueKey('match-stats-hint')), findsOneWidget);
     await tester.pump(minuteDurationFor(95));
     await tester.pumpAndSettle();
 
     expect(stateOf(tester).frame.finished, isTrue);
+    expect(find.byKey(const ValueKey('match-stats-hint')), findsNothing);
     // **In the FOOTER, not in the gutter.** The gutter is a fixed 34px — what
     // makes the ratings line up under the club names — and "Full Time" wraps
     // inside it and grows the row, which moved the whole pitch band down a line

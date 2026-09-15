@@ -42,7 +42,7 @@ import 'package:merge_empire_fc/ui/screens/squad/squad_pitch.dart';
 import 'package:merge_empire_fc/ui/screens/squad/squad_providers.dart';
 import 'package:merge_empire_fc/ui/theme/kit_theme_ext.dart';
 import 'package:merge_empire_fc/ui/widgets/card_glyph.dart';
-import 'package:merge_empire_fc/ui/screens/match/boost_bar_paint.dart' show BoostPulse;
+import 'package:merge_empire_fc/ui/screens/match/boost_bar_paint.dart' show BoostPulse, goldMid;
 import 'package:merge_empire_fc/ui/widgets/player_card.dart';
 import 'package:merge_empire_fc/ui/theme/app_theme.dart' show minFontSize;
 import 'package:merge_empire_fc/ui/screens/squad/squad_pickers.dart'
@@ -64,8 +64,8 @@ Future<void> showSubsPanel(
   Map<String, PitchSlot> sentOffSlots = const {},
   Set<String> cautioned = const {},
   List<BenchBoostOffer> Function()? boostOffers,
-  Set<String> lit = const {},
-  Set<String> wouldBeLit = const {},
+  Map<String, double> lifts = const {},
+  Map<String, double> wouldBeLifts = const {},
 }) {
   // The sheet is its own route, so the screen's reduced-motion flag has to
   // be carried in by hand — the pulses loop and honour it.
@@ -85,8 +85,8 @@ Future<void> showSubsPanel(
           sentOffSlots: sentOffSlots,
           cautioned: cautioned,
           boostOffers: boostOffers,
-          lit: lit,
-          wouldBeLit: wouldBeLit,
+          lifts: lifts,
+          wouldBeLifts: wouldBeLifts,
         ),
       ),
     ),
@@ -104,16 +104,17 @@ class SubsPanel extends ConsumerStatefulWidget {
     this.sentOffSlots = const {},
     this.cautioned = const {},
     this.boostOffers,
-    this.lit = const {},
-    this.wouldBeLit = const {},
+    this.lifts = const {},
+    this.wouldBeLifts = const {},
   });
 
   /// **WHO IS BOOSTING, AND WHO WOULD BE.** The men on the pitch whose match
-  /// trait is lit right now, and the men on the bench whose trait would be
-  /// if they came on this minute — both pulse, so a boost in play and a
-  /// boost in hand are both seen at the bench. Asked for from the couch.
-  final Set<String> lit;
-  final Set<String> wouldBeLit;
+  /// trait is lifting them right now, and the men on the bench whose trait
+  /// would be if they came on this minute — each with his multiplier. Both
+  /// pulse and both are rated lifted, so a boost in play and a boost in hand
+  /// are both seen at the bench. Asked for from the couch.
+  final Map<String, double> lifts;
+  final Map<String, double> wouldBeLifts;
 
   /// How many changes have already been made this match.
   final int used;
@@ -234,19 +235,26 @@ class SubsPanelState extends ConsumerState<SubsPanel> {
   /// The bench, from the bottom, the way the Squad tab opens it. A null
   /// [slotId] is a look rather than a choice — see [_BenchSheet.slotId].
   Future<void> _openBench(String? slotId, String? offId) async {
+    // Its own route, so reduced motion is carried in by hand — see [showSubsPanel].
+    final still = MediaQuery.of(context).disableAnimations;
     await showBottomSheetPopup<void>(
       context,
       heightFraction: 0.66,
-      child: _BenchSheet(
-        slotId: slotId,
-        sentOff: widget.sentOff,
-        offId: offId,
-        cautioned: widget.cautioned,
-        spent: widget.withdrawn,
-        wouldBeLit: widget.wouldBeLit,
-        onChosen: (onId) => slotId == null
-            ? Future.value(false)
-            : _confirmAndApply(slotId, offId, onId),
+      child: Builder(
+        builder: (ctx) => MediaQuery(
+          data: MediaQuery.of(ctx).copyWith(disableAnimations: still),
+          child: _BenchSheet(
+            slotId: slotId,
+            sentOff: widget.sentOff,
+            offId: offId,
+            cautioned: widget.cautioned,
+            spent: widget.withdrawn,
+            wouldBeLifts: widget.wouldBeLifts,
+            onChosen: (onId) => slotId == null
+                ? Future.value(false)
+                : _confirmAndApply(slotId, offId, onId),
+          ),
+        ),
       ),
     );
     if (mounted) setState(() => _openFor = null);
@@ -399,7 +407,7 @@ class SubsPanelState extends ConsumerState<SubsPanel> {
                     gone != null ||
                     widget.sentOff.contains(slot.cardInstanceId),
                 cautioned: widget.cautioned.contains(slot.cardInstanceId),
-                lit: widget.lit.contains(slot.cardInstanceId),
+                lift: widget.lifts[slot.cardInstanceId] ?? 1,
                 onTap: () => _pick(slot),
               );
             },
@@ -460,7 +468,7 @@ class _SubSlot extends ConsumerWidget {
     required this.onTap,
     this.sentOff = false,
     this.cautioned = false,
-    this.lit = false,
+    this.lift = 1,
   });
 
   final PitchSlot slot;
@@ -468,13 +476,13 @@ class _SubSlot extends ConsumerWidget {
   final bool sentOff;
   final bool cautioned;
 
-  /// His match trait is lit this minute — see [SubsPanel.lit].
-  final bool lit;
+  /// What his lit match trait multiplies him by — see [SubsPanel.lifts].
+  final double lift;
   final VoidCallback onTap;
 
   /// The slot as the rest of this match sees it: a booked player is carrying
-  /// ten per cent less. Nothing else about him changes.
-  PitchSlot get _shown => cautioned
+  /// ten per cent less, a lit trait its lift. Nothing else about him changes.
+  PitchSlot get _shown => cautioned || lift > 1
       ? (
           slotId: slot.slotId,
           slotPosition: slot.slotPosition,
@@ -485,7 +493,7 @@ class _SubSlot extends ConsumerWidget {
           vacatedBy: slot.vacatedBy,
           vacatedById: slot.vacatedById,
           outOfPosition: slot.outOfPosition,
-          effRating: (slot.effRating * yellowCardRatingMult).round(),
+          effRating: (slot.effRating * (cautioned ? yellowCardRatingMult : 1) * lift).round(),
           penalty: slot.penalty,
           seasons: slot.seasons,
         )
@@ -543,7 +551,7 @@ class _SubSlot extends ConsumerWidget {
                 clipBehavior: Clip.none,
                 children: [
                   BoostPulse(
-                    on: lit,
+                    on: lift > 1,
                     child: PitchToken(slot: _shown, proMode: ref.watch(proModeProvider)),
                   ),
                   if (sentOff || cautioned)
@@ -572,7 +580,7 @@ class _BenchSheet extends ConsumerStatefulWidget {
     required this.cautioned,
     required this.spent,
     required this.onChosen,
-    this.wouldBeLit = const {},
+    this.wouldBeLifts = const {},
   });
 
   /// Sent off this match — on no bench, whatever the lineup says.
@@ -594,8 +602,8 @@ class _BenchSheet extends ConsumerStatefulWidget {
   /// Resolves true once the change has gone through, which is when this closes.
   final Future<bool> Function(String onId) onChosen;
 
-  /// See [SubsPanel.wouldBeLit]: a man whose trait would fire if he came on.
-  final Set<String> wouldBeLit;
+  /// See [SubsPanel.wouldBeLifts]: a man whose trait would fire if he came on.
+  final Map<String, double> wouldBeLifts;
 
   @override
   ConsumerState<_BenchSheet> createState() => _BenchSheetState();
@@ -769,21 +777,24 @@ class _BenchSheetState extends ConsumerState<_BenchSheet> {
                     // green over the man coming off, amber level with him, red
                     // under. See `PlayerCard.ratingInstead`.
                     child: BoostPulse(
-                      on: widget.wouldBeLit.contains(entry.instanceId),
+                      on: widget.wouldBeLifts.containsKey(entry.instanceId),
                       child: PlayerCard(
                       key: ValueKey('sub-bench-${entry.instanceId}'),
                       view: entry.card,
                       light: light,
-                      ratingInstead: offStats == null
-                          ? null
-                          : _against(
-                              getCardStats(
-                                _cardById(state, entry.instanceId),
-                                slotPosition: slotPosition,
-                                definitionRatios: _ratios(state),
-                              ),
-                              offStats,
-                            ),
+                      // Rated as he would come on: his trait's lift on top.
+                      ratingInstead: _liftedChip(
+                        liftedStats(
+                          getCardStats(
+                            _cardById(state, entry.instanceId),
+                            slotPosition: slotPosition,
+                            definitionRatios: _ratios(state),
+                          ),
+                          widget.wouldBeLifts[entry.instanceId] ?? 1,
+                        ),
+                        offStats,
+                        lifted: widget.wouldBeLifts.containsKey(entry.instanceId),
+                      ),
                       ),
                     ),
                   ),
@@ -811,6 +822,19 @@ CardStats bookedStats(CardStats stats, bool cautioned) => cautioned
         attack: (stats.attack * yellowCardRatingMult).round(),
         defence: (stats.defence * yellowCardRatingMult).round(),
         rating: (stats.rating * yellowCardRatingMult).round(),
+        baseAttack: stats.baseAttack,
+        baseDefence: stats.baseDefence,
+        baseRating: stats.baseRating,
+      )
+    : stats;
+
+/// The same man, lifted by his lit match trait — the three live figures, as
+/// [bookedStats] does for a caution.
+CardStats liftedStats(CardStats stats, double lift) => lift > 1
+    ? CardStats(
+        attack: (stats.attack * lift).round(),
+        defence: (stats.defence * lift).round(),
+        rating: (stats.rating * lift).round(),
         baseAttack: stats.baseAttack,
         baseDefence: stats.baseDefence,
         baseRating: stats.baseRating,
@@ -905,6 +929,18 @@ class _FormLegend extends StatelessWidget {
     ink: penaltyColor(band),
     background: penaltyBg(band),
   );
+}
+
+/// The bench chip: the comparison against the man coming off when there is
+/// one, else the lifted figure in the trait's gold, else the card's own.
+({int value, Color ink, Color background})? _liftedChip(
+  CardStats them,
+  CardStats? off, {
+  required bool lifted,
+}) {
+  if (off != null) return _against(them, off);
+  if (!lifted) return null;
+  return (value: them.rating, ink: Colors.black, background: goldMid);
 }
 
 CardInstance? _cardById(Map<String, dynamic>? state, String instanceId) {

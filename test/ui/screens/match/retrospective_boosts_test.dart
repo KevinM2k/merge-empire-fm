@@ -18,6 +18,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import '../../../helpers/coach_pages.dart';
 import 'package:merge_empire_fc/i18n/i18n.dart';
+import 'package:merge_empire_fc/data/match_traits.dart';
 import 'package:merge_empire_fc/data/players.dart';
 import 'package:merge_empire_fc/engine/boost_engine.dart';
 import 'package:merge_empire_fc/engine/booking_engine.dart';
@@ -29,6 +30,9 @@ import 'package:merge_empire_fc/ui/screens/match/cutaway/cutaway_game.dart'
 import 'package:merge_empire_fc/ui/screens/match/cutaway/cutaway_stage.dart';
 import 'package:merge_empire_fc/ui/screens/match/match_screen.dart';
 import 'package:merge_empire_fc/ui/screens/match/subs_panel.dart';
+import 'package:merge_empire_fc/ui/widgets/player_card.dart';
+import 'package:merge_empire_fc/ui/screens/squad/squad_providers.dart';
+import 'package:merge_empire_fc/ui/screens/squad/pitch_token.dart';
 
 import 'match_screen_test.dart';
 
@@ -285,14 +289,33 @@ void main() {
         trait: 'ten_man_wall',
       );
       expect(state.sentOffIds, contains('c3'));
-      expect(state.litIds(), hasLength(10));
-      expect(state.litIds(), isNot(contains('c3')));
-      // The bench sheet: the ten on the pitch pulse, and so does a sub who
-      // would light up the moment he came on.
+      expect(state.lifts(), hasLength(10));
+      expect(state.lifts(), isNot(contains('c3')));
+      // Ten walls of III: the squad cap, not ten times the level.
+      expect(state.lifts()['c7'], closeTo(1 + matchTraitSquadCap, 1e-9));
+      // The bench sheet: the ten on the pitch pulse and are rated lifted, and
+      // so is a sub who would light up the moment he came on.
       final pulses = find.byKey(const ValueKey('boost-pulse'));
       expect(pulses, findsWidgets);
-      expect(state.wouldBeLitIds(), contains('c11'));
-      expect(state.wouldBeLitIds(), isNot(contains('c3')));
+      expect(state.wouldBeLifts(), contains('c11'));
+      expect(state.wouldBeLifts(), isNot(contains('c3')));
+      final base = c.read(pitchSlotsProvider).firstWhere((s) => s.slotId == 's5').effRating;
+      final shown = tester.widget<PitchToken>(
+        find.descendant(of: find.byKey(const ValueKey('sub-slot-s5')), matching: find.byType(PitchToken)),
+      );
+      expect(shown.slot.effRating, (base * (1 + matchTraitSquadCap)).round());
+      expect(shown.slot.effRating, greaterThan(base));
+      await tester.tap(find.byKey(const ValueKey('subs-view-bench')));
+      await tester.pumpAndSettle();
+      final bench = tester.widget<PlayerCard>(find.byKey(const ValueKey('sub-bench-c11')));
+      expect(bench.ratingInstead?.value, greaterThan(0));
+      expect(
+        find.ancestor(of: find.byKey(const ValueKey('sub-bench-c11')), matching: find.byKey(const ValueKey('boost-pulse'))),
+        findsOneWidget,
+      );
+      // The bench sheet, then the panel under it.
+      await tester.tapAt(const Offset(5, 5));
+      await tester.pumpAndSettle();
       await tester.tapAt(const Offset(5, 5));
       await tester.pumpAndSettle();
       expect(find.byType(SubsPanel), findsNothing);

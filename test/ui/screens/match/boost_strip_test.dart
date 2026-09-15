@@ -390,9 +390,17 @@ void main() {
         expect(find.byKey(ValueKey('match-active-fortress-c$i')), findsOneWidget);
       }
       expect(find.textContaining("${state.boostWindows.single.toMinute}'"), findsWidgets);
-      await tester.tapAt(const Offset(5, 5));
+      // Three across at least, however narrow the sheet.
+      final first = tester.getRect(find.byKey(const ValueKey('match-active-fortress-c0')));
+      final sheet = tester.getRect(find.byKey(const ValueKey('match-active-cards')));
+      expect(first.width, lessThan(sheet.width / 3));
+      // The whistle closes the sheet: the statistics are on the pitch then,
+      // and nothing lifts a match that is over.
+      state.skipToEnd();
       await tester.pumpAndSettle();
-      await _finish(tester, state);
+      expect(find.byKey(const ValueKey('match-stats-sheet')), findsNothing);
+      expect(state.frame.finished, isTrue);
+      await settleSave(tester);
     });
   });
 }
