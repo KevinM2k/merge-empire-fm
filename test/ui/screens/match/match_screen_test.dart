@@ -754,9 +754,13 @@ void main() {
       matchResult(addedTime: 1),
       onFinished: (_) => finished++,
     );
-    // The board's `Stats` tag is up while it plays and gone at the whistle,
+    // The board's tap hint is up while it plays and gone at the whistle,
     // when the statistics are on the pitch already.
     expect(find.byKey(const ValueKey('match-stats-hint')), findsOneWidget);
+    // In the board's BOTTOM-RIGHT corner now, and still wearing the word:
+    // `match.tab.stats` has no other caller, so the face is what keeps it from
+    // going dead in ten catalogues.
+    expect(find.text(t('match.tab.stats')), findsOneWidget);
     await tester.pump(minuteDurationFor(95));
     await tester.pumpAndSettle();
 

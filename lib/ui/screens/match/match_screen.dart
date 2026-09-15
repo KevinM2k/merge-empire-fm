@@ -4635,7 +4635,14 @@ class _Scoreboard extends StatelessWidget {
         child: GlassPanel(
                 density: GlassDensity.deep,
         padding: const EdgeInsets.fromLTRB(8, 10, 8, 0),
-        child: Column(
+        // **THE HINT IS LAID OVER THE CARD, not given a row.** It sits in the
+        // bottom-right corner, just clear of the clock bar — the emptiest
+        // corner of the board — and a `Stack` is what keeps it costing no
+        // height at all. Every row on this card has been fought for; a hand
+        // that opened one up would be the worst trade on the screen.
+        child: Stack(
+          children: [
+            Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             // **THE POSITION CHIPS ARE GONE.** They came across from the
@@ -4712,33 +4719,15 @@ class _Scoreboard extends StatelessWidget {
                   color: kit.textMuted,
                 ),
               ),
-              // Full width, or the stack hugs the number and the tag lands on it.
-              right: SizedBox(
-                width: double.infinity,
-                child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  Text(
-                    '$rightGoals',
-                    key: const ValueKey('match-score-right'),
-                    style: TextStyle(
-                      fontSize: 34,
-                      height: 1,
-                      fontWeight: FontWeight.w900,
-                      color: ink,
-                      fontFeatures: const [FontFeature.tabularFigures()],
-                    ),
-                  ),
-                  // **A HINT THAT THE BOARD OPENS.** Floated at the score
-                  // row's far edge, which is the emptiest strip on the card,
-                  // so it costs no height and sits under nothing. Gone at
-                  // full time, when the statistics are on the pitch already.
-                  if (!finished)
-                    Positioned(
-                      right: 0,
-                      child: _StatsHint(ink: kit.textMuted),
-                    ),
-                ],
+              right: Text(
+                '$rightGoals',
+                key: const ValueKey('match-score-right'),
+                style: TextStyle(
+                  fontSize: 34,
+                  height: 1,
+                  fontWeight: FontWeight.w900,
+                  color: ink,
+                  fontFeatures: const [FontFeature.tabularFigures()],
                 ),
               ),
             ),
@@ -4814,6 +4803,15 @@ class _Scoreboard extends StatelessWidget {
             ),
           ],
         ),
+            // Gone at full time, when the statistics are on the pitch already.
+            if (!finished)
+              Positioned(
+                right: 2,
+                bottom: 6,
+                child: _StatsHint(onTap: onStats),
+              ),
+          ],
+        ),
         ),
       ),
     );
@@ -4821,31 +4819,57 @@ class _Scoreboard extends StatelessWidget {
 }
 
 
-/// The little `Stats` tag on the board — a label, not a button: the board
-/// itself takes the tap, this only says so.
+/// The tap hint on the board — a label, not a button: the board itself takes
+/// the tap, this only says so.
+///
+/// **IT MOVED TO THE CORNER, and it stayed a pill.** It was floated at the
+/// score row's far edge; the bottom-right is the emptiest corner of the board
+/// and the one a hand is already near. Asked for from the couch.
+///
+/// **And it is a real button now, in the app's own mould.** Two quieter shapes
+/// were tried in this corner first and both were reported: the bare `tap` glyph
+/// is a hand with one finger out, which at 15px is not the gesture it was drawn
+/// as; and a hairline pill reads as a tag, which is what a hairline pill is.
+///
+/// So it goes through [matchControlStyle] — the same `mouldedButtonStyle` the
+/// three controls under the pitch wear — rather than a rounded `Container`
+/// pretending. That is also why it cannot be styled with `styleFrom`: a moulded
+/// face is painted in a `backgroundBuilder` over a transparent Material, and
+/// `backgroundColor` silently colours the layer beneath it. `architecture_test`
+/// checks that.
+///
+/// **It takes the tap itself rather than letting it fall through.** The board's
+/// `GestureDetector` is still there and still opens the same panel — a button
+/// that swallowed the press and did nothing would be the one shape worse than a
+/// tag — so both routes land on the same callback.
 class _StatsHint extends StatelessWidget {
-  const _StatsHint({required this.ink});
+  const _StatsHint({required this.onTap});
 
-  final Color ink;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return OutlinedButton(
       key: const ValueKey('match-stats-hint'),
-      padding: const EdgeInsets.fromLTRB(6, 3, 7, 3),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(color: ink.withValues(alpha: 0.55), width: 1.2),
+      onPressed: onTap,
+      style: matchControlStyle(context).copyWith(
+        // A corner is not the control row: this is the same mould at a size
+        // that sits ON the board rather than beside the scoreline.
+        padding: const WidgetStatePropertyAll(
+          EdgeInsets.symmetric(horizontal: 8),
+        ),
+        minimumSize: const WidgetStatePropertyAll(Size(0, 26)),
+        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        textStyle: WidgetStatePropertyAll(
+          controlTextStyle(size: minFontSize, weight: uiBaseWeight),
+        ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          GameIcon('bars', size: 10, color: ink),
-          const SizedBox(width: 3),
-          Text(
-            t('match.tab.stats'),
-            style: TextStyle(fontSize: minFontSize, fontWeight: FontWeight.w900, color: ink, height: 1),
-          ),
+          const GameIcon('bars', size: 10),
+          const SizedBox(width: 4),
+          Text(t('match.tab.stats'), maxLines: 1),
         ],
       ),
     );
