@@ -499,8 +499,10 @@ class _Header extends StatelessWidget {
             child: ArtImage(
               path: playerImagePath(def.position, def.tier, card.variant),
               // `cover`, aligned to the top: this is a portrait crop, and
-              // centring it cuts the head off.
+              // centring it cuts the head off. The comment said so and the
+              // alignment was never passed — reported from the couch.
               fit: BoxFit.cover,
+              alignment: Alignment.topCenter,
               dimmed: card.injured,
               fallback: PlayerPortrait(
                 variantIndex: card.variant,

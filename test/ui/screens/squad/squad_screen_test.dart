@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:math' as math;
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:merge_empire_fc/ui/widgets/art_image.dart';
 import 'package:merge_empire_fc/util/time.dart' show now;
 import 'package:merge_empire_fc/data/divisions.dart';
 import 'package:merge_empire_fc/data/formations.dart';
@@ -943,6 +944,18 @@ void main() {
       final container = await pumpSquad(tester);
       await openDetailOfFirst(tester, container);
       await tester.pumpAndSettle();
+
+      // The hero is a portrait crop anchored to the TOP, or the head goes.
+      final hero = tester.widget<ArtImage>(
+        find.descendant(
+          of: find.ancestor(
+            of: find.byKey(const ValueKey('detail-attributes')),
+            matching: find.byType(Stack),
+          ).first,
+          matching: find.byType(ArtImage),
+        ).first,
+      );
+      expect(hero.alignment, Alignment.topCenter);
 
       List<String?> numbers() => tester
           .widgetList<Text>(
