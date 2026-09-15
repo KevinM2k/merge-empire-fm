@@ -5053,9 +5053,18 @@ class _FeedLine extends StatelessWidget {
         decoration: BoxDecoration(
           color: glassInk(context).withValues(alpha: feedPlateFill),
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: glassInk(context).withValues(alpha: feedPlateEdge),
-          ),
+          // **A BOOST LINE WEARS ITS COLOUR DOWN THE LEFT**, the way a goal
+          // wears green or red — a rail, so the window's opening is found in
+          // the feed at a glance. Asked for from the couch. Only the line
+          // that opens a window; the one that closes it stays plain.
+          // The rail alone, the goal card's own shape: a rounded box cannot
+          // carry a rail on one side and a hairline on the other three.
+          border: switch (line.type == 'boost' ? _boostHeadingInk(line.key) : null) {
+            final rail? => Border(left: BorderSide(color: rail, width: 3)),
+            null => Border.all(
+                color: glassInk(context).withValues(alpha: feedPlateEdge),
+              ),
+          },
         ),
         child: card,
       ),
