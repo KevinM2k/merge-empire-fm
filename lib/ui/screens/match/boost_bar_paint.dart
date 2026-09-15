@@ -212,13 +212,24 @@ class _AuraPainter extends CustomPainter {
       // segments whose brightness is a slow wave travelling round it, so the
       // glow is alive along its whole length rather than a spot running
       // round a dull line. Asked for from the couch, three times.
+      // The wide wash, everywhere the ring is lit, at a strength that reads
+      // on grass — it was faint enough that only its brightest stretch
+      // showed and the ring looked lit in patches. Reported from the couch.
       canvas.drawPath(
         drawn,
         Paint()
-          ..color = colour.withValues(alpha: 0.32 + 0.18 * breathe)
+          ..color = colour.withValues(alpha: 0.55 + 0.20 * breathe)
           ..style = PaintingStyle.stroke
           ..strokeWidth = band
-          ..maskFilter = MaskFilter.blur(BlurStyle.normal, band * 0.7),
+          ..maskFilter = MaskFilter.blur(BlurStyle.normal, band * 0.5),
+      );
+      canvas.drawPath(
+        drawn,
+        Paint()
+          ..color = colour.withValues(alpha: 0.75)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 10
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5),
       );
       if (len > 0) {
         const segments = 36;
@@ -238,18 +249,20 @@ class _AuraPainter extends CustomPainter {
           // Two waves of different lengths, so the pattern never reads as a
           // loop, travelling against the clock's direction.
           final u = k / segments;
+          // A shimmer OVER an even glow, not a glow that comes and goes:
+          // the trough is still bright, the crest is white-hot.
           final wave = 0.5 +
               0.3 * math.sin(u * 2 * math.pi * 2 + phase) +
               0.2 * math.sin(u * 2 * math.pi * 5 - phase * 1.7);
           canvas.drawPath(
             piece,
             Paint()
-              ..color = Color.lerp(colour, Colors.white, 0.35 * wave)!
-                  .withValues(alpha: 0.45 + 0.45 * wave)
+              ..color = Color.lerp(colour, Colors.white, 0.15 + 0.45 * wave)!
+                  .withValues(alpha: 0.85)
               ..style = PaintingStyle.stroke
-              ..strokeWidth = 9
+              ..strokeWidth = 6
               ..strokeCap = StrokeCap.round
-              ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
+              ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
           );
         }
       }
