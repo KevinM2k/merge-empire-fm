@@ -226,7 +226,7 @@ class _AuraPainter extends CustomPainter {
       final left = shownOf(id).clamp(0.0, 1.0);
       final breathe = 0.5 + 0.5 * math.sin(phase + lane * 1.3);
       final inset = 4.0 + lane * 10.0;
-      final band = 18.0 + 6.0 * breathe;
+      final band = 12.0 + 4.0 * breathe;
       final rect = Rect.fromLTWH(
         inset,
         inset,
@@ -266,7 +266,7 @@ class _AuraPainter extends CustomPainter {
       canvas.drawPath(
         drawn,
         Paint()
-          ..color = colour.withValues(alpha: 0.30 + 0.12 * breathe)
+          ..color = colour.withValues(alpha: 0.20 + 0.08 * breathe)
           ..style = PaintingStyle.stroke
           ..strokeWidth = band
           ..maskFilter = MaskFilter.blur(BlurStyle.normal, band * 0.5),
@@ -274,10 +274,10 @@ class _AuraPainter extends CustomPainter {
       canvas.drawPath(
         drawn,
         Paint()
-          ..color = colour.withValues(alpha: 0.6)
+          ..color = colour.withValues(alpha: 0.45)
           ..style = PaintingStyle.stroke
-          ..strokeWidth = 7
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
+          ..strokeWidth = 5
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 3),
       );
       if (len > 0) {
         const segments = 36;
