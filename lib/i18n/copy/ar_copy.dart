@@ -24,7 +24,7 @@ const Map<String, String> arCopy = <String, String>{
   'coach.squad.sell_now': '{name} عمره {age} ويتراجع بسرعة — {pen} نقطة تقييم أقل. لم يتبقَّ سوى {left} مواسم، وهذا وقت البيع.',
   'squad.badge.sell_now': '⚠️ بِعه الآن — تراجع سريع',
   'squad.stat.age': 'العمر',
-  'merge.refused_ageing': 'هذا الدمج سيجعل وضعك أسوأ — الأصغر سنًا هو الأفضل بالفعل.',
+  'merge.refused_ageing': 'الأصغر سنًا هو الأفضل بالفعل.',
   'cup.shootout.title': 'ركلات الترجيح',
   'cup.shootout.steps_up': '{club} يستعد للتسديد…',
   'cup.shootout.scored': 'هدف!',

@@ -18,7 +18,7 @@ const Map<String, String> esCopy = <String, String>{
   'coach.squad.sell_now': '{name} tiene {age} y cae rápido — {pen} pts de rating menos. Solo quedan {left} temporadas: es el momento de vender.',
   'squad.badge.sell_now': '⚠️ Vende ya — cayendo rápido',
   'squad.stat.age': 'Edad',
-  'merge.refused_ageing': 'Esa fusión te dejaría peor — el más joven ya es el mejor jugador.',
+  'merge.refused_ageing': 'El más joven ya es el mejor jugador.',
   'cup.shootout.title': 'PENALTIS',
   'cup.shootout.steps_up': '{club} se adelanta…',
   'cup.shootout.scored': '¡GOL!',

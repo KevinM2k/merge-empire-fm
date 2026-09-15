@@ -19,7 +19,7 @@ const Map<String, String> jaCopy = <String, String>{
   'coach.squad.sell_now': '{name}は{age}歳で急降下中 — 評価{pen}ポイント減。残り{left}シーズン、売るなら今。',
   'squad.badge.sell_now': '⚠️ 売却推奨 — 急降下中',
   'squad.stat.age': '年齢',
-  'merge.refused_ageing': 'この合成では損をする — 若い方がすでに上の選手だ。',
+  'merge.refused_ageing': '若い方がすでに上の選手だ。',
   'cup.shootout.title': 'PK戦',
   'cup.shootout.steps_up': '{club}のキッカーが構える…',
   'cup.shootout.scored': 'ゴール！',

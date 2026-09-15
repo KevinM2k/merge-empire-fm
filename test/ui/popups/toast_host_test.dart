@@ -396,6 +396,45 @@ void main() {
     });
   });
 
+  group('A TOAST IS ONE LINE, because that is what a toast is', () {
+    // Asked for directly. A band that wraps is a notice, and a notice is a
+    // different shape with a different job — the queue this rides has three
+    // popup shapes in it and none of them is "a paragraph across the middle of
+    // the screen".
+    //
+    // **A LENGTH, not a layout measurement, and that is not laziness.** The
+    // suite runs with `--use-test-fonts`, where every glyph is a full em —
+    // twelve points wide at `minFontSize` — so a rendered line here is roughly
+    // twice the width the same sentence takes on a phone. Measuring the
+    // paragraph would pin the TEST FONT and demand copy at half the length it
+    // needs to be. The budget is taken from the toasts that already fit:
+    // `grid.tier_unlock_higher` is 47 characters, `merge.need_coins` is 34.
+    const toastBudget = 52;
+
+    test('the ageing refusal is one line in all ten', () {
+      for (final locale in localeIds) {
+        setLocale(locale);
+        addTearDown(resetLocale);
+        final line = t('merge.refused_ageing');
+        expect(
+          line.length,
+          lessThanOrEqualTo(toastBudget),
+          reason:
+              '$locale is ${line.length} characters and wraps: "$line" — '
+              'shorten it, do not widen the band',
+        );
+        expect(line, isNot(contains('\n')), reason: '$locale breaks its line');
+      }
+    });
+
+    testWidgets('and it is what reaches the screen', (tester) async {
+      await pumpToasts(tester);
+      emit('merge:refused', {'reason': 'ageing_loss'});
+      await tester.pump();
+      expect(find.text(t('merge.refused_ageing')), findsOneWidget);
+    });
+  });
+
   group('on screen', () {
     testWidgets('an engine event puts a line up', (tester) async {
       await pumpToasts(tester);

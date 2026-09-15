@@ -20,7 +20,7 @@ const Map<String, String> frCopy = <String, String>{
   'coach.squad.sell_now': '{name} a {age} ans et décline vite — {pen} pts de note en moins. Plus que {left} saisons : c\'est le moment de vendre.',
   'squad.badge.sell_now': '⚠️ Vendez maintenant — en chute libre',
   'squad.stat.age': 'Âge',
-  'merge.refused_ageing': 'Cette fusion vous ferait reculer — le plus jeune est déjà le meilleur joueur.',
+  'merge.refused_ageing': 'Le plus jeune est déjà le meilleur joueur.',
   'cup.shootout.title': 'TIRS AU BUT',
   'cup.shootout.steps_up': '{club} s\'avance…',
   'cup.shootout.scored': 'BUT !',

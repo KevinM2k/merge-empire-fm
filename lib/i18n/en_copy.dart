@@ -324,12 +324,15 @@ const Map<String, String> enCopy = <String, String>{
   //
   // `{club}` is the side taking it, so the line reads for either of them.
   // A merge whose older half has declined too far hands back a worse player
-  // than the better of the two going in. The line names the reason rather than
-  // the rule — a player does not need to know about tier steps, only that the
-  // one they would lose is the better card.
-  'merge.refused_ageing':
-      'That merge would leave you worse off — the younger one is already the '
-      'better player.',
+  // than the better of the two going in.
+  //
+  // **ONE LINE, because that is what a toast is.** It names the reason rather
+  // than the rule — a player does not need to know about tier steps, only which
+  // of the two they would be losing — and it sits at the length its neighbours
+  // do: `grid.tier_unlock_higher` is 45 characters and this is 44. The first
+  // draft ran to 84 and wrapped onto a second line, which is a notice rather
+  // than a toast.
+  'merge.refused_ageing': 'The younger one is already the better player.',
 
   'cup.shootout.title': 'PENALTIES',
   'cup.shootout.steps_up': '{club} step up…',

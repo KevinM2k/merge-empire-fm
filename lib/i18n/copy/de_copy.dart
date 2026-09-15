@@ -21,7 +21,7 @@ const Map<String, String> deCopy = <String, String>{
   'coach.squad.sell_now': '{name} ist {age} und fällt schnell ab — {pen} Wertungspunkte weniger. Nur noch {left} Saisons: jetzt verkaufen.',
   'squad.badge.sell_now': '⚠️ Jetzt verkaufen — starker Abfall',
   'squad.stat.age': 'Alter',
-  'merge.refused_ageing': 'Diese Fusion würde dich schlechter dastehen lassen — der Jüngere ist bereits der bessere Spieler.',
+  'merge.refused_ageing': 'Der Jüngere ist schon der bessere Spieler.',
   'cup.shootout.title': 'ELFMETERSCHIESSEN',
   'cup.shootout.steps_up': '{club} tritt an…',
   'cup.shootout.scored': 'TOR!',

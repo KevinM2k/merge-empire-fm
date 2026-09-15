@@ -19,7 +19,7 @@ const Map<String, String> koCopy = <String, String>{
   'coach.squad.sell_now': '{name} {age}세, 빠르게 추락 — 평점 {pen}점 하락. {left}시즌밖에 안 남았으니 지금이 매각 적기.',
   'squad.badge.sell_now': '⚠️ 지금 판매 — 급락 중',
   'squad.stat.age': '나이',
-  'merge.refused_ageing': '이 합성은 손해다 — 더 젊은 쪽이 이미 더 나은 선수다.',
+  'merge.refused_ageing': '더 젊은 쪽이 이미 더 나은 선수다.',
   'cup.shootout.title': '승부차기',
   'cup.shootout.steps_up': '{club} 키커가 나선다…',
   'cup.shootout.scored': '골!',
