@@ -201,7 +201,12 @@ class _SpendShelf extends ConsumerWidget {
                 state: game.state,
                 hardMode: hardMode,
               ),
-              glyph: _icon(gemItemIcons[tile.item.id] ?? 'gem', hudGemInk),
+              // On the Income shelf the icon says what it EARNS, in the
+              // coin gold its neighbours wear; the button still says gems.
+              glyph: _icon(
+                gemItemIcons[tile.item.id] ?? 'gem',
+                income ? hudCoinInk : hudGemInk,
+              ),
               price: formatCoins(tile.item.cost),
               tone: StoreTone.gem,
               disabledReason: tile.blocked == 'already_active'
