@@ -868,10 +868,16 @@ void main() {
       // BEFORE the reels move — so the answer was sitting above a wheel still
       // pretending to decide it. Nine hundred milliseconds of spin with the
       // result already printed over it.
+      addTearDown(resetTraitRandom);
       final container = await pumpSquad(tester);
       await openDetailOfFirst(tester, container);
       await scrollSheetTo(tester, 'detail-trait-roll');
       await tester.pumpAndSettle();
+      // Force the WIN, as 'A LOST ROLL IS NOT CELEBRATED' forces the loss:
+      // `none` is in the pool, so an unseeded roll lost about one run in nine.
+      final def = tester.widget<TraitBlock>(find.byType(TraitBlock)).def;
+      final pool = getTraitPoolForPosition(def.position, hardMode: false);
+      setTraitRandom(_AlwaysPicks(pool.indexWhere((t) => t.id != 'none')));
       // The PLAYER tile's caption: the MATCH tile beside it is empty too.
       final none = find.descendant(
         of: find.byKey(const ValueKey('detail-trait-slot-player')),
@@ -905,22 +911,10 @@ void main() {
       // The band flashes its answer first — green for a hit, red for a loss —
       // and the splash comes after it, so the pump has to clear the flash.
       await tester.pump(TraitBlockState.flash + const Duration(milliseconds: 400));
-      // **A ROLL CAN LOSE, and a loss is not celebrated** — the red band is
-      // all it gets. The draw comes off the shared stream, so which way it
-      // went depends on every test before this one; asserting a win made this
-      // flake about one run in five. Read what the save says he got.
-      final slot = container
-          .read(pitchSlotsProvider)
-          .firstWhere((s) => s.cardInstanceId != null);
-      final trait = cardById(
-        container.read(gameProvider).state,
-        slot.cardInstanceId!,
-      )?.raw['trait'];
-      final won = trait is Map && trait['id'] != 'none';
       expect(
         find.byKey(const ValueKey('feature-unlock')),
-        won ? findsOneWidget : findsNothing,
-        reason: won ? 'a won trait was not announced' : 'a lost roll was celebrated',
+        findsOneWidget,
+        reason: 'a won trait was not announced',
       );
       await tester.pump(featureUnlockHold);
       await tester.pumpAndSettle();
