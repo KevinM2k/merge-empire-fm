@@ -589,4 +589,5 @@ const Map<String, String> koCopy = <String, String>{
   'product.starter_pack.desc': "{coins} 코인 + 에너지 10 + 젬 {gems}개 — 코인과 에너지는 리셋마다 다시 지급!",
   'product.starter_pack.descHard': "{coins} 코인 + 스쿼드 체력 완전 회복 + 젬 {gems}개 — 코인과 체력은 리셋마다 다시 지급!",
   'product.vip_pass.desc': "{coins} 코인 즉시 지급 · 젬 {gems}개 · 수입 ×2 · 경기 대기 10초(기본 30초) · 30일.",
+  'boost.pitch.none': "남은 게 없습니다 — 상점에서 구매하세요",
 };

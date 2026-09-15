@@ -694,4 +694,5 @@ const Map<String, String> deCopy = <String, String>{
   'product.starter_pack.desc': "{coins} Münzen + 10 Energie + {gems} Edelsteine – Münzen und Energie bei jedem Neustart erneut!",
   'product.starter_pack.descHard': "{coins} Münzen + volle Kaderfitness + {gems} Edelsteine – Münzen und Fitness bei jedem Neustart erneut!",
   'product.vip_pass.desc': "{coins} Münzen sofort · {gems} Edelsteine · ×2 Einkommen · 10s Spielpause (statt 30s) · 30 Tage.",
+  'boost.pitch.none': "Keine mehr – im Shop nachkaufen",
 };

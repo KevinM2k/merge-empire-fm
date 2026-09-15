@@ -514,4 +514,5 @@ const Map<String, String> zhCopy = <String, String>{
   'product.starter_pack.desc': "{coins} 金币 + 10 体力 + {gems} 宝石——金币和体力每次重置都会再次发放！",
   'product.starter_pack.descHard': "{coins} 金币 + 全队体能完全恢复 + {gems} 宝石——金币和体能每次重置都会再次发放！",
   'product.vip_pass.desc': "立即获得 {coins} 金币 · {gems} 宝石 · 收入 ×2 · 比赛间隔 10 秒（原为 30 秒） · 30 天。",
+  'boost.pitch.none': "已用完——请在商店购买",
 };

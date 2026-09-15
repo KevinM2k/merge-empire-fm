@@ -561,4 +561,5 @@ const Map<String, String> jaCopy = <String, String>{
   'product.starter_pack.desc': "{coins}コイン + 10エナジー + {gems}ジェム――コインとエナジーはリセットごとに再付与！",
   'product.starter_pack.descHard': "{coins}コイン + チームの体力を全回復 + {gems}ジェム――コインと体力はリセットごとに再付与！",
   'product.vip_pass.desc': "{coins}コインをすぐに · {gems}ジェム · 収入×2 · 試合間の待ち時間10秒（通常30秒） · 30日間。",
+  'boost.pitch.none': "残りなし――ショップで購入",
 };

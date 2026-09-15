@@ -10,6 +10,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:merge_empire_fc/util/event_bus.dart';
 import 'package:merge_empire_fc/data/players.dart' show getPlayerDef, ratioRange;
 import 'package:merge_empire_fc/engine/boost_engine.dart';
 import 'package:merge_empire_fc/engine/match_tactics.dart' show strategies;
@@ -170,12 +171,15 @@ void main() {
         'x0',
       );
       final before = stateOf(tester).resimCount;
+      Object? toast;
+      on('toast:info', (a) => toast = a);
       await tester.tap(find.byKey(const ValueKey('match-boost-crowd_roar')));
       await tester.pump();
       // Nothing was spent, nothing re-decided, and no shop was asked for —
-      // nothing is for sale on the pitch.
+      // nothing is for sale on the pitch. A line says where to buy one.
       expect(stateOf(tester).resimCount, before);
       expect(c.read(shellControllerProvider).pendingShopSection, isNull);
+      expect(toast, t('boost.pitch.none'));
       await _finish(tester, stateOf(tester));
     });
 

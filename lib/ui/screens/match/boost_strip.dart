@@ -24,6 +24,7 @@ import 'package:merge_empire_fc/providers/game_providers.dart';
 import 'package:merge_empire_fc/ui/screens/match/boost_bar_paint.dart'
     show liveBoostColour;
 import 'package:merge_empire_fc/ui/widgets/game_icon.dart';
+import 'package:merge_empire_fc/util/event_bus.dart';
 
 /// The three a manager can call from the touchline.
 List<Boost> get proactiveBoosts => [
@@ -105,7 +106,14 @@ class _PitchChip extends StatelessWidget {
       child: GestureDetector(
         key: ValueKey('match-boost-${boost.id}'),
         behavior: HitTestBehavior.opaque,
-        onTap: owned && enabled ? onUse : null,
+        // A dead pill says where to get one rather than doing nothing: the
+        // shop is off the pitch and a tap on x0 was a tap on nothing. Asked
+        // for from the couch.
+        onTap: !enabled
+            ? null
+            : owned
+                ? onUse
+                : () => emit('toast:info', t('boost.pitch.none')),
         child: Opacity(
           opacity: owned || live ? 1 : 0.45,
           child: Container(
