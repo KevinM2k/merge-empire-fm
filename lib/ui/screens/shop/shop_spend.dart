@@ -26,6 +26,7 @@ import 'package:merge_empire_fc/ui/screens/shop/purchase_flow.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_copy.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_match_day.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_providers.dart';
+import 'package:merge_empire_fc/ui/screens/match/boost_bar_paint.dart' show flameDeep;
 import 'package:merge_empire_fc/ui/screens/shop/shop_section.dart';
 import 'package:merge_empire_fc/ui/screens/shop/shop_tiles.dart';
 import 'package:merge_empire_fc/ui/widgets/store_button.dart';
@@ -422,7 +423,8 @@ class MatchBoostsSection extends ConsumerWidget {
             ShopTile(
               tileKey: 'boost-${boost.id}',
               title: t('boost.${boost.id}.name'),
-              glyph: _icon(boost.icon, hudGemInk),
+              // The Roar's red, the same the daily calendar draws them in.
+              glyph: _icon(boost.icon, flameDeep),
               badge: t('boost.shop.count', {
                 'n': '${boostCount(game.state, boost.id)}',
               }),

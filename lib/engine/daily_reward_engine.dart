@@ -48,9 +48,10 @@ typedef DailyReward = ({
   bool freeScout,
   bool healOne,
 
-  /// A manager boost, by id, or null. The port's own field — the JS calendar
-  /// has no boosts — so the parity fixture never sees it.
-  String? boost,
+  /// Manager boosts, by id, one of each — empty on a day with none. The
+  /// port's own field — the JS calendar has no boosts — so the parity
+  /// fixture never sees it.
+  List<String> boosts,
 });
 
 DailyReward _day({
@@ -59,14 +60,14 @@ DailyReward _day({
   int gems = 0,
   bool freeScout = false,
   bool healOne = false,
-  String? boost,
+  List<String> boosts = const [],
 }) => (
   coinsMult: coinsMult,
   energy: energy,
   gems: gems,
   freeScout: freeScout,
   healOne: healOne,
-  boost: boost,
+  boosts: boosts,
 );
 
 /// The calendar.
@@ -84,19 +85,20 @@ DailyReward _day({
 ///
 /// `freeScout` and `healOne` are still supported by every function here and are
 /// simply unused above, so a day can pick either back up with no new plumbing.
-// **FIVE OF THE SIX BOOSTS RIDE THE WEEK**, one a day on days 1, 3, 4, 6 and
-// 7 — a taste of each gem product, the theory the Scout Voucher was on day 4
-// for. Quiet Word is the one left out: a week is seven days and the bag is
-// meant to be topped up in the shop, not filled by the calendar. Day 4's
-// Roar was the first; the rest were asked for from the couch.
+// **ALL SIX BOOSTS RIDE THE WEEK**, one a day on days 1, 3, 4 and 6 and two
+// on day 7 — a taste of each gem product, the theory the Scout Voucher was
+// on day 4 for, so a week's streak puts one of each in the bag. Day 4's Roar
+// was the first; the rest were asked for from the couch.
 final Map<int, DailyReward> dailyRewards = {
-  1: _day(coinsMult: 2, boost: 'physio_sponge'),
-  2: _day(coinsMult: 1, energy: 2),
-  3: _day(coinsMult: 4, boost: 'park_the_bus'),
-  4: _day(coinsMult: 3, boost: 'crowd_roar'),
-  5: _day(coinsMult: 2, energy: 3),
-  6: _day(coinsMult: 6, boost: 'sharp_shooting'),
-  7: _day(coinsMult: 10, energy: 4, gems: 2, boost: 'var_review'),
+  1: _day(coinsMult: 2, boosts: ['physio_sponge']),
+  // Energy 1 / 2 / 3 up the week, a step down from the JS's 2 / 3 / 4 now
+  // that the boosts carry the calendar's weight. Asked for from the couch.
+  2: _day(coinsMult: 1, energy: 1),
+  3: _day(coinsMult: 4, boosts: ['park_the_bus']),
+  4: _day(coinsMult: 3, boosts: ['crowd_roar']),
+  5: _day(coinsMult: 2, energy: 2),
+  6: _day(coinsMult: 6, boosts: ['sharp_shooting']),
+  7: _day(coinsMult: 10, energy: 3, gems: 2, boosts: ['var_review', 'quiet_word']),
 };
 
 const int cycleDays = 7;
@@ -188,7 +190,7 @@ typedef DailyRewardPreview = ({
   bool freeScout,
   bool healOne,
   int gems,
-  String? boost,
+  List<String> boosts,
 });
 
 DailyRewardPreview? getDailyRewardPreview(Map<String, dynamic> state, int day) {
@@ -201,7 +203,7 @@ DailyRewardPreview? getDailyRewardPreview(Map<String, dynamic> state, int day) {
     freeScout: def.freeScout,
     healOne: def.healOne,
     gems: def.gems,
-    boost: def.boost,
+    boosts: def.boosts,
   );
 }
 
@@ -302,7 +304,7 @@ typedef DailyClaim = ({
   int healedCount,
   bool doubled,
   bool trainedBonus,
-  String? boost,
+  List<String> boosts,
 });
 
 const DailyClaim _alreadyClaimed = (
@@ -319,7 +321,7 @@ const DailyClaim _alreadyClaimed = (
   healedCount: 0,
   doubled: false,
   trainedBonus: false,
-  boost: null,
+  boosts: [],
 );
 
 /// Claim today's reward and apply it.
@@ -378,7 +380,9 @@ DailyClaim claimDailyReward(
 
   // A boost is one whatever the double: like gems, it is a gem product, and
   // a video that mints two is a shelf the gem engine's notes rule out.
-  if (def.boost != null) grantBoost(state, def.boost!, 1);
+  for (final id in def.boosts) {
+    grantBoost(state, id, 1);
+  }
 
   // The Quick Sponge heals one injured player, two if doubled — distinct from
   // the shop's Magic Sponge, which heals every injured player at once.
@@ -433,7 +437,7 @@ DailyClaim claimDailyReward(
     healedCount: healedCount,
     doubled: doubled,
     trainedBonus: status.trainedBonus,
-    boost: def.boost,
+    boosts: def.boosts,
   );
   emit('dailyreward:claimed', result);
 
