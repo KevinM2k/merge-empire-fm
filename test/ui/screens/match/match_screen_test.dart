@@ -4149,6 +4149,37 @@ void main() {
     expect(find.byKey(const ValueKey('match-stats-sheet')), findsOneWidget);
   });
 
+  testWidgets('AND THE SHEET KEEPS UP WITH THE MATCH while it is open', (
+    tester,
+  ) async {
+    // The sheet is its own route, so the screen's rebuilds never reached
+    // it: it showed the numbers it opened with until it closed.
+    await pumpMatch(tester, matchResult());
+    final state = stateOf(tester);
+    await tester.tap(find.byKey(const ValueKey('match-stats-button')));
+    await tester.pumpAndSettle();
+    final board = find.byType(MatchStatboard);
+    final at = state.frame.minute;
+    // Reading the stats does not stop the clock, and the sheet follows it.
+    await tester.pump(minuteDurationFor(30));
+    expect(state.frame.minute, greaterThan(at));
+    // The possession figure is a reading of the last ten minutes; thirty
+    // minutes on, it has had every chance to move — and the sheet shows it.
+    final shown = tester.widget<MatchStatboard>(board).stats;
+    final live = liveStatsFor(
+      frame: state.frame,
+      result: state.widget.result,
+      isHome: true,
+      strategyId: state.strategy,
+    );
+    expect(shown.possHome, live.possHome);
+    expect(shown.rows.map((r) => r.home).toList(), live.rows.map((r) => r.home).toList());
+    await tester.tapAt(const Offset(5, 5));
+    await tester.pumpAndSettle();
+    state.skipToEnd();
+    await tester.pumpAndSettle();
+    await settleSave(tester);
+  });
 
   testWidgets('AND IT IS THE SAME SEAM THE PLAY PAGE USES', (tester) async {
     // Six here and twelve there meant walking from one screen to the other

@@ -1755,6 +1755,7 @@ class MatchScreenState extends ConsumerState<MatchScreen>
     _timer?.cancel();
     _pillTimer?.cancel();
     _liveGlow.dispose();
+    _ticked.dispose();
     _cooldownTimer?.cancel();
     _coachTimer?.cancel();
     _momentum.dispose();
@@ -1821,15 +1822,43 @@ class MatchScreenState extends ConsumerState<MatchScreen>
   /// decision the manager makes about what happens next, and this is a look at
   /// what has already happened. Stopping the clock to read a number would make
   /// checking possession a way to buy time.
-  Future<void> _showStats(LiveStats stats, bool home) => showBottomSheetPopup<void>(
+  ///
+  /// **AND IT KEEPS UP.** The sheet is its own route, so the screen's
+  /// rebuilds never reached it: the numbers it opened with were the numbers
+  /// it showed until it closed. Reported from the couch. It listens to the
+  /// clock now and re-reads the same figures the board reads, every tick.
+  Future<void> _showStats(bool home) => showBottomSheetPopup<void>(
     context,
     heightFraction: 0.6,
     child: SingleChildScrollView(
       key: const ValueKey('match-stats-sheet'),
       padding: const EdgeInsets.fromLTRB(18, 16, 18, 24),
-      child: MatchStatboard(stats: stats, isHome: home, active: _activeLifts()),
+      child: AnimatedBuilder(
+        animation: _ticked,
+        builder: (context, _) => MatchStatboard(
+          stats: liveStatsFor(
+            frame: frame,
+            result: widget.result,
+            isHome: home,
+            strategyId: _strategy,
+          ),
+          isHome: home,
+          active: _activeLifts(),
+        ),
+      ),
     ),
   );
+
+  /// Bumped on every rebuild of the screen — a tick, a re-simulation, a
+  /// goal — for anything on a route of its own that wants to follow the
+  /// match: the stats sheet.
+  final ValueNotifier<int> _ticked = ValueNotifier<int>(0);
+
+  @override
+  void setState(VoidCallback fn) {
+    super.setState(fn);
+    _ticked.value++;
+  }
 
   /// **AN INJURY STOPS THE MATCH AND PUTS YOU IN FRONT OF THE BENCH.**
   ///
@@ -3269,7 +3298,7 @@ class MatchScreenState extends ConsumerState<MatchScreen>
                     glow: _liveGlow.isAnimating ? _liveGlow : null,
                     lifted: !f.finished && _liftedAt(f.minute),
                     pill: _pill,
-                    onStats: () => _showStats(stats, home),
+                    onStats: () => _showStats(home),
                     // **Localised HERE, not in the engine.** The result
                     // map is stamped by `match_orchestration`, whose fields
                     // the parity harness compares against the JS's — so
