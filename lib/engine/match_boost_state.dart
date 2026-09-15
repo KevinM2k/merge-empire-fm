@@ -6,22 +6,19 @@
 /// mid-window has spent it — which is honest, and is the same rule the trait
 /// reel plays by: pay before the animation, never after.
 ///
-/// **Windows stack and overlap.** Two Crowd Roars multiply, under a cap, so
-/// the strip cannot be emptied into one unbeatable ten minutes; two buses do
-/// not make the game twice as dead, because the damping is a floor rather than
-/// a product. The two axes never touch each other.
+/// **DIFFERENT boosts overlap; the SAME one restarts.** A Roar and a Sharp
+/// Shooting run together and lift two different axes, which is what makes the
+/// strip worth having more than one of. Tapping a boost that is already live
+/// spends another and sends its own window back to full from that minute — it
+/// does not pile a second copy on the first, so the strip cannot be emptied
+/// into one unbeatable ten minutes. See [MatchBoostState.start].
 ///
 /// Deliberately Flutter-free so it runs under plain `dart test`.
 library;
 
-import 'dart:math' as math;
-
 /// What one Crowd Roar is worth — ten per cent on the whole side, the same
 /// unit a caution takes off one man.
 const double crowdRoarMult = 1.10;
-
-/// The most stacked Roars may reach. Two are 1.21; a third is where it stops.
-const double maxCrowdRoarStack = 1.25;
 
 /// **The two windows are RATING lifts, on the board.** Both began as goal-rate
 /// multipliers — a dead game for the Bus, a loaded coin for Sharp Shooting —
@@ -60,8 +57,18 @@ class MatchBoostState {
 
   /// Open a window. A zero-length window — a retrospective boost — is nothing
   /// to track: its effect is applied once by the screen and has no "until".
+  ///
+  /// **A BOOST ALREADY RUNNING IS RESTARTED, not stacked on.** Tapping a live
+  /// Roar spends a second one and sends its window back to full from this
+  /// minute — asked for from the couch in those terms: "if they tap it again
+  /// and it's only 70% down, it just goes up to 100% again, not stacked."
+  ///
+  /// **Only against ITSELF.** Different boosts are different windows and still
+  /// run together — a Roar and a Sharp Shooting are two lifts on two axes, and
+  /// dropping one because the other started would be a different rule entirely.
   void start(String id, int minute, int windowMinutes) {
     if (windowMinutes <= 0) return;
+    _live.removeWhere((b) => b.id == id);
     _live.add(
       LiveBoost(id: id, fromMinute: minute, toMinute: minute + windowMinutes),
     );
@@ -94,18 +101,18 @@ class MatchBoostState {
     return end;
   }
 
-  /// The squad-wide rating multiplier at [minute]: stacked Roars, capped.
-  double ratingMultAt(int minute) {
-    var mult = 1.0;
-    for (final b in activeAt(minute)) {
-      if (b.id == 'crowd_roar') mult *= crowdRoarMult;
-    }
-    return math.min(maxCrowdRoarStack, mult);
-  }
+  /// The squad-wide rating multiplier at [minute]: a Roar, or nothing.
+  ///
+  /// **No cap any more, because nothing can stack into one.** It used to
+  /// multiply a Roar per live window under a 1.25 ceiling; [start] now keeps
+  /// one window per boost, so the loop could only ever reach 1.10 and the
+  /// ceiling was a number that could not be touched.
+  double ratingMultAt(int minute) =>
+      activeAt(minute).any((b) => b.id == 'crowd_roar') ? crowdRoarMult : 1.0;
 
-  /// Our ATK at [minute]: Sharp Shooting up, a Bus down, both if both. A
-  /// second window of the same boost does not stack — it is a state, not a
-  /// product.
+  /// Our ATK at [minute]: Sharp Shooting up, a Bus down, both if both — two
+  /// boosts, so two lifts. A second window of the SAME one cannot arise; see
+  /// [start].
   double ourAttackMultAt(int minute) {
     final live = activeAt(minute);
     var mult = 1.0;

@@ -12,6 +12,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:merge_empire_fc/util/event_bus.dart';
 import 'package:merge_empire_fc/data/players.dart' show getPlayerDef, ratioRange;
+import 'package:merge_empire_fc/data/boosts.dart' show getBoost;
 import 'package:merge_empire_fc/engine/boost_engine.dart';
 import 'package:merge_empire_fc/engine/match_tactics.dart' show strategies;
 import 'package:merge_empire_fc/i18n/i18n.dart';
@@ -291,20 +292,61 @@ void main() {
       await _finish(tester, plain);
     });
 
-    testWidgets('TWO ROARS STACK, and the window runs to the later end', (
+    /// **A SECOND ROAR RESTARTS THE FIRST.** Asked for from the couch: "if
+    /// they tap it again and it's only 70% down, it just goes up to 100%
+    /// again — not stacked." The second boost is still spent; what it buys is
+    /// a full window from now, not a second lift on top of the one running.
+    testWidgets('A SECOND ROAR RESTARTS THE WINDOW AND SPENDS ANOTHER', (
       tester,
     ) async {
-      await pumpMatch(tester, _playable(), save: _save(), instance: 'stack');
+      final c = await pumpMatch(
+        tester,
+        _playable(),
+        save: _save(),
+        instance: 'restart',
+      );
+      final state = stateOf(tester);
+      await tester.pump(minuteDurationFor(30));
+      await _call(tester, 'crowd_roar');
+      expect(state.boostWindows, hasLength(1));
+      final held = boostCount(c.read(gameProvider).state, 'crowd_roar');
+
+      await _runTo(tester, state, state.frame.minute + 5);
+      await _call(tester, 'crowd_roar');
+
+      // One window, running a FULL length from the second tap — which is what
+      // sends the aura ring back to whole.
+      expect(state.boostWindows, hasLength(1));
+      final window = state.boostWindows.single;
+      expect(window.fromMinute, state.frame.minute);
+      expect(window.toMinute, state.frame.minute + getBoost('crowd_roar')!.windowMinutes);
+      // And it cost a second one out of the bag.
+      expect(boostCount(c.read(gameProvider).state, 'crowd_roar'), held - 1);
+      // The chip says where that window ends.
+      expect(
+        tester.widget<Text>(find.byKey(const ValueKey('match-boost-until-crowd_roar'))).data,
+        contains("${window.toMinute}'"),
+      );
+      await _finish(tester, state);
+    });
+
+    /// The other half of the same rule: DIFFERENT boosts still run together.
+    testWidgets('A ROAR AND A SHARP SHOOTING RUN TOGETHER', (tester) async {
+      await pumpMatch(
+        tester,
+        _playable(),
+        save: _save(boosts: const {'crowd_roar': 1, 'sharp_shooting': 1}),
+        instance: 'both',
+      );
       final state = stateOf(tester);
       await tester.pump(minuteDurationFor(30));
       await _call(tester, 'crowd_roar');
       await _runTo(tester, state, state.frame.minute + 5);
-      await _call(tester, 'crowd_roar');
-      expect(state.boostWindows.length, 2);
-      // The chip says where the later window ends.
+      await _call(tester, 'sharp_shooting');
+      expect(state.boostWindows, hasLength(2));
       expect(
-        tester.widget<Text>(find.byKey(const ValueKey('match-boost-until-crowd_roar'))).data,
-        contains("${state.boostWindows.last.toMinute}'"),
+        state.boostWindows.map((b) => b.id),
+        containsAll(<String>['crowd_roar', 'sharp_shooting']),
       );
       await _finish(tester, state);
     });

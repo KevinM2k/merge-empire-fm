@@ -2521,6 +2521,12 @@ class MatchScreenState extends ConsumerState<MatchScreen>
     if (frame.finished) return;
     final game = ref.read(gameProvider);
     if (!game.update((s) => spendBoost(s, id))) return;
+    // **ONE WINDOW PER BOOST MEANS ONE PENDING CLOSE PER BOOST.** Tapping a
+    // live one restarts its window (see `MatchBoostState.start`), which leaves
+    // the re-sim queued for the window it replaced pointing at a minute that
+    // closes nothing — and a re-sim is not a no-op, it re-decides the whole
+    // remainder. The new close is scheduled a line below.
+    _pendingResims.removeWhere((r) => r.reason == 'boost:$id');
     _boosts.start(id, _minute, boost.windowMinutes);
     scheduleResimAt(_minute + boost.windowMinutes, 'boost:$id');
     _note(_boostNoteKey(id, live: true), const {});

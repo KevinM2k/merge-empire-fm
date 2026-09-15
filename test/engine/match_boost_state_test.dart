@@ -22,24 +22,31 @@ void main() {
     });
 
     // Boosts stack — they were never one-at-a-time.
-    test('TWO ROARS STACK, UNDER A CAP', () {
+    /// **A SECOND ROAR RESTARTS THE FIRST, it does not pile on top of it.**
+    /// Asked for from the couch, in those terms: "if they tap it again and it's
+    /// only 70% down, it just goes up to 100% again — not stacked."
+    test('A SECOND ROAR RESTARTS THE WINDOW RATHER THAN STACKING', () {
       final s = MatchBoostState()
         ..start('crowd_roar', 40, 25)
         ..start('crowd_roar', 45, 25);
-      // 1.10 * 1.10 = 1.21, under the 1.25 cap.
-      expect(s.ratingMultAt(50), closeTo(1.21, 1e-9));
-      // Only one is live before the second starts.
-      expect(s.ratingMultAt(42), closeTo(1.10, 1e-9));
-      // And only the later one after the first ends.
-      expect(s.ratingMultAt(66), closeTo(1.10, 1e-9));
+      // One window, not two — which is what sends the aura ring back to whole.
+      expect(s.activeAt(50), hasLength(1));
+      expect(s.ratingMultAt(50), closeTo(crowdRoarMult, 1e-9));
+      // It runs from the SECOND tap, so the first window's tail is gone: 45+25.
+      expect(s.activeAt(50).single.fromMinute, 45);
+      expect(s.endOf('crowd_roar'), 70);
+      // And the minute the first one would have covered alone is no longer
+      // covered by anything, because the first window no longer exists.
+      expect(s.ratingMultAt(42), closeTo(1.0, 1e-9));
     });
 
-    test('the cap holds however many are stacked', () {
+    test('however many times it is tapped, it is one window', () {
       final s = MatchBoostState();
       for (var i = 0; i < 6; i++) {
         s.start('crowd_roar', 40, 25);
       }
-      expect(s.ratingMultAt(50), closeTo(maxCrowdRoarStack, 1e-9));
+      expect(s.activeAt(50), hasLength(1));
+      expect(s.ratingMultAt(50), closeTo(crowdRoarMult, 1e-9));
     });
 
     test('Roar and Bus are different axes and do not interfere', () {
@@ -86,8 +93,21 @@ void main() {
       final s = MatchBoostState()
         ..start('crowd_roar', 40, 25)
         ..start('crowd_roar', 50, 25);
+      // The restart's own end, which is the only window there is.
       expect(s.endOf('crowd_roar'), 75);
       expect(s.endOf('park_the_bus'), isNull);
+    });
+
+    /// **DIFFERENT boosts still stack — it is only the same one that cannot.**
+    /// Asked for in the same breath: "they can stack crowd roar and shooting
+    /// target, but not the same one."
+    test('A ROAR AND A SHARP SHOOTING RUN TOGETHER', () {
+      final s = MatchBoostState()
+        ..start('crowd_roar', 40, 25)
+        ..start('sharp_shooting', 45, 25);
+      expect(s.activeAt(50), hasLength(2));
+      expect(s.ratingMultAt(50), closeTo(crowdRoarMult, 1e-9));
+      expect(s.ourAttackMultAt(50), closeTo(sharpShootingAttack, 1e-9));
     });
 
     test('sharp shooting is OUR attack alone, and a bus trims it back', () {
